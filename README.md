@@ -138,6 +138,16 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Playlists become setlists. Re-importing a song updates it in place, and anything the importer had to approximate (road-map directions, odd chord symbols) is reported as a note on the tune.
 - Tunes are stored in SQLite through Drizzle ORM. The library drawer lets you search, filter by setlist, load a tune and delete it. The app remembers the last tune you loaded.
 
+### 📒 Concept passport: practice history with a memory
+- **Every run is kept.**
+  - Each finished Comping Coach run is saved with its rule, move and key. The server grades it 0–5 from your misses and voice-leading leaps and reschedules that concept in that key (spaced repetition: a miss comes back in 10 minutes, clean runs after 1 day, then 3, then further apart). The Coach then tells you what it decided ("graded 5/5 in B♭ · next review tomorrow"). Its "Clean in" list draws on every past session, not just this one.
+  - The Improv Heatmap saves a summary of each pass over the loop, when the loop wraps, when you stop, or when you leave mid-pass: chord tones, tensions, avoid notes, chord tones on the beat, guide-tone landings and held avoid notes. Passes of fewer than 4 notes are skipped.
+- **The passport** (📒 in the sidebar or toolbar):
+  - **Today's practice:** the review queue as a teacher's clipboard. Each item says what's due and how overdue, and **Practise →** opens the Comping Coach on that exact move, in that key, loading the chart you last practised it on if needed.
+  - **Passport pages:** one per concept, the 12 keys round the circle of fifths. Keys you've played clean get an ink wash and a red CLEAN stamp, keys you've tried show your last grade, untouched keys stay faint outlines. Click any key to practise it there.
+  - **Recent solos:** an ink sparkline of chord-tone accuracy per pass, with guide-tone landings as dots.
+- History belongs to the chart: a transposed tune (`someday@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on. The read-only demo saves nothing.
+
 ### 🔬 Engine X-ray: watch it decide, then watch it prove itself
 - **How it decided:** pick a bar (or let it follow the playhead) and read the engine's reasoning as a four-stage pipeline:
   1. **The rule proposes:** every move that touches the bar, with its level and chords. The rules that had nothing to say are listed too.
@@ -222,7 +232,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 120 tests (engine + API), several thousand generated cases
+npm test          # 121 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -317,7 +327,6 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 
 ## Roadmap
 
-- Connect the Comping Coach and heatmap to `/api/practice` and add a "due today" review queue to the UI.
 - Melody capture from MIDI, so imported tunes get the melody check.
 - MusicXML import (melody included, so moves can be melody-checked).
 - Arrangement builder: chain pathways chorus by chorus and export MIDI or MusicXML.

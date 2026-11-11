@@ -32,6 +32,7 @@ import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { lazyWithPreload, whenIdle } from "./lazy";
 import { PanelBoundary } from "./components/PanelBoundary";
+import type { PractiseRequest } from "./components/progress/PracticeDashboard";
 import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
@@ -46,6 +47,7 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
 const CompingCoach = lazyWithPreload(() => import("./components/practice/CompingCoach").then((m) => m.CompingCoach));
 // The X-ray (and, inside it, the Proof tab's fast-check worker) only loads when opened.
+const PracticeDashboard = lazyWithPreload(() => import("./components/progress/PracticeDashboard").then((m) => m.PracticeDashboard));
 const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
 const PracticeMode = lazyWithPreload(() => import("./components/practice/PracticeMode").then((m) => m.PracticeMode));
 
@@ -239,10 +241,52 @@ export function App() {
   }, []);
   const [coachOpen, setCoachOpen] = useState(false);
   const [xrayOpen, setXrayOpen] = useState(false);
+  const [passportOpen, setPassportOpen] = useState(false);
+  // The Coach drills one exact move, in one key. Usually the selected move in the tune's key,
+  // but the review queue can ask for any move (even one the dial isn't showing) in any key.
+  const [coachTarget, setCoachTarget] = useState<{ moveId: string; key?: string } | null>(null);
+  const coachMove = (coachTarget && accepted.find((m) => m.id === coachTarget.moveId)) ?? selected;
   const openCoach = (id?: string) => {
     if (id) setSelectedId(id);
-    if (id || selected) setCoachOpen(true);
+    const target = id ?? selected?.id;
+    if (!target) return;
+    setCoachTarget({ moveId: target });
+    setCoachOpen(true);
   };
+
+  /**
+   * "Practise →" from the passport: open the Coach on that concept, in that key. If it was
+   * last practised on another chart, load that chart first; then pick the exact move (or any
+   * move of the same rule in this tune).
+   */
+  const [pendingPractise, setPendingPractise] = useState<(PractiseRequest & { tuneId: string }) | null>(null);
+  const practiseConcept = async (r: PractiseRequest) => {
+    setPassportOpen(false);
+    const tuneId = r.lastPlace?.tuneId ?? baseTune.id;
+    if (tuneId !== baseTune.id) {
+      try {
+        await loadTune(tuneId);
+      } catch {
+        toast(`Couldn't open the tune you last practised this on, so trying it in ${baseTune.title}.`, { tone: "warn" });
+        setPendingPractise({ ...r, lastPlace: null, tuneId: baseTune.id });
+        return;
+      }
+    }
+    setPendingPractise({ ...r, tuneId });
+  };
+  useEffect(() => {
+    const p = pendingPractise;
+    if (!p || baseTune.id !== p.tuneId) return; // wait until the right chart is on the stand
+    setPendingPractise(null);
+    const move = accepted.find((m) => m.id === p.lastPlace?.moveId) ?? accepted.find((m) => m.ruleId === p.ruleId);
+    if (!move) {
+      toast(`${tune.title} has no spot for that concept. Load a tune where it fits, then open the Coach from its move card.`, { tone: "warn" });
+      return;
+    }
+    setSelectedId(move.id);
+    setCoachTarget({ moveId: move.id, key: p.keyTonic });
+    setCoachOpen(true);
+  }, [pendingPractise, baseTune.id, accepted, tune.title]);
   /**
    * "Practice this move": select it, loop it (one bar of run-up through its resolution),
    * go to Practice Mode, and start the band if it isn't already playing. If it is, the
@@ -309,7 +353,13 @@ export function App() {
     <div className="flex min-h-screen text-ink">
       <SketchFilters />
       <Toaster />
-      <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={DEMO ? undefined : () => setLibraryOpen(true)} />
+      <SideRail
+        playing={playback.status === "playing"}
+        onPlay={playback.toggle}
+        onPractice={() => openCoach()}
+        onLibrary={DEMO ? undefined : () => setLibraryOpen(true)}
+        onProgress={DEMO ? undefined : () => setPassportOpen(true)}
+      />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && !DEMO && (
         <PanelBoundary onClose={() => setLibraryOpen(false)}>
@@ -323,9 +373,22 @@ export function App() {
         />
         </PanelBoundary>
       )}
-      {coachOpen && selected && (
+      {coachOpen && coachMove && (
         <PanelBoundary onClose={() => setCoachOpen(false)}>
-          <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
+          <CompingCoach
+            key={`${coachMove.id}:${coachTarget?.key ?? ""}`}
+            tune={tune}
+            move={coachMove}
+            initialKey={coachTarget?.key}
+            midiStatus={midi.status}
+            onConnectMidi={midi.connect}
+            onClose={() => setCoachOpen(false)}
+          />
+        </PanelBoundary>
+      )}
+      {passportOpen && !DEMO && (
+        <PanelBoundary onClose={() => setPassportOpen(false)}>
+          <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onClose={() => setPassportOpen(false)} />
         </PanelBoundary>
       )}
       {xrayOpen && (
@@ -378,6 +441,16 @@ export function App() {
                 className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
               >
                 📚 Setlist
+              </button>
+            )}
+            {!DEMO && (
+              <button
+                type="button"
+                onClick={() => setPassportOpen(true)}
+                onPointerEnter={() => void PracticeDashboard.preload().catch(() => {})}
+                className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+              >
+                📒 Progress
               </button>
             )}
             <ModeSwitch mode="study" onMode={setMode} />
@@ -469,7 +542,7 @@ export function App() {
             </SketchBox>
 
             <div className="mt-6">
-              <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} />
+              <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} level={level} view={view} />
             </div>
 
             {selected && improvForSelected.length > 0 && (

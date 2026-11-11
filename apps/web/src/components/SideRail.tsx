@@ -32,6 +32,13 @@ const ICONS: Record<string, Draw> = {
     add(rc.circle(20, 20, 34, o(s, { fill: ink.deep, fillStyle: "solid" })));
     add(rc.rectangle(14, 14, 12, 12, o(s + 1, { fill: paper.light, fillStyle: "solid", stroke: paper.light })));
   },
+  /** A little passport: a booklet with a stamp on the cover. */
+  passport: (rc, add, s) => {
+    add(rc.rectangle(10, 6, 20, 28, o(s)));
+    add(rc.line(13, 6, 13, 34, o(s + 1, { strokeWidth: 1.2 })));
+    add(rc.circle(22, 18, 9, o(s + 2, { stroke: "#c2311f", strokeWidth: 1.6 })));
+    add(rc.line(17, 27, 27, 27, o(s + 3, { strokeWidth: 1.2 })));
+  },
   notes: (rc, add, s) => {
     add(rc.rectangle(9, 8, 22, 24, o(s)));
     [15, 20, 25].forEach((y, i) => add(rc.line(13, y, 27, y, o(s + i + 1, { strokeWidth: 1.4 }))));
@@ -63,12 +70,15 @@ export function SideRail({
   onPlay,
   onPractice,
   onLibrary,
+  onProgress,
 }: {
   playing: boolean;
   onPlay: () => void;
   onPractice: () => void;
   /** Omitted in the read-only demo: no library. */
   onLibrary?: () => void;
+  /** Omitted in the read-only demo: no practice history. */
+  onProgress?: () => void;
 }) {
   return (
     <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 md:flex">
@@ -79,6 +89,7 @@ export function SideRail({
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />
       <div className="flex-1" />
+      {onProgress && <RailIcon name="passport" label="My progress (concept passport)" onClick={onProgress} />}
       {onLibrary && <RailIcon name="notes" label="Setlist (library & import)" onClick={onLibrary} />}
     </nav>
   );

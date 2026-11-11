@@ -19,6 +19,7 @@ import { SketchBox, useRough, useSize } from "../../design/rough";
 import { ink, seedOf, VERDICT_COLOR } from "../../design/tokens";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { PenKeyboard } from "./PenKeyboard";
+import { saveImprovRun } from "../../library/practice";
 
 interface Props {
   tune: Tune;
@@ -27,7 +28,13 @@ interface Props {
   playing: boolean;
   /** Fill a fixed-height slot (Practice Mode): no intro text, no mouse keyboard, tape stretches to fit. */
   compact?: boolean;
+  /** Saved with each pass, so the history knows what you were soloing over. */
+  level: number;
+  view: "reharm" | "original";
 }
+
+/** Passes shorter than this aren't worth a history entry (a stray note or two). */
+const MIN_NOTES_TO_SAVE = 4;
 
 interface HeatNote {
   id: number;
@@ -54,7 +61,23 @@ const LABEL: Record<LineNoteEval["verdict"], string> = { "chord-tone": "Chord to
  * Improv heatmap: solo over the backing loop and every note lands on a "loop tape",
  * coloured by what it is over the chord that was sounding.
  */
-export function ImprovHeatmap({ tune, chords, loop, playing, compact = false }: Props) {
+/** The heatmap's numbers for a set of notes: shown under the tape, and saved per pass. */
+function summarise(notes: HeatNote[]) {
+  const total = notes.length || 1;
+  const count = (v: LineNoteEval["verdict"]) => notes.filter((n) => n.ev.verdict === v).length;
+  const pct = (v: LineNoteEval["verdict"]) => Math.round((count(v) / total) * 100);
+  const strong = notes.filter((n) => Math.abs(n.start - Math.round(n.start)) <= 0.15);
+  const strongCT = strong.filter((n) => n.ev.verdict === "chord-tone").length;
+  return {
+    n: notes.length,
+    pct,
+    strong: strong.length ? Math.round((strongCT / strong.length) * 100) : null,
+    landings: notes.filter((n) => n.landing).length,
+    realAvoid: notes.filter((n) => n.ev.verdict === "avoid" && !n.passing && n.end !== null).length,
+  };
+}
+
+export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, level, view }: Props) {
   // In compact mode the tape takes the slot's aspect ratio, so it fills the space without distorting text.
   const [tapeRef, tapeSize] = useSize<HTMLDivElement>();
   const H = compact && tapeSize.w > 0 ? Math.max(110, Math.round((W * tapeSize.h) / tapeSize.w)) : H_DEFAULT;
@@ -74,17 +97,57 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false }: 
   const nextId = useRef(1);
   const open = useRef(new Map<number, number>()); // midi -> note id
 
+  // ── saving: one history entry per pass over the loop ──
+  const notesRef = useRef(notes);
+  notesRef.current = notes;
+  const saveCtx = useRef({ tuneId: tune.id, level, view, loop });
+  saveCtx.current = { tuneId: tune.id, level, view, loop };
+  const savedPasses = useRef(new Set<number>());
+  const savePass = (p: number) => {
+    if (savedPasses.current.has(p)) return;
+    const ns = notesRef.current.filter((n) => n.pass === p);
+    if (ns.length < MIN_NOTES_TO_SAVE) return;
+    savedPasses.current.add(p);
+    const st = summarise(ns);
+    const c = saveCtx.current;
+    void saveImprovRun({
+      tuneId: c.tuneId,
+      level: c.level,
+      view: c.view,
+      loopStartBar: c.loop.startBar,
+      loopEndBar: c.loop.endBar,
+      notes: st.n,
+      chordTonePct: st.pct("chord-tone"),
+      tensionPct: st.pct("tension"),
+      avoidPct: st.pct("avoid"),
+      outsidePct: st.pct("outside"),
+      strongBeatChordTonePct: st.strong,
+      guideToneLandings: st.landings,
+      heldAvoidNotes: st.realAvoid,
+    });
+  };
+  const savePassRef = useRef(savePass);
+  savePassRef.current = savePass;
+  // Leaving mid-pass (switching modes, changing tune) still counts what you played.
+  useEffect(() => () => savePassRef.current(pass.current), []);
+
   // smooth playhead + loop-wrap detection
   useEffect(() => {
     if (!playing) {
       setHead(null);
+      // Stopping ends the pass: save it, and start a fresh one for the next Play.
+      savePassRef.current(pass.current);
+      if (notesRef.current.some((n) => n.pass === pass.current)) pass.current++;
       return;
     }
     let raf = 0;
     const tick = () => {
       const b = player.currentBeat();
       if (b !== null) {
-        if (b < lastBeat.current - 0.5) pass.current++;
+        if (b < lastBeat.current - 0.5) {
+          savePassRef.current(pass.current); // the loop wrapped: that pass is finished
+          pass.current++;
+        }
         lastBeat.current = b;
         setHead(b);
       }
@@ -160,20 +223,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false }: 
     [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, span, loopStart, H],
   );
 
-  const stats = useMemo(() => {
-    const total = notes.length || 1;
-    const count = (v: LineNoteEval["verdict"]) => notes.filter((n) => n.ev.verdict === v).length;
-    const strong = notes.filter((n) => Math.abs(n.start - Math.round(n.start)) <= 0.15);
-    const strongCT = strong.filter((n) => n.ev.verdict === "chord-tone").length;
-    const realAvoid = notes.filter((n) => n.ev.verdict === "avoid" && !n.passing && n.end !== null).length;
-    return {
-      n: notes.length,
-      pct: (v: LineNoteEval["verdict"]) => Math.round((count(v) / total) * 100),
-      strong: strong.length ? Math.round((strongCT / strong.length) * 100) : null,
-      landings: notes.filter((n) => n.landing).length,
-      realAvoid,
-    };
-  }, [notes]);
+  const stats = useMemo(() => summarise(notes), [notes]);
 
   const emit = (type: "on" | "off", note: number) => {
     // on-screen keys go through the same bus as MIDI

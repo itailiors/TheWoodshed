@@ -5,6 +5,7 @@ import {
   generateMoves,
   prettyNote,
   prettySymbol,
+  chroma,
   randomKey,
   transposeTune,
   type ReharmMove,
@@ -12,7 +13,8 @@ import {
   type Tune,
   type VoiceLeadingDiff,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { fetchProgress, onPracticeSaved, saveCoachRun, type CoachRunResult } from "../../library/practice";
 import { player } from "../../audio/player";
 import { SketchBox, SketchRule } from "../../design/rough";
 import { paper, pen, seedOf } from "../../design/tokens";
@@ -27,6 +29,8 @@ interface Props {
   midiStatus: MidiStatus;
   onConnectMidi: () => void;
   onClose: () => void;
+  /** Start in this key (the review queue asks for a specific one). Defaults to the tune's key. */
+  initialKey?: string;
 }
 
 interface Attempt {
@@ -38,11 +42,18 @@ interface Attempt {
 const sameMidi = (played: number[], step: { target: { bass: number; upper: number[] } } | undefined) =>
   !!step && JSON.stringify([...played].sort((a, b) => a - b)) === JSON.stringify([step.target.bass, ...step.target.upper].sort((a, b) => a - b));
 
+/** "back in 10 minutes", "next review tomorrow", "next review in 6 days". */
+export function nextReview(intervalDays: number) {
+  if (intervalDays < 1) return `back in ${Math.max(1, Math.round(intervalDays * 24 * 60))} minutes`;
+  if (intervalDays < 1.5) return "next review tomorrow";
+  return `next review in ${Math.round(intervalDays)} days`;
+}
+
 const DEGREE_LABEL: Record<string, string> = { "3": "3rd?", b3: "♭3rd?", "4": "4th?", "7": "7th?", b7: "♭7th?", bb7: "°7?", "6": "6th?" };
 
 /** The comping coach: play the move, get red-pen feedback, then do it again in another key. */
-export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose }: Props) {
-  const [key, setKey] = useState(tune.key.tonic);
+export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose, initialKey }: Props) {
+  const [key, setKey] = useState(initialKey ?? tune.key.tonic);
   const [transfer, setTransfer] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const [stepIdx, setStepIdx] = useState(0);
@@ -50,6 +61,26 @@ export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose }:
   const [lastNotes, setLastNotes] = useState<number[] | null>(null);
   const [pending, setPending] = useState<number[]>([]);
   const [cleanKeys, setCleanKeys] = useState<string[]>([]);
+  /** What the scheduler made of the last finished run (null until saved, or in the demo). */
+  const [savedRun, setSavedRun] = useState<CoachRunResult | null>(null);
+  const runId = useRef(0);
+  const savedRunId = useRef(-1);
+
+  // "Clean in" covers every session, not just this one: start from the saved history.
+  useEffect(() => {
+    let live = true;
+    const load = () =>
+      void fetchProgress().then((p) => {
+        const keys = p?.cleanKeys[move.ruleId];
+        if (live && keys) setCleanKeys((k) => [...new Set([...k, ...keys])].sort((a, b) => chroma(a) - chroma(b)));
+      });
+    load();
+    const off = onPracticeSaved(load);
+    return () => {
+      live = false;
+      off();
+    };
+  }, [move.ruleId]);
 
   const { dtune, steps } = useMemo(() => {
     const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
@@ -58,6 +89,8 @@ export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose }:
   }, [tune, move, key]);
 
   const reset = () => {
+    runId.current++;
+    setSavedRun(null);
     setStepIdx(0);
     setAttempts([]);
     setLastNotes(null);
@@ -87,6 +120,15 @@ export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose }:
   useEffect(() => {
     if (!finished) return;
     if (cleanRun) setCleanKeys((k) => (k.includes(key) ? k : [...k, key]));
+    // Save each finished run exactly once. The server grades it and schedules the review.
+    if (savedRunId.current !== runId.current) {
+      savedRunId.current = runId.current;
+      const thisRun = runId.current;
+      const maxLeap = Math.max(0, ...winning.map((a) => a.vl?.maxLeap ?? 0));
+      void saveCoachRun({ tuneId: tune.id, moveId: move.id, ruleId: move.ruleId, keyTonic: key, misses, leaps, maxLeap }).then(
+        (r) => r && runId.current === thisRun && setSavedRun(r),
+      );
+    }
     if (transfer && cleanRun) {
       const t = setTimeout(() => setKey((k) => randomKey(k)), 2200);
       return () => clearTimeout(t);
@@ -163,6 +205,11 @@ export function CompingCoach({ tune, move, midiStatus, onConnectMidi, onClose }:
                     ? "…and resolve it."
                     : `Strike ${prettySymbol(current.symbol)}${steps.length > 1 ? ` (${stepIdx + 1} of ${steps.length})` : ""}.`}
               </p>
+              {finished && savedRun && (
+                <p className="mt-1 font-hand text-sm text-ink-soft" role="status">
+                  ✎ Saved to your passport: graded {savedRun.grade}/5 in {prettyNote(savedRun.review.keyTonic)} · {nextReview(savedRun.review.intervalDays)}
+                </p>
+              )}
             </section>
 
             <PenKeyboard

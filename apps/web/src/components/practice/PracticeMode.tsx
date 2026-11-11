@@ -239,7 +239,7 @@ export function PracticeMode(p: Props) {
 
       {/* ── heatmap tape: bottom third ── */}
       <div className="min-h-0 flex-1">
-        <ImprovHeatmap key={tune.id} compact tune={tune} chords={chords} loop={loop} playing={playing} />
+        <ImprovHeatmap key={tune.id} compact tune={tune} chords={chords} loop={loop} playing={playing} level={p.level} view={p.view} />
       </div>
 
       {playback.source === "synth" && <p className="sr-only">Piano samples unreachable; using a synth.</p>}

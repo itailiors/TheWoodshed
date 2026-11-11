@@ -159,12 +159,23 @@ describe("library mode: import + practice history", () => {
 
     const progress = await call(app, "/api/practice/progress");
     expect(progress.body.cleanKeys).toEqual({ "dominant.tritoneSub": ["Bb"] });
+    expect(progress.body.places).toEqual({ "dominant.tritoneSub": { tuneId: someday.id, moveId: "dominant.tritoneSub@4.1" } });
     expect(progress.body.concepts.map((x: any) => [x.keyTonic, x.attempts])).toEqual([
       ["Ab", 1],
       ["Bb", 2],
       ["D", 1],
     ]);
     expect((await call(app, `/api/practice/sessions/${sessionId}/end`, json("POST"))).status).toBe(200);
+  });
+
+  it("the review queue says where each concept was last practised, so the app can open the Coach on it", async () => {
+    const { dueConcepts } = await import("../src/db/practiceRepo");
+    // two days on: D (missed, retry in 10 min) and Ab (not clean) are due; Bb (clean twice, 3-day gap) isn't yet
+    const due = dueConcepts(new Date(Date.now() + 2 * 86_400_000));
+    expect(due.map((d) => d.keyTonic).sort()).toEqual(["Ab", "D"]);
+    for (const d of due) expect(d.lastPlace).toEqual({ tuneId: someday.id, moveId: "dominant.tritoneSub@4.1" });
+    // and right now nothing is due yet (the earliest retry is 10 minutes out)
+    expect((await call(app, "/api/practice/due")).body).toEqual([]);
   });
 
   it("records improv runs and returns them per tune", async () => {

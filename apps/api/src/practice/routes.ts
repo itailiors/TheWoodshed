@@ -91,8 +91,11 @@ export function practiceRoutes({ enabled }: { enabled: boolean }) {
   r.get("/progress", async (c) => {
     const p = await repo();
     const now = new Date();
+    const concepts = p.allConcepts();
     return c.json({
-      concepts: p.allConcepts(),
+      concepts,
+      /** Where each concept was last practised, so any passport key can open the Coach there. */
+      places: Object.fromEntries([...new Set(concepts.map((x) => x.ruleId))].map((id) => [id, p.lastPlaceFor(id)])),
       cleanKeys: p.cleanKeys(),
       due: p.dueConcepts(now),
       recentImprov: p.recentImprovRuns(c.req.query("tuneId")),

@@ -1,5 +1,5 @@
 import { chroma, KEYS } from "@reharm/theory-core";
-import { and, asc, desc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lte } from "drizzle-orm";
 import { gradeAttempt, scheduleReview } from "../practice/srs";
 import { getDb, persist } from "./client";
 import { coachAttempts, conceptReviews, improvRuns, practiceSessions, tunes } from "./schema";
@@ -108,8 +108,29 @@ export function cleanKeys(): Record<string, string[]> {
   return out;
 }
 
+/**
+ * Where a concept was last practised (any key): the tune and the move. Lets the review queue
+ * say "open the Coach on this" rather than just naming a rule. Null if the only runs were on
+ * tunes since deleted (their link is set to null).
+ */
+export function lastPlaceFor(ruleId: string): { tuneId: string; moveId: string } | null {
+  const row = getDb()
+    .select({ tuneId: coachAttempts.tuneId, moveId: coachAttempts.moveId })
+    .from(coachAttempts)
+    .where(and(eq(coachAttempts.ruleId, ruleId), isNotNull(coachAttempts.tuneId)))
+    .orderBy(desc(coachAttempts.createdAt), desc(coachAttempts.id))
+    .get();
+  return row?.tuneId ? { tuneId: row.tuneId, moveId: row.moveId } : null;
+}
+
+/** Concepts whose review is due, oldest first, each with where it was last practised. */
 export function dueConcepts(now = new Date()) {
-  return getDb().select().from(conceptReviews).where(lte(conceptReviews.dueAt, now)).orderBy(asc(conceptReviews.dueAt)).all();
+  const rows = getDb().select().from(conceptReviews).where(lte(conceptReviews.dueAt, now)).orderBy(asc(conceptReviews.dueAt)).all();
+  const places = new Map<string, ReturnType<typeof lastPlaceFor>>();
+  return rows.map((r) => {
+    if (!places.has(r.ruleId)) places.set(r.ruleId, lastPlaceFor(r.ruleId));
+    return { ...r, lastPlace: places.get(r.ruleId) ?? null };
+  });
 }
 
 export function allConcepts() {
