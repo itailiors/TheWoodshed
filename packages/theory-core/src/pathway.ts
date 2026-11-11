@@ -5,6 +5,8 @@ export const overlaps = (a: ReharmMove, b: ReharmMove) =>
   a.spanBeats.start < b.spanBeats.end && b.spanBeats.start < a.spanBeats.end;
 
 const VARIETY_PENALTY = 1.5;
+/** Each dial level a move belongs to is worth this many voice-leading points. */
+const LEVEL_WEIGHT = 2;
 
 /**
  * How many moves the dial allows, per phrase window (in bars).
@@ -30,8 +32,8 @@ const windowOf = (m: ReharmMove, windowBars: number) => Math.floor((m.span.from.
 
 /**
  * Pick a set of non-overlapping moves for a "spice level".
- * Phrase by phrase, the best moves win: higher level first, then voice-leading score,
- * with a penalty for repeating a rule already used (keeps arrangements varied),
+ * Phrase by phrase, the best moves win. Rank = level × 2 + voice-leading score
+ * − 1.5 for every earlier use of the same rule (keeps arrangements varied),
  * until the phrase's quota (DENSITY) is used up.
  * `forced` moves (user picks) always go in first and count toward their phrase's quota.
  */
@@ -48,11 +50,12 @@ export function buildPathway(moves: ReharmMove[], maxLevel: number, forced: Reha
     let budget = maxMoves - chosen.filter((c) => windowOf(c, windowBars) === w).length;
     const candidates = pool.filter((m) => windowOf(m, windowBars) === w);
     while (budget > 0) {
-      const used = new Set(chosen.map((c) => c.ruleId));
-      const rank = (m: ReharmMove) => m.checks.score - (used.has(m.ruleId) ? VARIETY_PENALTY : 0);
+      // level matters, but so do voice leading and variety: each repeat of a rule costs more
+      const uses = (rule: string) => chosen.filter((c) => c.ruleId === rule).length;
+      const rank = (m: ReharmMove) => m.level * LEVEL_WEIGHT + m.checks.score - VARIETY_PENALTY * uses(m.ruleId);
       const best = candidates
         .filter((m) => !chosen.some((c) => overlaps(c, m)))
-        .sort((a, b) => b.level - a.level || rank(b) - rank(a) || a.priority - b.priority || a.spanBeats.start - b.spanBeats.start)[0];
+        .sort((a, b) => rank(b) - rank(a) || b.level - a.level || a.priority - b.priority || a.spanBeats.start - b.spanBeats.start)[0];
       if (!best) break;
       chosen.push(best);
       budget--;

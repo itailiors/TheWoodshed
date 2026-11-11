@@ -1,24 +1,26 @@
+import type { ReharmMove } from "@reharm/theory-core";
 import { useState } from "react";
+import { DEMO, demoExplanation, type Explanation } from "../demo";
 import { SketchBox } from "../design/rough";
 import { seedOf, wash } from "../design/tokens";
 
-interface Explanation {
-  summary: string;
-  deepDive: string;
-  recreateRule: string;
-  model: string;
-  cached: boolean;
-}
-
 const memo = new Map<string, Explanation>();
 
-/** Asks the API (and Claude behind it) to turn the engine's facts into a written lesson. */
-export function DeepDive({ tuneId, moveId }: { tuneId: string; moveId: string }) {
+/** Asks the API (and Claude behind it) to turn the engine's facts into a written lesson. In the demo build, reads the pre-written one. */
+export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove }) {
+  const moveId = move.id;
   const [state, setState] = useState<{ kind: "idle" | "loading" | "error"; error?: string }>({ kind: "idle" });
   const [data, setData] = useState<Explanation | null>(memo.get(moveId) ?? null);
 
   const load = async (fresh = false) => {
     setState({ kind: "loading" });
+    if (DEMO) {
+      const e = await demoExplanation(move);
+      memo.set(moveId, e);
+      setData(e);
+      setState({ kind: "idle" });
+      return;
+    }
     try {
       const res = await fetch("/api/explain", {
         method: "POST",
@@ -70,9 +72,11 @@ export function DeepDive({ tuneId, moveId }: { tuneId: string; moveId: string })
           <span>
             Written by {data.model} from the engine's computed facts{data.cached ? " · cached" : ""}
           </span>
-          <button type="button" onClick={() => load(true)} disabled={state.kind === "loading"} className="cursor-pointer underline">
-            {state.kind === "loading" ? "rewriting…" : "rewrite"}
-          </button>
+          {!DEMO && (
+            <button type="button" onClick={() => load(true)} disabled={state.kind === "loading"} className="cursor-pointer underline">
+              {state.kind === "loading" ? "rewriting…" : "rewrite"}
+            </button>
+          )}
         </p>
         {state.kind === "error" && <p className="text-sm text-wash-brick">{state.error}</p>}
       </section>

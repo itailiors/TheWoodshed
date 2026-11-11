@@ -67,7 +67,8 @@ export function SideRail({
   playing: boolean;
   onPlay: () => void;
   onPractice: () => void;
-  onLibrary: () => void;
+  /** Omitted in the read-only demo: no library. */
+  onLibrary?: () => void;
 }) {
   return (
     <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 md:flex">
@@ -78,7 +79,7 @@ export function SideRail({
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />
       <div className="flex-1" />
-      <RailIcon name="notes" label="Setlist (library & import)" onClick={onLibrary} />
+      {onLibrary && <RailIcon name="notes" label="Setlist (library & import)" onClick={onLibrary} />}
     </nav>
   );
 }

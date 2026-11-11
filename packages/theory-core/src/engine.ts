@@ -1,7 +1,8 @@
 import { chordTones, guideTones, symbol } from "./chords";
 import { classifyNote } from "./melody";
 import { pitchClass } from "./pitch";
-import { RULES, type Proposal, type Rule } from "./rules";
+import type { Proposal, Rule } from "./ruleKit";
+import { RULES } from "./ruleset";
 import { absBeat, eventSpan, melodyIn, posFromAbs, sortedHarmony } from "./time";
 import type { ChordEvent, MelodyCheck, ReharmMove, RejectedMove, Tune } from "./types";
 import { motionCost, nearestMotion } from "./voiceLeading";
@@ -19,7 +20,7 @@ export function generateMoves(tune: Tune, rules: Rule[] = RULES): GenerateResult
 
   chords.forEach((chord, index) => {
     rules.forEach((rule, priority) => {
-      const p = rule.propose({ tune, index, chord, prev: chords[index - 1], next: chords[index + 1] });
+      const p = rule.propose({ tune, index, chord, prev: chords[index - 1], next: chords[index + 1], afterNext: chords[index + 2] });
       if (!p) return;
       const move = buildMove(tune, rule, priority, p, chords, index);
       const avoid = move.checks.melody.filter((m) => m.verdict === "avoid");

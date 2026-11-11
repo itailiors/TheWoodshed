@@ -19,19 +19,26 @@ export type DB = SQLJsDatabase<typeof schema>;
 
 let sqlite: Database;
 let db: DB;
+/** The file this process opened. Every save goes back to it (never to the default path). */
+let openedFile: string | null = null;
 
 export async function openDb(file = DB_FILE): Promise<DB> {
   const SQL = await initSqlJs();
   sqlite = existsSync(file) ? new SQL.Database(readFileSync(file)) : new SQL.Database();
   sqlite.run("PRAGMA foreign_keys = ON;");
   db = drizzle(sqlite, { schema });
+  openedFile = file;
   migrate(db, { migrationsFolder: MIGRATIONS });
-  persist(file);
+  persist();
   return db;
 }
 
+export const currentDbFile = () => openedFile;
+
 /** Write the in-memory database to disk (temp file + rename, so a crash never leaves half a file). */
-export function persist(file = DB_FILE) {
+export function persist() {
+  if (!openedFile) throw new Error("persist() called before openDb()");
+  const file = openedFile;
   mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, Buffer.from(sqlite.export()));

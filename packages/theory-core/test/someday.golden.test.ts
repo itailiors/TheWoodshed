@@ -44,7 +44,7 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     expect(r!.reasons[0]).toMatch(/♭9 of Dm7♭5/);
   });
 
-  it("L2 keeps one move per 4-bar phrase; L3 allows two, so all four blueprint moves appear", () => {
+  it("L2 keeps one move per 4-bar phrase; L3 allows two and brings in L3 colour", () => {
     const l2 = buildPathway(accepted, 2).map((m) => [m.span.from.bar, m.ruleId]);
     expect(l2).toEqual([
       [2, "functional.secondaryTwoFive"],
@@ -53,14 +53,24 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     const l3 = buildPathway(accepted, 3).map((m) => [m.span.from.bar, m.ruleId]);
     expect(l3).toEqual([
       [2, "functional.secondaryTwoFive"],
-      [4, "dominant.tritoneSub"],
-      [6, "voicing.upperStructureBVI"],
+      [3, "chromatic.commonToneDiminished"],
+      [6, "dominant.tritoneSub"],
       [8, "gospel.halfStepTurnaround"],
     ]);
   });
 
+  it("L4 uses the advanced pack on the ii–V–I in bars 7–8 (Coltrane)", () => {
+    const coltrane = buildPathway(accepted, 4).find((m) => m.ruleId === "symmetric.coltraneSubstitution")!;
+    expect(coltrane.span.from.bar).toBe(7);
+    expect(coltrane.chords.map(symbol)).toEqual(["Cm7", "Db7", "Gbmaj7", "A7", "Dmaj7", "F7"]);
+  });
+
   it("maps scales like the blueprint table", () => {
-    const chords = realize(someday, buildPathway(accepted, 3));
+    // the blueprint's own Bebop path: ii–V into the IV, tritone sub, upper structure
+    const blueprint = ["functional.secondaryTwoFive@2.1", "dominant.tritoneSub@4.1", "voicing.upperStructureBVI@6.1"].map(
+      (id) => accepted.find((m) => m.id === id)!,
+    );
+    const chords = realize(someday, buildPathway(accepted, 0, blueprint));
     const top = Object.fromEntries(improvMap(someday, chords).map((e) => [symbol(e.chord), e.scales[0]?.name]));
     expect(top["Fm9"]).toBe("F Dorian");
     expect(top["Bb7(b9)"]).toBe("B♭ half-whole diminished");

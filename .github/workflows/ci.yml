@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck (theory-core, api, web)
+        run: npm run typecheck
+
+      - name: Tests (property-based engine suite + API)
+        run: npm test
+
+      - name: Database migrations match the Drizzle schema
+        run: |
+          npm run db:generate -w @reharm/api
+          if [ -n "$(git status --porcelain apps/api/drizzle)" ]; then
+            echo "::error::apps/api/src/db/schema.ts changed without a migration. Run 'npm run db:generate -w @reharm/api' and commit apps/api/drizzle."
+            git status --porcelain apps/api/drizzle
+            exit 1
+          fi
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Build read-only demo
+        run: npm run build:demo
+
+      - name: Upload demo build
+        uses: actions/upload-artifact@v4
+        with:
+          name: reharm-lab-demo
+          path: apps/web/dist-demo
+          retention-days: 14

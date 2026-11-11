@@ -66,6 +66,17 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 - **Voice-led voicings:** each chord is voiced in the inversion that moves least from the previous one, so you hear the half-step motion the engine describes (Fm9 → B♭7(♭9) → E♭maj7 plays as 60 63 67 68 → 59 62 65 68 → 58 62 65 67).
 - **Ghost A/B:** flip Original/Reharm or turn the dial *while it plays*. The new chords take over on the next beat. Loop just the selected move, change the tempo, and follow the pencil playhead.
 
+### 🧠 The rule library
+Eleven deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
+
+| Level | Rules |
+|---|---|
+| L1–L2 | Secondary / related ii–V · tritone substitution · upper-structure triad · passing diminished (♯I°7 as a rootless V7♭9; chromatic ♭iii°7) |
+| L3 | Gospel half-step turnaround · backdoor ii–V (iv–♭VII7) · ♭VI–♭VII–I · borrowed iv (minor plagal) · common-tone diminished |
+| L4 | Coltrane substitution (three key centres a major 3rd apart) · constant structure (the target's shape planed down by half steps) |
+
+Every move goes through the same melody filter and voice-leading score, and comes with its own explanation and a key-independent rule.
+
 ### 🎹 MIDI Comping Coach
 - Asks you to play the selected move (e.g. *Fm9 → B♭7(♭9) → E♭maj7*) and listens to your keyboard through the Web MIDI API. Without a keyboard, click keys on screen.
 - **Strike diffing:** each chord you play is compared with the engine's reference voicing. It catches missing guide tones, wrong notes (and names avoid-note clashes), and accepts rootless voicings and other inversions.
@@ -140,10 +151,27 @@ Music theory has invariants, so the engine is tested against them rather than ag
 
 A **golden test** pins the engine to the original design simulation of *Someday My Prince Will Come* (bars 1–8), so the moves, the melody-based rejections, both pathways and the scale map are all exact.
 
+Each of the advanced rules has its own invariant, checked on random diatonic progressions in every key: the backdoor ♭7 falls to the tonic's 5th, ascending passing °7s equal a rootless V7♭9 of the target, Coltrane's key centres form an augmented triad with each dominant resolving down a 5th, and constant-structure chords keep the target's exact shape.
+
+The **API suite** runs the server in-process against throwaway databases. It covers:
+- iReal import and setlists;
+- payload validation;
+- practice history and the review scheduler (also property-tested);
+- demo mode, which is shown to refuse every write and never call Anthropic.
+
+A setup file points the default database path at a sentinel, so tests can never write to your real library.
+
 ```bash
-npm test          # 69 tests, several thousand generated cases
+npm test          # 94 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
+
+**CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push:
+1. typecheck;
+2. both test suites;
+3. a check that the SQL migrations match the Drizzle schema;
+4. the web build;
+5. the demo build, uploaded as an artifact.
 
 ---
 
@@ -164,6 +192,35 @@ npm run dev                              # web on :5173, API on :8787
 | `PORT` | no | `8787` (Vite forwards `/api` here) |
 
 Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm test`, `npm run typecheck`.
+
+### Read-only demo (for the portfolio)
+
+| Command | What it gives you |
+|---|---|
+| `npm run build:demo` | A **static** site in `apps/web/dist-demo` that can be hosted anywhere (relative paths), with no server and no API key |
+| `npm run dev:demo` | The same, locally |
+| API with `DEMO_MODE=true` (or `--demo`) | For a hosted server: no database, every write refused (403) |
+
+In both forms, the demo:
+- shows only the bundled demo tune;
+- serves Deep Dives from `apps/api/demo/explanations.json`, so visitors never trigger an Anthropic call.
+
+The shipped file holds the engine's own text. To replace it with Claude-written Deep Dives, run this once with your key:
+
+```bash
+npm run demo:generate -w @reharm/api
+```
+
+It uses the explanation cache, so re-runs only pay for new moves. Add `-- --template` to rebuild it from engine text without the API. Re-run it whenever the rules change; a test fails if any demo move is missing from the file.
+
+### Practice history
+
+`practice_sessions`, `coach_attempts`, `improv_runs` and `concept_reviews` record:
+- coach runs per concept and key (the "clean in" keys);
+- heatmap summaries;
+- a spaced-repetition schedule (SM-2 style) per concept per key.
+
+Endpoints are under `/api/practice`: `sessions`, `coach-attempts`, `improv-runs`, `progress`, `due`.
 
 A MIDI keyboard is optional: every practice tool also takes clicks on the on-screen keys. Web MIDI works in Chromium-based browsers (Chrome, Edge).
 
@@ -200,7 +257,8 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 
 ## Roadmap
 
-- More rule packs: backdoor ii–V, passing diminished, Coltrane substitution, modal interchange, constant structure.
+- Connect the Comping Coach and heatmap to `/api/practice` and add a "due today" review queue to the UI.
+- Melody capture from MIDI, so imported tunes get the melody check.
 - MusicXML import (melody included, so moves can be melody-checked).
 - Arrangement builder: chain pathways chorus by chorus and export MIDI or MusicXML.
 - Spaced-repetition "Concept Passport" across tunes.

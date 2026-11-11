@@ -17,6 +17,8 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LibraryDrawer } from "./components/library/LibraryDrawer";
 import { fetchTune } from "./library/api";
+import { DEMO } from "./demo";
+import { pen } from "./design/tokens";
 import { usePlayback } from "./audio/usePlayback";
 import { ImprovCard } from "./components/ImprovCard";
 import { TransportBar } from "./components/TransportBar";
@@ -63,6 +65,7 @@ export function App() {
   }, []);
   useEffect(() => {
     const last = store.get(LAST_TUNE);
+    if (DEMO) return; // the demo only ever shows the bundled tune
     if (last && last !== someday.id) loadTune(last).catch(() => {/* library offline: keep the reference tune */});
   }, [loadTune]);
   const bars = formBars(tune);
@@ -171,8 +174,8 @@ export function App() {
   return (
     <div className="flex min-h-screen text-ink">
       <SketchFilters />
-      <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={() => setLibraryOpen(true)} />
-      {libraryOpen && <LibraryDrawer currentId={tune.id} onLoad={loadTune} onClose={() => setLibraryOpen(false)} />}
+      <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={DEMO ? undefined : () => setLibraryOpen(true)} />
+      {libraryOpen && !DEMO &&<LibraryDrawer currentId={tune.id} onLoad={loadTune} onClose={() => setLibraryOpen(false)} />}
       {coachOpen && selected && (
         <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
       )}
@@ -199,13 +202,19 @@ export function App() {
         {/* ── toolbar ── */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setLibraryOpen(true)}
-              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-            >
-              📚 Setlist
-            </button>
+            {DEMO ? (
+              <span className="-rotate-2 rounded border-2 border-dashed px-2 font-marker text-sm" style={{ borderColor: pen.red, color: pen.red }}>
+                Read-only demo
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLibraryOpen(true)}
+                className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+              >
+                📚 Setlist
+              </button>
+            )}
             <ModeSwitch mode="study" onMode={setMode} />
             <LevelDial level={level} onChange={changeLevel} />
           </div>

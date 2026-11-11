@@ -13,6 +13,12 @@
       "runtimeArgs": ["run", "dev", "-w", "@reharm/api"],
       "port": 8787,
       "url": "http://localhost:8787"
+    },
+    {
+      "name": "web-demo-build",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "preview", "-w", "@reharm/web", "--", "--outDir", "dist-demo", "--port", "4174", "--strictPort"],
+      "port": 4174
     }
   ]
 }

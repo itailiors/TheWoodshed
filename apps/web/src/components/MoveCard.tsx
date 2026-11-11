@@ -130,7 +130,7 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
                 🎹 Practice this move
               </button>
             </div>
-            <DeepDive tuneId={tuneId} moveId={move.id} />
+            <DeepDive tuneId={tuneId} move={move} />
 
             {alternatives.length > 0 && (
               <section>

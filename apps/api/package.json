@@ -5,9 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
+    "dev:demo": "tsx watch src/index.ts --demo",
     "start": "tsx src/index.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "demo:generate": "tsx scripts/generate-demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.8.0",
@@ -22,6 +25,8 @@
     "@types/node": "^22.15.0",
     "@types/sql.js": "^1.4.11",
     "drizzle-kit": "^0.31.11",
-    "tsx": "^4.19.4"
+    "fast-check": "^4.1.1",
+    "tsx": "^4.19.4",
+    "vitest": "^3.2.0"
   }
 }

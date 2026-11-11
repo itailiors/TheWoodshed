@@ -8,75 +8,11 @@ import {
   resolvesDownFifth,
   symbol,
 } from "./chords";
-import { chroma, parseNote, prettyNote as pn, prettySymbol, simplifyNote, transpose } from "./pitch";
-import type { ChordEvent, MoveCategory, MoveText, Quality, Tune, VoiceMotion } from "./types";
+import { chroma, prettySymbol, simplifyNote, transpose } from "./pitch";
+import { chain, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import { nearestMotion } from "./voiceLeading";
 
-export type NewChord = Omit<ChordEvent, "id" | "at">;
-
-export interface RuleContext {
-  tune: Tune;
-  index: number;
-  chord: ChordEvent;
-  prev?: ChordEvent;
-  next?: ChordEvent;
-}
-
-export interface Proposal {
-  /** How many consecutive chords (from ctx.index) the move replaces. Default 1. */
-  replaceCount?: number;
-  chords: NewChord[];
-  title: string;
-  level: 1 | 2 | 3 | 4;
-  category: MoveCategory;
-  styleTags: string[];
-  voicingHint?: { lh: string[]; rh: string[] };
-  voiceLeading?: VoiceMotion[];
-  facts: Record<string, unknown>;
-  text: MoveText;
-}
-
-export interface Rule {
-  id: string;
-  name: string;
-  propose(ctx: RuleContext): Proposal | null;
-}
-
-// ── helpers ────────────────────────────────────────────────────────────
-const ps = (c: Parameters<typeof symbol>[0]) => prettySymbol(symbol(c));
-
-const tidy = (n: string) => {
-  const s = parseNote(n);
-  return Math.abs(s.alter) >= 2 || ["Cb", "Fb", "E#", "B#"].includes(n) ? simplifyNote(n) : n;
-};
-
-function mk(root: string, quality: Quality, beats: number, extensions: string[] = [], alterations: string[] = []): NewChord {
-  return { root, quality, beats, extensions, alterations };
-}
-
-/** Split a chord's duration in two (3 beats → 2+1, 4 → 2+2). */
-function splitBeats(total: number): [number, number] | null {
-  if (total < 2) return null;
-  if (total % 2 === 0) return [total / 2, total / 2];
-  const a = Math.ceil((total * 2) / 3);
-  return [a, total - a];
-}
-
-const romanName = (c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|m7|m6|7|6)$/, "");
-
-function chain(voices: string[], chords: Array<Parameters<typeof chordTones>[0]>): string {
-  return voices
-    .map((v) => {
-      const path = [v];
-      let cur = v;
-      for (const c of chords) {
-        cur = nearestMotion(cur, chordTones(c)).to;
-        path.push(cur);
-      }
-      return path.map(pn).join(" → ");
-    })
-    .join(", ");
-}
+export type { NewChord, Proposal, Rule, RuleContext } from "./ruleKit";
 
 // ── Rule 1: secondary ii–V (approach) / related ii ─────────────────────
 export const secondaryTwoFive: Rule = {
@@ -262,4 +198,4 @@ export const gospelTurnaround: Rule = {
   },
 };
 
-export const RULES: Rule[] = [secondaryTwoFive, tritoneSub, upperStructure, gospelTurnaround];
+export const CORE_RULES: Rule[] = [secondaryTwoFive, tritoneSub, upperStructure, gospelTurnaround];
