@@ -78,7 +78,11 @@ Eleven deterministic rules. Each works in intervals relative to its local target
 Every move goes through the same melody filter and voice-leading score, and comes with its own explanation and a key-independent rule.
 
 ### 🎹 MIDI Comping Coach
-- Asks you to play the selected move (e.g. *Fm9 → B♭7(♭9) → E♭maj7*) and listens to your keyboard through the Web MIDI API. Without a keyboard, click keys on screen.
+- **Its own page:** a third mode next to Study and Practice. Open it from the mode switch, a move card's **Drill the voicing**, the sidebar, or the passport.
+  - **Left:** what to drill. The moves in your reharm, every other move the engine found in the tune (including ones the dial isn't showing), and the reviews that are due.
+  - **Centre:** the drill.
+  - **Right:** this concept's 12-key passport page. Keys are stamped as you play them clean, the key you're drilling is ringed, and clicking a key drills it there.
+- Asks you to play the move (e.g. *Fm9 → B♭7(♭9) → E♭maj7*) and listens to your keyboard through the Web MIDI API. Without a keyboard, click keys on screen.
 - **Strike diffing:** each chord you play is compared with the engine's reference voicing. It catches missing guide tones, wrong notes (and names avoid-note clashes), and accepts rootless voicings and other inversions.
 - **Voice-leading diffing:** between chords it pairs your right-hand voices and checks that each moves by step, comparing your total movement with the engine's.
 - **Teacher's red pen:** hand-drawn circles where a 3rd or 7th should be, crosses on wrong notes, a big checkmark for a clean, smooth strike, and written comments in the margin.
@@ -121,7 +125,7 @@ Every move goes through the same melody filter and voice-leading score, and come
   - the band keeps playing across the switch;
   - with the View Transitions API, the lead sheet and title glide from one layout to the other while the rest cross-fades (skipped under reduced motion, and never allowed to hold up the switch);
   - **Practice this move** jumps straight into Practice Mode looping that move, counting in if the band wasn't already playing. If it was, the playhead jumps into the new loop at once;
-  - **Drill the voicing** opens the Comping Coach.
+  - **Drill the voicing** opens the Comping Coach page on that move.
 
 ### ✍️ Claude-powered Deep Dive
 - One click turns a move into a short lesson: a summary, a 150–260-word deep dive (function, voice leading, how to hear and play it) and a key-independent rule.
@@ -143,7 +147,7 @@ Every move goes through the same melody filter and voice-leading score, and come
   - Each finished Comping Coach run is saved with its rule, move and key. The server grades it 0–5 from your misses and voice-leading leaps and reschedules that concept in that key (spaced repetition: a miss comes back in 10 minutes, clean runs after 1 day, then 3, then further apart). The Coach then tells you what it decided ("graded 5/5 in B♭ · next review tomorrow"). Its "Clean in" list draws on every past session, not just this one.
   - The Improv Heatmap saves a summary of each pass over the loop, when the loop wraps, when you stop, or when you leave mid-pass: chord tones, tensions, avoid notes, chord tones on the beat, guide-tone landings and held avoid notes. Passes of fewer than 4 notes are skipped.
 - **The passport** (📒 in the sidebar or toolbar):
-  - **Today's practice:** the review queue as a teacher's clipboard. Each item says what's due and how overdue, and **Practise →** opens the Comping Coach on that exact move, in that key, loading the chart you last practised it on if needed.
+  - **Today's practice:** the review queue as a teacher's clipboard. Each item says what's due and how overdue, and **Practise →** opens the Comping Coach page on that exact move, in that key, loading the chart you last practised it on if needed.
   - **Passport pages:** one per concept, the 12 keys round the circle of fifths. Keys you've played clean get an ink wash and a red CLEAN stamp, keys you've tried show your last grade, untouched keys stay faint outlines. Click any key to practise it there.
   - **Recent solos:** an ink sparkline of chord-tone accuracy per pass, with guide-tone landings as dots.
 - History belongs to the chart: a transposed tune (`someday@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on. The read-only demo saves nothing.

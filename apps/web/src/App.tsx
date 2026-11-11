@@ -45,7 +45,7 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 // Split out of the main bundle: each is only needed after a click (or on a return visit
 // straight into Practice Mode), and all three are prefetched once the page is idle.
 const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
-const CompingCoach = lazyWithPreload(() => import("./components/practice/CompingCoach").then((m) => m.CompingCoach));
+const CoachPage = lazyWithPreload(() => import("./components/coach/CoachPage").then((m) => m.CoachPage));
 // The X-ray (and, inside it, the Proof tab's fast-check worker) only loads when opened.
 const PracticeDashboard = lazyWithPreload(() => import("./components/progress/PracticeDashboard").then((m) => m.PracticeDashboard));
 const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
@@ -201,7 +201,8 @@ export function App() {
   const midi = useMidi();
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
-      return localStorage.getItem("reharm.mode") === "practice" ? "practice" : "study";
+      const saved = localStorage.getItem("reharm.mode");
+      return saved === "practice" || saved === "coach" ? saved : "study";
     } catch {
       return "study";
     }
@@ -221,6 +222,7 @@ export function App() {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!document.startViewTransition || reduce) return commit();
     if (m === "practice") await PracticeMode.preload().catch(() => {});
+    if (m === "coach") await CoachPage.preload().catch(() => {});
     // The browser runs the update only after it has captured the old screen. If it can't
     // render a frame (a backgrounded or embedded tab), that never happens, so after a short
     // wait we switch anyway and drop the animation: the mode change must never hang on it.
@@ -239,19 +241,15 @@ export function App() {
       vt.skipTransition();
     }, 400);
   }, []);
-  const [coachOpen, setCoachOpen] = useState(false);
   const [xrayOpen, setXrayOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
-  // The Coach drills one exact move, in one key. Usually the selected move in the tune's key,
-  // but the review queue can ask for any move (even one the dial isn't showing) in any key.
+  // The Coach page opens on one exact move, in one key. Usually the selected move in the
+  // tune's key, but the review queue can ask for any move (even one the dial isn't showing).
   const [coachTarget, setCoachTarget] = useState<{ moveId: string; key?: string } | null>(null);
-  const coachMove = (coachTarget && accepted.find((m) => m.id === coachTarget.moveId)) ?? selected;
   const openCoach = (id?: string) => {
     if (id) setSelectedId(id);
-    const target = id ?? selected?.id;
-    if (!target) return;
-    setCoachTarget({ moveId: target });
-    setCoachOpen(true);
+    setCoachTarget({ moveId: id ?? selected?.id ?? "" });
+    void setMode("coach");
   };
 
   /**
@@ -285,8 +283,8 @@ export function App() {
     }
     setSelectedId(move.id);
     setCoachTarget({ moveId: move.id, key: p.keyTonic });
-    setCoachOpen(true);
-  }, [pendingPractise, baseTune.id, accepted, tune.title]);
+    void setMode("coach");
+  }, [pendingPractise, baseTune.id, accepted, tune.title, setMode]);
   /**
    * "Practice this move": select it, loop it (one bar of run-up through its resolution),
    * go to Practice Mode, and start the band if it isn't already playing. If it is, the
@@ -305,7 +303,7 @@ export function App() {
     prefetchAudio();
     whenIdle(() => {
       void PracticeMode.preload().catch(() => {});
-      void CompingCoach.preload().catch(() => {});
+      void CoachPage.preload().catch(() => {});
       if (!DEMO) void LibraryDrawer.preload().catch(() => {});
     });
   }, []);
@@ -317,10 +315,29 @@ export function App() {
     setSelectedId(null);
     setTempo(baseTune.tempo);
     setLoopSelection(false);
-    setCoachOpen(false);
   }, [baseTune]);
 
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
+
+  if (mode === "coach") {
+    return (
+      <Suspense fallback={<Inking label="Opening the Coach" />}>
+        <Toaster />
+        <PanelBoundary onClose={() => void setMode("study")}>
+          <CoachPage
+            key={`${baseTune.id}:${coachTarget?.moveId ?? ""}:${coachTarget?.key ?? ""}`}
+            tune={tune}
+            accepted={accepted}
+            pathway={pathway}
+            initial={{ moveId: coachTarget?.moveId || selected?.id || null, key: coachTarget?.key }}
+            midi={midi}
+            onMode={setMode}
+            onPractise={(r) => void practiseConcept(r)}
+          />
+        </PanelBoundary>
+      </Suspense>
+    );
+  }
 
   if (mode === "practice") {
     return (
@@ -371,19 +388,6 @@ export function App() {
             if (id === baseTune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
           }}
         />
-        </PanelBoundary>
-      )}
-      {coachOpen && coachMove && (
-        <PanelBoundary onClose={() => setCoachOpen(false)}>
-          <CompingCoach
-            key={`${coachMove.id}:${coachTarget?.key ?? ""}`}
-            tune={tune}
-            move={coachMove}
-            initialKey={coachTarget?.key}
-            midiStatus={midi.status}
-            onConnectMidi={midi.connect}
-            onClose={() => setCoachOpen(false)}
-          />
         </PanelBoundary>
       )}
       {passportOpen && !DEMO && (

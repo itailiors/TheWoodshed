@@ -335,6 +335,15 @@ export class AudioEngine {
     this.instrument?.triggerAttackRelease(freqs, seconds, Tone.now() + 0.03 + delay, 0.6);
   }
 
+  /**
+   * Run `cb` on screen at the moment a `playNotes(…, delay)` call made now is heard: same
+   * offset, scheduled on the audio clock via Tone.Draw (the next animation frame at or after
+   * that time), so pictures and sound stay together however busy the page is.
+   */
+  atAudioTime(cb: () => void, delay: number) {
+    Tone.getDraw().schedule(cb, Tone.now() + 0.03 + delay);
+  }
+
   noteOn(midi: number) {
     this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), Tone.now() + 0.01, 0.6);
   }

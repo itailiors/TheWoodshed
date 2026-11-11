@@ -84,7 +84,7 @@ export function SideRail({
     <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 md:flex">
       <RailIcon name="menu" label="Menu" />
       <RailIcon name="keyboard" label="Reharm Engine" active />
-      <RailIcon name="practice" label="Comping coach (selected move)" onClick={onPractice} />
+      <RailIcon name="practice" label="Comping Coach (opens its own page)" onClick={onPractice} />
       <RailIcon name="settings" label="Settings" />
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />

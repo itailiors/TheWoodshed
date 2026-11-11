@@ -224,9 +224,27 @@ class Player {
     this.engine?.playNotes(midis, seconds, delay);
   }
 
-  async playSequence(voicings: number[][], secondsEach = 1.2) {
+  private auditionToken = 0;
+
+  /**
+   * Play voicings one after another (the Coach's "hear the move"). `onStep(i)` fires as
+   * chord i is heard, in sync with the audio, and `onStep(null)` once the last one has rung.
+   * Starting another audition (or `cancelAudition`) silences the old one's callbacks.
+   */
+  async playSequence(voicings: number[][], secondsEach = 1.2, onStep?: (i: number | null) => void) {
     await this.init();
-    voicings.forEach((v, i) => this.engine?.playNotes(v, secondsEach * 1.1, i * secondsEach));
+    const token = ++this.auditionToken;
+    const step = (i: number | null) => () => token === this.auditionToken && onStep?.(i);
+    voicings.forEach((v, i) => {
+      this.engine?.playNotes(v, secondsEach * 1.1, i * secondsEach);
+      if (onStep) this.engine?.atAudioTime(step(i), i * secondsEach);
+    });
+    if (onStep) this.engine?.atAudioTime(step(null), voicings.length * secondsEach + 0.15);
+  }
+
+  /** Stop reporting steps for the audition in progress (its notes still ring out). */
+  cancelAudition() {
+    this.auditionToken++;
   }
 
   /** On-screen keys: sound while held. */

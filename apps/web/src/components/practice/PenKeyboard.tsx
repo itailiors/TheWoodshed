@@ -139,6 +139,8 @@ export function PenKeyboard({ low = 36, high = 84, target = [], played = [], pen
           <rect
             key={`hit${k.midi}`}
             data-midi={k.midi}
+            // test hook (like data-midi): the hint is drawn by Rough.js, so mark it in the DOM too
+            data-target={target.includes(k.midi) || undefined}
             x={k.x}
             y={TOP}
             width={k.black ? BW : WW}
