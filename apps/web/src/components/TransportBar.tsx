@@ -1,11 +1,13 @@
 import type { PlaybackStatus } from "../audio/usePlayback";
 import type { InstrumentSource } from "../audio/player";
+import type { BandSource } from "../audio/band";
 import { midiName, type MidiStatus } from "../midi/useMidi";
 import { TrioMixer } from "./TrioMixer";
 
 interface Props {
   status: PlaybackStatus;
   source: InstrumentSource | null;
+  bandSource?: { bass: BandSource; drums: BandSource } | null;
   onToggle: () => void;
   tempo: number;
   onTempo: (bpm: number) => void;
@@ -25,7 +27,7 @@ const MIDI_TEXT: Record<MidiStatus, string> = {
 };
 
 /** Play / tempo / loop / MIDI, styled as pencil marks in the lead sheet's margin. */
-export function TransportBar({ status, source, onToggle, tempo, onTempo, loopSelection, onLoopSelection, canLoopSelection, midi }: Props) {
+export function TransportBar({ status, source, bandSource = null, onToggle, tempo, onTempo, loopSelection, onLoopSelection, canLoopSelection, midi }: Props) {
   const playing = status === "playing";
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-marker">
@@ -37,7 +39,7 @@ export function TransportBar({ status, source, onToggle, tempo, onTempo, loopSel
         className="flex cursor-pointer items-center gap-2 rounded-full border-2 border-ink bg-ink px-4 py-1 text-paper-light shadow-[2px_2px_0_var(--color-ink-faint)] transition-transform hover:-rotate-1 disabled:cursor-wait disabled:opacity-70"
       >
         <span aria-hidden>{playing ? "■" : status === "loading" ? "…" : "▶"}</span>
-        {playing ? "Stop" : status === "loading" ? "Loading piano" : "Play"}
+        {playing ? "Stop" : status === "loading" ? "Loading the band" : "Play"}
       </button>
 
       <TrioMixer />
@@ -81,6 +83,12 @@ export function TransportBar({ status, source, onToggle, tempo, onTempo, loopSel
 
       {status === "error" && <span className="text-sm text-wash-brick">Audio couldn't start. See the console.</span>}
       {source === "synth" && <span className="text-xs text-ink-faint">(piano samples unreachable, so this is a synth fallback)</span>}
+      {bandSource && (bandSource.bass === "synth" || bandSource.drums === "synth") && (
+        <span className="text-xs text-ink-faint">
+          ({[bandSource.bass === "synth" && "bass", bandSource.drums === "synth" && "drum"].filter(Boolean).join(" and ")} samples unreachable,
+          using synths)
+        </span>
+      )}
     </div>
   );
 }

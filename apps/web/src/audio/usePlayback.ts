@@ -8,6 +8,7 @@ export type PlaybackStatus = "idle" | "loading" | "playing" | "error";
 export function usePlayback(arrangement: Arrangement, tempo: number) {
   const [status, setStatus] = useState<PlaybackStatus>("idle");
   const [source, setSource] = useState<InstrumentSource | null>(null);
+  const [bandSource, setBandSource] = useState(player.bandSource);
   const [position, setPosition] = useState<TimePos | null>(null);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export function usePlayback(arrangement: Arrangement, tempo: number) {
     try {
       setStatus("loading");
       setSource(await player.init());
+      setBandSource(player.bandSource);
       player.update(arrangement, tempo);
       await player.play();
       setStatus("playing");
@@ -52,5 +54,5 @@ export function usePlayback(arrangement: Arrangement, tempo: number) {
     }
   }, [arrangement, tempo]);
 
-  return { status, source, position, toggle };
+  return { status, source, bandSource, position, toggle };
 }

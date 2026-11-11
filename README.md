@@ -94,12 +94,19 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Three ink-doodle toggles (piano, upright bass, snare with brushes) sit next to Play in both modes. A muted instrument fades to pencil grey under a red-pen slash. In Practice Mode, keys `1` `2` `3` toggle them, and the mix is remembered.
 - **Bass**, generated in `theory-core` from the tune's feel:
   - swing and jazz waltz get a **walking line**: the root on each downbeat, chord tones in between (the smoothest of every candidate line wins) and a chromatic approach a half step into the next chord;
+  - the walk is then humanized: it leans on 2 and 4 (on 1 in a waltz), sometimes approaches a change with an eighth-note **triplet pickup** (a ghosted rake, then a two-step chromatic run), and sometimes **drops a beat**, letting the previous note ring. The variations are seeded per tune, so the line repeats as written;
   - ballad, bossa and straight eighths get a **two-feel**: root on 1, the 5th on 3.
-- **Drums**, synthesized with Tone.js so no samples load:
-  - a metallic ride playing "ding, ding-a-ding" with the swung skip note;
-  - a hi-hat chick on 2 and 4 (2 and 3 in a waltz);
-  - a continuous pink-noise brush sweep on every beat;
-  - a feathered kick.
+- **Drums**:
+  - a ride playing "ding, ding-a-ding": quarter notes full, the swung skip note ghosted;
+  - a strongly accented foot chick on 2 and 4 (2 and 3 in a waltz);
+  - occasional ghosted snare notes on the triplet partials;
+  - a feathered kick and a quiet brush-sweep texture.
+- **Real samples, with fallbacks**:
+  - the upright is the General MIDI acoustic bass from [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts) (MusyngKite, then FluidR3, then FatBoy);
+  - the kit is a GM kit from [WebAudioFont](https://github.com/surikov/webaudiofontdata) (FluidR3, then JCLive, then SB Live): kick, snare, ride, closed and pedal hi-hat. The app fetches each file as text and decodes only its embedded MP3, never running the file's script;
+  - if every source fails, the old synths take over, so Play always works, and the transport bar says so;
+  - check each soundfont's licence before any commercial use.
+- **Micro-timing**: every bass and drum strike is pushed or dragged by up to ±15 ms, on a triangular spread so most land close to the grid, and its velocity varies slightly. Both change on every pass of the loop.
 - While the bass player is in, the app's piano drops its left-hand bass and comps rootless. Mute the bass and the left hand comes back. Mute the piano and you're comping with a bass-and-drums duo.
 
 ### ✍️ Claude-powered Deep Dive
@@ -126,7 +133,7 @@ Every move goes through the same melody filter and voice-leading score, and come
 | Theory engine | TypeScript, no runtime dependencies (`packages/theory-core`) |
 | UI | React 19, Vite, Tailwind CSS v4 |
 | "Living lead sheet" design | **Rough.js** (seeded hand-drawn shapes), SVG turbulence / displacement filters (ink wobble, watercolour washes), Google Fonts *Kalam*, *Architects Daughter* and *Noto Music* |
-| Audio | **Tone.js** (Transport, Part, Sampler) with the Salamander Grand Piano samples; synthesized bass (MonoSynth) and brush kit (MetalSynth, NoiseSynth, MembraneSynth) |
+| Audio | **Tone.js** (Transport, Part, Sampler): Salamander Grand Piano, GM acoustic bass (midi-js-soundfonts) and a GM drum kit (WebAudioFont), with synth fallbacks |
 | Input | **Web MIDI API**, with hot-plug support and a shared note bus for MIDI and on-screen keys |
 | API | **Hono** on Node, **Anthropic SDK** (Claude, structured outputs, prompt caching) |
 | Storage | **SQLite** via **Drizzle ORM** on **sql.js** (WebAssembly: no native build), committed migrations, atomic writes to `apps/api/data/reharm.sqlite` |
@@ -175,7 +182,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 104 tests (engine + API), several thousand generated cases
+npm test          # 111 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

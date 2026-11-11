@@ -6,7 +6,12 @@ import {
   bassLine,
   bassStyleFor,
   drumPattern,
+  HAT_ACCENT,
   hatBeats,
+  humanizeWalk,
+  RIDE_BACKBEAT,
+  SWING_SKIP,
+  walkingAccent,
   rideOffsets,
   twoFeelBass,
   walkingBass,
@@ -143,5 +148,104 @@ describe("drums", () => {
         }
       }),
     );
+  });
+});
+
+describe("humanized walk", () => {
+  const walk = (tune: Parameters<typeof sortedHarmony>[0], feel = {}) => {
+    const chords = sortedHarmony(tune);
+    const strict = walkingBass(chords, tune.meter[0]);
+    return { chords, strict, human: humanizeWalk(strict, tune.meter[0], feel) };
+  };
+
+  it("never touches a downbeat, keeps notes in order, and still approaches every chord by a half step", () => {
+    fc.assert(
+      fc.property(progressionArb, fc.string(), (tune, seed) => {
+        const { strict, human } = walk(tune, { seed, tripletChance: 0.6, dropChance: 0.5 });
+        const anchors = (ns: typeof strict) => ns.filter((n) => n.role === "anchor").map((n) => [n.beat, n.midi]);
+        expect(anchors(human)).toEqual(anchors(strict));
+        for (let i = 1; i < human.length; i++) expect(human[i].beat).toBeGreaterThan(human[i - 1].beat);
+        human.forEach((n, i) => {
+          if (n.role !== "anchor") return;
+          const before = human[i - 1] ?? human[human.length - 1];
+          if (strict.length > 1) expect(Math.abs(before.midi - n.midi)).toBe(1);
+        });
+        for (const n of human) {
+          expect(n.midi).toBeGreaterThanOrEqual(BASS_LOW);
+          expect(n.midi).toBeLessThanOrEqual(BASS_HIGH);
+        }
+      }),
+    );
+  });
+
+  it("writes a triplet as a ghost rake plus a two-step chromatic run, on the triplet grid", () => {
+    fc.assert(
+      fc.property(progressionArb, fc.string(), (tune, seed) => {
+        const { human } = walk(tune, { seed, tripletChance: 1, dropChance: 0 });
+        human.forEach((n, i) => {
+          if (n.role !== "ghost") return;
+          const [run, approach] = [human[i + 1], human[i + 2]];
+          expect(run.role).toBe("triplet");
+          expect(run.beat - n.beat).toBeCloseTo(1 / 3);
+          expect(approach.beat - n.beat).toBeCloseTo(2 / 3);
+          expect(run.midi - approach.midi).toBe(approach.midi - (human[i + 3] ?? human[0]).midi);
+          expect(n.vel).toBeLessThan(run.vel);
+        });
+      }),
+    );
+  });
+
+  it("holds the note before a dropped beat for two beats, so the time never goes silent", () => {
+    fc.assert(
+      fc.property(progressionArb, fc.string(), (tune, seed) => {
+        const { human } = walk(tune, { seed, tripletChance: 0, dropChance: 1 });
+        for (let i = 1; i < human.length; i++) {
+          const gap = human[i].beat - human[i - 1].beat;
+          expect(human[i - 1].dur).toBeGreaterThanOrEqual(gap - 0.1);
+        }
+      }),
+    );
+  });
+
+  it("accents 2 and 4 in 4/4, and is the identity on pitches with no variations", () => {
+    expect(walkingAccent(1, 4)).toBeGreaterThan(walkingAccent(0, 4));
+    expect(walkingAccent(3, 4)).toBeGreaterThan(walkingAccent(2, 4));
+    fc.assert(
+      fc.property(progressionArb, (t) => {
+        const { strict, human } = walk(t, { tripletChance: 0, dropChance: 0 });
+        expect(human.map((n) => [n.beat, n.midi])).toEqual(strict.map((n) => [n.beat, n.midi]));
+      }),
+    );
+    expect(walkingAccent(0, 3)).toBeGreaterThan(walkingAccent(1, 3)); // a waltz leans on 1
+  });
+
+  it("is repeatable for a seed and different across seeds", () => {
+    const a = walk(someday, { seed: "x", tripletChance: 0.5, dropChance: 0.3 }).human;
+    const b = walk(someday, { seed: "x", tripletChance: 0.5, dropChance: 0.3 }).human;
+    expect(a).toEqual(b);
+    const seeds = ["a", "b", "c", "d", "e", "f"].map((s) => JSON.stringify(walk(someday, { seed: s, tripletChance: 0.5, dropChance: 0.3 }).human));
+    expect(new Set(seeds).size).toBeGreaterThan(1);
+  });
+});
+
+describe("drum dynamics", () => {
+  it("ghosts the skip note under the ride quarters, and accents the hi-hat", () => {
+    const ride = rideOffsets("swing", 4);
+    const beats = ride.filter((r) => Number.isInteger(r.at));
+    const skips = ride.filter((r) => !Number.isInteger(r.at));
+    expect(Math.min(...beats.map((r) => r.vel))).toBeGreaterThan(Math.max(...skips.map((r) => r.vel)) * 2);
+    expect(HAT_ACCENT).toBeGreaterThan(RIDE_BACKBEAT);
+  });
+
+  it("puts ghost snare notes only on swung triplet partials, softly", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(3, 4), fc.integer({ min: 1, max: 32 }), fc.string(), (bpb, bars, seed) => {
+        for (const s of drumPattern("swing", bpb, bars, seed).filter((h) => h.voice === "snare")) {
+          expect(s.beat % 1).toBeCloseTo(SWING_SKIP);
+          expect(s.vel).toBeLessThan(0.3);
+        }
+      }),
+    );
+    expect(drumPattern("bossa", 4, 16, "x").some((h) => h.voice === "snare")).toBe(false);
   });
 });

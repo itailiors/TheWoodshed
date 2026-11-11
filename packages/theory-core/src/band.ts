@@ -17,7 +17,12 @@ export interface BassNote {
   /** Beats. */
   dur: number;
   vel: number;
-  role: "anchor" | "chord-tone" | "approach";
+  /**
+   * anchor: the downbeat of a chord; chord-tone: the middle of the bar; approach: the
+   * chromatic lead-in; triplet: the inner note of a triplet pickup; ghost: a dead,
+   * barely-pitched note (the rake into a triplet).
+   */
+  role: "anchor" | "chord-tone" | "approach" | "triplet" | "ghost";
 }
 
 /** Upright range we write in: E1 (open E string) up to D3. */
@@ -161,14 +166,93 @@ export function twoFeelBass(chords: BassChord[], beatsPerBar: number): BassNote[
   return out;
 }
 
-export function bassLine(tune: Pick<Tune, "feel" | "meter">, chords: BassChord[]): BassNote[] {
+// ── humanizing ──────────────────────────────────────────────────────────
+
+/** A small seeded PRNG (mulberry32), so "random" variations repeat exactly for a given tune. */
+export function seededRandom(seed: string | number): () => number {
+  let h = 2166136261;
+  for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+  let a = h >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/**
+ * How hard the bassist digs in on each beat of the bar. In 4/4 the line leans on 2 and 4
+ * (with the hi-hat); in a waltz the downbeat carries the bar and 2 and 3 are lighter.
+ */
+export function walkingAccent(beatInBar: number, beatsPerBar: number): number {
+  if (beatsPerBar === 3) return [0.82, 0.68, 0.72][beatInBar] ?? 0.7;
+  if (beatsPerBar === 4) return [0.74, 0.82, 0.72, 0.82][beatInBar] ?? 0.74;
+  return beatInBar % 2 === 1 ? 0.8 : 0.72;
+}
+
+export interface WalkFeel {
+  /** Seed for the variations (the tune id is a good one). */
+  seed?: string | number;
+  /** Chance that a chord change is approached with an eighth-note triplet pickup. */
+  tripletChance?: number;
+  /** Chance that a middle chord tone is left out, the note before it held through. */
+  dropChance?: number;
+}
+
+/**
+ * Turn a strict quarter-note walk into something a bassist would play:
+ *  - velocities follow the beat (accents on 2 and 4 in 4/4);
+ *  - now and then the lead-in to a chord change becomes a triplet: a dead "rake" of the
+ *    previous note, then a two-step chromatic run into the target (E, E♭ → D);
+ *  - now and then a middle chord tone drops out and the previous note rings for two beats.
+ * Downbeats are never touched, and every chord is still approached by a half step.
+ */
+export function humanizeWalk(line: BassNote[], beatsPerBar: number, feel: WalkFeel = {}): BassNote[] {
+  const { seed = "walk", tripletChance = 0.2, dropChance = 0.1 } = feel;
+  const rnd = seededRandom(seed);
+  const out: BassNote[] = [];
+  line.forEach((n, i) => {
+    const vel = walkingAccent(mod(Math.round(n.beat), beatsPerBar), beatsPerBar);
+    const prev = out[out.length - 1];
+    const target = (line[i + 1] ?? line[0]).midi;
+    const side = n.midi - target; // ±1 for an approach note
+
+    if (n.role === "approach" && Math.abs(side) === 1 && prev && rnd() < tripletChance) {
+      const run = n.midi + side; // a whole step from the target, same side
+      if (run >= BASS_LOW && run <= BASS_HIGH) {
+        out.push(
+          { beat: n.beat, midi: prev.midi, dur: 0.28, vel: 0.34, role: "ghost" },
+          { beat: n.beat + 1 / 3, midi: run, dur: 0.3, vel: vel * 0.86, role: "triplet" },
+          { beat: n.beat + 2 / 3, midi: n.midi, dur: 0.32, vel, role: "approach" },
+        );
+        return;
+      }
+    }
+    // A dropped beat: only right after a plain quarter note on the beat before.
+    if (n.role === "chord-tone" && prev && prev.beat === n.beat - 1 && prev.role !== "ghost" && rnd() < dropChance) {
+      prev.dur += 1;
+      return;
+    }
+    out.push({ ...n, vel: n.role === "anchor" ? Math.max(vel, 0.78) : vel });
+  });
+  return out;
+}
+
+export function bassLine(tune: Pick<Tune, "feel" | "meter"> & { id?: string }, chords: BassChord[]): BassNote[] {
   const bpb = tune.meter[0];
-  return bassStyleFor(tune.feel) === "walking" ? walkingBass(chords, bpb) : twoFeelBass(chords, bpb);
+  if (bassStyleFor(tune.feel) === "two-feel") return twoFeelBass(chords, bpb);
+  return humanizeWalk(walkingBass(chords, bpb), bpb, { seed: `${tune.id ?? "tune"}:${chords.length}` });
 }
 
 // ── drums ────────────────────────────────────────────────────────────────
 
-export type DrumVoice = "ride" | "hat" | "brush" | "kick";
+/**
+ * ride: ride cymbal · hat: the foot "chick" (pedal hi-hat, layered with a closed hat for
+ * crispness) · snare: ghosted comping notes · brush: a soft sweep texture · kick: feathered.
+ */
+export type DrumVoice = "ride" | "hat" | "snare" | "brush" | "kick";
 
 export interface DrumHit {
   beat: number;
@@ -201,24 +285,42 @@ export function rideOffsets(feel: Tune["feel"], beatsPerBar: number): { at: numb
     ]);
   }
   const hats = new Set(hatBeats(beatsPerBar));
-  if (feel === "ballad") return beats.map((b) => ({ at: b, vel: hats.has(b) ? 0.38 : 0.3 }));
-  // swing / waltz: quarter notes, the backbeats accented, and a skip note after 2 (and 4).
+  if (feel === "ballad") return beats.map((b) => ({ at: b, vel: hats.has(b) ? 0.42 : 0.34 }));
+  // swing / waltz: quarter notes played full, the backbeats a little harder, and the
+  // swung skip note after 2 (and 4) ghosted well under them.
   const skips = beatsPerBar === 3 ? [1] : beats.filter((b) => b % 2 === 1);
   return beats.flatMap((b) => {
-    const hit = { at: b, vel: hats.has(b) ? 0.62 : 0.5 };
-    return skips.includes(b) ? [hit, { at: b + SWING_SKIP, vel: 0.38 }] : [hit];
+    const hit = { at: b, vel: hats.has(b) ? RIDE_BACKBEAT : RIDE_BEAT };
+    return skips.includes(b) ? [hit, { at: b + SWING_SKIP, vel: RIDE_SKIP }] : [hit];
   });
 }
 
-/** A whole drum part for `bars` bars. */
-export function drumPattern(feel: Tune["feel"], beatsPerBar: number, bars: number): DrumHit[] {
+/** Ride dynamics: the quarter notes carry the time, the skip note is a ghost. */
+export const RIDE_BEAT = 0.68;
+export const RIDE_BACKBEAT = 0.76;
+export const RIDE_SKIP = 0.3;
+/** The foot chick on 2 and 4 is a strong, crisp accent. */
+export const HAT_ACCENT = 0.9;
+
+/**
+ * A whole drum part for `bars` bars. `seed` places the drummer's ghosted snare comping
+ * (a soft note on a swung triplet partial every few bars), so it repeats per tune.
+ */
+export function drumPattern(feel: Tune["feel"], beatsPerBar: number, bars: number, seed: string | number = "drums"): DrumHit[] {
   const out: DrumHit[] = [];
   const ride = rideOffsets(feel, beatsPerBar);
   const hats = hatBeats(beatsPerBar);
+  const rnd = seededRandom(seed);
+  const swung = feel === "swing" || feel === "waltz";
   for (let bar = 0; bar < bars; bar++) {
     const top = bar * beatsPerBar;
     for (const r of ride) out.push({ beat: top + r.at, voice: "ride", vel: r.vel, dur: 0.5 });
-    for (const h of hats) out.push({ beat: top + h, voice: "hat", vel: 0.6, dur: 0.1 });
+    for (const h of hats) out.push({ beat: top + h, voice: "hat", vel: HAT_ACCENT, dur: 0.1 });
+    if (swung && rnd() < 0.3) {
+      // Snare chatter: the "a" of the last beat (a pickup into the next bar) or of beat 2.
+      const at = rnd() < 0.6 ? beatsPerBar - 1 + SWING_SKIP : 1 + SWING_SKIP;
+      out.push({ beat: top + at, voice: "snare", vel: 0.16 + rnd() * 0.1, dur: 0.2 });
+    }
     for (let b = 0; b < beatsPerBar; b++) {
       // A brush sweep across every beat keeps a soft, continuous texture under the ride.
       if (feel !== "bossa" && feel !== "straight8") out.push({ beat: top + b, voice: "brush", vel: b === 0 ? 0.42 : 0.32, dur: 0.95 });

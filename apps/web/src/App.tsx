@@ -245,6 +245,7 @@ export function App() {
                   <TransportBar
                     status={playback.status}
                     source={playback.source}
+                    bandSource={playback.bandSource}
                     onToggle={playback.toggle}
                     tempo={tempo}
                     onTempo={setTempo}

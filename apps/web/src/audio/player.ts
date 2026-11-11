@@ -11,6 +11,7 @@ import {
   type Tune,
 } from "@reharm/theory-core";
 import * as Tone from "tone";
+import { humanTime, humanVel, loadBass, loadDrums, type BandSource, type BassInstrument, type DrumKit } from "./band";
 
 /** Salamander Grand Piano samples (CC-BY 3.0, Alexander Holm), hosted by the Tone.js project. */
 const SALAMANDER_URL = "https://tonejs.github.io/audio/salamander/";
@@ -79,59 +80,12 @@ export function arrange(tune: Tune, chords: ChordEvent[]): NoteEvent[] {
   return events;
 }
 
-// ── band instruments (synthesized: nothing to download) ─────────────────
+// ── band ─────────────────────────────────────────────────────────────────
 
 type Listener = (pos: TimePos | null) => void;
 type Timed<T> = T & { time: string };
 type BassEvent = { midi: number; dur: number; vel: number };
 type DrumEvent = { voice: DrumVoice; dur: number; vel: number };
-
-interface Drums {
-  ride: Tone.MetalSynth;
-  hat: Tone.NoiseSynth;
-  brush: Tone.NoiseSynth;
-  kick: Tone.MembraneSynth;
-}
-
-/** A plucky, woody upright: a filtered triangle with a fast filter envelope. */
-function makeBass(out: Tone.ToneAudioNode): Tone.MonoSynth {
-  const bass = new Tone.MonoSynth({
-    oscillator: { type: "triangle" },
-    envelope: { attack: 0.006, decay: 0.4, sustain: 0.32, release: 0.18 },
-    filter: { type: "lowpass", rolloff: -24, Q: 1.2 },
-    filterEnvelope: { attack: 0.002, decay: 0.16, sustain: 0.25, release: 0.2, baseFrequency: 160, octaves: 2.8 },
-  });
-  bass.volume.value = -5;
-  bass.connect(out);
-  return bass;
-}
-
-/** A brush kit from synths: metallic ride, noise hi-hat, pink-noise brush, feathered kick. */
-function makeDrums(out: Tone.ToneAudioNode): Drums {
-  const ride = new Tone.MetalSynth({
-    envelope: { attack: 0.001, decay: 1.1, release: 0.4 },
-    harmonicity: 5.1,
-    modulationIndex: 24,
-    resonance: 5200,
-    octaves: 1.3,
-  });
-  ride.volume.value = -27;
-  ride.chain(new Tone.Filter(2800, "highpass"), out);
-
-  const hat = new Tone.NoiseSynth({ noise: { type: "white" }, envelope: { attack: 0.001, decay: 0.045, sustain: 0 } });
-  hat.volume.value = -21;
-  hat.chain(new Tone.Filter(7500, "highpass"), out);
-
-  // A long, soft pink-noise swell on every beat: the brush circling on the snare head.
-  const brush = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.09, decay: 0.2, sustain: 0.45, release: 0.18 } });
-  brush.volume.value = -31;
-  brush.chain(new Tone.Filter({ type: "bandpass", frequency: 2600, Q: 0.6 }), out);
-
-  const kick = new Tone.MembraneSynth({ pitchDecay: 0.03, octaves: 3, envelope: { attack: 0.002, decay: 0.28, sustain: 0, release: 0.1 } });
-  kick.volume.value = -16;
-  kick.connect(out);
-  return { ride, hat, brush, kick };
-}
 
 /**
  * One shared player. Each Part is rebuilt whenever the chords change; since they live on
@@ -140,8 +94,8 @@ function makeDrums(out: Tone.ToneAudioNode): Drums {
  */
 class TrioPlayer {
   private instrument: Tone.Sampler | Tone.PolySynth | null = null;
-  private bass: Tone.MonoSynth | null = null;
-  private drums: Drums | null = null;
+  private bass: BassInstrument | null = null;
+  private drums: DrumKit | null = null;
   private part: Tone.Part<Timed<NoteEvent>> | null = null;
   private bassPart: Tone.Part<Timed<BassEvent>> | null = null;
   private drumPart: Tone.Part<Timed<DrumEvent>> | null = null;
@@ -151,6 +105,8 @@ class TrioPlayer {
   private mixListeners = new Set<() => void>();
   private bpb = 3;
   source: InstrumentSource | null = null;
+  /** Whether the bass and drums came up sampled or fell back to synths. */
+  bandSource: { bass: BandSource; drums: BandSource } | null = null;
   /** Who is playing. Replaced (not mutated) on change, so React can compare snapshots. */
   mix: Mix = loadMix();
 
@@ -163,8 +119,12 @@ class TrioPlayer {
       // Bass and drums sit drier than the piano; a little room keeps them in the same club.
       const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).toDestination();
       await Promise.all([reverb.ready, room.ready]);
-      this.bass = makeBass(room);
-      this.drums = makeDrums(room);
+      // The band loads alongside the piano; each falls back to synths on its own.
+      const band = Promise.all([loadBass(room), loadDrums(room)]).then(([bass, drums]) => {
+        this.bass = bass;
+        this.drums = drums;
+        this.bandSource = { bass: bass.source, drums: drums.source };
+      });
       try {
         this.instrument = await new Promise<Tone.Sampler>((resolve, reject) => {
           const timer = setTimeout(() => reject(new Error("sample load timed out")), LOAD_TIMEOUT_MS);
@@ -194,6 +154,7 @@ class TrioPlayer {
       }
       this.instrument.volume.value = -8;
       this.instrument.connect(reverb);
+      await band;
       return this.source!;
     })();
     return this.loading;
@@ -228,23 +189,30 @@ class TrioPlayer {
       inst.triggerAttackRelease(notes, secs(e.dur), time, e.vel);
     }, events).start(0);
 
-    // Bass: walking or two-feel, from theory-core.
-    const bassEvents = bassLine(tune, chords).map((n) => ({ midi: n.midi, dur: n.dur, vel: n.vel, time: ticks(n.beat) }));
+    // Bass and drums: the notes and dynamics come from theory-core (seeded per tune, so a
+    // line repeats as written). The human part is added here, fresh on every pass of the
+    // loop: each strike is pushed or dragged by up to ±15 ms and its velocity varied a little.
+    // The bass walks only the looped chords, so its last lead-in aims at the note the loop
+    // actually returns to (not at the bar after the loop, possibly an octave away).
+    const [loopFrom, loopTo] = [(loop.startBar - 1) * this.bpb, loop.endBar * this.bpb];
+    const looped = chords.filter((c) => {
+      const at = absBeat(c.at, this.bpb);
+      return at >= loopFrom && at < loopTo;
+    });
+    const bassEvents = bassLine(tune, looped.length ? looped : chords).map((n) => ({ midi: n.midi, dur: n.dur, vel: n.vel, time: ticks(n.beat) }));
     this.bassPart?.dispose();
     this.bassPart = new Tone.Part<Timed<BassEvent>>((time, n) => {
       if (!this.bass || !this.mix.bass) return;
-      this.bass.triggerAttackRelease(Tone.Frequency(n.midi, "midi").toFrequency(), secs(n.dur), time, n.vel);
+      this.bass.play(n.midi, secs(n.dur), humanTime(time), humanVel(n.vel, 0.06));
     }, bassEvents).start(0);
 
-    // Drums: ride, hi-hat, brush and feathered kick for the whole form.
-    const hits = drumPattern(tune.feel, this.bpb, formBars(tune)).map((h) => ({ voice: h.voice, dur: h.dur, vel: h.vel, time: ticks(h.beat) }));
+    const hits = drumPattern(tune.feel, this.bpb, formBars(tune), tune.id).map((h) => ({ voice: h.voice, dur: h.dur, vel: h.vel, time: ticks(h.beat) }));
     this.drumPart?.dispose();
     this.drumPart = new Tone.Part<Timed<DrumEvent>>((time, h) => {
-      const d = this.drums;
-      if (!d || !this.mix.drums) return;
-      if (h.voice === "ride") d.ride.triggerAttackRelease(320, secs(h.dur), time, h.vel);
-      else if (h.voice === "kick") d.kick.triggerAttackRelease("C1", secs(h.dur), time, h.vel);
-      else d[h.voice].triggerAttackRelease(secs(h.dur), time, h.vel);
+      if (!this.drums || !this.mix.drums) return;
+      // The brush sweep is a texture, not a strike: it stays on the grid.
+      const at = h.voice === "brush" ? time : humanTime(time);
+      this.drums.hit(h.voice, at, humanVel(h.vel), secs(h.dur));
     }, hits).start(0);
   }
 
@@ -261,8 +229,8 @@ class TrioPlayer {
       // Cut what is ringing so the mute is immediate, not after the release tail.
       const now = Tone.now();
       if (inst === "piano") this.instrument?.releaseAll(now);
-      if (inst === "bass") this.bass?.triggerRelease(now);
-      if (inst === "drums") this.drums?.brush.triggerRelease(now);
+      if (inst === "bass") this.bass?.release(now);
+      if (inst === "drums") this.drums?.release(now);
     }
     this.mixListeners.forEach((l) => l());
   }
@@ -297,8 +265,8 @@ class TrioPlayer {
     const t = Tone.getTransport();
     t.stop();
     this.instrument?.releaseAll();
-    this.bass?.triggerRelease();
-    this.drums?.brush.triggerRelease();
+    this.bass?.release();
+    this.drums?.release();
     this.listeners.forEach((l) => l(null));
   }
 
@@ -310,7 +278,9 @@ class TrioPlayer {
     this.clockId = null;
     for (const p of [this.part, this.bassPart, this.drumPart]) p?.dispose();
     this.part = this.bassPart = this.drumPart = null;
-    for (const node of [this.instrument, this.bass, ...Object.values(this.drums ?? {})]) node?.dispose();
+    this.instrument?.dispose();
+    this.bass?.dispose();
+    this.drums?.dispose();
     this.instrument = this.bass = this.drums = null;
     this.listeners.clear();
     this.mixListeners.clear();
