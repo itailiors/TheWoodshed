@@ -2,6 +2,7 @@ import type { PlaybackStatus } from "../audio/usePlayback";
 import type { InstrumentSource } from "../audio/player";
 import type { BandSource } from "../audio/band";
 import { midiName, type MidiStatus } from "../midi/useMidi";
+import { LoadingLine } from "./LoadingLine";
 import { TrioMixer } from "./TrioMixer";
 
 interface Props {
@@ -42,7 +43,7 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
         {playing ? "Stop" : status === "loading" ? "Loading the band" : "Play"}
       </button>
 
-      <TrioMixer />
+      {status === "loading" ? <LoadingLine /> : <TrioMixer />}
 
       <label className="flex items-center gap-2 text-sm">
         <span>♩ = {tempo}</span>

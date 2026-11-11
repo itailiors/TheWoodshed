@@ -136,7 +136,7 @@ export async function createApp(opts: AppOptions) {
     try {
       return c.json(await explainMove(tune, move, { fresh: !!body.fresh }));
     } catch (err) {
-      if (err instanceof ExplainError) return c.json({ error: err.message }, err.status);
+      if (err instanceof ExplainError) return c.json({ error: err.message, code: err.code }, err.status);
       console.error("[explain] unexpected error", err);
       return c.json({ error: "Unexpected server error. See the API console." }, 502);
     }

@@ -124,6 +124,17 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Playlists become setlists. Re-importing a song updates it in place, and anything the importer had to approximate (road-map directions, odd chord symbols) is reported as a note on the tune.
 - Tunes are stored in SQLite through Drizzle ORM. The library drawer lets you search, filter by setlist, load a tune and delete it. The app remembers the last tune you loaded.
 
+### 🧯 Fails gracefully, loads fast
+- **API down or offline:** a red-pen banner says exactly what's paused (setlist, import, deep dives) and what still works (everything musical, since it all runs in the browser), with a Retry button. One shared health check drives it, and it clears as soon as the API is back.
+- **No Claude key:** Deep Dive doesn't error. It says the engine's own explanation on the card is the full analysis, and how to switch Claude on. The API marks the case with a machine-readable code (`no_key`).
+- **A deleted tune:** if the remembered tune is gone, a toast names it and *Someday* goes back on the stand. If the API is only down, the remembered tune loads as soon as the API returns. Deleting the open tune steps off it at once.
+- **Loading the band:** a sketched ink line fills as the piano, bass and drums arrive, with a red "~" on any instrument that fell back to a synth.
+- **Code-split:**
+  - Tone.js and the band are a 271 kB engine chunk loaded on demand and prefetched when the browser is idle, so the first Play still counts as a user gesture;
+  - Rough.js, the library drawer, the Coach and Practice Mode each have their own chunk;
+  - React has a long-cached vendor chunk;
+  - the critical path dropped from 631 kB to 92 kB of app code plus 223 kB of React (187 kB → 102 kB gzipped).
+
 ---
 
 ## Tech stack

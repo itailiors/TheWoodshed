@@ -14,18 +14,35 @@ import {
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { LibraryDrawer } from "./components/library/LibraryDrawer";
-import { fetchTune } from "./library/api";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { prefetchAudio } from "./audio/player";
+import { fetchTune, LibraryError } from "./library/api";
+import { checkApi, onceOnline } from "./library/apiStatus";
+import { OfflineBanner } from "./components/OfflineBanner";
+import { toast, Toaster } from "./components/Toaster";
 import { DEMO } from "./demo";
 import { pen } from "./design/tokens";
 import { usePlayback } from "./audio/usePlayback";
 import { ImprovCard } from "./components/ImprovCard";
 import { TransportBar } from "./components/TransportBar";
 import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
-import { CompingCoach } from "./components/practice/CompingCoach";
-import { PracticeMode } from "./components/practice/PracticeMode";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
+import { lazyWithPreload, whenIdle } from "./lazy";
+
+// Split out of the main bundle: each is only needed after a click (or on a return visit
+// straight into Practice Mode), and all three are prefetched once the page is idle.
+const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
+const CompingCoach = lazyWithPreload(() => import("./components/practice/CompingCoach").then((m) => m.CompingCoach));
+const PracticeMode = lazyWithPreload(() => import("./components/practice/PracticeMode").then((m) => m.PracticeMode));
+
+/** What a lazy screen shows for the moment its chunk is still arriving. */
+function Inking({ label }: { label: string }) {
+  return (
+    <p role="status" className="fixed inset-0 z-40 grid place-items-center bg-paper/60 font-marker text-lg text-ink-soft">
+      {label}…
+    </p>
+  );
+}
 import { useMidi } from "./midi/useMidi";
 import { LeadSheet } from "./components/LeadSheet";
 import { LevelDial } from "./components/LevelDial";
@@ -37,6 +54,8 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 const FEEL: Record<string, string> = { waltz: "jazz waltz", swing: "swing", bossa: "bossa", ballad: "ballad", straight8: "straight 8ths" };
 
 const LAST_TUNE = "reharm.tune";
+/** Remembered with the id, so "that tune is gone" can name it after it's been deleted. */
+const LAST_TITLE = "reharm.tune.title";
 const store = {
   get: (k: string) => {
     try {
@@ -62,12 +81,40 @@ export function App() {
     const t = id === someday.id ? someday : await fetchTune(id);
     setTune(t);
     store.set(LAST_TUNE, id);
+    store.set(LAST_TITLE, t.title);
   }, []);
+  const backToReference = useCallback((note: string) => {
+    setTune(someday);
+    store.set(LAST_TUNE, someday.id);
+    store.set(LAST_TITLE, someday.title);
+    toast(note, { tone: "warn" });
+  }, []);
+
+  // Reopen the tune that was on the stand last time.
   useEffect(() => {
-    const last = store.get(LAST_TUNE);
     if (DEMO) return; // the demo only ever shows the bundled tune
-    if (last && last !== someday.id) loadTune(last).catch(() => {/* library offline: keep the reference tune */});
-  }, [loadTune]);
+    const last = store.get(LAST_TUNE);
+    const lastTitle = store.get(LAST_TITLE);
+    if (!last || last === someday.id) return;
+    let live = true; // false once this effect is cleaned up (StrictMode runs it twice in dev)
+    let cancelRetry = () => {};
+    const restore = () =>
+      loadTune(last).catch(async (err) => {
+        if (!live) return;
+        if (err instanceof LibraryError && err.status === 404) {
+          backToReference(`${lastTitle ? `“${lastTitle}”` : "The tune you had open"} is no longer in your library, so here's ${someday.title} instead.`);
+        } else if (err instanceof LibraryError && err.unreachable && (await checkApi()) !== "online" && live) {
+          // The API is down (the banner says so). Keep the reference tune for now, and
+          // put the remembered one back on the stand as soon as the API returns.
+          cancelRetry = onceOnline(() => void restore());
+        }
+      });
+    void restore();
+    return () => {
+      live = false;
+      cancelRetry();
+    };
+  }, [loadTune, backToReference]);
   const bars = formBars(tune);
 
   const { accepted, rejected } = useMemo(() => generateMoves(tune), [tune]);
@@ -139,6 +186,17 @@ export function App() {
     if (id || selected) setCoachOpen(true);
   };
 
+  // Once the first paint is done, fetch what the next click will need: the audio engine
+  // (so Play starts inside the click's activation window) and the lazy screens.
+  useEffect(() => {
+    prefetchAudio();
+    whenIdle(() => {
+      void PracticeMode.preload().catch(() => {});
+      void CompingCoach.preload().catch(() => {});
+      if (!DEMO) void LibraryDrawer.preload().catch(() => {});
+    });
+  }, []);
+
   // a new tune resets everything that belonged to the old one
   useEffect(() => {
     setForced([]);
@@ -150,7 +208,9 @@ export function App() {
 
   if (mode === "practice") {
     return (
-      <PracticeMode
+      <Suspense fallback={<Inking label="Setting up the practice room" />}>
+        <Toaster />
+        <PracticeMode
         tune={tune}
         chords={shownChords}
         pathway={pathway}
@@ -167,20 +227,34 @@ export function App() {
         midi={midi}
         onMode={setMode}
         totalBars={bars}
-      />
+        />
+      </Suspense>
     );
   }
 
   return (
     <div className="flex min-h-screen text-ink">
       <SketchFilters />
+      <Toaster />
       <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={DEMO ? undefined : () => setLibraryOpen(true)} />
-      {libraryOpen && !DEMO &&<LibraryDrawer currentId={tune.id} onLoad={loadTune} onClose={() => setLibraryOpen(false)} />}
+      <Suspense fallback={<Inking label="Opening the drawer" />}>
+      {libraryOpen && !DEMO && (
+        <LibraryDrawer
+          currentId={tune.id}
+          onLoad={loadTune}
+          onClose={() => setLibraryOpen(false)}
+          onDeleted={(id, title) => {
+            if (id === tune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
+          }}
+        />
+      )}
       {coachOpen && selected && (
         <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
       )}
+      </Suspense>
 
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-5 md:px-8 md:py-8">
+        <OfflineBanner />
         {/* ── banner ── */}
         <SketchBox seed={11} strokeWidth={2} fill={paper.light} className="mb-5">
           <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">

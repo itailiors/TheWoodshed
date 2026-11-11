@@ -8,10 +8,12 @@ interface Props {
   currentId: string;
   onLoad: (id: string) => Promise<void>;
   onClose: () => void;
+  /** Called after a tune is deleted, so the app can step off it if it was the one open. */
+  onDeleted?: (id: string, title: string) => void;
 }
 
 /** The setlist drawer: your saved tunes, setlists from iReal playlists, and the import box. */
-export function LibraryDrawer({ currentId, onLoad, onClose }: Props) {
+export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) {
   const [tunes, setTunes] = useState<TuneSummary[] | null>(null);
   const [lists, setLists] = useState<Setlist[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -84,8 +86,10 @@ export function LibraryDrawer({ currentId, onLoad, onClose }: Props) {
 
   const remove = async (id: string) => {
     try {
+      const title = tunes?.find((t) => t.id === id)?.title ?? id;
       await deleteTune(id);
       setConfirmDelete(null);
+      onDeleted?.(id, title);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));

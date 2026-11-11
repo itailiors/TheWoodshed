@@ -189,7 +189,7 @@ Not tracked: `apps/api/data/reharm.sqlite` (the local library), `apps/api/.cache
 6. **Deploy the static demo** (any static host; the build uses relative paths) to the portfolio site.
 7. **Polish and debt:**
    - dark mode (tokens are ready);
-   - the main bundle is over 500 kB (Tone.js), so code-split it;
+   - ~~the main bundle is over 500 kB (Tone.js), so code-split it~~ (done: Tone.js is a lazy engine chunk; see the README's "Fails gracefully, loads fast");
    - narrow-screen layouts;
    - a correction UI for iReal chord timing;
    - Playwright end-to-end tests (use the `data-midi` attributes).

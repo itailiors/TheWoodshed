@@ -16,6 +16,7 @@ import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { LeadSheet } from "../LeadSheet";
 import { LevelDial } from "../LevelDial";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
+import { LoadingLine } from "../LoadingLine";
 import { TrioMixer } from "../TrioMixer";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
@@ -156,7 +157,7 @@ export function PracticeMode(p: Props) {
         >
           {playing ? "■ Stop" : playback.status === "loading" ? "… Loading" : "▶ Play"}
         </button>
-        <TrioMixer compact />
+        {playback.status === "loading" ? <LoadingLine /> : <TrioMixer compact />}
         <span className="font-marker">♩ = {p.tempo}</span>
         <LevelDial level={p.level} onChange={p.onLevel} />
         <span className="font-marker text-sm">

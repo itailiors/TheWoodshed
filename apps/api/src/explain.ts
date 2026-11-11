@@ -29,6 +29,8 @@ export class ExplainError extends Error {
   constructor(
     message: string,
     readonly status: 400 | 401 | 404 | 429 | 502 | 503,
+    /** Machine-readable reason for the client ("no_key" lets the UI fall back calmly). */
+    readonly code?: "no_key" | "bad_key" | "rate_limited",
   ) {
     super(message);
   }
@@ -129,11 +131,11 @@ export async function explainMove(tune: Tune, move: ReharmMove, { fresh = false 
     return { ...entry, cached: false };
   } catch (err) {
     if (err instanceof ExplainError) throw err;
-    if (err instanceof Anthropic.AuthenticationError) throw new ExplainError("Anthropic rejected the API key. Check ANTHROPIC_API_KEY in apps/api/.env.", 401);
-    if (err instanceof Anthropic.RateLimitError) throw new ExplainError("Rate limited by the Anthropic API. Wait a moment and retry.", 429);
+    if (err instanceof Anthropic.AuthenticationError) throw new ExplainError("Anthropic rejected the API key. Check ANTHROPIC_API_KEY in apps/api/.env.", 401, "bad_key");
+    if (err instanceof Anthropic.RateLimitError) throw new ExplainError("Rate limited by the Anthropic API. Wait a moment and retry.", 429, "rate_limited");
     if (err instanceof Anthropic.APIError) throw new ExplainError(`Anthropic API error ${err.status ?? ""}: ${err.message}`, 502);
     if (err instanceof Error && /api ?key|auth/i.test(err.message)) {
-      throw new ExplainError("No Anthropic credentials found. Put ANTHROPIC_API_KEY in apps/api/.env and restart the API.", 503);
+      throw new ExplainError("No Anthropic credentials found. Put ANTHROPIC_API_KEY in apps/api/.env and restart the API.", 503, "no_key");
     }
     throw err;
   }

@@ -1,22 +1,42 @@
-import rough from "roughjs";
+import type { RoughSVG } from "roughjs/bin/svg";
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
-export type RoughCanvas = ReturnType<typeof rough.svg>;
+export type RoughCanvas = RoughSVG;
 type Add = (node: SVGElement) => void;
+
+/*
+ * Rough.js arrives as its own small chunk, requested the moment this module loads (so in
+ * parallel with the rest of the app, not after it). The page lays out without it, since
+ * every sketch is an absolutely-positioned overlay, and the ink strokes appear as soon
+ * as it lands. Nothing shifts.
+ */
+let roughLib: typeof import("roughjs").default | null = null;
+const roughReady = import("roughjs").then((m) => {
+  roughLib = m.default;
+});
 
 /**
  * Draw Rough.js shapes into an <g>. The drawing is redone only when deps change,
  * and shapes take a seed, so the sketch stays put between renders.
  */
 export function useRough(gRef: RefObject<SVGGElement | null>, draw: (rc: RoughCanvas, add: Add) => void, deps: unknown[]) {
+  const [ready, setReady] = useState(roughLib !== null);
+  useLayoutEffect(() => {
+    if (ready) return;
+    let live = true;
+    void roughReady.then(() => live && setReady(true));
+    return () => {
+      live = false;
+    };
+  }, [ready]);
   useLayoutEffect(() => {
     const g = gRef.current;
     const svg = g?.ownerSVGElement;
-    if (!g || !svg) return;
+    if (!g || !svg || !roughLib) return;
     while (g.firstChild) g.removeChild(g.firstChild);
-    draw(rough.svg(svg), (n) => g.appendChild(n));
+    draw(roughLib.svg(svg), (n) => g.appendChild(n));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [ready, ...deps]);
 }
 
 export function useSize<T extends HTMLElement>() {
