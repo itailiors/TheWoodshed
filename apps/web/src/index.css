@@ -84,6 +84,23 @@
   }
 }
 
+/* the reharm dial snapping to a new level under the pedal: a quick ink "click" */
+.dial-snap {
+  animation: dial-snap 260ms cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+@keyframes dial-snap {
+  0% {
+    transform: scale(1.18) rotate(-3deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+/* the pedal's needle glides between controller messages (they arrive in steps) */
+.pedal-needle {
+  transition: transform 70ms linear;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-ink-in {
     animation: none;
@@ -91,6 +108,12 @@
   /* no growing/shrinking: the blot just appears on the beat */
   .beat-blot {
     animation: none;
+  }
+  .dial-snap {
+    animation: none;
+  }
+  .pedal-needle {
+    transition: none;
   }
 }
 

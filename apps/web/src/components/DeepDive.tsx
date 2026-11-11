@@ -24,7 +24,7 @@ export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove })
   const load = async (fresh = false) => {
     setState({ kind: "loading" });
     if (DEMO) {
-      const e = await demoExplanation(move, tuneId.includes("@"));
+      const e = await demoExplanation(tuneId, move);
       memo.set(memoKey, e);
       setData(e);
       setState({ kind: "idle" });

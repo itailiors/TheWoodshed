@@ -15,12 +15,13 @@ import type { Playback } from "../../audio/usePlayback";
 import { BeatPulse, CountInDisplay, CountInPicker } from "../BeatPulse";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { LEVELS, seedOf } from "../../design/tokens";
-import { midiName, type MidiStatus } from "../../midi/useMidi";
+import { midiName, useMidiHeld, type MidiStatus } from "../../midi/useMidi";
 import { LeadSheet } from "../LeadSheet";
 import { LevelDial } from "../LevelDial";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { KeyPicker } from "../KeyPicker";
 import { LoadingLine } from "../LoadingLine";
+import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
@@ -41,7 +42,7 @@ interface Props {
   tempo: number;
   onTempo: (bpm: number) => void;
   playback: Playback;
-  midi: { status: MidiStatus; devices: string[]; held: number[]; connect: () => void };
+  midi: { status: MidiStatus; devices: string[]; connect: () => void };
   onMode: (m: AppMode) => void;
   totalBars: number;
   keyControl: { tonic: string; original: string; mode: "major" | "minor"; onChange: (tonic: string) => void };
@@ -190,9 +191,9 @@ export function PracticeMode(p: Props) {
         </span>
         <span className="font-marker text-sm text-ink-soft">
           🎹 {p.midi.status === "connected" ? p.midi.devices[0] : p.midi.status === "requesting" ? "connecting…" : "no MIDI"}
-          {p.midi.held.length > 0 && ` · ${p.midi.held.map(midiName).join(" ")}`}
+          <HeldNotes />
         </span>
-        {p.midi.status !== "connected" && <QwertyToggle compact />}
+        {p.midi.status === "connected" ? <MidiMonitorToggle compact /> : <QwertyToggle compact />}
         <span className="ml-auto hidden gap-3 text-xs text-ink-faint xl:flex" aria-label="Keyboard shortcuts">
           {SHORTCUTS.filter(([k]) => !(keys.enabled && QWERTY_TAKES.has(k))).map(([k, v]) => (
             <span key={k}>
@@ -252,4 +253,10 @@ export function PracticeMode(p: Props) {
       {playback.source === "synth" && <p className="sr-only">Piano samples unreachable; using a synth.</p>}
     </div>
   );
+}
+
+/** Held MIDI keys, subscribed on their own so a key press doesn't re-render Practice Mode. */
+function HeldNotes() {
+  const held = useMidiHeld();
+  return held.length > 0 ? <>{` · ${held.map(midiName).join(" ")}`}</> : null;
 }

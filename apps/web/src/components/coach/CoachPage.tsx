@@ -6,6 +6,7 @@ import { DEMO } from "../../demo";
 import { fetchProgress, onPracticeSaved, type Progress } from "../../library/practice";
 import type { MidiStatus } from "../../midi/useMidi";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
+import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill } from "./CoachDrill";
@@ -107,6 +108,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         >
           🎹 {midi.status === "connected" ? "MIDI connected" : midi.status === "requesting" ? "Connecting…" : "Connect MIDI"}
         </button>
+        {midi.status === "connected" && <MidiMonitorToggle compact />}
         <QwertyToggle compact />
       </header>
 

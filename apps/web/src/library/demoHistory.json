@@ -1,14 +1,31 @@
 {
  "$comment": "Seeded practice history for the read-only demo (three weeks of a plausible player). Times are relative to page load; see demoHistory.ts.",
- "tuneId": "someday-my-prince",
+ "tuneId": "coop-blues",
  "places": {
-  "dominant.tritoneSub": "dominant.tritoneSub@6.1",
-  "functional.secondaryTwoFive": "functional.secondaryTwoFive@2.1",
-  "voicing.upperStructureBVI": "voicing.upperStructureBVI@4.1",
-  "modal.backdoorTwoFive": "modal.backdoorTwoFive@8.1",
-  "chromatic.commonToneDiminished": "chromatic.commonToneDiminished@3.1",
-  "gospel.halfStepTurnaround": "gospel.halfStepTurnaround@8.1",
-  "symmetric.coltraneSubstitution": "symmetric.coltraneSubstitution@7.1"
+  "dominant.tritoneSub": {
+   "tuneId": "coop-blues",
+   "moveId": "dominant.tritoneSub@10.1"
+  },
+  "functional.secondaryTwoFive": {
+   "tuneId": "sunny-side",
+   "moveId": "functional.secondaryTwoFive@2.1"
+  },
+  "voicing.upperStructureBVI": {
+   "tuneId": "coop-blues",
+   "moveId": "voicing.upperStructureBVI@8.3"
+  },
+  "modal.backdoorTwoFive": {
+   "tuneId": "i-got-rhythm",
+   "moveId": "modal.backdoorTwoFive@10.3"
+  },
+  "gospel.halfStepTurnaround": {
+   "tuneId": "coop-blues",
+   "moveId": "gospel.halfStepTurnaround@10.1"
+  },
+  "chromatic.constantStructure": {
+   "tuneId": "coop-blues",
+   "moveId": "chromatic.constantStructure@4.1"
+  }
  },
  "concepts": [
   {
@@ -336,7 +353,7 @@
    "dueInDays": 0.4
   },
   {
-   "ruleId": "chromatic.commonToneDiminished",
+   "ruleId": "gospel.halfStepTurnaround",
    "keyTonic": "Bb",
    "reps": 2,
    "ease": 2.36,
@@ -348,7 +365,7 @@
    "dueInDays": 0.3
   },
   {
-   "ruleId": "chromatic.commonToneDiminished",
+   "ruleId": "gospel.halfStepTurnaround",
    "keyTonic": "Eb",
    "reps": 1,
    "ease": 2.5,
@@ -360,7 +377,7 @@
    "dueInDays": 0.2
   },
   {
-   "ruleId": "chromatic.commonToneDiminished",
+   "ruleId": "gospel.halfStepTurnaround",
    "keyTonic": "F",
    "reps": 1,
    "ease": 2.22,
@@ -372,31 +389,7 @@
    "dueInDays": 0.3
   },
   {
-   "ruleId": "gospel.halfStepTurnaround",
-   "keyTonic": "Bb",
-   "reps": 2,
-   "ease": 2.6,
-   "intervalDays": 3,
-   "attempts": 2,
-   "cleanRuns": 2,
-   "lastGrade": 5,
-   "reviewedDaysAgo": 1.8,
-   "dueInDays": 1.2
-  },
-  {
-   "ruleId": "gospel.halfStepTurnaround",
-   "keyTonic": "F",
-   "reps": 1,
-   "ease": 2.5,
-   "intervalDays": 1,
-   "attempts": 1,
-   "cleanRuns": 1,
-   "lastGrade": 5,
-   "reviewedDaysAgo": 0.6,
-   "dueInDays": 0.4
-  },
-  {
-   "ruleId": "symmetric.coltraneSubstitution",
+   "ruleId": "chromatic.constantStructure",
    "keyTonic": "Bb",
    "reps": 0,
    "ease": 1.7,

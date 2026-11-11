@@ -14,7 +14,7 @@ import type { DueItem, ImprovRun, Progress, Review } from "./practice";
 
 interface Fixture {
   tuneId: string;
-  places: Record<string, string>;
+  places: Record<string, { tuneId: string; moveId: string }>;
   concepts: (Omit<Review, "dueAt" | "lastReviewedAt"> & { reviewedDaysAgo: number; dueInDays: number })[];
   improv: (Omit<ImprovRun, "id" | "tuneId" | "createdAt"> & { daysAgo: number })[];
 }
@@ -34,7 +34,7 @@ export async function demoProgress(now = Date.now()): Promise<Progress> {
   }));
 
   const places: Progress["places"] = {};
-  for (const [ruleId, moveId] of Object.entries(f.places)) places[ruleId] = { tuneId: f.tuneId, moveId };
+  for (const [ruleId, place] of Object.entries(f.places)) places[ruleId] = place;
 
   const cleanKeys: Progress["cleanKeys"] = {};
   for (const c of concepts) if (c.cleanRuns > 0) (cleanKeys[c.ruleId] ??= []).push(c.keyTonic);

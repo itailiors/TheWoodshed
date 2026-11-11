@@ -20,3 +20,12 @@ export * from "./analysis";
 export * from "./band";
 export * from "./import/ireal";
 export { someday } from "./fixtures/someday";
+export { coopBlues } from "./fixtures/coopBlues";
+import { coopBlues } from "./fixtures/coopBlues";
+/** The tune the app opens on, seeds a fresh library with, and ships in the public demo: original, so copyright-free. */
+export const referenceTune = coopBlues;
+export { iGotRhythm, sunnySide } from "./fixtures/standards";
+import { iGotRhythm, sunnySide } from "./fixtures/standards";
+/** Tunes bundled with the app: the reference tune first, then public-domain standards (chord changes only). */
+export const BUNDLED_TUNES = [coopBlues, sunnySide, iGotRhythm];
+export * from "./control";

@@ -1,5 +1,6 @@
+import { BUNDLED_TUNES, formBars, type Tune } from "@reharm/theory-core";
+import { DEMO } from "../demo";
 import { reportApiUnreachable } from "./apiStatus";
-import type { Tune } from "@reharm/theory-core";
 
 export interface TuneSummary {
   id: string;
@@ -58,9 +59,31 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
-export const fetchTunes = () => call<TuneSummary[]>("/tunes");
-export const fetchSetlists = () => call<Setlist[]>("/setlists");
-export const fetchTune = (id: string) => call<Tune>(`/tunes/${encodeURIComponent(id)}`);
+// ── the read-only demo: the bundled tunes stand in for the library (no API, no writes) ──
+const DEMO_SETLIST = "Demo library";
+const summary = (t: Tune): TuneSummary => ({
+  id: t.id,
+  title: t.title,
+  composer: t.composer ?? null,
+  key: t.key.tonic,
+  meter: t.meter.join("/"),
+  style: t.feel === "waltz" ? "Jazz Waltz" : t.feel === "swing" ? "Medium Swing" : t.feel,
+  bars: formBars(t),
+  source: t.rights?.kind === "original" ? "original" : t.rights?.kind === "public-domain" ? "public domain" : t.source.kind,
+  warnings: t.melodyCoverage === "none" ? ["Chord changes only, so moves aren't melody-checked."] : [],
+  setlists: [DEMO_SETLIST],
+  updatedAt: 0,
+});
+function bundled(id: string): Tune {
+  const t = BUNDLED_TUNES.find((x) => x.id === id);
+  if (!t) throw new LibraryError(`“${id}” isn't in the demo library.`, 404);
+  return t;
+}
+
+export const fetchTunes = () => (DEMO ? Promise.resolve(BUNDLED_TUNES.map(summary)) : call<TuneSummary[]>("/tunes"));
+export const fetchSetlists = () =>
+  DEMO ? Promise.resolve<Setlist[]>([{ id: 1, name: DEMO_SETLIST, tuneIds: BUNDLED_TUNES.map((t) => t.id) }]) : call<Setlist[]>("/setlists");
+export const fetchTune = (id: string) => (DEMO ? Promise.resolve().then(() => bundled(id)) : call<Tune>(`/tunes/${encodeURIComponent(id)}`));
 export const deleteTune = (id: string) => call<{ ok: true }>(`/tunes/${encodeURIComponent(id)}`, { method: "DELETE" });
 export const importIReal = (url: string) =>
   call<ImportResult>("/import/ireal", {

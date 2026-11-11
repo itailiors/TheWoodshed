@@ -1,4 +1,4 @@
-import { chroma, formBars, generateMoves, IRealParseError, KEYS, parseIRealUrl, someday, transposeTune, type Tune } from "@reharm/theory-core";
+import { chroma, formBars, generateMoves, IRealParseError, KEYS, parseIRealUrl, BUNDLED_TUNES, transposeTune, type Tune } from "@reharm/theory-core";
 import { Hono } from "hono";
 import { demoExplain, loadDemoExplanations, DEMO_EXPLANATIONS_FILE } from "./demo";
 import { explainMove, ExplainError, MODEL } from "./explain";
@@ -22,10 +22,12 @@ export async function createApp(opts: AppOptions) {
 
   const db = opts.demo ? null : await import("./db/client").then(async (m) => (await m.openDb(opts.dbFile), m));
   const repo = opts.demo ? null : await import("./db/repo");
-  if (repo && repo.countTunes() === 0) repo.upsertTune(someday); // first run: seed the reference tune
+  if (repo && repo.countTunes() === 0) BUNDLED_TUNES.forEach((t) => repo.upsertTune(t)); // first run: seed the bundled tunes
   const demoFile = opts.demo ? loadDemoExplanations(opts.demoExplanationsFile ?? DEMO_EXPLANATIONS_FILE) : null;
 
-  const getTune = (id: string): Tune | null => (repo ? repo.getTune(id) : id === someday.id ? someday : null);
+  // The bundled tunes are always available, even in a library seeded before they were added.
+  const bundled = (id: string) => BUNDLED_TUNES.find((t) => t.id === id) ?? null;
+  const getTune = (id: string): Tune | null => (repo?.getTune(id) ?? null) ?? bundled(id);
 
   // demo mode is read-only: every write is refused up front
   if (opts.demo) {
@@ -54,21 +56,19 @@ export async function createApp(opts: AppOptions) {
     c.json(
       repo
         ? repo.listTunes()
-        : [
-            {
-              id: someday.id,
-              title: someday.title,
-              composer: someday.composer ?? null,
-              key: someday.key.tonic,
-              meter: someday.meter.join("/"),
-              style: "Jazz Waltz",
-              bars: formBars(someday),
-              source: someday.source.kind,
-              warnings: [],
-              setlists: [],
-              updatedAt: 0,
-            },
-          ],
+        : BUNDLED_TUNES.map((t) => ({
+            id: t.id,
+            title: t.title,
+            composer: t.composer ?? null,
+            key: t.key.tonic,
+            meter: t.meter.join("/"),
+            style: t.feel === "waltz" ? "Jazz Waltz" : t.feel === "swing" ? "Medium Swing" : t.feel,
+            bars: formBars(t),
+            source: t.source.kind,
+            warnings: t.melodyCoverage === "none" ? ["Chord changes only: moves aren't melody-checked."] : [],
+            setlists: [],
+            updatedAt: 0,
+          })),
     ),
   );
 
@@ -123,7 +123,7 @@ export async function createApp(opts: AppOptions) {
 
   /**
    * POST /api/explain { tuneId, moveId, fresh? }
-   * `tuneId` may carry a key, `someday-my-prince@Db` (what the web app's global key change
+   * `tuneId` may carry a key, `coop-blues@Db` (what the web app's global key change
    * produces): the tune is transposed first, so the facts, and so the explanation, are in
    * the key the user is looking at. Each key caches separately (the facts differ).
    * Library mode: recomputes the move, asks Claude, caches by hash(prompt version, model, facts).
@@ -138,7 +138,8 @@ export async function createApp(opts: AppOptions) {
     const tune = base && key && chroma(key) !== chroma(base.key.tonic) ? transposeTune(base, key) : base;
     const move = tune && generateMoves(tune).accepted.find((m) => m.id === body.moveId);
     if (!tune || !move) return c.json({ error: "move not found" }, 404);
-    if (opts.demo) return c.json(demoExplain(demoFile, move, tune !== base));
+    // the pre-written file belongs to one tune; move ids are positional, so other tunes get the engine's text
+    if (opts.demo) return c.json(demoExplain(demoFile, move, tune !== base || base.id !== demoFile?.tuneId));
     try {
       return c.json(await explainMove(tune, move, { fresh: !!body.fresh }));
     } catch (err) {

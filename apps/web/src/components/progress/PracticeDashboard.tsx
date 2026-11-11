@@ -21,7 +21,7 @@ const ms = (t: string | number) => new Date(t).getTime();
 function when(dueAt: string | number, now: number) {
   const d = ms(dueAt) - now;
   const abs = Math.abs(d);
-  const unit = abs < 3_600_000 ? `${Math.max(1, Math.round(abs / 60_000))} min` : abs < 86_400_000 ? `${Math.round(abs / 3_600_000)} h` : `${Math.round(abs / 86_400_000)} days`;
+  const unit = abs < 3_600_000 ? `${Math.max(1, Math.round(abs / 60_000))} min` : abs < 86_400_000 ? `${Math.round(abs / 3_600_000)} h` : ((n) => `${n} day${n === 1 ? "" : "s"}`)(Math.round(abs / 86_400_000));
   return d <= 0 ? (abs < 60_000 ? "due now" : `overdue ${unit}`) : `in ${unit}`;
 }
 

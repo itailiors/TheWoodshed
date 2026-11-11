@@ -10,7 +10,7 @@ import {
   prettyNote,
   prettySymbol,
   realize,
-  someday,
+  referenceTune,
   sortedHarmony,
   symbol,
   type ReharmMove,
@@ -37,6 +37,8 @@ import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
 import { LevelDial } from "./components/LevelDial";
+import { OriginalStamp } from "./components/OriginalStamp";
+import { usePedalLevel } from "./midi/pedal";
 import { MoveCard } from "./components/MoveCard";
 import { SideRail } from "./components/SideRail";
 import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
@@ -95,8 +97,8 @@ export function App() {
   // ── the tune on the stand (from the library; the reference tune until one loads) ──
   // `baseTune` is the chart as written; `tune` is it in the key you've chosen. Everything
   // downstream (engine, moves, playback, heatmap, Deep Dive) only ever sees `tune`.
-  const [baseTune, setTune] = useState<Tune>(someday);
-  const [keyTonic, setKeyTonic] = useState<string | null>(() => store.get(KEY_PREFIX + someday.id));
+  const [baseTune, setTune] = useState<Tune>(referenceTune);
+  const [keyTonic, setKeyTonic] = useState<string | null>(() => store.get(KEY_PREFIX + referenceTune.id));
   // Each tune remembers the key you last played it in.
   useEffect(() => setKeyTonic(store.get(KEY_PREFIX + baseTune.id)), [baseTune.id]);
   const changeKey = useCallback(
@@ -114,31 +116,30 @@ export function App() {
   );
   const [libraryOpen, setLibraryOpen] = useState(false);
   const loadTune = useCallback(async (id: string) => {
-    const t = id === someday.id ? someday : await fetchTune(id);
+    const t = id === referenceTune.id ? referenceTune : await fetchTune(id);
     setTune(t);
     store.set(LAST_TUNE, id);
     store.set(LAST_TITLE, t.title);
   }, []);
   const backToReference = useCallback((note: string) => {
-    setTune(someday);
-    store.set(LAST_TUNE, someday.id);
-    store.set(LAST_TITLE, someday.title);
+    setTune(referenceTune);
+    store.set(LAST_TUNE, referenceTune.id);
+    store.set(LAST_TITLE, referenceTune.title);
     toast(note, { tone: "warn" });
   }, []);
 
   // Reopen the tune that was on the stand last time.
   useEffect(() => {
-    if (DEMO) return; // the demo only ever shows the bundled tune
     const last = store.get(LAST_TUNE);
     const lastTitle = store.get(LAST_TITLE);
-    if (!last || last === someday.id) return;
+    if (!last || last === referenceTune.id) return;
     let live = true; // false once this effect is cleaned up (StrictMode runs it twice in dev)
     let cancelRetry = () => {};
     const restore = () =>
       loadTune(last).catch(async (err) => {
         if (!live) return;
         if (err instanceof LibraryError && err.status === 404) {
-          backToReference(`${lastTitle ? `“${lastTitle}”` : "The tune you had open"} is no longer in your library, so here's ${someday.title} instead.`);
+          backToReference(`${lastTitle ? `“${lastTitle}”` : "The tune you had open"} is no longer in your library, so here's ${referenceTune.title} instead.`);
         } else if (err instanceof LibraryError && err.unreachable && (await checkApi()) !== "online" && live) {
           // The API is down (the banner says so). Keep the reference tune for now, and
           // put the remembered one back on the stand as soon as the API returns.
@@ -179,6 +180,10 @@ export function App() {
     setForced([]);
     setSelectedId(null);
   };
+  // A linked pedal or mod wheel moves only the dial. Unlike a click it keeps your picks and
+  // the selected move, so rocking the pedal through a chorus doesn't throw away your choices.
+  // The new pathway reaches the band on the next beat, like any other dial change.
+  usePedalLevel(setLevel);
   const pick = (alt: ReharmMove) => {
     setForced((f) => [...f.filter((id) => !overlaps(accepted.find((m) => m.id === id)!, alt)), alt.id]);
     setSelectedId(alt.id);
@@ -304,7 +309,7 @@ export function App() {
     whenIdle(() => {
       void PracticeMode.preload().catch(() => {});
       void CoachPage.preload().catch(() => {});
-      if (!DEMO) void LibraryDrawer.preload().catch(() => {});
+      void LibraryDrawer.preload().catch(() => {});
     });
   }, []);
 
@@ -374,18 +379,18 @@ export function App() {
         playing={playback.status === "playing"}
         onPlay={playback.toggle}
         onPractice={() => openCoach()}
-        onLibrary={DEMO ? undefined : () => setLibraryOpen(true)}
+        onLibrary={() => setLibraryOpen(true)}
         onProgress={() => setPassportOpen(true)}
       />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
-      {libraryOpen && !DEMO && (
+      {libraryOpen && (
         <PanelBoundary onClose={() => setLibraryOpen(false)}>
         <LibraryDrawer
           currentId={baseTune.id}
           onLoad={loadTune}
           onClose={() => setLibraryOpen(false)}
           onDeleted={(id, title) => {
-            if (id === baseTune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
+            if (id === baseTune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${referenceTune.title}.`);
           }}
         />
         </PanelBoundary>
@@ -434,19 +439,19 @@ export function App() {
         {/* ── toolbar ── */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
-            {DEMO ? (
+            {DEMO && (
               <span className="-rotate-2 rounded border-2 border-dashed px-2 font-marker text-sm" style={{ borderColor: pen.red, color: pen.red }}>
                 Read-only demo
               </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setLibraryOpen(true)}
-                className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              >
-                📚 Setlist
-              </button>
             )}
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              onPointerEnter={() => void LibraryDrawer.preload().catch(() => {})}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+            >
+              📚 Setlist
+            </button>
             <button
               type="button"
               onClick={() => setPassportOpen(true)}
@@ -532,14 +537,19 @@ export function App() {
                     ))}
                   </div>
                 )}
-                <p className="mt-3 text-xs text-ink-faint">
-                  {tune.melodyCoverage === "anchors"
-                    ? "Melody: only a few anchor notes are entered. Slashes mean no melody yet. "
-                    : tune.melodyCoverage === "none"
-                      ? "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
-                      : ""}
-                  Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.
-                </p>
+                <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+                  <p className="min-w-[16rem] flex-1 text-xs text-ink-faint">
+                    {tune.melodyCoverage === "anchors"
+                      ? "Melody: only a few anchor notes are entered. Slashes mean no melody yet. "
+                      : tune.melodyCoverage === "none"
+                        ? tune.rights?.kind === "public-domain"
+                          ? `${tune.rights.note} No melody, so moves aren't melody-checked. `
+                          : "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
+                        : ""}
+                    Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.
+                  </p>
+                  {tune.rights?.kind === "original" && <OriginalStamp rights={tune.rights} className="ml-auto" />}
+                </div>
               </div>
             </SketchBox>
 

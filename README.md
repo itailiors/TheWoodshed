@@ -10,7 +10,7 @@
 
 Advanced jazz harmony is usually learned in fragments: a tritone sub from one record, a gospel turnaround from another, a voicing from a teacher's hands. Reharm Lab brings that vocabulary into one place, built around a real tune.
 
-Load a standard (the reference tune is *Someday My Prince Will Come*) and the app:
+Load a tune (it opens on *Co-op Blues*, an original 12-bar bebop blues in F written for the app) and the app:
 
 1. **Suggests reharmonizations** bar by bar, from functional ii–Vs to tritone substitutions, upper-structure voicings and gospel turnarounds.
 2. **Explains why each move works**: function, voice leading, melody compatibility and a one-line rule you can carry to any tune.
@@ -62,9 +62,14 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 
   In each phrase, the best moves win: higher level first, then smoother voice leading, then variety (it avoids repeating a rule it has already used). Moves you pick by hand count toward the same limit.
 - Moves show on the lead sheet as watercolour washes, coloured by category. Click one to open its card; swap in any alternative that fits the same bars.
-- **Playback:** a Tone.js jazz-waltz arrangement on a sampled grand piano (Salamander), with a synth fallback. Bass on 1 and 3, right-hand comping on 1 and a swung "2&", and the melody on top.
+- **Playback:** a Tone.js arrangement in the tune's feel (swing, waltz, bossa, ballad) on a sampled grand piano (Salamander), with a synth fallback: voice-led comping with the melody on top, over the backing band below.
 - **Voice-led voicings:** each chord is voiced in the inversion that moves least from the previous one, so you hear the half-step motion the engine describes (Fm9 → B♭7(♭9) → E♭maj7 plays as 60 63 67 68 → 59 62 65 68 → 58 62 65 67).
 - **Ghost A/B:** flip Original/Reharm or turn the dial *while it plays*. The new chords take over on the next beat. Loop just the selected move, change the tempo, and follow the pencil playhead.
+- **🦶 The dial under your foot:** click **Link to mod wheel / pedal** and an expression pedal (MIDI CC 11) or mod wheel (CC 1) drives the dial while the band plays: heel down is the original changes, toe down is L4. A red ink needle under the dial follows the controller continuously, and the pen circle snaps from stop to stop, so you can see where your foot is and which harmony you're hearing.
+  - It's opt-in, so a jittery wheel can't change the harmony on its own. Whichever controller moved last is in charge.
+  - The mapping (`pedalToLevel` in `theory-core`) has hysteresis: to leave a level the value has to travel 6 units past the band edge. Property tests guarantee that 0 is always L0 and 127 always L4, that a slow sweep visits every level once in order, and that jitter inside any 12-unit window changes the level at most once.
+  - Unlike a click on the dial, the pedal keeps your hand-picked moves and the selected move.
+  - Every Control Change travels on a `controlBus`, the twin of the note bus, so later controller features (MIDI learn, a foot switch) plug in the same way.
 
 ### 🧠 The rule library
 Eleven deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
@@ -84,6 +89,11 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Held keys are released if the window loses focus or the tab is hidden, and a key released after an octave shift still lets go of the pitch it started.
 - While it's on, the letter keys belong to the piano: Practice Mode's `A` and `L` shortcuts pause, and its shortcut legend hides them.
 - Laptop keyboards register only a few keys at once, so this suits single-note lines best; for full Coach voicings, click the on-screen keys.
+
+### 🔊 Hear your MIDI keyboard
+- Connect a MIDI keyboard and what you play sounds through the app's piano, with your velocity and the sustain pedal. Most USB controllers have no speakers, so this is on by default.
+- If your keyboard has its own sound, switch the **🔊 Hear it in the app** pill (next to the MIDI pill) to **🔇 Keyboard speakers only**. The choice is remembered.
+- Clicking **Connect MIDI** also warms up the audio engine, because a MIDI message isn't a user gesture and can't unlock browser audio itself. So the first note you play already sounds.
 
 ### 🎹 MIDI Comping Coach
 - **Its own page:** a third mode next to Study and Practice. Open it from the mode switch, a move card's **Drill the voicing**, the sidebar, or the passport.
@@ -158,7 +168,7 @@ Every move goes through the same melody filter and voice-leading score, and come
   - **Today's practice:** the review queue as a teacher's clipboard. Each item says what's due and how overdue, and **Practise →** opens the Comping Coach page on that exact move, in that key, loading the chart you last practised it on if needed.
   - **Passport pages:** one per concept, the 12 keys round the circle of fifths. Keys you've played clean get an ink wash and a red CLEAN stamp, keys you've tried show your last grade, untouched keys stay faint outlines. Click any key to practise it there.
   - **Recent solos:** an ink sparkline of chord-tone accuracy per pass, with guide-tone landings as dots.
-- History belongs to the chart: a transposed tune (`someday@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on.
+- History belongs to the chart: a transposed tune (`coop-blues@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on.
 - **In the read-only demo** nothing is saved, so the passport opens on a clearly labelled **sample notebook**: three weeks of a made-up player's practice (33 key reviews scheduled by the same SM-2 rules as the API, 5 of them due, and 20 solo passes improving from 45% to 75% chord tones). Times are stored relative to page load, so the demo never drifts into "everything overdue". Your own runs stamp on top of it until you reload.
 
 ### 🔬 Engine X-ray: watch it decide, then watch it prove itself
@@ -177,7 +187,7 @@ Every move goes through the same melody filter and voice-leading score, and come
 ### 🧯 Fails gracefully, loads fast
 - **API down or offline:** a red-pen banner says exactly what's paused (setlist, import, deep dives) and what still works (everything musical, since it all runs in the browser), with a Retry button. One shared health check drives it, and it clears as soon as the API is back.
 - **No Claude key:** Deep Dive doesn't error. It says the engine's own explanation on the card is the full analysis, and how to switch Claude on. The API marks the case with a machine-readable code (`no_key`).
-- **A deleted tune:** if the remembered tune is gone, a toast names it and *Someday* goes back on the stand. If the API is only down, the remembered tune loads as soon as the API returns. Deleting the open tune steps off it at once.
+- **A deleted tune:** if the remembered tune is gone, a toast names it and *Co-op Blues* goes back on the stand. If the API is only down, the remembered tune loads as soon as the API returns. Deleting the open tune steps off it at once.
 - **Mobile audio:** iOS plays Web Audio on the channel the silent switch mutes. The app declares itself a music app (`navigator.audioSession.type = "playback"`) and, on older iOS, starts a looping silent `<audio>` element on your first tap, which moves the page onto the media channel. Every tap or key press also wakes an audio context the OS suspended (after a call, an app switch or a background tab).
 - **Live notes play now:** keys you press sound on the raw audio clock (`Tone.immediate()`), not `Tone.now()`, which adds the 100 ms look-ahead meant for the scheduled band.
 - **No stuck notes:** held notes are tracked per MIDI device. Unplug a keyboard mid-chord (or hit its All Notes Off button) and its keys are released through the note bus as if they'd come up, so the Coach doesn't grade the next chord with phantom notes, and a toast says what happened. Per-note MIDI logging runs only in development, so the public console stays clean.
@@ -233,7 +243,9 @@ Music theory has invariants, so the engine is tested against them rather than ag
 - Line evaluation never mislabels a chord tone, and every note gets a readable role.
 - The walking bass plays every beat in range, lands each chord's root on its downbeat and approaches the next root by a half step; the two-feel is always root on 1, fifth on 3; the ride, hi-hat and brush patterns stay in time and inside the form.
 
-A **golden test** pins the engine to the original design simulation of *Someday My Prince Will Come* (bars 1–8), so the moves, the melody-based rejections, both pathways and the scale map are all exact.
+Two **golden tests** pin the engine to real tunes:
+- **Co-op Blues**, the reference tune. Its head was written so the dial tells a story: nothing at L0, one move at L1, then 3, 4 and 12. Six different rules are accepted, and the head's own notes reject other moves for reasons you can hear (a plain A over D7 rules out the ♭13 upper structure; the D in bar 4 is the ♯9 of the tritone sub).
+- **Someday My Prince Will Come** (bars 1–8), the engine's original design simulation, so its moves, melody-based rejections, pathways and scale map stay exact. It lives only in the test suite and is no longer shipped in the app.
 
 The headline claims also live in `src/testing/proofs.ts` as plain `Proof` objects (a sentence, plus a fast-check property). CI asserts every one, and the app's **Proof** tab runs the very same objects live in the browser, so the evidence a visitor sees is literally the test suite.
 
@@ -248,7 +260,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 121 tests (engine + API), several thousand generated cases
+npm test          # 132 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -288,8 +300,8 @@ Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm t
 | API with `DEMO_MODE=true` (or `--demo`) | For a hosted server: no database, every write refused (403) |
 
 In both forms, the demo:
-- shows only the bundled demo tune;
-- opens the Concept Passport on a labelled sample notebook (`apps/web/src/library/demoHistory.json`, regenerated with `node apps/web/scripts/gen-demo-history.mjs apps/web/src/library/demoHistory.json`);
+- opens on *Co-op Blues* and has a small **demo library** in the Setlist drawer: Co-op Blues plus two public-domain standards, *On the Sunny Side of the Street* and *I Got Rhythm* (both published 1930), as chord changes only. There's no import or delete in the demo;
+- opens the Concept Passport on a labelled sample notebook (`apps/web/src/library/demoHistory.json`, regenerated with `npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json`, which refuses to write if any passport entry points at a move the engine doesn't accept on the reference tune);
 - serves Deep Dives from `apps/api/demo/explanations.json`, so visitors never trigger an Anthropic call.
 
 The shipped file holds the engine's own text. To replace it with Claude-written Deep Dives, run this once with your key:
@@ -345,9 +357,10 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 ## Roadmap
 
 **Next up**
-- **Co-op Blues:** an original 12-bar blues (with an original head, so the melody filter has something to check) replaces *Someday My Prince Will Come* as the public demo tune, keeping the demo free of copyrighted melodies.
-- **Expression pedal on the dial** (see the wishlist below).
-- Deploy the static demo, with a CI badge here.
+- Deploy the static demo, with a CI badge here, link-preview (OG) tags and a short GIF of the dial under the pedal.
+- Deep-link URLs (`?level=3&key=Bb&play=1`) that open the demo mid-groove.
+
+**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial.
 
 **Later**
 - Drag across bars to loop them (A–B loop).
@@ -361,7 +374,7 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 
 Ideas from the bandstand rather than the backlog: what would make a gigging jazz pianist want to open this every day.
 
-**🦶 Expression Pedal: the harmony under your foot**
+**🦶 Expression Pedal: the harmony under your foot** *(built: see the Reharm Dial above)*
 Map an expression pedal (MIDI CC 11), a foot controller (CC 4) or the mod wheel (CC 1) to the reharm dial, with MIDI learn. Heel down is the original changes; toe down is L4 Coltrane territory. The dial is the app's best idea, but today it lives under the mouse. Under the foot it becomes something you *perform*: you decide, live, how far outside the band goes, and the chords swap in on the next beat. A little hysteresis keeps a resting foot from flickering between levels.
 
 **🥁 Reactive Rhythm Section: a band that listens**
@@ -380,4 +393,13 @@ While you comp or improvise freely, the engine listens for its own moves in your
 
 ## A note on music data
 
-Jazz standards and their melodies are usually under copyright. The repository ships only the chord changes and two melody anchor notes needed to demonstrate the engine. Bring your own lead sheets for personal practice.
+Jazz standards and their melodies are usually under copyright, and chord progressions aren't copyrightable anywhere. So:
+
+- **Co-op Blues** is an original composition (changes and head) by Itai Lior, and the only bundled tune with a melody. It carries an **"Original Composition" stamp** in the lead sheet's margin: a Rough.js rubber stamp driven by the tune's `rights` field, so any future original gets it too.
+- ***On the Sunny Side of the Street*** (McHugh, 1930) and ***I Got Rhythm*** (Gershwin, 1930) entered the US public domain in 2026. They ship as **chord changes only**:
+  - Under life + 70 terms (Israel, the EU, the UK), McHugh's melody stays protected until the end of 2039. Gershwin's has been free since 2008.
+  - A melody that hasn't been checked against the original sheet music has no place in a melody filter.
+  - Their moves are marked "melody not checked", as iReal imports are.
+- **Someday My Prince Will Come** appears only as a test fixture (its chord changes and two melody anchor notes), to pin the engine's original design simulation.
+
+Bring your own lead sheets for personal practice.

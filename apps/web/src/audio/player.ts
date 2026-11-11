@@ -25,6 +25,8 @@ export type Mix = Record<Instrument, boolean>;
 /** The metronome starts off: it's a practice aid you reach for, not part of the band. */
 export const DEFAULT_MIX: Mix = { piano: true, bass: true, drums: true, click: false };
 const MIX_KEY = "reharm.mixer";
+/** Generous: the sample loaders time out on their own (and fall back to synths) well before this. */
+const INIT_TIMEOUT_MS = 20_000;
 
 function loadMix(): Mix {
   try {
@@ -118,7 +120,23 @@ class Player {
           this.countListeners.forEach((l) => l());
         },
       });
-      const source = await engine.init();
+      // Watchdog: loading must never spin forever. If the band isn't ready in time, fail this
+      // attempt (Play shows an error and the next press starts over) and throw away the
+      // straggler if it ever does finish.
+      let timedOut = false;
+      const loading = engine.init();
+      const source = await Promise.race([
+        loading,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => {
+            timedOut = true;
+            reject(new Error(`audio engine didn't finish loading within ${INIT_TIMEOUT_MS / 1000} s`));
+          }, INIT_TIMEOUT_MS),
+        ),
+      ]).catch((err) => {
+        if (timedOut) void loading.then(() => engine.dispose(), () => engine.dispose());
+        throw err;
+      });
       if (this.disposed) {
         engine.dispose();
         throw new Error("player was replaced while loading");

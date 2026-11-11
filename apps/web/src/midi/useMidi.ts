@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "../components/Toaster";
+import { player } from "../audio/player";
+import { controlBus } from "./controlBus";
+import { midiMonitor } from "./monitor";
 import { noteBus } from "./noteBus";
 
 export type MidiStatus = "idle" | "unsupported" | "requesting" | "connected" | "no-devices" | "denied";
@@ -15,6 +18,33 @@ export interface MidiNoteEvent {
 
 const NAMES = ["C", "C♯", "D", "E♭", "E", "F", "F♯", "G", "A♭", "A", "B♭", "B"];
 export const midiName = (n: number) => `${NAMES[n % 12]}${Math.floor(n / 12) - 1}`;
+
+/*
+ * Held MIDI notes live outside React state on purpose. useMidi runs in App, so a setState per
+ * key press re-rendered the whole app (lead sheet and all): 50–80 ms of main thread blocked on
+ * every note, and any note arriving meanwhile waited for it. Now only the readouts that show
+ * held notes subscribe, and they hear at most once every 16 ms (a chord is one render). A timer rather than
+ * requestAnimationFrame, so a hidden tab can't leave the readout stuck on old notes.
+ * Sound never waits for any of this: the note bus fires first.
+ */
+let heldNotes: number[] = [];
+const heldSubs = new Set<() => void>();
+let heldTimer: ReturnType<typeof setTimeout> | null = null;
+function publishHeld(next: number[]) {
+  heldNotes = next;
+  if (heldTimer) return;
+  heldTimer = setTimeout(() => {
+    heldTimer = null;
+    heldSubs.forEach((f) => f());
+  }, 16);
+}
+/** The MIDI keys currently down (all devices), for display. */
+export function useMidiHeld(): number[] {
+  return useSyncExternalStore(
+    (fn) => (heldSubs.add(fn), () => void heldSubs.delete(fn)),
+    () => heldNotes,
+  );
+}
 
 /** Per-note logging is for development; a public build keeps the console clean. */
 const debug = import.meta.env.DEV ? (...a: unknown[]) => console.debug(...a) : () => {};
@@ -34,7 +64,6 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
     typeof navigator !== "undefined" && "requestMIDIAccess" in navigator ? "idle" : "unsupported",
   );
   const [devices, setDevices] = useState<string[]>([]);
-  const [held, setHeld] = useState<number[]>([]);
   const access = useRef<MIDIAccess | null>(null);
   const onNoteRef = useRef(onNote);
   onNoteRef.current = onNote;
@@ -44,7 +73,7 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
   const syncHeld = useCallback(() => {
     const all = new Set<number>();
     heldBy.current.forEach((d) => d.notes.forEach((n) => all.add(n)));
-    setHeld([...all].sort((a, b) => a - b));
+    publishHeld([...all].sort((a, b) => a - b));
   }, []);
 
   const deliver = useCallback((ev: MidiNoteEvent) => {
@@ -72,12 +101,13 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
       const [status, d1, d2 = 0] = msg.data;
       const cmd = status & 0xf0;
       const channel = (status & 0x0f) + 1;
-      // CC 120 All Sound Off / CC 123 All Notes Off: some controllers send these from a panic button
-      if (cmd === 0xb0 && (d1 === 120 || d1 === 123)) {
-        releaseDevice(id);
+      if (cmd === 0xb0) {
+        // CC 120 All Sound Off / CC 123 All Notes Off: some controllers send these from a panic button
+        if (d1 === 120 || d1 === 123) releaseDevice(id);
+        if (d1 === 64) debug(`[MIDI] sustain ${d2 >= 64 ? "down" : "up"} (${device})`);
+        controlBus.emit({ cc: d1, value: d2, channel, device });
         return;
       }
-      if (cmd === 0xb0 && d1 === 64) debug(`[MIDI] sustain ${d2 >= 64 ? "down" : "up"} (${device})`);
       let ev: MidiNoteEvent | null = null;
       if (cmd === 0x90 && d2 > 0) ev = { type: "on", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
       else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) ev = { type: "off", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
@@ -87,8 +117,8 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
       if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set() }));
       if (ev.type === "on") d.notes.add(ev.note);
       else if (!d.notes.delete(ev.note)) return; // an off for a key we never saw go down (or already released): nothing to do
+      deliver(ev); // the note bus (and so the sound) first; the readout can wait a frame
       syncHeld();
-      deliver(ev);
     },
     [deliver, releaseDevice, syncHeld],
   );
@@ -122,6 +152,9 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
 
   const connect = useCallback(async () => {
     if (!("requestMIDIAccess" in navigator)) return setStatus("unsupported");
+    // MIDI notes aren't user gestures, so they can't unlock audio. This click can: load the
+    // engine now, so the first note you play already sounds through the app's piano.
+    if (midiMonitor.get()) void player.init().catch(() => {});
     setStatus("requesting");
     try {
       access.current = await navigator.requestMIDIAccess({ sysex: false });
@@ -148,5 +181,5 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
     [releaseDevice],
   );
 
-  return { status, devices, held, connect };
+  return { status, devices, connect };
 }

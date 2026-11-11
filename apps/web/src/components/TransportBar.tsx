@@ -2,9 +2,10 @@ import type { PlaybackStatus } from "../audio/usePlayback";
 import type { CountInBars, CountState, InstrumentSource } from "../audio/player";
 import type { TimePos } from "@reharm/theory-core";
 import type { BandSource } from "../audio/band";
-import { midiName, type MidiStatus } from "../midi/useMidi";
+import { midiName, useMidiHeld, type MidiStatus } from "../midi/useMidi";
 import { BeatPulse, CountInDisplay, CountInPicker } from "./BeatPulse";
 import { LoadingLine } from "./LoadingLine";
+import { MidiMonitorToggle } from "./MidiMonitorToggle";
 import { QwertyToggle } from "./QwertyToggle";
 import { TrioMixer } from "./TrioMixer";
 
@@ -18,7 +19,7 @@ interface Props {
   loopSelection: boolean;
   onLoopSelection: (on: boolean) => void;
   canLoopSelection: boolean;
-  midi: { status: MidiStatus; devices: string[]; held: number[]; connect: () => void };
+  midi: { status: MidiStatus; devices: string[]; connect: () => void };
   /** The beat, for the metronome dot. */
   pulse: { position: TimePos | null; beatTick: number; count: CountState | null; beatsPerBar: number };
   countIn: { bars: CountInBars; onChange: (b: CountInBars) => void };
@@ -89,8 +90,9 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
       >
         🎹 {MIDI_TEXT[midi.status]}
         {midi.status === "connected" && `: ${midi.devices[0]}${midi.devices.length > 1 ? ` +${midi.devices.length - 1}` : ""}`}
-        {midi.held.length > 0 && <span className="ml-1 text-ink-soft">· {midi.held.map(midiName).join(" ")}</span>}
+        <HeldNotes />
       </button>
+      {midi.status === "connected" && <MidiMonitorToggle />}
       <QwertyToggle compact={midi.status === "connected"} />
 
       {status === "error" && <span className="text-sm text-wash-brick">Audio couldn't start. See the console.</span>}
@@ -103,4 +105,10 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
       )}
     </div>
   );
+}
+
+/** The MIDI keys you're holding: its own little subscriber, so a key press re-renders only this. */
+function HeldNotes() {
+  const held = useMidiHeld();
+  return held.length > 0 ? <span className="ml-1 text-ink-soft">· {held.map(midiName).join(" ")}</span> : null;
 }

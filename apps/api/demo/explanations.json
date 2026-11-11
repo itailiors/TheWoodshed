@@ -1,120 +1,108 @@
 {
   "version": 1,
-  "tuneId": "someday-my-prince",
-  "generatedAt": "2026-11-11T10:37:18.331Z",
+  "tuneId": "coop-blues",
+  "generatedAt": "2026-11-11T21:17:22.362Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
-      "summary": "Plane into D7(♯5) with its own shape from above: B♭maj7 → E7(♯5) → E♭7(♯5) → D7(♯5).",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. B♭maj7 keeps the downbeat, then D7(♯5)'s exact shape slides down by half steps (E → E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "summary": "Plane into B♭7 with its own shape from above: F6 → C7 → B7 → B♭7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then B♭7's exact shape slides down by half steps (C → B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
       "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
       "model": "Reharm Lab engine"
     },
     "functional.secondaryTwoFive@2.1": {
-      "summary": "Replace D7(♯5) with the target's own ii–V: Fm9 → B♭7(♭9) → E♭maj7.",
-      "deepDive": "E♭maj7 is the IV chord. Putting its own ii–V in front briefly makes it sound like home: B♭ is a perfect 5th above E♭, and F is a 5th above that. The guide tones barely move: A♭ → A♭ → G, E♭ → D → D. You give up the colour of D7(♯5) and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.",
+      "summary": "Replace B♭7 with the target's own ii–V: Gm9 → C7(♭9) → F6.",
+      "deepDive": "F6 is the I chord. Putting its own ii–V in front briefly makes it sound like home: C is a perfect 5th above F, and G is a 5th above that. The guide tones barely move: B♭ → B♭ → A, F → E → F. You give up the colour of B♭7 and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.",
       "recreateRule": "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
       "model": "Reharm Lab engine"
     },
-    "voicing.upperStructureBVI@2.1": {
-      "summary": "Same chord, new voicing: a B♭ major triad over a D–C–F♯ shell gives D7(♯9,♭13).",
-      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (C) and the 3rd (F♯). The right hand plays a plain B♭ triad (B♭ D F), which over D reads as ♭13, root and ♯9. The shape is easy and the tension is high. B♭ and D are already in E♭maj7, so the resolution is effortless.",
-      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
-      "model": "Reharm Lab engine"
-    },
-    "chromatic.commonToneDiminished@3.1": {
-      "summary": "Lean into E♭maj7 from the diminished chord on the same root: E♭dim7 → E♭maj7.",
-      "deepDive": "E♭dim7 shares only its root with E♭maj7. Its G♭ and B♭♭ (heard as ♯2 and ♯4) each rise a half step, into G and B♭, the 3rd and 5th. It's an appoggiatura chord: tension that dissolves into the chord you were already on, so it adds motion without changing the harmony.",
-      "recreateRule": "On a major chord that lasts a while, start with the diminished 7th on the same root and let it resolve up by half steps.",
-      "model": "Reharm Lab engine"
-    },
-    "chromatic.constantStructure@3.1": {
-      "summary": "Plane into G7(♯5) with its own shape from above: E♭maj7 → A7(♯5) → A♭7(♯5) → G7(♯5).",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. E♭maj7 keeps the downbeat, then G7(♯5)'s exact shape slides down by half steps (A → A♭ → G). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+    "chromatic.constantStructure@4.1": {
+      "summary": "Plane into F7 with its own shape from above: Cm7 → G♭7 → F7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Cm7 keeps the downbeat, then F7's exact shape slides down by half steps (G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
       "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
       "model": "Reharm Lab engine"
     },
-    "dominant.tritoneSub@4.1": {
-      "summary": "Swap G7(♯5) for D♭9, the dominant a tritone away.",
-      "deepDive": "G7(♯5) and D♭9 share the same tritone: B–F (3rd and ♭7 of G7) are C♭–F (♭7 and 3rd of D♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Cm7. The difference is the bass, which now slides down a half step (D♭ → C) instead of falling a 5th.\n\nD♭ Lydian dominant uses exactly the same 7 notes as G altered: both are modes of A♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
-      "model": "Reharm Lab engine"
-    },
-    "voicing.upperStructureBVI@4.1": {
-      "summary": "Same chord, new voicing: a E♭ major triad over a G–F–B shell gives G7(♯9,♭13).",
-      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (F) and the 3rd (B). The right hand plays a plain E♭ triad (E♭ G B♭), which over G reads as ♭13, root and ♯9. The shape is easy and the tension is high. E♭ and G and B♭ are already in Cm7, so the resolution is effortless.",
-      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
-      "model": "Reharm Lab engine"
-    },
-    "chromatic.constantStructure@5.1": {
-      "summary": "Plane into G7(♯5) with its own shape from above: Cm7 → A7(♯5) → A♭7(♯5) → G7(♯5).",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Cm7 keeps the downbeat, then G7(♯5)'s exact shape slides down by half steps (A → A♭ → G). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+    "chromatic.constantStructure@4.3": {
+      "summary": "Plane into B♭7 with its own shape from above: F7 → B7 → B♭7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F7 keeps the downbeat, then B♭7's exact shape slides down by half steps (B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
       "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
-      "model": "Reharm Lab engine"
-    },
-    "functional.secondaryTwoFive@6.1": {
-      "summary": "Put the related ii in front of the dominant: Dm7♭5 → G7(♭9) → Cm7.",
-      "deepDive": "G7(♯5) already resolves down a 5th to Cm7. Every dominant has a \"related ii\", the minor chord a 5th above its root. Inserting it turns one chord into a full ii–V and doubles the forward motion. The target is minor, so the ii is half-diminished (Dm7♭5), borrowed from C harmonic minor. Guide tones: F → F → E♭, C → B → B♭.",
-      "recreateRule": "Any dominant can borrow its related ii: the minor 7 chord a 5th above its root (m7♭5 if the target is minor).",
-      "model": "Reharm Lab engine"
-    },
-    "dominant.tritoneSub@6.1": {
-      "summary": "Swap G7(♯5) for D♭9, the dominant a tritone away.",
-      "deepDive": "G7(♯5) and D♭9 share the same tritone: B–F (3rd and ♭7 of G7) are C♭–F (♭7 and 3rd of D♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Cm7. The difference is the bass, which now slides down a half step (D♭ → C) instead of falling a 5th.\n\nD♭ Lydian dominant uses exactly the same 7 notes as G altered: both are modes of A♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
-      "model": "Reharm Lab engine"
-    },
-    "voicing.upperStructureBVI@6.1": {
-      "summary": "Same chord, new voicing: a E♭ major triad over a G–F–B shell gives G7(♯9,♭13).",
-      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (F) and the 3rd (B). The right hand plays a plain E♭ triad (E♭ G B♭), which over G reads as ♭13, root and ♯9. The shape is easy and the tension is high. E♭ and G and B♭ are already in Cm7, so the resolution is effortless.",
-      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@6.1": {
-      "summary": "Plane into Cm7 with its own shape from above: G7(♯5) → Dm7 → D♭m7 → Cm7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. G7(♯5) keeps the downbeat, then Cm7's exact shape slides down by half steps (D → D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "summary": "Plane into F6 with its own shape from above: Bdim7 → G6 → G♭6 → F6.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Bdim7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
       "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
-      "model": "Reharm Lab engine"
-    },
-    "symmetric.coltraneSubstitution@7.1": {
-      "summary": "Turn Cm7 → F7 → B♭maj7 into a tour of three keys a major 3rd apart: Cm7 → D♭7 → G♭maj7 → A7 → Dmaj7 → F7 → B♭maj7.",
-      "deepDive": "Coltrane's substitution divides the octave into three equal parts. G♭, D, B♭ are a major 3rd apart (an augmented triad), and each is reached from its own dominant (D♭7, A7, F7). You pass through three key centres in the time of one ii–V and still land on B♭maj7. Practise the guide tones first: E♭ → D♭ → D♭ → C♯ → C♯ → C → B♭, B♭ → C♭ → B♭ → A → A → A → A.",
-      "recreateRule": "Over ii–V–I, tonicize the keys a major 3rd apart: V7–I into ♭VI, V7–I into III, then the real V7–I.",
-      "model": "Reharm Lab engine"
-    },
-    "chromatic.constantStructure@7.1": {
-      "summary": "Plane into F7 with its own shape from above: Cm7 → G7 → G♭7 → F7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Cm7 keeps the downbeat, then F7's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
-      "model": "Reharm Lab engine"
-    },
-    "dominant.tritoneSub@8.1": {
-      "summary": "Swap F7 for B9, the dominant a tritone away.",
-      "deepDive": "F7 and B9 share the same tritone: A–E♭ (3rd and ♭7 of F7) are A–D♯ (♭7 and 3rd of B7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on B♭maj7. The difference is the bass, which now slides down a half step (B → B♭) instead of falling a 5th.\n\nB Lydian dominant uses exactly the same 7 notes as F altered: both are modes of F♯ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
-      "model": "Reharm Lab engine"
-    },
-    "gospel.halfStepTurnaround@8.1": {
-      "summary": "F7 → B♭maj7 becomes E♭/F → B13(♯11) → B♭maj9.",
-      "deepDive": "E♭/F is a F9sus: a E♭ triad over F. It's the gospel way to sound the dominant while holding back the 3rd. B13(♯11) is the tritone sub of F7, voiced as a 13(♯11) cluster a half step above B♭. Each voice either slides down a half step or stays put as it lands on B♭maj9.",
-      "recreateRule": "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
-      "model": "Reharm Lab engine"
-    },
-    "modal.backdoorTwoFive@8.1": {
-      "summary": "Come in through the back door: E♭m7 → A♭9 → B♭maj7, instead of F7 → B♭maj7.",
-      "deepDive": "E♭m7 and A♭9 are borrowed from B♭ minor (iv and ♭VII7). A♭9 has no leading tone. Its ♭7 (G♭) falls a half step to F, the 5th of B♭, its 3rd (C) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than F7 → B♭maj7, with no tritone resolving.",
-      "recreateRule": "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
-      "model": "Reharm Lab engine"
-    },
-    "modal.flatSixFlatSeven@8.1": {
-      "summary": "Replace the dominant with two borrowed chords whose roots climb into the tonic: G♭maj7 → A♭6 → B♭maj7.",
-      "deepDive": "G♭maj7 and A♭6 come from B♭ Aeolian, the parallel minor. The roots rise by whole steps (G♭ → A♭ → B♭), so the arrival feels inevitable without a dominant chord or a tritone anywhere. It's a bright, open cadence that suits the end of a phrase and tags at the end of a tune.",
-      "recreateRule": "Before a major tonic, play the major chords on ♭6 and ♭7 of the key and let the bass climb by whole steps into I.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@8.1": {
-      "summary": "Plane into B♭maj7 with its own shape from above: F7 → Cmaj7 → Bmaj7 → B♭maj7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F7 keeps the downbeat, then B♭maj7's exact shape slides down by half steps (C → B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "summary": "Plane into D7(♭9) with its own shape from above: Am7♭5 → E♭7(♭9) → D7(♭9).",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Am7♭5 keeps the downbeat, then D7(♭9)'s exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "model": "Reharm Lab engine"
+    },
+    "dominant.tritoneSub@8.3": {
+      "summary": "Swap D7(♭9) for A♭9, the dominant a tritone away.",
+      "deepDive": "D7(♭9) and A♭9 share the same tritone: F♯–C (3rd and ♭7 of D7) are G♭–C (♭7 and 3rd of A♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "model": "Reharm Lab engine"
+    },
+    "voicing.upperStructureBVI@8.3": {
+      "summary": "Same chord, new voicing: a B♭ major triad over a D–C–F♯ shell gives D7(♯9,♭13).",
+      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (C) and the 3rd (F♯). The right hand plays a plain B♭ triad (B♭ D F), which over D reads as ♭13, root and ♯9. The shape is easy and the tension is high. B♭ and D and F are already in Gm7, so the resolution is effortless.",
+      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
+      "model": "Reharm Lab engine"
+    },
+    "chromatic.constantStructure@9.1": {
+      "summary": "Plane into C7 with its own shape from above: Gm7 → D7 → D♭7 → C7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D → D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "model": "Reharm Lab engine"
+    },
+    "dominant.tritoneSub@10.1": {
+      "summary": "Swap C7 for G♭9, the dominant a tritone away.",
+      "deepDive": "C7 and G♭9 share the same tritone: E–B♭ (3rd and ♭7 of C7) are F♭–B♭ (♭7 and 3rd of G♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on F6. The difference is the bass, which now slides down a half step (G♭ → F) instead of falling a 5th.\n\nG♭ Lydian dominant uses exactly the same 7 notes as C altered: both are modes of D♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "model": "Reharm Lab engine"
+    },
+    "gospel.halfStepTurnaround@10.1": {
+      "summary": "C7 → F6 becomes B♭/C → G♭13(♯11) → F6.",
+      "deepDive": "B♭/C is a C9sus: a B♭ triad over C. It's the gospel way to sound the dominant while holding back the 3rd. G♭13(♯11) is the tritone sub of C7, voiced as a 13(♯11) cluster a half step above F. Each voice either slides down a half step or stays put as it lands on F6.",
+      "recreateRule": "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
+      "model": "Reharm Lab engine"
+    },
+    "modal.backdoorTwoFive@10.1": {
+      "summary": "Come in through the back door: B♭m7 → E♭9 → F6, instead of C7 → F6.",
+      "deepDive": "B♭m7 and E♭9 are borrowed from F minor (iv and ♭VII7). E♭9 has no leading tone. Its ♭7 (D♭) falls a half step to C, the 5th of F, its 3rd (G) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than C7 → F6, with no tritone resolving.",
+      "recreateRule": "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
+      "model": "Reharm Lab engine"
+    },
+    "chromatic.constantStructure@10.1": {
+      "summary": "Plane into F6 with its own shape from above: C7 → G6 → G♭6 → F6.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. C7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "model": "Reharm Lab engine"
+    },
+    "chromatic.constantStructure@11.1": {
+      "summary": "Plane into D7 with its own shape from above: F6 → E♭7 → D7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then D7's exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "model": "Reharm Lab engine"
+    },
+    "functional.secondaryTwoFive@11.3": {
+      "summary": "Put the related ii in front of the dominant: Am7♭5 → D7(♭9) → Gm7.",
+      "deepDive": "D7 already resolves down a 5th to Gm7. Every dominant has a \"related ii\", the minor chord a 5th above its root. Inserting it turns one chord into a full ii–V and doubles the forward motion. The target is minor, so the ii is half-diminished (Am7♭5), borrowed from G harmonic minor. Guide tones: C → C → B♭, G → F♯ → F.",
+      "recreateRule": "Any dominant can borrow its related ii: the minor 7 chord a 5th above its root (m7♭5 if the target is minor).",
+      "model": "Reharm Lab engine"
+    },
+    "dominant.tritoneSub@11.3": {
+      "summary": "Swap D7 for A♭9, the dominant a tritone away.",
+      "deepDive": "D7 and A♭9 share the same tritone: F♯–C (3rd and ♭7 of D7) are G♭–C (♭7 and 3rd of A♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "model": "Reharm Lab engine"
+    },
+    "chromatic.constantStructure@12.1": {
+      "summary": "Plane into C7 with its own shape from above: Gm7 → D♭7 → C7.",
+      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
       "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
       "model": "Reharm Lab engine"
     }

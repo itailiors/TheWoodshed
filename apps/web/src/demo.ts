@@ -15,16 +15,18 @@ export interface Explanation {
   cached: boolean;
 }
 
-let file: Promise<{ explanations: Record<string, Omit<Explanation, "cached">> }> | null = null;
+let file: Promise<{ tuneId: string; explanations: Record<string, Omit<Explanation, "cached">> }> | null = null;
 
 /**
  * Lazy-loaded, so normal builds don't carry the demo text in the main bundle.
- * `transposed`: the tune is in another key than the pre-written text, which names the
- * original key's notes, so use the engine's own (key-correct) explanation instead.
+ * The pre-written text belongs to one tune in one key. A transposed id (`base@Key`) names
+ * other notes, and another tune's move can share an id (ids are positional), so both get the
+ * engine's own explanation instead.
  */
-export async function demoExplanation(move: ReharmMove, transposed = false): Promise<Explanation> {
-  file ??= import("../../api/demo/explanations.json") as Promise<{ explanations: Record<string, Omit<Explanation, "cached">> }>;
-  const hit = transposed ? undefined : (await file).explanations[move.id];
+export async function demoExplanation(tuneId: string, move: ReharmMove): Promise<Explanation> {
+  file ??= import("../../api/demo/explanations.json") as Promise<{ tuneId: string; explanations: Record<string, Omit<Explanation, "cached">> }>;
+  const f = await file;
+  const hit = tuneId === f.tuneId ? f.explanations[move.id] : undefined;
   return (
     (hit && { ...hit, cached: true }) ?? {
       summary: move.text.summary,

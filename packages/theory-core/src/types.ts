@@ -70,6 +70,8 @@ export interface Tune {
   /** "anchors" = only structurally important notes were entered. */
   melodyCoverage: "full" | "anchors" | "none";
   source: { kind: "ireal" | "musicxml" | "manual"; personalUseOnly: true };
+  /** Who owns the tune, when known: drives the "Original Composition" stamp and the library's notes. */
+  rights?: { kind: "original"; holder: string; year: number } | { kind: "public-domain"; note: string };
 }
 
 export type MoveCategory =

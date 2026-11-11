@@ -2,6 +2,7 @@ import { prettyNote } from "@reharm/theory-core";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SketchBox, SketchRule } from "../../design/rough";
 import { paper, pen, seedOf } from "../../design/tokens";
+import { DEMO } from "../../demo";
 import { deleteTune, fetchSetlists, fetchTunes, importIReal, LibraryError, type ImportResult, type Setlist, type TuneSummary } from "../../library/api";
 
 interface Props {
@@ -106,14 +107,19 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                 <h2 id="library-h" className="ink-wobble font-marker text-3xl font-bold uppercase">
                   Setlist
                 </h2>
-                <p className="text-sm text-ink-soft">Your standards, saved locally. Click one to put it on the stand.</p>
+                <p className="text-sm text-ink-soft">
+                  {DEMO
+                    ? "The demo library: an original bebop blues and public-domain standards. Click one to put it on the stand."
+                    : "Your standards, saved locally. Click one to put it on the stand."}
+                </p>
               </div>
               <button type="button" onClick={onClose} aria-label="Close library" className="cursor-pointer font-marker text-2xl leading-none hover:rotate-6">
                 ✕
               </button>
             </header>
 
-            {/* import */}
+            {/* import (not in the read-only demo) */}
+            {!DEMO && (
             <section aria-labelledby="import-h" className="space-y-2">
               <h3 id="import-h" className="font-marker text-lg font-bold uppercase">
                 Import from iReal Pro
@@ -164,8 +170,9 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                 </div>
               )}
             </section>
+            )}
 
-            <SketchRule seed={seedOf("lib-rule")} />
+            {!DEMO && <SketchRule seed={seedOf("lib-rule")} />}
 
             {/* browse */}
             <section aria-label="Saved tunes" className="space-y-3">
@@ -222,6 +229,11 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                             </span>
                           )}
                           {loadingId === t.id && <span className="text-sm text-ink-soft">loading…</span>}
+                          {(t.source === "original" || t.source === "public domain") && (
+                            <span className="shrink-0 -rotate-2 rounded border border-dashed px-1 font-marker text-xs" style={{ borderColor: pen.red, color: pen.red }}>
+                              {t.source}
+                            </span>
+                          )}
                         </span>
                         <span className="block truncate text-sm text-ink-soft">
                           {[t.composer, `${prettyNote(t.key)} · ${t.meter}`, t.style, `${t.bars} bars`].filter(Boolean).join(" · ")}
@@ -232,7 +244,7 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                           )}
                         </span>
                       </button>
-                      {confirmDelete === t.id ? (
+                      {DEMO ? null : confirmDelete === t.id ? (
                         <span className="flex shrink-0 items-center gap-2 font-marker text-sm">
                           Delete?
                           <button type="button" onClick={() => remove(t.id)} className="cursor-pointer underline" style={{ color: pen.red }}>
@@ -261,8 +273,9 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
             </section>
 
             <p className="text-xs text-ink-faint">
-              Charts are stored in a local SQLite file (apps/api/data) for personal practice. iReal charts carry chords only, so
-              imported tunes have no melody and the melody check is skipped.
+              {DEMO
+                ? "Co-op Blues is an original composition, with its head written out, so every move is checked against the melody. The standards are public domain in the US and ship as chord changes only (progressions aren't copyrightable; melodies are), so their moves aren't melody-checked. Clone the repo to import your own iReal Pro charts."
+                : "Charts are stored in a local SQLite file (apps/api/data) for personal practice. iReal charts carry chords only, so imported tunes have no melody and the melody check is skipped."}
             </p>
           </div>
         </SketchBox>

@@ -1,9 +1,9 @@
 # Reharm Lab: State of the Union
 
 > Context hand-off for a fresh session: paste it in as the opening context.
-> Written 2026-11-11, end of the "Must-Be floor" session.
+> Updated 2026-11-11, end of the "Co-op Blues + Expression Pedal" session.
 >
-> **Git state when this was written:** `main` and `origin/main` are both at `d81764b`. The Must-Be floor (§4), the README wishlist and the demo-history generator were all in the **working tree, uncommitted**. Run `git status` and `git log --oneline -5` first. If those files still show as modified or untracked, they still need committing (Itai commits and pushes himself). If a newer commit contains them, carry on.
+> **Git state when this was written:** the Must-Be floor is committed as `7834922` on `main`. The Co-op Blues swap and the Expression Pedal (§4) were in the **working tree, uncommitted**. Run `git status` and `git log --oneline -5` first. If those files still show as modified or untracked, they still need committing (Itai commits and pushes himself).
 >
 > **Reharm Lab** is a jazz-piano reharmonization and practice app. It is the flagship portfolio piece of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**: a genuine practice tool for advanced players, and a showcase of full-stack engineering. The goal of the current phase is a **public portfolio launch** aimed at **hiring managers at top-tier tech and music-tech companies**. The message is *"a product-minded full-stack builder who writes rigorous, edge-case-proof code."* It stands alone as its own link, inside the Software & Jazz Co-op brand. Only the **static, read-only demo** ships publicly, so there are no API costs.
 >
@@ -80,20 +80,25 @@ packages/theory-core/             THE ENGINE: pure, deterministic TypeScript, no
   src/transpose.ts                KEYS (flat-side spellings: C Db D Eb E F Gb G Ab A Bb B), transposeTune (id → `${id}@${key}`)
   src/analysis.ts                 Roman numerals
   src/import/ireal.ts             iReal Pro irealb:// parser
-  src/fixtures/someday.ts         the reference tune (B♭, 3/4 waltz, bars 1–8 + resolution). COPYRIGHTED melody: being replaced in the demo (§5 step 1)
+  src/fixtures/coopBlues.ts     ★ "Co-op Blues" (Itai Lior): THE reference tune. Original 12-bar bebop blues in F, 4/4 swing, ♩=168, full head
+  src/fixtures/standards.ts     ★ public-domain standards, CHORD CHANGES ONLY: sunnySide (C, AABA 32) and iGotRhythm (B♭, 32-bar jazz form),
+                                  with rights {kind: "public-domain", note}. BUNDLED_TUNES = [coopBlues, sunnySide, iGotRhythm] (index.ts)
+  src/fixtures/someday.ts         Someday My Prince Will Come, bars 1–8 (copyrighted melody): golden-test fixture only, no longer shipped in the app
+  src/control.ts                ★ DIAL_CONTROLLERS {modWheel: 1, expression: 11}, pedalToLevel (hysteresis, PEDAL_MARGIN 6), levelBand
   src/testing/arbitraries.ts      fast-check generators
   src/testing/proofs.ts           PROOFS: 8 claims as executable properties, run by CI AND by the app's Proof tab
   src/testing/index.ts
-  test/*.test.ts                  pitch, rules.property, advancedRules, someday.golden, voicing, practice, ireal, band, proofs
+  test/*.test.ts                  pitch, rules.property, advancedRules, someday.golden, coopBlues.golden ★, control ★, voicing, practice, ireal, band, proofs
   test/arbitraries.ts             re-export shim
 
 apps/api/                         Hono on Node (tsx), SQLite via Drizzle on sql.js
   .env.example                    ANTHROPIC_API_KEY, EXPLAIN_MODEL, PORT (real .env is git-ignored and currently absent → key MISSING)
   drizzle.config.ts  drizzle/0000_init.sql  drizzle/0001_practice_history.sql
-  demo/explanations.json          pre-written Deep Dives for the demo, keyed by move id; "tuneId": "someday-my-prince"; "source": "template"
+  demo/explanations.json        ★ pre-written Deep Dives for the demo, keyed by move id; "tuneId": "coop-blues"; "source": "template" (17 moves)
   scripts/generate-demo.ts        npm run demo:generate (Claude, costs Itai's budget: ASK first) / -- --template (free, engine text)
   src/index.ts                    loads .env; --demo flag; serve(createApp())
-  src/app.ts                      createApp({demo, dbFile?}): /health /tunes /setlists /import/ireal /explain /practice/*  (references someday)
+  src/app.ts                    ★ createApp({demo, dbFile?}): /health /tunes /setlists /import/ireal /explain /practice/*; seeds referenceTune into an empty DB;
+                                  getTune falls back to the built-in referenceTune, so a library seeded before the swap still serves Co-op Blues
   src/explain.ts  src/prompt.ts   buildFacts → Claude structured output, disk cache; ExplainError codes no_key | bad_key | rate_limited
   src/demo.ts                     demo explanations (transposed tunes get the engine's text)
   src/db/client.ts                openDb/persist (writes ONLY to the opened file; temp file + rename)
@@ -103,13 +108,14 @@ apps/api/                         Hono on Node (tsx), SQLite via Drizzle on sql.
   src/practice/srs.ts             gradeAttempt (0–5); scheduleReview: miss → 10 min, reps 1 → 1 day, reps 2 → 3 days, then interval × ease (min 1.3)
   src/practice/routes.ts          zod-validated /api/practice/* (404 in demo)
   test/setup.ts                   REHARM_DB → a sentinel path that must never be created
-  test/api.test.ts  test/srs.test.ts   (api.test references someday)
+  test/api.test.ts  test/srs.test.ts   (api.test uses referenceTune)
 
 apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.js 15
   .env.demo                       VITE_DEMO_MODE=true (vite --mode demo)
   vite.config.ts                  /api proxy → :8787; manualChunks: react vendor chunk
-  scripts/gen-demo-history.mjs  ★ generates src/library/demoHistory.json (seeded RNG, SM-2-consistent; tuneId + move ids hard-coded)
-  src/main.tsx                  ★ installs installAudioUnlock() and installQwertyKeys() before render
+  scripts/gen-demo-history.ts   ★ generates src/library/demoHistory.json from referenceTune (seeded RNG, SM-2-consistent); throws if a
+                                  passport place isn't an accepted move. Run: npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json
+  src/main.tsx                  ★ installs installAudioUnlock(), installQwertyKeys() and installPedal() before render
   src/App.tsx                   ★ modes (study | practice | coach), tune + global key, dial (level state, changeLevel), pathway, drawers;
                                   the passport (📒 button, side rail, dashboard) is now open in the demo too
   src/lazy.ts                     lazyWithPreload + whenIdle
@@ -123,17 +129,22 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
                                   every pointerdown/keydown/touchend → player.resume(); pauses the element when hidden
   src/audio/band.ts               sampled bass + GM drum kit, synth fallbacks, humanTime/humanVel
   src/audio/usePlayback.ts  src/audio/useMixer.ts
+  src/midi/controlBus.ts        ★ every MIDI Control Change {cc, value, channel, device}; useControlBus
+  src/midi/pedal.ts             ★ pedal store: opt-in link ("reharm.pedal"), CC1/CC11 → pedalToLevel, last-moved controller wins; usePedal, usePedalLevel
   src/midi/noteBus.ts           ★ NoteMsg.source: "midi" | "virtual" | "qwerty"; useNoteBus; useChordStrikes
   src/midi/useMidi.ts           ★ per-device held notes (heldBy: port id → Set); releases them on unplug / CC120 / CC123 / unmount,
-                                  as note-offs on the bus, plus a toast; ignores offs for unseen keys; DEV-only console.debug logging
+                                  as note-offs on the bus, plus a toast; ignores offs for unseen keys; DEV-only console.debug logging; forwards every CC to controlBus
   src/midi/qwerty.ts            ★ computer keyboard → noteBus + player; e.code layout; Z/X octave; M toggle; capture-phase so it
                                   pre-empts page shortcuts while on; releaseAll on blur/hidden; state persisted in "reharm.qwerty"
   src/library/api.ts  src/library/apiStatus.ts
   src/library/practice.ts       ★ practice-history client; in DEMO, fetchProgress/fetchDue read the seeded history (writes stay no-ops)
   src/library/demoHistory.ts    ★ hydrates the fixture relative to now → Progress (same rules as the API: clean = cleanRuns > 0, due = dueAt ≤ now)
-  src/library/demoHistory.json  ★ 33 concept reviews across 7 rules (5 due), 20 improv runs (45% → 75% chord tones), places → move ids
+  src/library/demoHistory.json  ★ Co-op Blues: 31 reviews across 6 rules (5 due), 20 improv runs (45% → 75% chord tones), places → move ids
   src/components/
-    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  ImprovCard.tsx  MoveCard.tsx  DeepDive.tsx  LevelDial.tsx
+    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  ImprovCard.tsx  MoveCard.tsx  DeepDive.tsx
+    OriginalStamp.tsx ★ Rough.js rubber stamp "ORIGINAL COMPOSITION © 2026 ITAI LIOR // SOFTWARE & JAZZ CO-OP", shown in Study's
+                       lead-sheet footer when tune.rights.kind === "original" (not in Practice: it would cover the staff)
+    LevelDial.tsx ★ the dial + PedalLink toggle ("🦶 Link to mod wheel / pedal"); red ink needle tracks the raw CC value, .dial-snap on level change
     TransportBar.tsx ★ (+QwertyToggle)  TrioMixer.tsx  BeatPulse.tsx  KeyPicker.tsx  ModeSwitch.tsx  SideRail.tsx
     QwertyToggle.tsx ★ the ⌨ pill: "No MIDI? Play with your keyboard (M)" / "Keys on · A = C4", Z−/X+ buttons, held notes, tooltip map
     LoadingLine.tsx  Toaster.tsx  OfflineBanner.tsx  PanelBoundary.tsx
@@ -149,6 +160,8 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
 
 ## 2. Architectural rules (do not break these)
 
+0. **Bundled tunes and rights.** `BUNDLED_TUNES` (theory-core) is the demo library and what a fresh database is seeded with, and the API's `getTune` falls back to it. `Tune.rights` records who owns a tune: `original` shows the stamp; `public-domain` means **chord changes only**, never a melody unless it's verified against the original sheet music AND free under life + 70. Move ids are positional, so anything keyed by move id (the demo Deep Dive file) must also check the tune id.
+0. **The reference tune is `referenceTune` (Co-op Blues), exported by theory-core.** The app, the API seed, the demo explanations and the demo history all derive from it; never hard-code a tune id. Changing the tune means: golden test, `demo:generate -- --template`, and the history generator.
 1. **theory-core is deterministic and decides every pitch.** Harmony, voicings, scales, melody checks, coach diffs, line evaluation, bass lines and drum patterns are pure, synchronous TypeScript. Anything "random" is **seeded** per tune.
 2. **The LLM never computes notes.** `/api/explain` recomputes the move and sends Claude only `buildFacts(tune, move)`. Claude writes prose only (`{summary, deepDive, recreateRule}`, Zod structured output), keeping the facts' spelling.
    - Model `claude-opus-5-5` (env `EXPLAIN_MODEL`), `output_config {effort: "medium", format}`, `betas ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"`, `cache_control` on the system prompt.
@@ -179,12 +192,13 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
     - UI sync goes only through `Tone.Draw` or `player.currentBeat()`.
     - The count-in is on the audio clock.
     - `audio/unlock.ts` is installed once in `main.tsx`; it must stay Tone-free (it only calls `player.resume()`).
-13. **Input: everything goes through `noteBus`.**
+13. **Input: notes go through `noteBus`, controllers through `controlBus`.**
     - Sources: MIDI (`useMidi`), on-screen keys (`virtual`) and the computer keyboard (`qwerty`). Tools subscribe to the bus (`useChordStrikes`, the heatmap), never to a source directly.
     - **Every source must guarantee a note-off for every note-on:**
       - MIDI releases per device on unplug, All Notes Off, or unmount;
       - QWERTY releases everything on blur, a hidden tab, or switching off.
-    - QWERTY sounds its own notes through the player. MIDI does not (it assumes the keyboard has its own sound); local MIDI monitoring is an open item.
+    - Controller features subscribe to `controlBus`, never to MIDI. The pedal only *sets the level*; it must not clear picks or selection (`changeLevel` does that for clicks), and it must stay opt-in.
+    - QWERTY sounds its own notes through the player. MIDI is sounded by `midi/monitor.ts` (a noteBus + controlBus listener): on by default and persisted in `reharm.midiMonitor`, with the sustain pedal (CC64) honoured. "🔊 Hear it in the app" / "🔇 Keyboard speakers only" shows next to the MIDI pill once a keyboard is connected. Clicking Connect MIDI warms up the audio engine, because MIDI messages aren't user gestures and can't unlock audio themselves.
 14. **Resilience:**
     - One `apiStatus` poller is the source of truth.
     - Library errors carry an HTTP status.
@@ -236,7 +250,7 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
 
 ## 4. What works now (verified)
 
-- **121/121 tests** (105 theory-core + 16 API) and a clean typecheck across all three workspaces, after the Must-Be floor changes. CI was green at `d81764b`.
+- **131/131 tests** (115 theory-core + 16 API) and a clean typecheck across all three workspaces. CI was green at `d81764b`; the Must-Be floor commit `7834922` and later work have not been checked in CI here.
 - **Engine:** 11 rules (L1–L4), melody filter with reasons, voice-leading scores, density-capped pathways, scale map, voicings, Roman analysis.
 - **Study, Practice and Coach modes** with continuity, which is unchanged from before.
   - **Shared across modes:** global key change, trio mixer, count-in, click and beat dot.
@@ -277,85 +291,53 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
 
 ## 5. Exact next steps (in this order)
 
-### Step 1: Swap the demo tune for "Co-op Blues"
+### Done in the last session (verify, then commit if needed)
 
-**Why:** the public demo currently ships *Someday My Prince Will Come* (Frank Churchill, 1937), and its melody is under copyright. Chord progressions aren't protected, but melodies are. The replacement is an **original 12-bar jazz blues with an original head** written for the app. It's called "Co-op Blues", after the Software & Jazz Co-op brand. Composer credit: Itai Lior. Itai chose this over plain Rhythm Changes.
+**Co-op Blues** is the reference and demo tune.
+- **The changes:** | F6 | B♭7 | F6 | Cm7 F7 | B♭7 | B°7 | F6 | Am7♭5 D7♭9 | Gm7 | C7 | F6 D7 | Gm7 C7 |
+  - F6 on the tonic bars, because the tonic rules (gospel turnaround, backdoor ii–V, Coltrane, common-tone °7, ♭VI–♭VII) need a major-quality target. On an F7 tonic only three rules fired.
+- **The head:** a full bebop line.
+  - It uses the A♭→A blue-note slide, chromatic approach tones and anticipations across bar lines.
+  - Over D7 it plays an altered line (F♯, E♭, B♭), and the 6th sits over the F6 bars.
+- **How the dial builds:** L0 none → L1 1 move → L2 3 → L3 4 → L4 12. Six rules are accepted (secondary ii–V, tritone sub, upper structure, gospel turnaround, backdoor ii–V, constant structure), with 15 rejections that have audible reasons.
+  - All of this is pinned in `coopBlues.golden.test.ts`.
+- **Shipped files:** the demo bundle no longer contains "Someday My Prince Will Come" at all (grepped `dist-demo`).
 
-**Design it so the engine shines:**
-- **Form:** a jazz blues in **F**, 4/4, `feel: "swing"`, so the band plays a walking bass and the swing ride.
-- **Suggested changes:**
-  - | F7 | B♭7 | F7 | Cm7 F7 |
-  - | B♭7 | B°7 | F7 | Am7♭5 D7♯9 |
-  - | Gm7 | C7 | F7 D7 | Gm7 C7 |
-- **What that gives the engine:** a secondary ii–V into IV (bar 4), dominants to tritone-sub, a turnaround for the gospel and backdoor rules, and room for Coltrane and constant-structure moves at L4.
-- **Check before committing to these changes:** run `generateMoves` / `buildPathway` on the draft at every level. Aim for **4+ distinct rules accepted**, at least one **melody-filter rejection with a reason** (so the X-ray's red strike appears in the demo), and something at each of L1–L4.
-- **Melody:**
-  - Write a short, singable riff head as `melody` notes, enough to make the melody filter meaningful (more than *Someday*'s two anchors).
-  - Keep it simple and bluesy: the ♭3 and ♭7 against the I7, with a call-and-response shape.
-  - Spell it properly (A♭, not G♯).
-- **Engine side:** add `packages/theory-core/src/fixtures/coopBlues.ts`, export it from `index.ts`, and add a golden test in the style of `someday.golden.test.ts` that pins its moves, rejections and pathways.
+**The Expression Pedal** drives the dial.
+- **How it works:**
+  - CC1 or CC11 travel through `controlBus` → `pedal.ts` → `pedalToLevel` (hysteresis) → `App`'s `usePedalLevel(setLevel)`. This keeps picks; clicking the dial still clears them.
+  - It's opt-in with "🦶 Link to mod wheel / pedal" next to the dial, in both Study and Practice.
+- **Verified with a fake MIDI device on the demo build:**
+  - the CC was ignored until linked, and linking didn't jump the dial;
+  - a 0→127 sweep went L0→L4 once each;
+  - jitter at a band edge didn't flicker;
+  - the mod wheel took over when moved;
+  - **while the band played**, the lead sheet reharmonized at each pedal position;
+  - the needle and snap render, and the console had no errors.
+- **Not verified with a physical pedal yet.**
 
-**The swap, file by file:**
-1. **`apps/web/src/App.tsx`:** introduce a `REFERENCE_TUNE` (or `DEMO_TUNE`) constant, set to `coopBlues`, and use it everywhere `someday` is the default or fallback tune.
-   - Those places are: the initial state, `loadTune`'s shortcut, `backToReference`, restore-last-tune, and the deleted-tune toasts.
-   - Decide with Itai whether the *non-demo* app also defaults to Co-op Blues. Recommended: yes, since one reference tune is simpler. *Someday* stays only as the engine's golden test fixture, or ships only in non-public builds.
-2. **`apps/api/src/app.ts`, `apps/api/scripts/generate-demo.ts`, `apps/api/test/api.test.ts`:** these reference `someday`. Switch them to the shared reference tune.
-3. **`apps/api/demo/explanations.json`:**
-   - Regenerate with `npm run demo:generate -w @reharm/api -- --template` (free; engine text).
-   - A test fails if any demo move is missing from the file.
-   - Claude-written Deep Dives are a separate decision: they cost Itai's API budget, so **ask first**.
-4. **Seed data:** edit `apps/web/scripts/gen-demo-history.mjs`.
-   - Set `tuneId` to the new id.
-   - Point every entry in `places` at real move ids from Co-op Blues (`ruleId@bar.beat`, as produced by `generateMoves`).
-   - Choose the `plan` rules from those the blues actually yields, so every "Practise →" lands on a real move.
-   - Then run `node apps/web/scripts/gen-demo-history.mjs apps/web/src/library/demoHistory.json`. Keep about 5 due items by tuning `daysSinceReview`; the script prints the count.
-5. **README:** update the demo-tune mentions, the golden-test paragraph and "A note on music data".
-6. **Verify:**
-   - `npm run typecheck && npm test`, then `npm run build:demo` and the `web-demo-build` preview.
-   - Check, with zero `/api` calls: Play (walking bass), the dial at L0–L4, the X-ray (including a red strike), the Coach, every Practise → in the passport, and a key change.
+**The demo library and the Original Composition stamp** (the session after):
+- **Itai's decision:** Co-op Blues stays the main tune. "On the Sunny Side of the Street" is public domain in the US only; under life + 70 (Israel, the EU, the UK) McHugh's melody is protected until the end of 2039.
+- **What's bundled:**
+  - Sunny Side and I Got Rhythm ship as chord changes only.
+  - The Sunny Side changes were checked against an online chart. I Got Rhythm uses the standard 32-bar jazz form.
+  - Sweet Georgia Brown and Bye Bye Blackbird were left out: no readable bar-by-bar source could be found.
+- **In the demo:**
+  - the Setlist drawer lists the three tunes, with no import or delete;
+  - the demo history now spreads its passport places across the bundled tunes, and cross-chart "Practise →" was verified (Co-op Blues → Sunny Side's bar-2 ii–V in E♭);
+  - the demo Deep Dive file is keyed by tune as well as move id, with an API test guarding the `functional.secondaryTwoFive@2.1` collision.
+- **Ideas:** "Sunny Side" and "I Got Rhythm" melodies could be added only from the 1930 sheet music. Only Gershwin's is free under life + 70.
 
-### Step 2: Expression Pedal → reharm dial (the first musical delighter)
+**Tests:** 132 (115 theory-core + 17 API); typecheck clean.
 
-**Goal:** an expression pedal (CC 11), a foot controller (CC 4) or the mod wheel (CC 1) drives the dial from L0 to L4 live. Heel down is the original changes; toe down is L4. It should be easy to demo in a 30-second video.
+### Next: the launch track
 
-**The plan:**
-1. **A control bus next to the note bus.**
-   - In `useMidi.ts`, forward every Control Change (`0xB0`) as `{ cc, value, channel, device }` on a new `controlBus` in `midi/controlBus.ts`, mirroring `noteBus`.
-   - Keep CC 120/123 (release) and CC 64 (sustain) behaving as today.
-   - The pedal feature subscribes to the control bus, never to MIDI directly (rule 13 extended).
-2. **A pure mapping with hysteresis**, so a resting foot doesn't flicker between levels.
-   - `pedalToLevel(value, prevLevel, levels = 5)`: split 0–127 into 5 bands, and only change level once the value is about 6 units past a band edge.
-   - Make it a pure function with unit tests: monotonic; stable inside a band; 0 → L0 and 127 → L4; no flip-flop under ±3 jitter.
-   - Put it where tests already run (theory-core, as `src/control.ts`, or add Vitest to `apps/web`).
-3. **MIDI learn and settings.**
-   - A small "🦶 Pedal" pill beside the MIDI pill. Click **Learn**, move the pedal, and the first CC that changes by more than 10 is captured.
-   - Persist `{ cc, device?, invert }` in localStorage under `reharm.pedal`. Default to CC 11 with no learn step.
-   - Show a live mini-gauge of the value and the current level.
-   - Allow an invert option, since some pedals read backwards.
-4. **Wire it to the dial.** `App.tsx` has `changeLevel(l)`, which calls `setLevel(l)` and **also clears forced picks and the selection**. The pedal must **not** wipe picks on every move.
-   - Add a path that only sets the level, or decide with Itai that pedal moves keep picks.
-   - Level changes already swap the chords in on the next beat while playing ("A/B ghost switching"), which is exactly the musical behaviour wanted.
-   - Throttle to at most one level change per beat (`player.currentBeat()`).
-5. **The tactile part.**
-   - The `LevelDial` needle animates to the pedal's value, so it drifts continuously even between levels.
-   - The level badge pulses on a change.
-   - Practice Mode's HUD shows "🦶 L3".
-   - Respect reduced motion.
-6. **No hardware?** `[` `]` already adjust tempo; consider `PageUp` / `PageDown` (or the mod wheel) for testing. Test with the fake-MIDI recipe in §0, sending `[0xB0, 11, value]`.
-7. **Verify:**
-   - unit tests for the mapping;
-   - a fake-MIDI sweep from 0 to 127 shows L0 → L4 exactly once each, with no flicker at a band edge under jitter;
-   - picks survive a sweep (or follow whatever was agreed);
-   - the X-ray follows the level.
-
-### After that (launch track)
 
 - Deploy the static demo, plus a CI badge, OG/meta tags (`index.html` has none) and a 20-second README GIF: the dial turning, chords moving, proofs going green. This is higher ROI than any in-app onboarding, because many recruiters never click through.
 - **Deep-link URLs:** `?tune=…&level=3&key=Bb&play=1`, with a ▶ overlay. These double as onboarding and as shareable reharm links.
 - **Study-mode shortcuts** (Space, ← →, a `?` overlay) and showing the Practice legend below `xl`.
 - **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
 - Smaller items:
-  - local sound for MIDI controllers with no speakers (a "my keyboard makes its own sound" toggle);
   - a sustain-pedal policy;
   - an "audio blocked / tap to enable" status;
   - silence Tone's console banner (`TONE_SILENCE_LOGGING`);
@@ -385,14 +367,14 @@ The **Musician's Wishlist** in the README holds the full set of ideas: Expressio
 ```bash
 npm run dev            # web :5173 + api :8787
 npm run dev:demo       # read-only demo (web + api)
-npm test               # all workspaces (121 tests)
+npm test               # all workspaces (132 tests)
 npm run typecheck
 npm run build          # web → apps/web/dist
 npm run build:demo     # static demo → apps/web/dist-demo
 npm run db:generate -w @reharm/api                    # after editing apps/api/src/db/schema.ts
 npm run demo:generate -w @reharm/api -- --template    # demo Deep Dives from engine text (free)
 npm run demo:generate -w @reharm/api                  # Claude-written demo Deep Dives (costs API budget: ask)
-node apps/web/scripts/gen-demo-history.mjs apps/web/src/library/demoHistory.json   # demo practice history
+npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json   # demo practice history (validates move ids)
 ```
 
 - **API:**
@@ -401,7 +383,7 @@ node apps/web/scripts/gen-demo-history.mjs apps/web/src/library/demoHistory.json
   - `POST /api/import/ireal {url}`
   - `POST /api/explain {tuneId (may be base@Key), moveId, fresh?}`
   - `/api/practice`: `POST sessions`, `POST sessions/:id/end`, `POST coach-attempts`, `POST improv-runs`, `GET progress` (concepts, places, cleanKeys, due, recentImprov), `GET due` (with `lastPlace`)
-- **localStorage keys:** `reharm.tune`, `reharm.tune.title`, `reharm.mode`, `reharm.key:<tuneId>`, `reharm.mixer`, `reharm.countIn`, `reharm.qwerty` (`{enabled, base}`). The planned pedal settings would use `reharm.pedal`.
+- **localStorage keys:** `reharm.tune`, `reharm.tune.title`, `reharm.mode`, `reharm.key:<tuneId>`, `reharm.mixer`, `reharm.countIn`, `reharm.qwerty` (`{enabled, base}`), `reharm.pedal` (`{linked}`).
 - **Keyboard:**
   - Global: `M` toggles QWERTY. While it's on: `A`–`'` play notes, `W E T Y U O P` play black keys, `Z` / `X` change octave.
   - Practice: Space, ← →, A, L, `[ ]`, `, .`, 1–4, Esc.

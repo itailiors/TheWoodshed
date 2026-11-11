@@ -94,9 +94,15 @@ export class AudioEngine {
 
   constructor(private host: EngineHost) {}
 
-  /** Must run inside a user gesture's activation window (browser autoplay rules). */
+  /**
+   * Builds the instruments. Asks the browser to start audio, but never waits for it:
+   * without a user gesture (Practice Mode connecting MIDI on a page refresh, a MIDI note
+   * arriving before any click) Chrome leaves that promise pending forever, which used to
+   * hang loading for good. A suspended context still loads samples; the next tap, key
+   * press or Play wakes it (see resume()).
+   */
   async init(): Promise<InstrumentSource> {
-    await Tone.start();
+    void Tone.start().catch(() => {});
     const reverb = new Tone.Reverb({ decay: 2.4, wet: 0.16 }).toDestination();
     // Bass and drums sit drier than the piano; a little room keeps them in the same club.
     const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).toDestination();
@@ -126,6 +132,7 @@ export class AudioEngine {
           release: 1.2,
           onload: () => {
             clearTimeout(timer);
+            trimOnsets(s);
             resolve(s);
           },
           onerror: (e) => {
@@ -239,6 +246,7 @@ export class AudioEngine {
    * Stopping during the count-in cancels both: Clock.stop() drops the pending start.
    */
   play(countInBars = 0) {
+    this.resume(); // Play is a user gesture: wake a context that loaded without one
     const t = Tone.getTransport();
     if (this.clockId === null) {
       this.clockId = t.scheduleRepeat((time) => {
@@ -359,5 +367,29 @@ export class AudioEngine {
   resume() {
     const ctx = Tone.getContext().rawContext as AudioContext;
     if (ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
+  }
+}
+
+/**
+ * The Salamander MP3s start with 4–16 ms of near-silence (encoder padding plus the hammer's
+ * approach), so every note, live or scheduled, sounded that much late. Cut each sample to just
+ * before its onset. Reaches into Tone's private buffer map; if that ever changes, the samples
+ * are simply left as they are.
+ */
+function trimOnsets(sampler: Tone.Sampler) {
+  const PRE_ROLL = 0.001; // keep 1 ms before the onset so the attack transient survives
+  const THRESHOLD = 0.003; // about −50 dBFS
+  try {
+    const map = (sampler as unknown as { _buffers?: { _buffers?: Map<string | number, Tone.ToneAudioBuffer> } })._buffers?._buffers;
+    if (!map) return;
+    for (const [key, buf] of map) {
+      const data = buf.getChannelData(0);
+      let i = 0;
+      while (i < data.length && Math.abs(data[i]) < THRESHOLD) i++;
+      const start = Math.max(0, i / buf.sampleRate - PRE_ROLL);
+      if (start > 0.002 && i < data.length) map.set(key, buf.slice(start));
+    }
+  } catch (err) {
+    console.warn("[audio] couldn't trim sample onsets; playing them untrimmed", err);
   }
 }
