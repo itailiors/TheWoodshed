@@ -2,6 +2,7 @@ import { prettyNote, RULES } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
+import { DEMO } from "../../demo";
 import { KeyMatrix } from "./KeyMatrix";
 import { fetchProgress, onPracticeSaved, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
 
@@ -73,6 +74,11 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                   📒 Concept passport
                 </h2>
                 <p className="text-sm text-ink-soft">Every Coach run and every solo pass, kept like a teacher's notebook.</p>
+                {DEMO && (
+                  <p className="mt-1 inline-block -rotate-1 rounded border-2 border-dashed px-2 text-sm" style={{ borderColor: pen.red, color: pen.red }}>
+                    Sample notebook: three weeks of a made-up player's practice, so you can see the loop working. Your own runs aren't saved in this demo.
+                  </p>
+                )}
               </div>
               <button type="button" onClick={onClose} aria-label="Close the passport" className="cursor-pointer font-marker text-2xl leading-none hover:-rotate-6">
                 ×

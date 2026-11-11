@@ -181,5 +181,9 @@ export async function saveImprovRun(run: ImprovRunInput, tempo?: number): Promis
 }
 
 // ── reads ──
-export const fetchProgress = (tuneId?: string) => call<Progress>(`/progress${tuneId ? `?tuneId=${encodeURIComponent(chartId(tuneId))}` : ""}`);
-export const fetchDue = () => call<DueItem[]>("/due");
+// The demo reads a seeded history instead (lazy-loaded, so normal builds don't carry it).
+export const fetchProgress = (tuneId?: string): Promise<Progress | null> =>
+  DEMO
+    ? import("./demoHistory").then((m) => m.demoProgress())
+    : call<Progress>(`/progress${tuneId ? `?tuneId=${encodeURIComponent(chartId(tuneId))}` : ""}`);
+export const fetchDue = (): Promise<DueItem[] | null> => (DEMO ? fetchProgress().then((p) => p?.due ?? null) : call<DueItem[]>("/due"));

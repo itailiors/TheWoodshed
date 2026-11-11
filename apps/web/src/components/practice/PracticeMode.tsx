@@ -21,6 +21,8 @@ import { LevelDial } from "../LevelDial";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { KeyPicker } from "../KeyPicker";
 import { LoadingLine } from "../LoadingLine";
+import { QwertyToggle } from "../QwertyToggle";
+import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
@@ -55,8 +57,11 @@ const SHORTCUTS: [string, string][] = [
   ["[ ]", "tempo"],
   [", .", "key ½ step"],
   ["1–4", "pno/bass/dr/click"],
+  ["M", "QWERTY keys"],
   ["Esc", "study"],
 ];
+/** Shortcuts the letter keys can't serve while they're playing notes. */
+const QWERTY_TAKES = new Set(["A", "L"]);
 
 /**
  * Practice Mode: both hands on the piano. A fixed 100dvh layout (sheet + Current
@@ -66,6 +71,7 @@ export function PracticeMode(p: Props) {
   const { tune, chords, loop, playback } = p;
   const bpb = tune.meter[0];
   const playing = playback.status === "playing";
+  const keys = useQwerty();
 
   // ── sync: one improv map per chord list; the Tone.Draw-timed position picks the entry ──
   const entries = useMemo(() => {
@@ -186,8 +192,9 @@ export function PracticeMode(p: Props) {
           🎹 {p.midi.status === "connected" ? p.midi.devices[0] : p.midi.status === "requesting" ? "connecting…" : "no MIDI"}
           {p.midi.held.length > 0 && ` · ${p.midi.held.map(midiName).join(" ")}`}
         </span>
+        {p.midi.status !== "connected" && <QwertyToggle compact />}
         <span className="ml-auto hidden gap-3 text-xs text-ink-faint xl:flex" aria-label="Keyboard shortcuts">
-          {SHORTCUTS.map(([k, v]) => (
+          {SHORTCUTS.filter(([k]) => !(keys.enabled && QWERTY_TAKES.has(k))).map(([k, v]) => (
             <span key={k}>
               <kbd className="rounded border border-ink-faint px-1 font-hand">{k}</kbd> {v}
             </span>

@@ -344,11 +344,20 @@ export class AudioEngine {
     Tone.getDraw().schedule(cb, Tone.now() + 0.03 + delay);
   }
 
-  noteOn(midi: number) {
-    this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), Tone.now() + 0.01, 0.6);
+  // Live notes use Tone.immediate() (the raw audio clock), not Tone.now(): now() adds the
+  // context's lookAhead (0.1 s), which is right for the scheduled band and far too late for a
+  // key you just pressed.
+  noteOn(midi: number, velocity = 0.6) {
+    this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), Tone.immediate(), velocity);
   }
 
   noteOff(midi: number) {
-    this.instrument?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), Tone.now() + 0.05);
+    this.instrument?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), Tone.immediate() + 0.03);
+  }
+
+  /** Wake a context the OS suspended (iOS after a call or an app switch; tabs left in the background). */
+  resume() {
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    if (ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
   }
 }

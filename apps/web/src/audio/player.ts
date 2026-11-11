@@ -247,10 +247,15 @@ class Player {
     this.auditionToken++;
   }
 
-  /** On-screen keys: sound while held. */
-  async noteOn(midi: number) {
+  /** On-screen and computer keys: sound while held. `velocity` is 0–1. */
+  async noteOn(midi: number, velocity?: number) {
     await this.init();
-    this.engine?.noteOn(midi);
+    this.engine?.noteOn(midi, velocity);
+  }
+
+  /** Called on every user gesture: wakes the audio clock if the OS put it to sleep. A no-op before the engine loads. */
+  resume() {
+    this.engine?.resume();
   }
 
   noteOff(midi: number) {

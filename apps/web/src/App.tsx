@@ -375,7 +375,7 @@ export function App() {
         onPlay={playback.toggle}
         onPractice={() => openCoach()}
         onLibrary={DEMO ? undefined : () => setLibraryOpen(true)}
-        onProgress={DEMO ? undefined : () => setPassportOpen(true)}
+        onProgress={() => setPassportOpen(true)}
       />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && !DEMO && (
@@ -390,7 +390,7 @@ export function App() {
         />
         </PanelBoundary>
       )}
-      {passportOpen && !DEMO && (
+      {passportOpen && (
         <PanelBoundary onClose={() => setPassportOpen(false)}>
           <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onClose={() => setPassportOpen(false)} />
         </PanelBoundary>
@@ -447,16 +447,14 @@ export function App() {
                 📚 Setlist
               </button>
             )}
-            {!DEMO && (
-              <button
-                type="button"
-                onClick={() => setPassportOpen(true)}
-                onPointerEnter={() => void PracticeDashboard.preload().catch(() => {})}
-                className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              >
-                📒 Progress
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setPassportOpen(true)}
+              onPointerEnter={() => void PracticeDashboard.preload().catch(() => {})}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+            >
+              📒 Progress
+            </button>
             <ModeSwitch mode="study" onMode={setMode} />
             <button
               type="button"

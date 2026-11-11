@@ -5,6 +5,7 @@ import type { BandSource } from "../audio/band";
 import { midiName, type MidiStatus } from "../midi/useMidi";
 import { BeatPulse, CountInDisplay, CountInPicker } from "./BeatPulse";
 import { LoadingLine } from "./LoadingLine";
+import { QwertyToggle } from "./QwertyToggle";
 import { TrioMixer } from "./TrioMixer";
 
 interface Props {
@@ -90,6 +91,7 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
         {midi.status === "connected" && `: ${midi.devices[0]}${midi.devices.length > 1 ? ` +${midi.devices.length - 1}` : ""}`}
         {midi.held.length > 0 && <span className="ml-1 text-ink-soft">· {midi.held.map(midiName).join(" ")}</span>}
       </button>
+      <QwertyToggle compact={midi.status === "connected"} />
 
       {status === "error" && <span className="text-sm text-wash-brick">Audio couldn't start. See the console.</span>}
       {source === "synth" && <span className="text-xs text-ink-faint">(piano samples unreachable, so this is a synth fallback)</span>}

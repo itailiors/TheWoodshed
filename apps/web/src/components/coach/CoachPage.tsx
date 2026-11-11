@@ -6,6 +6,7 @@ import { DEMO } from "../../demo";
 import { fetchProgress, onPracticeSaved, type Progress } from "../../library/practice";
 import type { MidiStatus } from "../../midi/useMidi";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
+import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill } from "./CoachDrill";
 
@@ -36,12 +37,11 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const [key, setKey] = useState(initial.key ?? tune.key.tonic);
   const move = accepted.find((m) => m.id === moveId) ?? first;
 
-  // practice history: server-side, plus this session's runs (so the passport stamps at once,
-  // and the read-only demo, which saves nothing, still shows what you've done)
+  // practice history: server-side (in the demo, the seeded history), plus this session's runs,
+  // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done
   const [progress, setProgress] = useState<Progress | null>(null);
   const [session, setSession] = useState<Record<string, { clean: string[]; tried: string[] }>>({});
   useEffect(() => {
-    if (DEMO) return;
     let live = true;
     const load = () => void fetchProgress().then((p) => live && p && setProgress(p));
     load();
@@ -107,6 +107,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         >
           🎹 {midi.status === "connected" ? "MIDI connected" : midi.status === "requesting" ? "Connecting…" : "Connect MIDI"}
         </button>
+        <QwertyToggle compact />
       </header>
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)_330px]">
@@ -213,7 +214,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               />
               <p className="text-xs text-ink-soft">
                 Click a key to drill it there.{" "}
-                {DEMO ? "In this read-only demo nothing is saved; stamps last until you reload." : "Every run is saved and scheduled for review."}
+                {DEMO ? "Stamps here come from a sample notebook plus your runs this visit; nothing is saved in the demo." : "Every run is saved and scheduled for review."}
               </p>
             </div>
           </SketchBox>

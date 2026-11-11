@@ -4,13 +4,13 @@ export interface NoteMsg {
   type: "on" | "off";
   note: number;
   velocity: number;
-  source: "midi" | "virtual";
+  source: "midi" | "virtual" | "qwerty";
 }
 
 type Listener = (m: NoteMsg) => void;
 const listeners = new Set<Listener>();
 
-/** One stream of note events for every practice tool, fed by Web MIDI and the on-screen keys. */
+/** One stream of note events for every practice tool, fed by Web MIDI, the on-screen keys and the computer keyboard. */
 export const noteBus = {
   emit(m: NoteMsg) {
     listeners.forEach((l) => l(m));

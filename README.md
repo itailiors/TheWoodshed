@@ -77,12 +77,20 @@ Eleven deterministic rules. Each works in intervals relative to its local target
 
 Every move goes through the same melody filter and voice-leading score, and comes with its own explanation and a key-independent rule.
 
+### ⌨️ No MIDI? Play the computer keyboard
+- Press **M** (or the ⌨ pill in the transport) and the computer keyboard becomes a piano, in the layout DAW users already know: `A S D F G H J K L ; '` are the white keys from C, `W E · T Y U · O P` the black keys, `Z` / `X` shift the octave.
+- Keys are matched by physical position (`KeyboardEvent.code`), so the shape is the same on AZERTY and QWERTZ.
+- Notes go out on the same note bus as MIDI, so the heatmap, the Coach and every other tool treat them exactly like a real keyboard, and they sound through the app's piano.
+- Held keys are released if the window loses focus or the tab is hidden, and a key released after an octave shift still lets go of the pitch it started.
+- While it's on, the letter keys belong to the piano: Practice Mode's `A` and `L` shortcuts pause, and its shortcut legend hides them.
+- Laptop keyboards register only a few keys at once, so this suits single-note lines best; for full Coach voicings, click the on-screen keys.
+
 ### 🎹 MIDI Comping Coach
 - **Its own page:** a third mode next to Study and Practice. Open it from the mode switch, a move card's **Drill the voicing**, the sidebar, or the passport.
   - **Left:** what to drill. The moves in your reharm, every other move the engine found in the tune (including ones the dial isn't showing), and the reviews that are due.
   - **Centre:** the drill.
   - **Right:** this concept's 12-key passport page. Keys are stamped as you play them clean, the key you're drilling is ringed, and clicking a key drills it there.
-- Asks you to play the move (e.g. *Fm9 → B♭7(♭9) → E♭maj7*) and listens to your keyboard through the Web MIDI API. Without a keyboard, click keys on screen.
+- Asks you to play the move (e.g. *Fm9 → B♭7(♭9) → E♭maj7*) and listens to your keyboard through the Web MIDI API. Without a keyboard, click keys on screen or play the computer keyboard (see *No MIDI? Play the computer keyboard* below).
 - **Strike diffing:** each chord you play is compared with the engine's reference voicing. It catches missing guide tones, wrong notes (and names avoid-note clashes), and accepts rootless voicings and other inversions.
 - **Voice-leading diffing:** between chords it pairs your right-hand voices and checks that each moves by step, comparing your total movement with the engine's.
 - **Teacher's red pen:** hand-drawn circles where a 3rd or 7th should be, crosses on wrong notes, a big checkmark for a clean, smooth strike, and written comments in the margin.
@@ -150,7 +158,8 @@ Every move goes through the same melody filter and voice-leading score, and come
   - **Today's practice:** the review queue as a teacher's clipboard. Each item says what's due and how overdue, and **Practise →** opens the Comping Coach page on that exact move, in that key, loading the chart you last practised it on if needed.
   - **Passport pages:** one per concept, the 12 keys round the circle of fifths. Keys you've played clean get an ink wash and a red CLEAN stamp, keys you've tried show your last grade, untouched keys stay faint outlines. Click any key to practise it there.
   - **Recent solos:** an ink sparkline of chord-tone accuracy per pass, with guide-tone landings as dots.
-- History belongs to the chart: a transposed tune (`someday@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on. The read-only demo saves nothing.
+- History belongs to the chart: a transposed tune (`someday@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on.
+- **In the read-only demo** nothing is saved, so the passport opens on a clearly labelled **sample notebook**: three weeks of a made-up player's practice (33 key reviews scheduled by the same SM-2 rules as the API, 5 of them due, and 20 solo passes improving from 45% to 75% chord tones). Times are stored relative to page load, so the demo never drifts into "everything overdue". Your own runs stamp on top of it until you reload.
 
 ### 🔬 Engine X-ray: watch it decide, then watch it prove itself
 - **How it decided:** pick a bar (or let it follow the playhead) and read the engine's reasoning as a four-stage pipeline:
@@ -169,6 +178,9 @@ Every move goes through the same melody filter and voice-leading score, and come
 - **API down or offline:** a red-pen banner says exactly what's paused (setlist, import, deep dives) and what still works (everything musical, since it all runs in the browser), with a Retry button. One shared health check drives it, and it clears as soon as the API is back.
 - **No Claude key:** Deep Dive doesn't error. It says the engine's own explanation on the card is the full analysis, and how to switch Claude on. The API marks the case with a machine-readable code (`no_key`).
 - **A deleted tune:** if the remembered tune is gone, a toast names it and *Someday* goes back on the stand. If the API is only down, the remembered tune loads as soon as the API returns. Deleting the open tune steps off it at once.
+- **Mobile audio:** iOS plays Web Audio on the channel the silent switch mutes. The app declares itself a music app (`navigator.audioSession.type = "playback"`) and, on older iOS, starts a looping silent `<audio>` element on your first tap, which moves the page onto the media channel. Every tap or key press also wakes an audio context the OS suspended (after a call, an app switch or a background tab).
+- **Live notes play now:** keys you press sound on the raw audio clock (`Tone.immediate()`), not `Tone.now()`, which adds the 100 ms look-ahead meant for the scheduled band.
+- **No stuck notes:** held notes are tracked per MIDI device. Unplug a keyboard mid-chord (or hit its All Notes Off button) and its keys are released through the note bus as if they'd come up, so the Coach doesn't grade the next chord with phantom notes, and a toast says what happened. Per-note MIDI logging runs only in development, so the public console stays clean.
 - **Loading the band:** a sketched ink line fills as the piano, bass and drums arrive, with a red "~" on any instrument that fell back to a synth.
 - **Code-split:**
   - Tone.js and the band are a 271 kB engine chunk loaded on demand and prefetched when the browser is idle, so the first Play still counts as a user gesture;
@@ -186,7 +198,7 @@ Every move goes through the same melody filter and voice-leading score, and come
 | UI | React 19, Vite, Tailwind CSS v4 |
 | "Living lead sheet" design | **Rough.js** (seeded hand-drawn shapes), SVG turbulence / displacement filters (ink wobble, watercolour washes), Google Fonts *Kalam*, *Architects Daughter* and *Noto Music* |
 | Audio | **Tone.js** (Transport, Part, Sampler): Salamander Grand Piano, GM acoustic bass (midi-js-soundfonts) and a GM drum kit (WebAudioFont), with synth fallbacks |
-| Input | **Web MIDI API**, with hot-plug support and a shared note bus for MIDI and on-screen keys |
+| Input | **Web MIDI API** (hot-plug aware, stuck-note safe), the computer keyboard and on-screen keys, all on one shared note bus |
 | API | **Hono** on Node, **Anthropic SDK** (Claude, structured outputs, prompt caching) |
 | Storage | **SQLite** via **Drizzle ORM** on **sql.js** (WebAssembly: no native build), committed migrations, atomic writes to `apps/api/data/reharm.sqlite` |
 | Testing | **Vitest** + **fast-check** (property-based testing) |
@@ -277,6 +289,7 @@ Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm t
 
 In both forms, the demo:
 - shows only the bundled demo tune;
+- opens the Concept Passport on a labelled sample notebook (`apps/web/src/library/demoHistory.json`, regenerated with `node apps/web/scripts/gen-demo-history.mjs apps/web/src/library/demoHistory.json`);
 - serves Deep Dives from `apps/api/demo/explanations.json`, so visitors never trigger an Anthropic call.
 
 The shipped file holds the engine's own text. To replace it with Claude-written Deep Dives, run this once with your key:
@@ -296,7 +309,7 @@ It uses the explanation cache, so re-runs only pay for new moves. Add `-- --temp
 
 Endpoints are under `/api/practice`: `sessions`, `coach-attempts`, `improv-runs`, `progress`, `due`.
 
-A MIDI keyboard is optional: every practice tool also takes clicks on the on-screen keys. Web MIDI works in Chromium-based browsers (Chrome, Edge).
+A MIDI keyboard is optional: every practice tool also takes clicks on the on-screen keys and the computer keyboard (press `M`). Web MIDI works in Chromium-based browsers (Chrome, Edge); Safari has none, and Firefox asks for a site permission.
 
 ---
 
@@ -331,11 +344,37 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 
 ## Roadmap
 
+**Next up**
+- **Co-op Blues:** an original 12-bar blues (with an original head, so the melody filter has something to check) replaces *Someday My Prince Will Come* as the public demo tune, keeping the demo free of copyrighted melodies.
+- **Expression pedal on the dial** (see the wishlist below).
+- Deploy the static demo, with a CI badge here.
+
+**Later**
+- Drag across bars to loop them (A–B loop).
 - Melody capture from MIDI, so imported tunes get the melody check.
 - MusicXML import (melody included, so moves can be melody-checked).
 - Arrangement builder: chain pathways chorus by chorus and export MIDI or MusicXML.
-- Spaced-repetition "Concept Passport" across tunes.
+- Shareable reharm links: the engine is deterministic, so a URL can carry the whole reharm.
 - Heatmap analytics across sessions.
+
+### Future Roadmap: The Musician's Wishlist
+
+Ideas from the bandstand rather than the backlog: what would make a gigging jazz pianist want to open this every day.
+
+**🦶 Expression Pedal: the harmony under your foot**
+Map an expression pedal (MIDI CC 11), a foot controller (CC 4) or the mod wheel (CC 1) to the reharm dial, with MIDI learn. Heel down is the original changes; toe down is L4 Coltrane territory. The dial is the app's best idea, but today it lives under the mouse. Under the foot it becomes something you *perform*: you decide, live, how far outside the band goes, and the chords swap in on the next beat. A little hysteresis keeps a resting foot from flickering between levels.
+
+**🥁 Reactive Rhythm Section: a band that listens**
+Right now the band plays *at* you. A real rhythm section plays *with* you. Comp on the and-of-4 and the drummer catches it with the kick; lay out and the bass drops into a two-feel; dig in and the ride opens up, while a soft passage brings out the brushes. Your velocity and rhythmic placement, already on the note bus, steer the seeded drum and bass generators. This is the difference between a play-along and a trio.
+
+**🎤 Inner Voice Singing: hear the line inside the chords**
+Every reharm hides a beautiful chromatic line in the tenor voice. The app plays the reharm with one inner voice brought forward as a melody, then drops that voice and asks you to sing it (pitch detection on the microphone) or play it. A guide-tones-only variant has you fill in the rest. Players who hear inner voices comp like orchestrators, and the voice-leading engine already knows every line.
+
+**🎺 Gig Mode: the bandstand, not the practice room**
+The app calls the tune: a random key, a random tempo, a two-bar count-off that won't wait. Halfway through, "the singer wants it in A". You cue the last chorus and the tag from the keyboard. Practice rooms train recall; bandstands train recall under pressure, which is what gigging players actually lack. It reuses the global key change, the count-in and the review queue.
+
+**🕵️ Harmony Catcher: get credit for what you play by accident**
+While you comp or improvise freely, the engine listens for its own moves in your playing. Play a backdoor ii–V in E♭ without being asked, and it stamps your passport: *"You just played a backdoor ii–V in E♭."* Over time this becomes your harmonic fingerprint: the voicings you actually use, and reharm suggestions written in your own hand. Learning flips from assigned drills to discovering your own vocabulary, and the engine proves it can *recognise* harmony, not just generate it.
 
 ---
 
