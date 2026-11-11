@@ -1,0 +1,20 @@
+{
+  "name": "reharm-lab",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n web,api -c blue,yellow \"npm run dev -w @reharm/web\" \"npm run dev -w @reharm/api\"",
+    "dev:web": "npm run dev -w @reharm/web",
+    "dev:api": "npm run dev -w @reharm/api",
+    "test": "npm test -w @reharm/theory-core",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7",
+    "typescript": "^5.8.3"
+  }
+}
