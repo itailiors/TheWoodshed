@@ -8,7 +8,7 @@ import {
   type Tune,
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef } from "react";
-import type { InstrumentSource } from "../../audio/player";
+import { player, type InstrumentSource } from "../../audio/player";
 import type { PlaybackStatus } from "../../audio/usePlayback";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { LEVELS, seedOf } from "../../design/tokens";
@@ -16,6 +16,7 @@ import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { LeadSheet } from "../LeadSheet";
 import { LevelDial } from "../LevelDial";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
+import { TrioMixer } from "../TrioMixer";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
 
@@ -46,6 +47,7 @@ const SHORTCUTS: [string, string][] = [
   ["A", "A/B"],
   ["L", "loop move"],
   ["[ ]", "tempo"],
+  ["1 2 3", "mute pno/bass/dr"],
   ["Esc", "study"],
 ];
 
@@ -116,6 +118,13 @@ export function PracticeMode(p: Props) {
           case "Escape":
             s.onMode("study");
             return true;
+          case "1":
+          case "2":
+          case "3": {
+            const inst = (["piano", "bass", "drums"] as const)[Number(e.key) - 1];
+            player.setMix(inst, !player.mix[inst]);
+            return true;
+          }
           default:
             return false;
         }
@@ -147,6 +156,7 @@ export function PracticeMode(p: Props) {
         >
           {playing ? "■ Stop" : playback.status === "loading" ? "… Loading" : "▶ Play"}
         </button>
+        <TrioMixer compact />
         <span className="font-marker">♩ = {p.tempo}</span>
         <LevelDial level={p.level} onChange={p.onLevel} />
         <span className="font-marker text-sm">

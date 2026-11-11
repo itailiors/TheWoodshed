@@ -17,5 +17,6 @@ export * from "./transpose";
 export * from "./coach";
 export * from "./lineEval";
 export * from "./analysis";
+export * from "./band";
 export * from "./import/ireal";
 export { someday } from "./fixtures/someday";

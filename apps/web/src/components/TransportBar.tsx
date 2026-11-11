@@ -1,6 +1,7 @@
 import type { PlaybackStatus } from "../audio/usePlayback";
 import type { InstrumentSource } from "../audio/player";
 import { midiName, type MidiStatus } from "../midi/useMidi";
+import { TrioMixer } from "./TrioMixer";
 
 interface Props {
   status: PlaybackStatus;
@@ -38,6 +39,8 @@ export function TransportBar({ status, source, onToggle, tempo, onTempo, loopSel
         <span aria-hidden>{playing ? "■" : status === "loading" ? "…" : "▶"}</span>
         {playing ? "Stop" : status === "loading" ? "Loading piano" : "Play"}
       </button>
+
+      <TrioMixer />
 
       <label className="flex items-center gap-2 text-sm">
         <span>♩ = {tempo}</span>

@@ -90,6 +90,18 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Short off-beat avoid notes are shown as passing tones rather than mistakes. Guide tones landed on a chord change are outlined.
 - Notes are drawn on a "loop tape" whose older passes fade, with stats for chord tones on the beat, guide-tone landings and held avoid notes.
 
+### 🥁 Trio mixer: a built-in backing band
+- Three ink-doodle toggles (piano, upright bass, snare with brushes) sit next to Play in both modes. A muted instrument fades to pencil grey under a red-pen slash. In Practice Mode, keys `1` `2` `3` toggle them, and the mix is remembered.
+- **Bass**, generated in `theory-core` from the tune's feel:
+  - swing and jazz waltz get a **walking line**: the root on each downbeat, chord tones in between (the smoothest of every candidate line wins) and a chromatic approach a half step into the next chord;
+  - ballad, bossa and straight eighths get a **two-feel**: root on 1, the 5th on 3.
+- **Drums**, synthesized with Tone.js so no samples load:
+  - a metallic ride playing "ding, ding-a-ding" with the swung skip note;
+  - a hi-hat chick on 2 and 4 (2 and 3 in a waltz);
+  - a continuous pink-noise brush sweep on every beat;
+  - a feathered kick.
+- While the bass player is in, the app's piano drops its left-hand bass and comps rootless. Mute the bass and the left hand comes back. Mute the piano and you're comping with a bass-and-drums duo.
+
 ### ✍️ Claude-powered Deep Dive
 - One click turns a move into a short lesson: a summary, a 150–260-word deep dive (function, voice leading, how to hear and play it) and a key-independent rule.
 - The server recomputes the move itself and sends Claude only the computed facts. Structured outputs keep the response in the `{ summary, deepDive, recreateRule }` shape.
@@ -114,7 +126,7 @@ Every move goes through the same melody filter and voice-leading score, and come
 | Theory engine | TypeScript, no runtime dependencies (`packages/theory-core`) |
 | UI | React 19, Vite, Tailwind CSS v4 |
 | "Living lead sheet" design | **Rough.js** (seeded hand-drawn shapes), SVG turbulence / displacement filters (ink wobble, watercolour washes), Google Fonts *Kalam*, *Architects Daughter* and *Noto Music* |
-| Audio | **Tone.js** (Transport, Part, Sampler) with the Salamander Grand Piano samples |
+| Audio | **Tone.js** (Transport, Part, Sampler) with the Salamander Grand Piano samples; synthesized bass (MonoSynth) and brush kit (MetalSynth, NoiseSynth, MembraneSynth) |
 | Input | **Web MIDI API**, with hot-plug support and a shared note bus for MIDI and on-screen keys |
 | API | **Hono** on Node, **Anthropic SDK** (Claude, structured outputs, prompt caching) |
 | Storage | **SQLite** via **Drizzle ORM** on **sql.js** (WebAssembly: no native build), committed migrations, atomic writes to `apps/api/data/reharm.sqlite` |
@@ -148,6 +160,7 @@ Music theory has invariants, so the engine is tested against them rather than ag
 - The engine's own voicing is always judged "perfect"; removing a guide tone is always flagged, with the right place for the red pen.
 - Transposing a tune to any of the 12 keys yields exactly the same moves, shifted.
 - Line evaluation never mislabels a chord tone, and every note gets a readable role.
+- The walking bass plays every beat in range, lands each chord's root on its downbeat and approaches the next root by a half step; the two-feel is always root on 1, fifth on 3; the ride, hi-hat and brush patterns stay in time and inside the form.
 
 A **golden test** pins the engine to the original design simulation of *Someday My Prince Will Come* (bars 1–8), so the moves, the melody-based rejections, both pathways and the scale map are all exact.
 
@@ -162,7 +175,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 94 tests (engine + API), several thousand generated cases
+npm test          # 104 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

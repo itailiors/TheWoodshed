@@ -11,7 +11,11 @@ export function usePlayback(arrangement: Arrangement, tempo: number) {
   const [position, setPosition] = useState<TimePos | null>(null);
 
   useEffect(() => {
-    const off = player.onPosition(setPosition);
+    const off = player.onPosition((pos) => {
+      setPosition(pos);
+      // A null position means the player stopped (including being torn down by a hot reload).
+      if (pos === null) setStatus((s) => (s === "playing" ? "idle" : s));
+    });
     return () => {
       off();
       player.stop();
