@@ -1,5 +1,7 @@
 import {
   buildPathway,
+  chroma,
+  transposeTune,
   densityLabel,
   formBars,
   generateMoves,
@@ -15,6 +17,7 @@ import {
   type Tune,
 } from "@reharm/theory-core";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { flushSync } from "react-dom";
 import { prefetchAudio } from "./audio/player";
 import { fetchTune, LibraryError } from "./library/api";
 import { checkApi, onceOnline } from "./library/apiStatus";
@@ -28,6 +31,14 @@ import { TransportBar } from "./components/TransportBar";
 import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { lazyWithPreload, whenIdle } from "./lazy";
+import { useMidi } from "./midi/useMidi";
+import { KeyPicker } from "./components/KeyPicker";
+import { LeadSheet } from "./components/LeadSheet";
+import { LevelDial } from "./components/LevelDial";
+import { MoveCard } from "./components/MoveCard";
+import { SideRail } from "./components/SideRail";
+import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
+import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 
 // Split out of the main bundle: each is only needed after a click (or on a return visit
 // straight into Practice Mode), and all three are prefetched once the page is idle.
@@ -43,13 +54,6 @@ function Inking({ label }: { label: string }) {
     </p>
   );
 }
-import { useMidi } from "./midi/useMidi";
-import { LeadSheet } from "./components/LeadSheet";
-import { LevelDial } from "./components/LevelDial";
-import { MoveCard } from "./components/MoveCard";
-import { SideRail } from "./components/SideRail";
-import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
-import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 
 const FEEL: Record<string, string> = { waltz: "jazz waltz", swing: "swing", bossa: "bossa", ballad: "ballad", straight8: "straight 8ths" };
 
@@ -71,11 +75,38 @@ const store = {
       /* storage unavailable */
     }
   },
+  remove: (k: string) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {
+      /* storage unavailable */
+    }
+  },
 };
+/** Per-tune transposition: `reharm.key:<tune id>` = the tonic you last played it in. */
+const KEY_PREFIX = "reharm.key:";
 
 export function App() {
   // ── the tune on the stand (from the library; the reference tune until one loads) ──
-  const [tune, setTune] = useState<Tune>(someday);
+  // `baseTune` is the chart as written; `tune` is it in the key you've chosen. Everything
+  // downstream (engine, moves, playback, heatmap, Deep Dive) only ever sees `tune`.
+  const [baseTune, setTune] = useState<Tune>(someday);
+  const [keyTonic, setKeyTonic] = useState<string | null>(() => store.get(KEY_PREFIX + someday.id));
+  // Each tune remembers the key you last played it in.
+  useEffect(() => setKeyTonic(store.get(KEY_PREFIX + baseTune.id)), [baseTune.id]);
+  const changeKey = useCallback(
+    (k: string) => {
+      const home = chroma(k) === chroma(baseTune.key.tonic);
+      setKeyTonic(home ? null : k);
+      if (home) store.remove(KEY_PREFIX + baseTune.id);
+      else store.set(KEY_PREFIX + baseTune.id, k);
+    },
+    [baseTune],
+  );
+  const tune = useMemo(
+    () => (keyTonic && chroma(keyTonic) !== chroma(baseTune.key.tonic) ? transposeTune(baseTune, keyTonic) : baseTune),
+    [baseTune, keyTonic],
+  );
   const [libraryOpen, setLibraryOpen] = useState(false);
   const loadTune = useCallback(async (id: string) => {
     const t = id === someday.id ? someday : await fetchTune(id);
@@ -172,18 +203,52 @@ export function App() {
       return "study";
     }
   });
-  const setMode = (m: AppMode) => {
-    setModeState(m);
-    try {
-      localStorage.setItem("reharm.mode", m);
-    } catch {
-      /* storage unavailable: mode just won't persist */
-    }
-  };
+  /**
+   * Switch Study ↔ Practice. The band never stops (playback lives up here, not in either
+   * screen), and where the browser supports the View Transitions API the lead sheet morphs
+   * from its Study frame into the Practice frame (both carry `view-transition-name:
+   * lead-sheet`) while the rest cross-fades. Practice Mode's chunk is loaded first, so the
+   * transition captures the real screen, not the "inking…" placeholder.
+   */
+  const setMode = useCallback(async (m: AppMode) => {
+    const commit = () => {
+      flushSync(() => setModeState(m));
+      store.set("reharm.mode", m);
+    };
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!document.startViewTransition || reduce) return commit();
+    if (m === "practice") await PracticeMode.preload().catch(() => {});
+    // The browser runs the update only after it has captured the old screen. If it can't
+    // render a frame (a backgrounded or embedded tab), that never happens, so after a short
+    // wait we switch anyway and drop the animation: the mode change must never hang on it.
+    let done = false;
+    const commitOnce = () => {
+      if (done) return;
+      done = true;
+      commit();
+    };
+    const vt = document.startViewTransition(commitOnce);
+    setTimeout(() => {
+      if (done) return;
+      commitOnce();
+      vt.skipTransition();
+    }, 400);
+  }, []);
   const [coachOpen, setCoachOpen] = useState(false);
   const openCoach = (id?: string) => {
     if (id) setSelectedId(id);
     if (id || selected) setCoachOpen(true);
+  };
+  /**
+   * "Practice this move": select it, loop it (one bar of run-up through its resolution),
+   * go to Practice Mode, and start the band if it isn't already playing. If it is, the
+   * engine jumps straight into the new loop instead of finishing the old pass.
+   */
+  const practiceMove = (id: string) => {
+    setSelectedId(id);
+    setLoopSelection(true);
+    void setMode("practice");
+    void playback.play();
   };
 
   // Once the first paint is done, fetch what the next click will need: the audio engine
@@ -197,14 +262,17 @@ export function App() {
     });
   }, []);
 
-  // a new tune resets everything that belonged to the old one
+  // A new tune resets everything that belonged to the old one. A key change doesn't: move
+  // ids are positional, so your picks, the selected move and the loop all carry across keys.
   useEffect(() => {
     setForced([]);
     setSelectedId(null);
-    setTempo(tune.tempo);
+    setTempo(baseTune.tempo);
     setLoopSelection(false);
     setCoachOpen(false);
-  }, [tune]);
+  }, [baseTune]);
+
+  const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
 
   if (mode === "practice") {
     return (
@@ -227,6 +295,7 @@ export function App() {
         midi={midi}
         onMode={setMode}
         totalBars={bars}
+          keyControl={keyControl}
         />
       </Suspense>
     );
@@ -240,11 +309,11 @@ export function App() {
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && !DEMO && (
         <LibraryDrawer
-          currentId={tune.id}
+          currentId={baseTune.id}
           onLoad={loadTune}
           onClose={() => setLibraryOpen(false)}
           onDeleted={(id, title) => {
-            if (id === tune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
+            if (id === baseTune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
           }}
         />
       )}
@@ -259,7 +328,9 @@ export function App() {
         <SketchBox seed={11} strokeWidth={2} fill={paper.light} className="mb-5">
           <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
             <div>
-              <h1 className="ink-wobble font-marker text-3xl font-bold uppercase leading-none tracking-wide md:text-5xl">{tune.title}</h1>
+              <h1 className="ink-wobble font-marker text-3xl font-bold uppercase leading-none tracking-wide md:text-5xl" style={{ viewTransitionName: "tune-title" }}>
+                {tune.title}
+              </h1>
               <p className="mt-2 text-sm text-ink-soft md:text-base">
                 {[tune.composer, `${prettyNote(tune.key.tonic)} ${tune.key.mode}`, `${tune.meter.join("/")} ${FEEL[tune.feel]}`, `${bars} bars`]
                   .filter(Boolean)
@@ -290,6 +361,7 @@ export function App() {
               </button>
             )}
             <ModeSwitch mode="study" onMode={setMode} />
+            <KeyPicker {...keyControl} />
             <LevelDial level={level} onChange={changeLevel} />
           </div>
           <div className="flex items-center gap-1 font-marker" role="group" aria-label="Show chords">
@@ -310,7 +382,7 @@ export function App() {
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           {/* ── left: the living lead sheet ── */}
           <section aria-labelledby="lead-sheet-h">
-            <SketchBox seed={21} strokeWidth={1.8}>
+            <SketchBox seed={21} strokeWidth={1.8} style={{ viewTransitionName: "lead-sheet" }}>
               <div className="p-4 md:p-6">
                 <h2 id="lead-sheet-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
                   Lead sheet
@@ -327,6 +399,8 @@ export function App() {
                     onLoopSelection={setLoopSelection}
                     canLoopSelection={!!selected}
                     midi={midi}
+                    pulse={{ position: playback.position, beatTick: playback.beatTick, count: playback.count, beatsPerBar: tune.meter[0] }}
+                    countIn={{ bars: playback.countInBars, onChange: playback.setCountIn }}
                   />
                 </div>
                 <div className="mt-2 overflow-x-auto">
@@ -403,7 +477,8 @@ export function App() {
                 selected={m.id === selected?.id}
                 onSelect={() => setSelectedId(m.id)}
                 onPick={pick}
-                onPractice={() => openCoach(m.id)}
+                onPractice={() => practiceMove(m.id)}
+                onDrill={() => openCoach(m.id)}
                 alternatives={accepted.filter((a) => a.id !== m.id && overlaps(a, m))}
               />
             ))}

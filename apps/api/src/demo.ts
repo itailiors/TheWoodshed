@@ -47,7 +47,11 @@ export function templateExplanation(move: ReharmMove): DemoExplanation {
   };
 }
 
-export function demoExplain(file: DemoExplanationFile | null, move: ReharmMove) {
-  const hit = file?.explanations[move.id];
+/**
+ * @param transposed the move comes from a tune moved to another key: the pre-written
+ *                   explanations name the original key's notes, so use the engine's own text.
+ */
+export function demoExplain(file: DemoExplanationFile | null, move: ReharmMove, transposed = false) {
+  const hit = transposed ? undefined : file?.explanations[move.id];
   return { ...(hit ?? templateExplanation(move)), cached: true, source: hit ? `demo-${file!.source}` : "demo-template" };
 }

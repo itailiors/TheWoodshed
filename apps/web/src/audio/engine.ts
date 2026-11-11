@@ -1,7 +1,7 @@
 import { absBeat, bassLine, drumPattern, formBars, midiOf, voiceProgression, type ChordEvent, type DrumVoice, type TimePos, type Tune } from "@reharm/theory-core";
 import * as Tone from "tone";
-import { humanTime, humanVel, loadBass, loadDrums, type BandSource, type BassInstrument, type DrumKit } from "./band";
-import type { Arrangement, Instrument, InstrumentSource, LoadState, Mix } from "./player";
+import { humanTime, humanVel, loadBass, loadDrums, type BandSource, type BassInstrument, type DrumKit, type Sticks } from "./band";
+import type { Arrangement, CountState, Instrument, InstrumentSource, LoadPart, LoadState, Mix } from "./player";
 
 /*
  * Everything that touches Tone.js lives in this module, so it ships as its own chunk:
@@ -54,13 +54,23 @@ export function arrange(tune: Tune, chords: ChordEvent[]): NoteEvent[] {
 type Timed<T> = T & { time: string };
 type BassEvent = { midi: number; dur: number; vel: number };
 type DrumEvent = { voice: DrumVoice; dur: number; vel: number };
+type ClickEvent = { accent: boolean };
+
+/** A count-in in flight: its own output (so it can be cut instantly) and when the band starts. */
+interface CountIn {
+  bus: Tone.Gain;
+  sticks: Sticks;
+  until: number;
+}
 
 /** What the engine needs from the player facade that owns it. */
 export interface EngineHost {
   /** The current mix, read at every event so a mute lands on the next note. */
   mix(): Mix;
   position(pos: TimePos | null): void;
-  progress(inst: Instrument, state: LoadState): void;
+  progress(part: LoadPart, state: LoadState): void;
+  /** The count-in beat now sounding, or null when the count-in ends or is cancelled. */
+  count(state: CountState | null): void;
 }
 
 /**
@@ -75,6 +85,8 @@ export class AudioEngine {
   private part: Tone.Part<Timed<NoteEvent>> | null = null;
   private bassPart: Tone.Part<Timed<BassEvent>> | null = null;
   private drumPart: Tone.Part<Timed<DrumEvent>> | null = null;
+  private clickPart: Tone.Part<Timed<ClickEvent>> | null = null;
+  private countIn: CountIn | null = null;
   private clockId: number | null = null;
   private bpb = 3;
   source: InstrumentSource | null = null;
@@ -93,12 +105,14 @@ export class AudioEngine {
     // All three load in parallel and report in as each one lands, sampled or synth.
     const { progress } = this.host;
     (["piano", "bass", "drums"] as const).forEach((i) => progress(i, "loading"));
+    // The metronome bypasses the reverbs: a click should be a precise tick, not a sound.
+    const dry = new Tone.Gain(1).toDestination();
     const bass = loadBass(room).then((b) => {
       this.bass = b;
       progress("bass", b.source === "sampled" ? "ready" : "fallback");
       return b;
     });
-    const drums = loadDrums(room).then((d) => {
+    const drums = loadDrums(room, dry).then((d) => {
       this.drums = d;
       progress("drums", d.source === "sampled" ? "ready" : "fallback");
       return d;
@@ -188,10 +202,26 @@ export class AudioEngine {
       const at = h.voice === "brush" ? time : humanTime(time);
       this.drums.hit(h.voice, at, humanVel(h.vel), secs(h.dur));
     }, hits).start(0);
+
+    // Click: every beat, the downbeat accented. Dead on the grid, unlike the band.
+    const clicks = Array.from({ length: formBars(tune) * this.bpb }, (_, b) => ({ accent: b % this.bpb === 0, time: ticks(b) }));
+    this.clickPart?.dispose();
+    this.clickPart = new Tone.Part<Timed<ClickEvent>>((time, c) => {
+      if (!this.drums || !mix().click) return;
+      this.drums.click(time, c.accent, c.accent ? 1 : 0.7);
+    }, clicks).start(0);
+
+    // A new loop that no longer contains the playhead (e.g. "practice this move" while the
+    // tune plays on): jump into it now rather than playing on until the old position wraps.
+    if (t.state === "started") {
+      const [from, to] = [(loop.startBar - 1) * this.bpb * ppq, loop.endBar * this.bpb * ppq];
+      if (t.ticks < from || t.ticks >= to) t.ticks = from;
+    }
   }
 
   /** Cut what is ringing on one instrument, so a mute is immediate, not after the release tail. */
   silence(inst: Instrument) {
+    if (inst === "click") return; // a click is a few ms long; nothing rings
     const now = Tone.now();
     if (inst === "piano") this.instrument?.releaseAll(now);
     if (inst === "bass") this.bass?.release(now);
@@ -202,7 +232,13 @@ export class AudioEngine {
     Tone.getTransport().bpm.rampTo(bpm, 0.2);
   }
 
-  play() {
+  /**
+   * Start from the top of the loop, after `countInBars` bars of side-stick count-in.
+   * The count-in is scheduled on the audio clock (the Transport isn't running yet) and the
+   * Transport is set to start exactly where it ends, so the band lands on the next beat.
+   * Stopping during the count-in cancels both: Clock.stop() drops the pending start.
+   */
+  play(countInBars = 0) {
     const t = Tone.getTransport();
     if (this.clockId === null) {
       this.clockId = t.scheduleRepeat((time) => {
@@ -212,11 +248,54 @@ export class AudioEngine {
         Tone.getDraw().schedule(() => this.host.position(pos), time);
       }, "4n");
     }
+    this.cancelCountIn();
     t.position = t.loopStart;
-    t.start("+0.05");
+    const now = Tone.now() + 0.06;
+    if (countInBars <= 0 || !this.drums) {
+      t.start(now);
+      return;
+    }
+    const spb = 60 / t.bpm.value;
+    const beats = countInBars * this.bpb;
+    const bus = new Tone.Gain(1).toDestination();
+    const sticks = this.drums.sticks(bus);
+    const draw = Tone.getDraw();
+    for (let i = 0; i < beats; i++) {
+      const time = now + i * spb;
+      const beat = (i % this.bpb) + 1;
+      sticks.hit(time, beat === 1 ? 0.95 : 0.7);
+      const state = { beat, bar: Math.floor(i / this.bpb) + 1, bars: countInBars, beatsPerBar: this.bpb };
+      draw.schedule(() => this.host.count(state), time);
+    }
+    const until = now + beats * spb;
+    draw.schedule(() => this.host.count(null), until);
+    this.countIn = { bus, sticks, until };
+    t.start(until);
+  }
+
+  /** Silence and forget a count-in (no-op if none). */
+  private cancelCountIn() {
+    const c = this.countIn;
+    if (!c) return;
+    this.countIn = null;
+    c.bus.gain.setValueAtTime(0, Tone.now());
+    // Give already-started clicks a moment to be muted, then free the nodes.
+    setTimeout(() => {
+      c.sticks.dispose();
+      c.bus.dispose();
+    }, 200);
+    if (Tone.now() < c.until) {
+      Tone.getDraw().cancel(Tone.now());
+      this.host.count(null);
+    }
+  }
+
+  private get counting() {
+    return this.countIn !== null && Tone.now() < this.countIn.until;
   }
 
   stop() {
+    this.cancelCountIn();
     Tone.getTransport().stop();
     this.instrument?.releaseAll();
     this.bass?.release();
@@ -229,16 +308,17 @@ export class AudioEngine {
     this.stop();
     if (this.clockId !== null) Tone.getTransport().clear(this.clockId);
     this.clockId = null;
-    for (const p of [this.part, this.bassPart, this.drumPart]) p?.dispose();
-    this.part = this.bassPart = this.drumPart = null;
+    for (const p of [this.part, this.bassPart, this.drumPart, this.clickPart]) p?.dispose();
+    this.part = this.bassPart = this.drumPart = this.clickPart = null;
     this.instrument?.dispose();
     this.bass?.dispose();
     this.drums?.dispose();
     this.instrument = this.bass = this.drums = null;
   }
 
+  /** Playing, or counting in (so Space during the count-in stops rather than restarts). */
   get playing() {
-    return Tone.getTransport().state === "started";
+    return Tone.getTransport().state === "started" || this.counting;
   }
 
   /** Fractional absolute beat of the transport (loop-aware), or null when stopped. */

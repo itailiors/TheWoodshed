@@ -20,9 +20,10 @@ export interface Arrangement {
 
 // ── trio mixer state ─────────────────────────────────────────────────────
 
-export type Instrument = "piano" | "bass" | "drums";
+export type Instrument = "piano" | "bass" | "drums" | "click";
 export type Mix = Record<Instrument, boolean>;
-export const DEFAULT_MIX: Mix = { piano: true, bass: true, drums: true };
+/** The metronome starts off: it's a practice aid you reach for, not part of the band. */
+export const DEFAULT_MIX: Mix = { piano: true, bass: true, drums: true, click: false };
 const MIX_KEY = "reharm.mixer";
 
 function loadMix(): Mix {
@@ -38,7 +39,32 @@ function loadMix(): Mix {
 
 /** Per instrument: not started, loading, loaded from samples, or fell back to a synth. */
 export type LoadState = "idle" | "loading" | "ready" | "fallback";
-export type LoadProgress = Record<Instrument, LoadState>;
+/** What actually downloads (the click rides along with the drum kit). */
+export type LoadPart = "piano" | "bass" | "drums";
+export type LoadProgress = Record<LoadPart, LoadState>;
+
+// ── count-in ─────────────────────────────────────────────────────────────
+
+/** Bars of count-in before the band comes in. */
+export type CountInBars = 0 | 1 | 2;
+const COUNT_IN_KEY = "reharm.countIn";
+
+/** Where the count-in is: beat `beat` of bar `bar` (of `bars`), in `beatsPerBar`. */
+export interface CountState {
+  beat: number;
+  bar: number;
+  bars: number;
+  beatsPerBar: number;
+}
+
+function loadCountIn(): CountInBars {
+  try {
+    const n = Number(localStorage.getItem(COUNT_IN_KEY) ?? 1);
+    return n === 0 || n === 2 ? n : 1;
+  } catch {
+    return 1;
+  }
+}
 const NOT_LOADED: LoadProgress = { piano: "idle", bass: "idle", drums: "idle" };
 
 let engineModule: Promise<typeof import("./engine")> | null = null;
@@ -62,6 +88,7 @@ class Player {
   private listeners = new Set<Listener>();
   private mixListeners = new Set<() => void>();
   private progressListeners = new Set<() => void>();
+  private countListeners = new Set<() => void>();
   private disposed = false;
   source: InstrumentSource | null = null;
   /** Whether the bass and drums came up sampled or fell back to synths. */
@@ -70,6 +97,10 @@ class Player {
   mix: Mix = loadMix();
   /** Replaced on every change, for the same reason. */
   progress: LoadProgress = NOT_LOADED;
+  /** Count-in length used by `play()`. */
+  countInBars: CountInBars = loadCountIn();
+  /** The count-in in progress, or null. Drives the "1 · 2 · 3" display. */
+  count: CountState | null = null;
 
   /** Loads the engine and the instruments. Call from a user gesture (browser autoplay rules). */
   init(): Promise<InstrumentSource> {
@@ -81,6 +112,10 @@ class Player {
         progress: (inst, state) => {
           this.progress = { ...this.progress, [inst]: state };
           this.progressListeners.forEach((l) => l());
+        },
+        count: (c) => {
+          this.count = c;
+          this.countListeners.forEach((l) => l());
         },
       });
       const source = await engine.init();
@@ -109,6 +144,24 @@ class Player {
     return () => {
       this.progressListeners.delete(fn);
     };
+  }
+
+  /** Count-in in progress (for the visual count), or null. Fires on every count beat. */
+  onCount(fn: () => void) {
+    this.countListeners.add(fn);
+    return () => {
+      this.countListeners.delete(fn);
+    };
+  }
+
+  setCountIn(bars: CountInBars) {
+    this.countInBars = bars;
+    try {
+      localStorage.setItem(COUNT_IN_KEY, String(bars));
+    } catch {
+      /* not remembered */
+    }
+    this.countListeners.forEach((l) => l());
   }
 
   /** Swap in a new arrangement (safe while playing). A no-op until the engine is up. */
@@ -142,9 +195,10 @@ class Player {
 
   // ── transport ──
 
+  /** Start from the top of the loop, after the count-in (if one is set). */
   async play() {
     await this.init();
-    this.engine?.play();
+    this.engine?.play(this.countInBars);
   }
 
   stop() {
@@ -152,6 +206,7 @@ class Player {
     else this.listeners.forEach((l) => l(null));
   }
 
+  /** True from the first count-in click on (so a second Space press stops instead of restarting). */
   get playing() {
     return this.engine?.playing ?? false;
   }
@@ -192,6 +247,7 @@ class Player {
     this.listeners.clear();
     this.mixListeners.clear();
     this.progressListeners.clear();
+    this.countListeners.clear();
   }
 }
 

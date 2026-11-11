@@ -1,5 +1,5 @@
 import type { RoughSVG } from "roughjs/bin/svg";
-import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
 
 export type RoughCanvas = RoughSVG;
 type Add = (node: SVGElement) => void;
@@ -45,6 +45,10 @@ export function useSize<T extends HTMLElement>() {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Measure now, in the same commit, rather than waiting for the observer's first callback:
+    // a view transition snapshots the new screen right after the commit, and the sketches
+    // must already be drawn by then.
+    setSize({ w: el.offsetWidth, h: el.offsetHeight });
     const ro = new ResizeObserver(() => setSize({ w: el.offsetWidth, h: el.offsetHeight }));
     ro.observe(el);
     return () => ro.disconnect();
@@ -64,6 +68,8 @@ interface SketchBoxProps {
   inset?: number;
   /** Classes for the content wrapper (e.g. "h-full flex flex-col" when the box must fill its parent). */
   innerClassName?: string;
+  /** Inline style for the outer box (e.g. a `viewTransitionName`). */
+  style?: CSSProperties;
 }
 
 /** A div with a hand-drawn border (and optional sketchy fill) behind its content. */
@@ -78,6 +84,7 @@ export function SketchBox({
   stroke = "currentColor",
   inset = 3,
   innerClassName = "",
+  style,
 }: SketchBoxProps) {
   const [wrap, size] = useSize<HTMLDivElement>();
   const g = useRef<SVGGElement>(null);
@@ -92,7 +99,7 @@ export function SketchBox({
     [size.w, size.h, seed, fill, fillStyle, roughness, strokeWidth, stroke, inset],
   );
   return (
-    <div ref={wrap} className={`relative ${className}`}>
+    <div ref={wrap} className={`relative ${className}`} style={style}>
       <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full overflow-visible text-ink">
         <g ref={g} />
       </svg>

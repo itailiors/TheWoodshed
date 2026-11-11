@@ -53,13 +53,26 @@ const DrumsDoodle = () => (
   </>
 );
 
+/** A wind-up metronome: tapered body on a base, scale ticks, the pendulum caught mid-swing. */
+const ClickDoodle = () => (
+  <>
+    <path d="M14.8 41.8 L21.4 6.6 C22.4 5.3 25.7 5.3 26.7 6.6 L33.3 41.9 Z" />
+    <path d="M11.6 42.3 C20 41.5 28.4 42.6 36.6 41.9" />
+    <path d="M19.6 30.2 L21.8 30.3 M20.5 25 L22.4 25.1 M21.3 19.9 L23 20 M25.9 30.3 L28.1 30.1" strokeWidth={1} />
+    <path d="M24 36.8 L31.4 10.2" strokeWidth={1.5} />
+    <path d="M28.3 18.6 L31.9 19.6 L31 23 L27.4 22 Z" fill="currentColor" strokeWidth={1} />
+    <path d="M22.8 36.8 a1.2 1.2 0 1 0 2.4 0 a1.2 1.2 0 1 0 -2.4 0" fill="currentColor" strokeWidth={1} />
+  </>
+);
+
 const DOODLES: Record<Instrument, { label: string; draw: () => ReactNode; wash: string }> = {
   piano: { label: "Piano", draw: PianoDoodle, wash: wash.mustard },
   bass: { label: "Bass", draw: BassDoodle, wash: wash.brick },
   drums: { label: "Drums", draw: DrumsDoodle, wash: wash.blue },
+  click: { label: "Click", draw: ClickDoodle, wash: wash.sage },
 };
 
-const ORDER: Instrument[] = ["piano", "bass", "drums"];
+const ORDER: Instrument[] = ["piano", "bass", "drums", "click"];
 
 interface Props {
   /** Smaller icons and no captions (Practice Mode's top bar). */
@@ -68,7 +81,7 @@ interface Props {
 }
 
 /**
- * Piano / bass / drums toggles. A lit instrument gets ink plus a watercolour wash behind
+ * Piano / bass / drums / click toggles. A lit instrument gets ink plus a watercolour wash behind
  * it; a muted one fades to pencil grey and gets a red-pen slash, like a crossed-out part.
  */
 export function TrioMixer({ compact = false, className = "" }: Props) {

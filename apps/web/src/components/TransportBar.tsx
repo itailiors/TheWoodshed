@@ -1,7 +1,9 @@
 import type { PlaybackStatus } from "../audio/usePlayback";
-import type { InstrumentSource } from "../audio/player";
+import type { CountInBars, CountState, InstrumentSource } from "../audio/player";
+import type { TimePos } from "@reharm/theory-core";
 import type { BandSource } from "../audio/band";
 import { midiName, type MidiStatus } from "../midi/useMidi";
+import { BeatPulse, CountInDisplay, CountInPicker } from "./BeatPulse";
 import { LoadingLine } from "./LoadingLine";
 import { TrioMixer } from "./TrioMixer";
 
@@ -16,6 +18,9 @@ interface Props {
   onLoopSelection: (on: boolean) => void;
   canLoopSelection: boolean;
   midi: { status: MidiStatus; devices: string[]; held: number[]; connect: () => void };
+  /** The beat, for the metronome dot. */
+  pulse: { position: TimePos | null; beatTick: number; count: CountState | null; beatsPerBar: number };
+  countIn: { bars: CountInBars; onChange: (b: CountInBars) => void };
 }
 
 const MIDI_TEXT: Record<MidiStatus, string> = {
@@ -28,7 +33,7 @@ const MIDI_TEXT: Record<MidiStatus, string> = {
 };
 
 /** Play / tempo / loop / MIDI, styled as pencil marks in the lead sheet's margin. */
-export function TransportBar({ status, source, bandSource = null, onToggle, tempo, onTempo, loopSelection, onLoopSelection, canLoopSelection, midi }: Props) {
+export function TransportBar({ status, source, bandSource = null, onToggle, tempo, onTempo, loopSelection, onLoopSelection, canLoopSelection, midi, pulse, countIn }: Props) {
   const playing = status === "playing";
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-marker">
@@ -42,6 +47,8 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
         <span aria-hidden>{playing ? "■" : status === "loading" ? "…" : "▶"}</span>
         {playing ? "Stop" : status === "loading" ? "Loading the band" : "Play"}
       </button>
+
+      {pulse.count ? <CountInDisplay count={pulse.count} size="sm" /> : <BeatPulse {...pulse} />}
 
       {status === "loading" ? <LoadingLine /> : <TrioMixer />}
 
@@ -58,6 +65,8 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
           aria-label="Tempo"
         />
       </label>
+
+      <CountInPicker bars={countIn.bars} onChange={countIn.onChange} />
 
       <label className={`flex items-center gap-2 text-sm ${canLoopSelection ? "" : "opacity-40"}`}>
         <input

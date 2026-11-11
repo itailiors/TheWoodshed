@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
-import { player, type Instrument, type LoadState } from "../audio/player";
+import { player, type LoadPart, type LoadState } from "../audio/player";
 import { pen } from "../design/tokens";
 
-const ORDER: Instrument[] = ["piano", "bass", "drums"];
+const ORDER: LoadPart[] = ["piano", "bass", "drums"];
 const W = 210;
 const STATION = (i: number) => 14 + i * ((W - 28) / 2);
 const MARK: Record<LoadState, string> = { idle: "", loading: "…", ready: "✓", fallback: "~" };

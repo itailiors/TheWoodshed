@@ -1,4 +1,4 @@
-import { formBars, generateMoves, IRealParseError, parseIRealUrl, someday, type Tune } from "@reharm/theory-core";
+import { chroma, formBars, generateMoves, IRealParseError, KEYS, parseIRealUrl, someday, transposeTune, type Tune } from "@reharm/theory-core";
 import { Hono } from "hono";
 import { demoExplain, loadDemoExplanations, DEMO_EXPLANATIONS_FILE } from "./demo";
 import { explainMove, ExplainError, MODEL } from "./explain";
@@ -123,16 +123,22 @@ export async function createApp(opts: AppOptions) {
 
   /**
    * POST /api/explain { tuneId, moveId, fresh? }
+   * `tuneId` may carry a key, `someday-my-prince@Db` (what the web app's global key change
+   * produces): the tune is transposed first, so the facts, and so the explanation, are in
+   * the key the user is looking at. Each key caches separately (the facts differ).
    * Library mode: recomputes the move, asks Claude, caches by hash(prompt version, model, facts).
    * Demo mode: serves the pre-generated file (or the engine's own text). Never calls Anthropic.
    */
   app.post("/explain", async (c) => {
     const body = await c.req.json<{ tuneId?: string; moveId?: string; fresh?: boolean }>().catch(() => ({}) as Record<string, never>);
     if (!body.tuneId || !body.moveId) return c.json({ error: "tuneId and moveId are required" }, 400);
-    const tune = getTune(body.tuneId);
+    const [baseId, key] = body.tuneId.split("@");
+    if (key !== undefined && !(KEYS as readonly string[]).includes(key)) return c.json({ error: `unknown key "${key}"` }, 400);
+    const base = getTune(baseId);
+    const tune = base && key && chroma(key) !== chroma(base.key.tonic) ? transposeTune(base, key) : base;
     const move = tune && generateMoves(tune).accepted.find((m) => m.id === body.moveId);
     if (!tune || !move) return c.json({ error: "move not found" }, 404);
-    if (opts.demo) return c.json(demoExplain(demoFile, move));
+    if (opts.demo) return c.json(demoExplain(demoFile, move, tune !== base));
     try {
       return c.json(await explainMove(tune, move, { fresh: !!body.fresh }));
     } catch (err) {

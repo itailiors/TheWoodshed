@@ -12,7 +12,10 @@ interface Props {
   alternatives: ReharmMove[];
   onSelect: () => void;
   onPick: (m: ReharmMove) => void;
+  /** Loop this move in Practice Mode. */
   onPractice: () => void;
+  /** Open the Comping Coach on this move's voicing. */
+  onDrill: () => void;
 }
 
 const signed = (n: number) => (n === 0 ? "holds" : `${n > 0 ? "+" : "−"}${Math.abs(n)}`);
@@ -34,7 +37,7 @@ function MoveKeyboard({ move }: { move: ReharmMove }) {
   return <DoodleKeyboard notes={chordTones(shown).map((t) => t.note)} accent={guideTones(shown).map((t) => t.note)} color={color} />;
 }
 
-export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPick, onPractice }: Props) {
+export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPick, onPractice, onDrill }: Props) {
   const color = CATEGORY_WASH[move.category];
   const bar = move.span.from.bar;
   return (
@@ -129,8 +132,16 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
               >
                 🎹 Practice this move
               </button>
+              <button
+                type="button"
+                onClick={onDrill}
+                className="cursor-pointer rounded-full border-2 border-ink px-4 py-1 font-marker hover:-rotate-1 hover:bg-paper-shade"
+                title="The Comping Coach: play the voicing on your keyboard, get red-pen feedback"
+              >
+                ✍ Drill the voicing
+              </button>
             </div>
-            <DeepDive tuneId={tuneId} move={move} />
+            <DeepDive key={tuneId} tuneId={tuneId} move={move} />
 
             {alternatives.length > 0 && (
               <section>

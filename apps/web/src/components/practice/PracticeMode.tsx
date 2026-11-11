@@ -1,6 +1,8 @@
 import {
   absBeat,
   chordAtBeat,
+  chroma,
+  KEYS,
   improvMap,
   type ChordEvent,
   type ImprovEntry,
@@ -8,14 +10,16 @@ import {
   type Tune,
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef } from "react";
-import { player, type InstrumentSource } from "../../audio/player";
-import type { PlaybackStatus } from "../../audio/usePlayback";
+import { player } from "../../audio/player";
+import type { Playback } from "../../audio/usePlayback";
+import { BeatPulse, CountInDisplay, CountInPicker } from "../BeatPulse";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { LEVELS, seedOf } from "../../design/tokens";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { LeadSheet } from "../LeadSheet";
 import { LevelDial } from "../LevelDial";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
+import { KeyPicker } from "../KeyPicker";
 import { LoadingLine } from "../LoadingLine";
 import { TrioMixer } from "../TrioMixer";
 import { ChordHUD } from "./ChordHUD";
@@ -34,10 +38,11 @@ interface Props {
   onLoopSelection: (on: boolean) => void;
   tempo: number;
   onTempo: (bpm: number) => void;
-  playback: { status: PlaybackStatus; source: InstrumentSource | null; position: { bar: number; beat: number } | null; toggle: () => void };
+  playback: Playback;
   midi: { status: MidiStatus; devices: string[]; held: number[]; connect: () => void };
   onMode: (m: AppMode) => void;
   totalBars: number;
+  keyControl: { tonic: string; original: string; mode: "major" | "minor"; onChange: (tonic: string) => void };
 }
 
 const PAGE = 8;
@@ -48,7 +53,8 @@ const SHORTCUTS: [string, string][] = [
   ["A", "A/B"],
   ["L", "loop move"],
   ["[ ]", "tempo"],
-  ["1 2 3", "mute pno/bass/dr"],
+  [", .", "key ½ step"],
+  ["1–4", "pno/bass/dr/click"],
   ["Esc", "study"],
 ];
 
@@ -116,13 +122,20 @@ export function PracticeMode(p: Props) {
           case "]":
             s.onTempo(Math.min(260, s.tempo + 4));
             return true;
+          case ",":
+          case ".": {
+            const { tonic, onChange } = s.keyControl;
+            onChange(KEYS.find((k) => chroma(k) === (chroma(tonic) + (e.key === "." ? 1 : 11)) % 12)!);
+            return true;
+          }
           case "Escape":
             s.onMode("study");
             return true;
           case "1":
           case "2":
-          case "3": {
-            const inst = (["piano", "bass", "drums"] as const)[Number(e.key) - 1];
+          case "3":
+          case "4": {
+            const inst = (["piano", "bass", "drums", "click"] as const)[Number(e.key) - 1];
             player.setMix(inst, !player.mix[inst]);
             return true;
           }
@@ -148,7 +161,9 @@ export function PracticeMode(p: Props) {
       {/* ── top bar ── */}
       <header className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-2">
         <ModeSwitch mode="practice" onMode={p.onMode} />
-        <h1 className="ink-wobble hidden truncate font-marker text-xl font-bold uppercase lg:block">{tune.title}</h1>
+        <h1 className="ink-wobble hidden truncate font-marker text-xl font-bold uppercase lg:block" style={{ viewTransitionName: "tune-title" }}>
+          {tune.title}
+        </h1>
         <button
           type="button"
           onClick={playback.toggle}
@@ -157,8 +172,11 @@ export function PracticeMode(p: Props) {
         >
           {playing ? "■ Stop" : playback.status === "loading" ? "… Loading" : "▶ Play"}
         </button>
+        <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
         {playback.status === "loading" ? <LoadingLine /> : <TrioMixer compact />}
         <span className="font-marker">♩ = {p.tempo}</span>
+        <CountInPicker compact bars={playback.countInBars} onChange={playback.setCountIn} />
+        <KeyPicker compact {...p.keyControl} />
         <LevelDial level={p.level} onChange={p.onLevel} />
         <span className="font-marker text-sm">
           {p.view === "reharm" ? "Reharm" : "Original"}
@@ -179,7 +197,13 @@ export function PracticeMode(p: Props) {
 
       {/* ── sheet + HUD: top two thirds ── */}
       <div className="grid min-h-0 flex-[2] grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">
-        <SketchBox seed={seedOf("practice-sheet")} strokeWidth={1.8} className="hidden min-h-0 md:block" innerClassName="relative h-full p-3">
+        <SketchBox
+          seed={seedOf("practice-sheet")}
+          strokeWidth={1.8}
+          className="hidden min-h-0 md:block"
+          innerClassName="relative h-full p-3"
+          style={{ viewTransitionName: "lead-sheet" }}
+        >
           {paged && (
             <span className="absolute right-4 top-2 font-marker text-xs text-ink-faint">
               bars {firstBar}–{lastBar} of {p.totalBars}
@@ -199,8 +223,17 @@ export function PracticeMode(p: Props) {
             activeChordId={playing ? at?.chord.id : null}
           />
         </SketchBox>
-        <div className="min-h-0">
+        <div className="relative min-h-0">
           <ChordHUD now={now} next={next} beatsToNext={beatsToNext} playing={playing} />
+          {/* the count-in, written big over the HUD until the band comes in */}
+          {playback.count && (
+            <div className="absolute inset-2 grid place-items-center rounded-lg bg-paper-light/90">
+              <div className="text-center">
+                <p className="font-marker text-sm uppercase tracking-[0.2em] text-ink-soft">Count-in</p>
+                <CountInDisplay count={playback.count} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

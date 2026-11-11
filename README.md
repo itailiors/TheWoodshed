@@ -109,6 +109,20 @@ Every move goes through the same melody filter and voice-leading score, and come
 - **Micro-timing**: every bass and drum strike is pushed or dragged by up to ±15 ms, on a triangular spread so most land close to the grid, and its velocity varies slightly. Both change on every pass of the loop.
 - While the bass player is in, the app's piano drops its left-hand bass and comps rootless. Mute the bass and the left hand comes back. Mute the piano and you're comping with a bass-and-drums duo.
 
+### ⏱️ Time you can see, in any key
+- **Count-in:**
+  - 0, 1 or 2 bars of side-stick before the band comes in, shown as a big "1 · 2 · 3" over Practice Mode's HUD;
+  - it runs on the audio clock, and the Transport is set to start exactly where it ends;
+  - Space during the count-in cancels it cleanly.
+- **Click:** a fourth mixer instrument (a metronome doodle), off by default. Dry woodblocks, high on the downbeat and low on the others, dead on the grid while the band swings around it. Key `4` in Practice Mode.
+- **Metronome dot:** an ink blot in the margin lands on every beat, red on the downbeat, beside a row of beat dots that shows where you are in the bar.
+- **Global key change:** a hand-drawn circle of fifths (or the ♭/♯ half-step buttons, or `,` `.` in Practice Mode) moves the whole tune: chords, melody, every reharm move, the scale map, playback and the Deep Dive, which is written about the key you're in. Each tune remembers the key you last played it in. Move ids are positional, so your picks and loop survive the key change.
+- **Study ↔ Practice continuity:**
+  - the band keeps playing across the switch;
+  - with the View Transitions API, the lead sheet and title glide from one layout to the other while the rest cross-fades (skipped under reduced motion, and never allowed to hold up the switch);
+  - **Practice this move** jumps straight into Practice Mode looping that move, counting in if the band wasn't already playing. If it was, the playhead jumps into the new loop at once;
+  - **Drill the voicing** opens the Comping Coach.
+
 ### ✍️ Claude-powered Deep Dive
 - One click turns a move into a short lesson: a summary, a 150–260-word deep dive (function, voice leading, how to hear and play it) and a key-independent rule.
 - The server recomputes the move itself and sends Claude only the computed facts. Structured outputs keep the response in the `{ summary, deepDive, recreateRule }` shape.
@@ -193,7 +207,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 111 tests (engine + API), several thousand generated cases
+npm test          # 112 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

@@ -1,4 +1,4 @@
-import { generateMoves, scramble, someday } from "@reharm/theory-core";
+import { generateMoves, scramble, someday, transposeTune } from "@reharm/theory-core";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import initSqlJs from "sql.js";
 import { tmpdir } from "node:os";
@@ -75,6 +75,19 @@ describe("read-only demo mode", () => {
     const miss = await call(app, "/api/explain", json("POST", { tuneId: someday.id, moveId: other.id, fresh: true }));
     expect(miss.status).toBe(200);
     expect(miss.body).toMatchObject({ summary: other.text.summary, recreateRule: other.text.recreateRule, source: "demo-template" });
+  });
+
+  it("explains a move in the key the user transposed to (tuneId@Key)", async () => {
+    const inDb = transposeTune(someday, "Db");
+    const moved = generateMoves(inDb).accepted.find((m) => m.id === someMove.id)!;
+    const res = await call(app, "/api/explain", json("POST", { tuneId: `${someday.id}@Db`, moveId: someMove.id }));
+    expect(res.status).toBe(200);
+    // the pre-written text names B♭-major notes, so a transposed move gets the engine's text, in D♭
+    expect(res.body).toMatchObject({ summary: moved.text.summary, source: "demo-template" });
+    expect(moved.text.summary).not.toBe(someMove.text.summary);
+    // the tune's own key is the same as no key at all
+    expect((await call(app, "/api/explain", json("POST", { tuneId: `${someday.id}@${someday.key.tonic}`, moveId: someMove.id }))).body.source).toBe("demo-claude");
+    expect((await call(app, "/api/explain", json("POST", { tuneId: `${someday.id}@H`, moveId: someMove.id }))).status).toBe(400);
   });
 
   it("ships a demo file that covers every move the demo tune can show", async () => {

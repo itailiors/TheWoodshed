@@ -16,15 +16,16 @@ type State =
 /** Asks the API (and Claude behind it) to turn the engine's facts into a written lesson. In the demo build, reads the pre-written one. */
 export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove }) {
   const moveId = move.id;
+  const memoKey = `${tuneId}|${moveId}`; // a move id repeats across keys; its explanation doesn't
   const api = useApiStatus();
   const [state, setState] = useState<State>({ kind: "idle" });
-  const [data, setData] = useState<Explanation | null>(memo.get(moveId) ?? null);
+  const [data, setData] = useState<Explanation | null>(memo.get(memoKey) ?? null);
 
   const load = async (fresh = false) => {
     setState({ kind: "loading" });
     if (DEMO) {
-      const e = await demoExplanation(move);
-      memo.set(moveId, e);
+      const e = await demoExplanation(move, tuneId.includes("@"));
+      memo.set(memoKey, e);
       setData(e);
       setState({ kind: "idle" });
       return;
@@ -43,7 +44,7 @@ export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove })
     }
     const body = await res.json().catch(() => null);
     if (res.ok && body) {
-      memo.set(moveId, body);
+      memo.set(memoKey, body);
       setData(body);
       setState({ kind: "idle" });
     } else if (body?.code === "no_key") {

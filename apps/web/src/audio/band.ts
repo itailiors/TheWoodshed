@@ -96,6 +96,12 @@ function synthBass(out: Tone.ToneAudioNode): Tone.MonoSynth {
 
 /** General MIDI drum notes for the pieces we use. */
 export const GM = { kick: 36, snare: 38, hatClosed: 42, hatPedal: 44, ride: 51 } as const;
+/**
+ * Extra GM notes that aren't part of the groove: the side stick (rim click) a drummer counts
+ * in with, and the high/low woodblocks of a classic metronome. GM kits have no dedicated
+ * "sticks" or "metronome" notes (those are GS extensions), so these stand in for them.
+ */
+export const GM_CUE = { sideStick: 37, woodHigh: 76, woodLow: 77 } as const;
 
 /**
  * GM drum kits from WebAudioFont (surikov/webaudiofontdata): one small .js file per drum
@@ -110,6 +116,8 @@ const DRUM_URL = (note: number, kit: string) => `https://surikov.github.io/webau
  * These, and the volumes in `makeBrush` and `loadBass`, are the knobs to balance the trio.
  */
 const DRUM_LEVEL: Record<Exclude<DrumVoice, "brush">, number> = { ride: 0.5, hat: 0.75, snare: 0.6, kick: 0.7 };
+/** The metronome's level (it bypasses the kit's sampler, so it has its own knob). */
+const CLICK_LEVEL = 0.55;
 
 async function fetchDrumSample(note: number, kit: string): Promise<Tone.ToneAudioBuffer> {
   const res = await fetch(DRUM_URL(note, kit), { signal: AbortSignal.timeout(SAMPLE_TIMEOUT_MS) });
@@ -120,20 +128,47 @@ async function fetchDrumSample(note: number, kit: string): Promise<Tone.ToneAudi
   return new Tone.ToneAudioBuffer(await Tone.getContext().decodeAudioData(bytes.buffer));
 }
 
+/** A set of count-in sticks wired to its own output, so a cancelled count-in can be silenced at once. */
+export interface Sticks {
+  hit(time: number, vel: number): void;
+  dispose(): void;
+}
+
 export interface DrumKit {
   source: BandSource;
   hit(voice: DrumVoice, time: number, vel: number, seconds: number): void;
+  /** The metronome: a high woodblock on the downbeat, a low one on the other beats. */
+  click(time: number, accent: boolean, vel: number): void;
+  /** Count-in sticks (side stick), routed to `dest`. */
+  sticks(dest: Tone.ToneAudioNode): Sticks;
   release(time?: number): void;
   dispose(): void;
 }
 
-export async function loadDrums(out: Tone.ToneAudioNode): Promise<DrumKit> {
+/** Play a sample once into `dest`, and free its node when it ends. */
+function oneShot(buffer: Tone.ToneAudioBuffer, dest: Tone.ToneAudioNode, time: number, gain: number) {
+  const src = new Tone.ToneBufferSource(buffer).connect(dest);
+  src.onended = () => src.dispose();
+  src.start(time, 0, undefined, Math.min(1, gain));
+}
+
+/**
+ * @param out   where the kit plays (the band's room)
+ * @param dry   where the metronome click plays: straight to the speakers, no reverb, so it
+ *              stays a precise tick rather than part of the band's sound
+ */
+export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode): Promise<DrumKit> {
   // GM kits have no brush swirl, so the sweep stays a quiet filtered-noise texture.
   const brush = makeBrush(out);
   const notes = Object.values(GM);
+  const cues = Object.values(GM_CUE);
   for (const kit of DRUM_KITS) {
     try {
-      const buffers = await Promise.all(notes.map((n) => fetchDrumSample(n, kit)));
+      const [buffers, cueBuffers] = await Promise.all([
+        Promise.all(notes.map((n) => fetchDrumSample(n, kit))),
+        Promise.all(cues.map((n) => fetchDrumSample(n, kit))),
+      ]);
+      const cue = Object.fromEntries(cues.map((n, i) => [n, cueBuffers[i]])) as Record<number, Tone.ToneAudioBuffer>;
       const sampler = new Tone.Sampler({ urls: Object.fromEntries(notes.map((n, i) => [n, buffers[i]])) });
       sampler.volume.value = -6;
       sampler.connect(out);
@@ -149,6 +184,11 @@ export async function loadDrums(out: Tone.ToneAudioNode): Promise<DrumKit> {
             strike(GM.hatClosed, time, v * 0.35);
           } else strike(GM[voice], time, v);
         },
+        click: (time, accent, vel) => oneShot(cue[accent ? GM_CUE.woodHigh : GM_CUE.woodLow], dry, time, vel * CLICK_LEVEL),
+        sticks: (dest) => ({
+          hit: (time, vel) => oneShot(cue[GM_CUE.sideStick], dest, time, vel),
+          dispose: () => {},
+        }),
         release: (time) => {
           brush.triggerRelease(time);
           sampler.releaseAll(time);
@@ -163,7 +203,7 @@ export async function loadDrums(out: Tone.ToneAudioNode): Promise<DrumKit> {
     }
   }
   console.warn("[audio] all drum kits failed, using the synth kit");
-  return synthKit(out, brush);
+  return synthKit(out, dry, brush);
 }
 
 function makeBrush(out: Tone.ToneAudioNode): Tone.NoiseSynth {
@@ -174,7 +214,11 @@ function makeBrush(out: Tone.ToneAudioNode): Tone.NoiseSynth {
 }
 
 /** Fallback kit from synths: metallic ride, noise hat and snare, membrane kick. */
-function synthKit(out: Tone.ToneAudioNode, brush: Tone.NoiseSynth): DrumKit {
+function synthKit(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode, brush: Tone.NoiseSynth): DrumKit {
+  // A short square-wave blip, pitched up on the downbeat: the classic electronic metronome.
+  const blip = () => new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.001, decay: 0.03, sustain: 0, release: 0.01 } });
+  const clicker = blip().connect(dry);
+  clicker.volume.value = -14;
   const ride = new Tone.MetalSynth({ envelope: { attack: 0.001, decay: 1.1, release: 0.4 }, harmonicity: 5.1, modulationIndex: 24, resonance: 5200, octaves: 1.3 });
   ride.volume.value = -27;
   ride.chain(new Tone.Filter(2800, "highpass"), out);
@@ -196,8 +240,14 @@ function synthKit(out: Tone.ToneAudioNode, brush: Tone.NoiseSynth): DrumKit {
       else if (voice === "hat") hat.triggerAttackRelease(seconds, time, vel);
       else snare.triggerAttackRelease(seconds, time, vel);
     },
+    click: (time, accent, vel) => clicker.triggerAttackRelease(accent ? 1760 : 1320, 0.03, time, vel),
+    sticks: (dest) => {
+      const s = blip().connect(dest);
+      s.volume.value = -12;
+      return { hit: (time, vel) => s.triggerAttackRelease(2400, 0.02, time, vel), dispose: () => s.dispose() };
+    },
     release: (time) => brush.triggerRelease(time),
-    dispose: () => [ride, hat, snare, kick, brush].forEach((n) => n.dispose()),
+    dispose: () => [ride, hat, snare, kick, brush, clicker].forEach((n) => n.dispose()),
   };
 }
 
