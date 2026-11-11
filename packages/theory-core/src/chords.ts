@@ -2,6 +2,8 @@ import { chroma, mod, transpose } from "./pitch";
 import type { ChordEvent, PitchName, Quality } from "./types";
 
 export const QUALITY_FORMULA: Record<Quality, string[]> = {
+  maj: ["1", "3", "5"],
+  m: ["1", "b3", "5"],
   maj7: ["1", "3", "5", "7"],
   "6": ["1", "3", "5", "6"],
   "7": ["1", "3", "5", "b7"],
@@ -18,6 +20,8 @@ export const QUALITY_FORMULA: Record<Quality, string[]> = {
 export const QUALITIES = Object.keys(QUALITY_FORMULA) as Quality[];
 
 const QUALITY_TEXT: Record<Quality, string> = {
+  maj: "",
+  m: "m",
   maj7: "maj7",
   "6": "6",
   "7": "7",
@@ -68,8 +72,8 @@ export function guideTones(c: ChordShape): ChordTone[] {
 }
 
 export const isDominant = (q: Quality) => q === "7" || q === "7sus4";
-export const isMajorQ = (q: Quality) => q === "maj7" || q === "6" || q === "maj7#5";
-export const isMinorQ = (q: Quality) => q === "m7" || q === "m6" || q === "mMaj7";
+export const isMajorQ = (q: Quality) => q === "maj" || q === "maj7" || q === "6" || q === "maj7#5";
+export const isMinorQ = (q: Quality) => q === "m" || q === "m7" || q === "m6" || q === "mMaj7";
 
 export const resolvesDownFifth = (a: { root: string }, b: { root: string }) =>
   mod(chroma(a.root) - chroma(b.root), 12) === 7;
@@ -80,6 +84,8 @@ export function symbol(c: Omit<ChordShape, never> & { display?: string; bass?: s
   const highest = ["13", "11", "9"].find((e) => c.extensions.includes(e));
   if (highest && (c.quality === "maj7" || c.quality === "7" || c.quality === "m7")) {
     base = base.replace(/7$/, highest);
+  } else if ((c.quality === "maj" || c.quality === "m") && c.extensions.includes("9")) {
+    base += c.quality === "m" ? "(add9)" : "add9";
   }
   const alts = c.alterations.length ? `(${c.alterations.join(",")})` : "";
   return `${c.root}${base}${alts}${c.bass ? "/" + c.bass : ""}`;

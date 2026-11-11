@@ -1,3 +1,4 @@
+import { densityLabel } from "@reharm/theory-core";
 import { useRef } from "react";
 import { useRough } from "../design/rough";
 import { ink, LEVELS, seedOf } from "../design/tokens";
@@ -25,6 +26,7 @@ export function LevelDial({ level, onChange }: { level: number; onChange: (l: nu
             role="radio"
             aria-checked={on}
             onClick={() => onChange(l.level)}
+            title={`L${l.level} ${l.label}: ${densityLabel(l.level)}`}
             className={`relative cursor-pointer px-3 py-1 font-marker text-base ${on ? "font-bold" : "text-ink-soft hover:text-ink"}`}
           >
             {on && <PenCircle seed={seedOf("lvl" + l.level)} />}

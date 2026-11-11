@@ -15,7 +15,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { player } from "../../audio/player";
-import { SketchBox, useRough } from "../../design/rough";
+import { SketchBox, useRough, useSize } from "../../design/rough";
 import { ink, seedOf, VERDICT_COLOR } from "../../design/tokens";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { PenKeyboard } from "./PenKeyboard";
@@ -25,6 +25,8 @@ interface Props {
   chords: ChordEvent[];
   loop: { startBar: number; endBar: number };
   playing: boolean;
+  /** Fill a fixed-height slot (Practice Mode): no intro text, no mouse keyboard, tape stretches to fit. */
+  compact?: boolean;
 }
 
 interface HeatNote {
@@ -42,7 +44,7 @@ interface HeatNote {
 }
 
 const W = 1000;
-const H = 250;
+const H_DEFAULT = 250;
 const LOW = 48;
 const HIGH = 96;
 const KEEP_PASSES = 3;
@@ -52,7 +54,10 @@ const LABEL: Record<LineNoteEval["verdict"], string> = { "chord-tone": "Chord to
  * Improv heatmap: solo over the backing loop and every note lands on a "loop tape",
  * coloured by what it is over the chord that was sounding.
  */
-export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
+export function ImprovHeatmap({ tune, chords, loop, playing, compact = false }: Props) {
+  // In compact mode the tape takes the slot's aspect ratio, so it fills the space without distorting text.
+  const [tapeRef, tapeSize] = useSize<HTMLDivElement>();
+  const H = compact && tapeSize.w > 0 ? Math.max(110, Math.round((W * tapeSize.h) / tapeSize.w)) : H_DEFAULT;
   const bpb = tune.meter[0];
   const loopStart = (loop.startBar - 1) * bpb;
   const loopEnd = loop.endBar * bpb;
@@ -152,7 +157,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
         add(node);
       }
     },
-    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, span, loopStart],
+    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, span, loopStart, H],
   );
 
   const stats = useMemo(() => {
@@ -178,10 +183,10 @@ export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
   };
 
   return (
-    <SketchBox seed={seedOf("heatmap")} strokeWidth={1.8}>
-      <section className="p-4 md:p-6" aria-labelledby="heat-h">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="heat-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
+    <SketchBox seed={seedOf("heatmap")} strokeWidth={1.8} className={compact ? "h-full" : ""} innerClassName={compact ? "h-full" : ""}>
+      <section className={compact ? "flex h-full flex-col px-4 py-2" : "p-4 md:p-6"} aria-labelledby="heat-h">
+        <div className="flex shrink-0 flex-wrap items-baseline justify-between gap-2">
+          <h2 id="heat-h" className={`ink-wobble font-marker font-bold uppercase ${compact ? "text-lg" : "text-2xl md:text-3xl"}`}>
             Improv heatmap
           </h2>
           <div className="flex items-center gap-3 font-marker text-sm">
@@ -194,12 +199,20 @@ export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
             </button>
           </div>
         </div>
-        <p className="mt-1 text-sm text-ink-soft">
-          Play single-note lines over the loop (bars {loop.startBar}–{loop.endBar}). Each note is judged against the chord sounding at that moment. Older passes fade.
-        </p>
+        {!compact && (
+          <p className="mt-1 text-sm text-ink-soft">
+            Play single-note lines over the loop (bars {loop.startBar}–{loop.endBar}). Each note is judged against the chord sounding at that moment. Older passes fade.
+          </p>
+        )}
 
-        <div className="mt-3 overflow-x-auto">
-          <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full min-w-[560px]" role="img" aria-label="Improv heatmap loop tape">
+        <div ref={tapeRef} className={compact ? "min-h-0 flex-1" : "mt-3 overflow-x-auto"}>
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            preserveAspectRatio="xMidYMid meet"
+            className={compact ? "block h-full w-full" : "block h-auto w-full min-w-[560px]"}
+            role="img"
+            aria-label="Improv heatmap loop tape"
+          >
             {/* bar grid + chord labels */}
             {Array.from({ length: loop.endBar - loop.startBar + 1 }, (_, i) => {
               const bx = x(loopStart + i * bpb);
@@ -243,7 +256,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
           </svg>
         </div>
 
-        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
+        <div className={`flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 ${compact ? "mt-1 text-xs" : "mt-3 text-sm"}`}>
           {(Object.keys(LABEL) as LineNoteEval["verdict"][]).map((v) => (
             <span key={v} className="flex items-center gap-2">
               <span className="inline-block h-3 w-6 -rotate-2 rounded-sm" style={{ background: VERDICT_COLOR[v] }} />
@@ -255,15 +268,15 @@ export function ImprovHeatmap({ tune, chords, loop, playing }: Props) {
           </span>
         </div>
         {stats.n > 0 && (
-          <p className="mt-2 font-marker text-[15px]">
+          <p className={`shrink-0 font-marker ${compact ? "truncate text-sm" : "mt-2 text-[15px]"}`}>
             {stats.strong !== null && <>Chord tones on the beat: {stats.strong}%. </>}
             Landed on a guide tone at {stats.landings} change{stats.landings === 1 ? "" : "s"}.{" "}
             {stats.realAvoid > 0 ? `${stats.realAvoid} held avoid note${stats.realAvoid === 1 ? "" : "s"}: resolve them by step.` : "No held avoid notes."}
           </p>
         )}
-        {hint && <p className="mt-2 font-marker text-wash-brick">{hint}</p>}
+        {hint && <p className={`shrink-0 font-marker text-wash-brick ${compact ? "text-sm" : "mt-2"}`}>{hint}</p>}
 
-        <details className="mt-3">
+        <details className={compact ? "hidden" : "mt-3"}>
           <summary className="cursor-pointer font-marker text-sm text-ink-soft">No MIDI? Play with the mouse</summary>
           <PenKeyboard low={60} high={84} onKey={(m) => emit("on", m)} onKeyUp={(m) => emit("off", m)} className="mt-2 max-w-[520px]" />
         </details>

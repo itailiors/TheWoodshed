@@ -19,10 +19,10 @@ export function ChordName({ symbol, className = "" }: { symbol: string; classNam
 }
 
 /** SVG flavour for the lead sheet. */
-export function ChordText({ x, y, symbol, size = 25 }: { x: number; y: number; symbol: string; size?: number }) {
+export function ChordText({ x, y, symbol, size = 25, active = false }: { x: number; y: number; symbol: string; size?: number; active?: boolean }) {
   const { root, suffix, slash } = splitSymbol(symbol);
   return (
-    <text x={x} y={y} className="fill-ink font-marker" fontWeight={700} fontSize={size}>
+    <text x={x} y={y} className={`font-marker transition-[fill] duration-150 ${active ? "fill-pen" : "fill-ink"}`} fontWeight={700} fontSize={size}>
       {root}
       {suffix && (
         <tspan fontSize={slash ? size : size * 0.6} fontWeight={slash ? 700 : 400} dy={slash ? 0 : -size * 0.38}>

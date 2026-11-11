@@ -42,6 +42,8 @@ interface SketchBoxProps {
   strokeWidth?: number;
   stroke?: string;
   inset?: number;
+  /** Classes for the content wrapper (e.g. "h-full flex flex-col" when the box must fill its parent). */
+  innerClassName?: string;
 }
 
 /** A div with a hand-drawn border (and optional sketchy fill) behind its content. */
@@ -55,6 +57,7 @@ export function SketchBox({
   strokeWidth = 1.6,
   stroke = "currentColor",
   inset = 3,
+  innerClassName = "",
 }: SketchBoxProps) {
   const [wrap, size] = useSize<HTMLDivElement>();
   const g = useRef<SVGGElement>(null);
@@ -73,7 +76,7 @@ export function SketchBox({
       <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full overflow-visible text-ink">
         <g ref={g} />
       </svg>
-      <div className="relative">{children}</div>
+      <div className={`relative ${innerClassName}`}>{children}</div>
     </div>
   );
 }

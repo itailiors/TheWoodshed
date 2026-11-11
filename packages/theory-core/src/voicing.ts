@@ -17,6 +17,8 @@ const UPPER_CENTER = 63; // around Eb4: the comping sweet spot
 
 /** Colour tones a pianist adds to an unadorned chord symbol. */
 const DEFAULT_COLOR: Partial<Record<ChordEvent["quality"], string[]>> = {
+  maj: ["9"],
+  m: ["9"],
   maj7: ["9"],
   "6": ["9"],
   m7: ["9"],

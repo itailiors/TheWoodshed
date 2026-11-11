@@ -22,6 +22,25 @@
   --font-hand: "Architects Daughter", "Noto Music", cursive;
   --font-marker: "Kalam", "Noto Music", cursive;
   --font-music: "Noto Music", serif;
+
+  /* chord change in the Practice HUD: ink settling onto the page */
+  --animate-ink-in: ink-in 220ms ease-out;
+  @keyframes ink-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) rotate(-1deg);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-ink-in {
+    animation: none;
+  }
 }
 
 @layer base {

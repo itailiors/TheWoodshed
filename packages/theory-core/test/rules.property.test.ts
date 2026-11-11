@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { chordChromas, chordTones, guideTones, QUALITIES } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { improvMap } from "../src/improv";
-import { buildPathway, overlaps, realize } from "../src/pathway";
+import { buildPathway, DENSITY, overlaps, realize } from "../src/pathway";
 import { chroma, mod, pitchClass } from "../src/pitch";
 import { suggestScales } from "../src/scales";
 import { eventSpan, melodyIn, sortedHarmony } from "../src/time";
@@ -51,6 +51,36 @@ describe("engine invariants (all rules)", () => {
         for (const m of path) expect(m.level).toBeLessThanOrEqual(level);
         for (let i = 0; i < path.length; i++)
           for (let j = i + 1; j < path.length; j++) expect(overlaps(path[i], path[j])).toBe(false);
+      }),
+      RUNS,
+    );
+  });
+});
+
+describe("density caps", () => {
+  it("no phrase window ever holds more moves than the dial allows, user picks included", () => {
+    fc.assert(
+      fc.property(progressionArb, fc.integer({ min: 1, max: 3 }), fc.nat(), (tune, level, pickSeed) => {
+        // a 4-bar progression repeated to 16 bars, so windows have competition
+        const long = {
+          ...tune,
+          harmony: [0, 1, 2, 3].flatMap((rep) =>
+            tune.harmony.map((c) => ({ ...c, id: `${c.id}r${rep}`, at: { ...c.at, bar: c.at.bar + rep * 4 } })),
+          ),
+        };
+        const { accepted } = generateMoves(long);
+        const forced = accepted.length ? [accepted[pickSeed % accepted.length]] : [];
+        const path = buildPathway(accepted, level, forced);
+        const { windowBars, maxMoves } = DENSITY[level];
+        const perWindow = new Map<number, number>();
+        for (const m of path) {
+          const w = Math.floor((m.span.from.bar - 1) / windowBars);
+          perWindow.set(w, (perWindow.get(w) ?? 0) + 1);
+        }
+        for (const n of perWindow.values()) expect(n).toBeLessThanOrEqual(maxMoves);
+        if (forced.length) expect(path.map((m) => m.id)).toContain(forced[0].id);
+        // higher levels never offer fewer moves than lower ones
+        expect(buildPathway(accepted, level + 1).length).toBeGreaterThanOrEqual(buildPathway(accepted, level).length);
       }),
       RUNS,
     );

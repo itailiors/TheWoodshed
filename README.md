@@ -51,7 +51,16 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 ## Features
 
 ### 🎚️ Reharm Dial with A/B ghost playback
-- A five-level "spice dial" (Original → Functional → Bebop → Gospel → Modern) picks a non-overlapping set of moves per level. The ranking favours higher levels, smoother voice leading, and variety (it avoids repeating the same rule).
+- A five-level "spice dial" (Original → Functional → Bebop → Gospel → Modern) controls how adventurous the moves are *and* how many there are, phrase by phrase:
+
+  | Level | Moves allowed |
+  |---|---|
+  | L1 | 1 per 8 bars |
+  | L2 | 1 per 4-bar phrase |
+  | L3 | 2 per 4-bar phrase |
+  | L4 | no limit |
+
+  In each phrase, the best moves win: higher level first, then smoother voice leading, then variety (it avoids repeating a rule it has already used). Moves you pick by hand count toward the same limit.
 - Moves show on the lead sheet as watercolour washes, coloured by category. Click one to open its card; swap in any alternative that fits the same bars.
 - **Playback:** a Tone.js jazz-waltz arrangement on a sampled grand piano (Salamander), with a synth fallback. Bass on 1 and 3, right-hand comping on 1 and a swung "2&", and the melody on top.
 - **Voice-led voicings:** each chord is voiced in the inversion that moves least from the previous one, so you hear the half-step motion the engine describes (Fm9 → B♭7(♭9) → E♭maj7 plays as 60 63 67 68 → 59 62 65 68 → 58 62 65 67).
@@ -76,6 +85,15 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 - The system prompt sets the voice (analytical and encouraging, written for a pianist studying Bill Evans and Shaun Martin vocabulary) and the rules: no invented notes, keep the engine's spelling, flag missing melody data.
 - Results are cached on disk by a hash of prompt version, model and facts, so each move is paid for once.
 
+### 📚 Setlist: iReal Pro import + local library
+- Paste an `irealb://` (or older `irealbook://`) link, for one song or a whole playlist. The importer:
+  - de-obfuscates the chart;
+  - unrolls `{ }` repeats with first and second endings, `x`/`r` bar repeats, slash chords and N.C.;
+  - maps iReal chord qualities (`^7`, `-7b5`, `h7`, `7alt`, `9sus` …) onto the engine's spelled chords;
+  - adds Roman-numeral analysis.
+- Playlists become setlists. Re-importing a song updates it in place, and anything the importer had to approximate (road-map directions, odd chord symbols) is reported as a note on the tune.
+- Tunes are stored in SQLite through Drizzle ORM. The library drawer lets you search, filter by setlist, load a tune and delete it. The app remembers the last tune you loaded.
+
 ---
 
 ## Tech stack
@@ -88,6 +106,7 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 | Audio | **Tone.js** (Transport, Part, Sampler) with the Salamander Grand Piano samples |
 | Input | **Web MIDI API**, with hot-plug support and a shared note bus for MIDI and on-screen keys |
 | API | **Hono** on Node, **Anthropic SDK** (Claude, structured outputs, prompt caching) |
+| Storage | **SQLite** via **Drizzle ORM** on **sql.js** (WebAssembly: no native build), committed migrations, atomic writes to `apps/api/data/reharm.sqlite` |
 | Testing | **Vitest** + **fast-check** (property-based testing) |
 | Tooling | npm workspaces monorepo, `tsx`, `concurrently` |
 
@@ -122,7 +141,7 @@ Music theory has invariants, so the engine is tested against them rather than ag
 A **golden test** pins the engine to the original design simulation of *Someday My Prince Will Come* (bars 1–8), so the moves, the melody-based rejections, both pathways and the scale map are all exact.
 
 ```bash
-npm test          # 36 tests, several thousand generated cases
+npm test          # 69 tests, several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -164,13 +183,17 @@ packages/theory-core/   deterministic engine
   src/coach.ts            drill steps, strike diff, voice-leading diff
   src/lineEval.ts         improv note evaluation
   src/transpose.ts        12-key transfer
+  src/import/ireal.ts     iReal Pro link parser
+  src/analysis.ts         Roman-numeral analysis
   test/                   property-based + golden tests
 apps/web/               React app
   src/design/             Rough.js primitives, tokens, SVG filters
   src/components/         lead sheet, move cards, transport, practice tools
   src/audio/              Tone.js arranger and player
   src/midi/               Web MIDI hook, note bus, chord-strike detection
-apps/api/               Hono server: tunes, moves, Claude Deep Dive
+apps/api/               Hono server: library, iReal import, moves, Claude Deep Dive
+  src/db/                 Drizzle schema, sql.js client, repository
+  drizzle/                SQL migrations (npm run db:generate -w @reharm/api)
 ```
 
 ---
@@ -178,7 +201,7 @@ apps/api/               Hono server: tunes, moves, Claude Deep Dive
 ## Roadmap
 
 - More rule packs: backdoor ii–V, passing diminished, Coltrane substitution, modal interchange, constant structure.
-- Tune library with iReal Pro and MusicXML import (stored locally, for personal use).
+- MusicXML import (melody included, so moves can be melody-checked).
 - Arrangement builder: chain pathways chorus by chorus and export MIDI or MusicXML.
 - Spaced-repetition "Concept Passport" across tunes.
 - Heatmap analytics across sessions.

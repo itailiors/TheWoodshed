@@ -33,6 +33,10 @@ interface Props {
   playhead?: { bar: number; beat: number } | null;
   /** Bars being looped, shaded faintly. */
   loopBars?: { startBar: number; endBar: number } | null;
+  /** Ink this chord in red (the chord sounding now). */
+  activeChordId?: string | null;
+  /** Fill the parent box (scale to fit both width and height) instead of flowing at full width. */
+  fit?: boolean;
 }
 
 // Treble-clef staff positions (0 = bottom line E4) for key-signature accidentals.
@@ -70,6 +74,8 @@ export function LeadSheet({
   showWashes = true,
   playhead,
   loopBars,
+  activeChordId,
+  fit = false,
 }: Props) {
   const bpb = tune.meter[0];
   const bars = Array.from({ length: lastBar - firstBar + 1 }, (_, i) => firstBar + i);
@@ -211,7 +217,13 @@ export function LeadSheet({
   );
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full select-none" role="img" aria-label={`Lead sheet for ${tune.title}`}>
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      preserveAspectRatio="xMidYMid meet"
+      className={`block select-none ${fit ? "h-full w-full" : "h-auto w-full"}`}
+      role="img"
+      aria-label={`Lead sheet for ${tune.title}`}
+    >
       <g ref={washRef} className="wash" opacity={0.55} filter="url(#watercolor)" />
 
       {/* clefs, key and time signatures, bar numbers */}
@@ -284,7 +296,17 @@ export function LeadSheet({
         .filter((c) => c.at.bar >= firstBar && c.at.bar <= lastBar)
         .map((c) => {
           const g = geo(c.at.bar);
-          return <ChordText key={c.id} x={beatX(c.at.bar, c.at.beat) - 4} y={g.y0 + 62} symbol={symbol(c)} />;
+          const crowd = chords.filter((o) => o.at.bar === c.at.bar).length;
+          return (
+            <ChordText
+              key={c.id}
+              x={beatX(c.at.bar, c.at.beat) - 4}
+              y={g.y0 + 62}
+              symbol={symbol(c)}
+              size={crowd >= 4 ? 16 : crowd === 3 ? 19 : 25}
+              active={c.id === activeChordId}
+            />
+          );
         })}
 
       {/* loop region brackets */}

@@ -21,6 +21,11 @@ export function melodyIn(tune: Tune, start: number, end: number): NoteEvent[] {
   });
 }
 
+/** Length of the form in bars: the sections if present, otherwise the last bar with a chord. */
+export function formBars(tune: Tune): number {
+  return Math.max(0, ...tune.sections.map((s) => s.startBar + s.bars - 1)) || Math.max(0, ...tune.harmony.map((c) => c.at.bar));
+}
+
 export function sortedHarmony(tune: Tune): ChordEvent[] {
   const bpb = tune.meter[0];
   return [...tune.harmony].sort((a, b) => absBeat(a.at, bpb) - absBeat(b.at, bpb));

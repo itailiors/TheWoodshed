@@ -58,7 +58,17 @@ function RailIcon({ name, label, onClick, active }: { name: keyof typeof ICONS; 
   );
 }
 
-export function SideRail({ playing, onPlay, onPractice }: { playing: boolean; onPlay: () => void; onPractice: () => void }) {
+export function SideRail({
+  playing,
+  onPlay,
+  onPractice,
+  onLibrary,
+}: {
+  playing: boolean;
+  onPlay: () => void;
+  onPractice: () => void;
+  onLibrary: () => void;
+}) {
   return (
     <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 md:flex">
       <RailIcon name="menu" label="Menu" />
@@ -68,7 +78,7 @@ export function SideRail({ playing, onPlay, onPractice }: { playing: boolean; on
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />
       <div className="flex-1" />
-      <RailIcon name="notes" label="My tunes" />
+      <RailIcon name="notes" label="Setlist (library & import)" onClick={onLibrary} />
     </nav>
   );
 }

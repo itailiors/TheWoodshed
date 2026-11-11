@@ -102,11 +102,13 @@ type ChordLike = Pick<ChordEvent, "root" | "quality" | "extensions" | "alteratio
 function candidates(chord: ChordLike, next?: ChordLike): string[] {
   const alts = chord.alterations;
   switch (chord.quality) {
+    case "maj":
     case "maj7":
     case "6":
       return chord.analysis?.roman.startsWith("IV") || alts.includes("#11") ? ["lydian", "ionian"] : ["ionian", "lydian"];
     case "maj7#5":
       return ["lydian-augmented"];
+    case "m":
     case "m7":
     case "m6":
       return ["dorian", "aeolian"];

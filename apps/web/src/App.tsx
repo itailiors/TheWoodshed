@@ -1,5 +1,7 @@
 import {
   buildPathway,
+  densityLabel,
+  formBars,
   generateMoves,
   improvMap,
   overlaps,
@@ -10,12 +12,17 @@ import {
   sortedHarmony,
   symbol,
   type ReharmMove,
+  type Tune,
 } from "@reharm/theory-core";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { LibraryDrawer } from "./components/library/LibraryDrawer";
+import { fetchTune } from "./library/api";
 import { usePlayback } from "./audio/usePlayback";
 import { ImprovCard } from "./components/ImprovCard";
 import { TransportBar } from "./components/TransportBar";
+import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
 import { CompingCoach } from "./components/practice/CompingCoach";
+import { PracticeMode } from "./components/practice/PracticeMode";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { useMidi } from "./midi/useMidi";
 import { LeadSheet } from "./components/LeadSheet";
@@ -27,8 +34,39 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 
 const FEEL: Record<string, string> = { waltz: "jazz waltz", swing: "swing", bossa: "bossa", ballad: "ballad", straight8: "straight 8ths" };
 
+const LAST_TUNE = "reharm.tune";
+const store = {
+  get: (k: string) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k: string, v: string) => {
+    try {
+      localStorage.setItem(k, v);
+    } catch {
+      /* storage unavailable */
+    }
+  },
+};
+
 export function App() {
-  const tune = someday;
+  // ── the tune on the stand (from the library; the reference tune until one loads) ──
+  const [tune, setTune] = useState<Tune>(someday);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const loadTune = useCallback(async (id: string) => {
+    const t = id === someday.id ? someday : await fetchTune(id);
+    setTune(t);
+    store.set(LAST_TUNE, id);
+  }, []);
+  useEffect(() => {
+    const last = store.get(LAST_TUNE);
+    if (last && last !== someday.id) loadTune(last).catch(() => {/* library offline: keep the reference tune */});
+  }, [loadTune]);
+  const bars = formBars(tune);
+
   const { accepted, rejected } = useMemo(() => generateMoves(tune), [tune]);
 
   const [level, setLevel] = useState(2);
@@ -72,21 +110,69 @@ export function App() {
       // one bar of run-up, through the bar the move resolves into
       return { startBar: Math.max(1, selected.span.from.bar - 1), endBar: selected.span.to.bar };
     }
-    return { startBar: 1, endBar: 8 };
-  }, [loopSelection, selected]);
+    return { startBar: 1, endBar: bars };
+  }, [loopSelection, selected, bars]);
   const arrangement = useMemo(() => ({ tune, chords: shownChords, loop }), [tune, shownChords, loop]);
   const playback = usePlayback(arrangement, tempo);
   const midi = useMidi();
+  const [mode, setModeState] = useState<AppMode>(() => {
+    try {
+      return localStorage.getItem("reharm.mode") === "practice" ? "practice" : "study";
+    } catch {
+      return "study";
+    }
+  });
+  const setMode = (m: AppMode) => {
+    setModeState(m);
+    try {
+      localStorage.setItem("reharm.mode", m);
+    } catch {
+      /* storage unavailable: mode just won't persist */
+    }
+  };
   const [coachOpen, setCoachOpen] = useState(false);
   const openCoach = (id?: string) => {
     if (id) setSelectedId(id);
     if (id || selected) setCoachOpen(true);
   };
 
+  // a new tune resets everything that belonged to the old one
+  useEffect(() => {
+    setForced([]);
+    setSelectedId(null);
+    setTempo(tune.tempo);
+    setLoopSelection(false);
+    setCoachOpen(false);
+  }, [tune]);
+
+  if (mode === "practice") {
+    return (
+      <PracticeMode
+        tune={tune}
+        chords={shownChords}
+        pathway={pathway}
+        view={view}
+        onView={setView}
+        level={level}
+        onLevel={changeLevel}
+        loop={loop}
+        loopSelection={loopSelection}
+        onLoopSelection={setLoopSelection}
+        tempo={tempo}
+        onTempo={setTempo}
+        playback={playback}
+        midi={midi}
+        onMode={setMode}
+        totalBars={bars}
+      />
+    );
+  }
+
   return (
     <div className="flex min-h-screen text-ink">
       <SketchFilters />
-      <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} />
+      <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={() => setLibraryOpen(true)} />
+      {libraryOpen && <LibraryDrawer currentId={tune.id} onLoad={loadTune} onClose={() => setLibraryOpen(false)} />}
       {coachOpen && selected && (
         <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
       )}
@@ -98,7 +184,9 @@ export function App() {
             <div>
               <h1 className="ink-wobble font-marker text-3xl font-bold uppercase leading-none tracking-wide md:text-5xl">{tune.title}</h1>
               <p className="mt-2 text-sm text-ink-soft md:text-base">
-                {tune.composer} · {prettyNote(tune.key.tonic)} {tune.key.mode} · {tune.meter.join("/")} {FEEL[tune.feel]} · bars 1–8
+                {[tune.composer, `${prettyNote(tune.key.tonic)} ${tune.key.mode}`, `${tune.meter.join("/")} ${FEEL[tune.feel]}`, `${bars} bars`]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             </div>
             <div className="ink-wobble text-right font-marker font-bold uppercase leading-[0.9] text-ink-soft">
@@ -110,7 +198,17 @@ export function App() {
 
         {/* ── toolbar ── */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <LevelDial level={level} onChange={changeLevel} />
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setLibraryOpen(true)}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+            >
+              📚 Setlist
+            </button>
+            <ModeSwitch mode="study" onMode={setMode} />
+            <LevelDial level={level} onChange={changeLevel} />
+          </div>
           <div className="flex items-center gap-1 font-marker" role="group" aria-label="Show chords">
             {(["original", "reharm"] as const).map((v) => (
               <button
@@ -158,6 +256,7 @@ export function App() {
                       showWashes={view === "reharm"}
                       playhead={playback.position}
                       loopBars={playback.status === "playing" || loopSelection ? loop : null}
+                      lastBar={bars}
                     />
                   </div>
                 </div>
@@ -172,14 +271,18 @@ export function App() {
                   </div>
                 )}
                 <p className="mt-3 text-xs text-ink-faint">
-                  Melody: only the anchor notes in bars 2 and 4 are entered. Slashes mean no melody yet. Click a coloured wash to open its move.
-                  Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.
+                  {tune.melodyCoverage === "anchors"
+                    ? "Melody: only a few anchor notes are entered. Slashes mean no melody yet. "
+                    : tune.melodyCoverage === "none"
+                      ? "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
+                      : ""}
+                  Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.
                 </p>
               </div>
             </SketchBox>
 
             <div className="mt-6">
-              <ImprovHeatmap tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} />
+              <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} />
             </div>
 
             {selected && improvForSelected.length > 0 && (
@@ -196,6 +299,12 @@ export function App() {
                 Reharm &amp; tricks
               </h2>
               <SketchRule seed={31} strokeWidth={2.2} />
+              {level > 0 && (
+                <p className="mt-1 text-sm text-ink-soft">
+                  {pathway.length} move{pathway.length === 1 ? "" : "s"} · {densityLabel(level)}
+                  {level < 4 && accepted.length > pathway.length && ` (turn the dial up for more, or swap one in from “Also works here”)`}
+                </p>
+              )}
             </div>
 
             {pathway.length === 0 && (

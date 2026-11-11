@@ -8,6 +8,8 @@ export interface TimePos {
 }
 
 export type Quality =
+  | "maj"
+  | "m"
   | "maj7"
   | "6"
   | "7"

@@ -44,20 +44,23 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     expect(r!.reasons[0]).toMatch(/♭9 of Dm7♭5/);
   });
 
-  it("assembles the bebop (L2) and gospel (L3) pathways from the blueprint", () => {
+  it("L2 keeps one move per 4-bar phrase; L3 allows two, so all four blueprint moves appear", () => {
     const l2 = buildPathway(accepted, 2).map((m) => [m.span.from.bar, m.ruleId]);
     expect(l2).toEqual([
       [2, "functional.secondaryTwoFive"],
-      [4, "dominant.tritoneSub"],
-      [6, "voicing.upperStructureBVI"],
       [8, "dominant.tritoneSub"],
     ]);
-    const l3 = buildPathway(accepted, 3);
-    expect(l3.find((m) => m.span.from.bar === 8)!.ruleId).toBe("gospel.halfStepTurnaround");
+    const l3 = buildPathway(accepted, 3).map((m) => [m.span.from.bar, m.ruleId]);
+    expect(l3).toEqual([
+      [2, "functional.secondaryTwoFive"],
+      [4, "dominant.tritoneSub"],
+      [6, "voicing.upperStructureBVI"],
+      [8, "gospel.halfStepTurnaround"],
+    ]);
   });
 
   it("maps scales like the blueprint table", () => {
-    const chords = realize(someday, buildPathway(accepted, 2));
+    const chords = realize(someday, buildPathway(accepted, 3));
     const top = Object.fromEntries(improvMap(someday, chords).map((e) => [symbol(e.chord), e.scales[0]?.name]));
     expect(top["Fm9"]).toBe("F Dorian");
     expect(top["Bb7(b9)"]).toBe("B♭ half-whole diminished");
