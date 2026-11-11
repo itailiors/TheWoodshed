@@ -138,6 +138,19 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Playlists become setlists. Re-importing a song updates it in place, and anything the importer had to approximate (road-map directions, odd chord symbols) is reported as a note on the tune.
 - Tunes are stored in SQLite through Drizzle ORM. The library drawer lets you search, filter by setlist, load a tune and delete it. The app remembers the last tune you loaded.
 
+### 🔬 Engine X-ray: watch it decide, then watch it prove itself
+- **How it decided:** pick a bar (or let it follow the playhead) and read the engine's reasoning as a four-stage pipeline:
+  1. **The rule proposes:** every move that touches the bar, with its level and chords. The rules that had nothing to say are listed too.
+  2. **The melody filter:** struck-out proposals get a red-pen line and the reason ("B♭ is the 11 of Fmaj7, a half step above the 3rd (A)").
+  3. **Voice leading:** the guide-tone score as a hatched ink bar, with the actual motion (A♭→G, −1).
+  4. **The pathway:** the verdict and the arithmetic behind it (`L2×2 + 9 = 13`): in the reharm, lost the beats to a better move, phrase quota full, or too spicy for the dial.
+- **It can't misrepresent the engine.** `generateMoves` and `buildPathway` are thin wrappers over `generateMovesTraced` and `buildPathwayTraced`, so the X-ray reads the same code path the app plays from, and a property test checks that.
+- **Proof:** the engine's claims run live in the browser. That's 8 properties × 200 generated tunes in a Web Worker: deterministic, melody-safe, keeps the form, respects the dial, the X-ray tells the truth, key-independent, spells like a chart, walks like a bassist. They're the same `PROOFS` objects CI asserts (`@reharm/theory-core/testing`).
+  - Re-run a seed to replay identical cases.
+  - A failure shows fast-check's shrunk counterexample.
+  - A determinism handshake hashes the engine's full output (SHA-256) on the main thread and in the worker, and shows they match.
+- Lazy-loaded: the X-ray is an 18 kB chunk, and fast-check exists only inside the worker. It works in the static demo too, with no API.
+
 ### 🧯 Fails gracefully, loads fast
 - **API down or offline:** a red-pen banner says exactly what's paused (setlist, import, deep dives) and what still works (everything musical, since it all runs in the browser), with a Retry button. One shared health check drives it, and it clears as soon as the API is back.
 - **No Claude key:** Deep Dive doesn't error. It says the engine's own explanation on the card is the full analysis, and how to switch Claude on. The API marks the case with a machine-readable code (`no_key`).
@@ -196,6 +209,8 @@ Music theory has invariants, so the engine is tested against them rather than ag
 
 A **golden test** pins the engine to the original design simulation of *Someday My Prince Will Come* (bars 1–8), so the moves, the melody-based rejections, both pathways and the scale map are all exact.
 
+The headline claims also live in `src/testing/proofs.ts` as plain `Proof` objects (a sentence, plus a fast-check property). CI asserts every one, and the app's **Proof** tab runs the very same objects live in the browser, so the evidence a visitor sees is literally the test suite.
+
 Each of the advanced rules has its own invariant, checked on random diatonic progressions in every key: the backdoor ♭7 falls to the tonic's 5th, ascending passing °7s equal a rootless V7♭9 of the target, Coltrane's key centres form an augmented triad with each dominant resolving down a 5th, and constant-structure chords keep the target's exact shape.
 
 The **API suite** runs the server in-process against throwaway databases. It covers:
@@ -207,7 +222,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 112 tests (engine + API), several thousand generated cases
+npm test          # 120 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

@@ -12,22 +12,60 @@ export interface GenerateResult {
   rejected: RejectedMove[];
 }
 
-/** analyze → generate → filter (melody) → score. Pure and synchronous: safe to run on every UI change. */
-export function generateMoves(tune: Tune, rules: Rule[] = RULES): GenerateResult {
+/**
+ * One rule, asked about one chord: did it have nothing to say ("no-fit"), or did it propose
+ * a move that the melody filter then passed ("accepted") or struck out ("rejected")?
+ */
+export interface RuleAttempt {
+  ruleId: string;
+  ruleName: string;
+  chordId: string;
+  chordIndex: number;
+  outcome: "no-fit" | "accepted" | "rejected";
+  /** The move's id, when the rule proposed one. */
+  moveId?: string;
+}
+
+export interface GenerateTrace extends GenerateResult {
+  /** Every (chord, rule) pair the engine tried, in the order it tried them. */
+  attempts: RuleAttempt[];
+}
+
+/**
+ * analyze → generate → filter (melody) → score, recording every attempt along the way.
+ * This is the engine: `generateMoves` is this with the trace dropped, so what the Engine
+ * X-ray shows is, by construction, what the app plays.
+ */
+export function generateMovesTraced(tune: Tune, rules: Rule[] = RULES): GenerateTrace {
   const chords = sortedHarmony(tune);
   const accepted: ReharmMove[] = [];
   const rejected: RejectedMove[] = [];
+  const attempts: RuleAttempt[] = [];
 
   chords.forEach((chord, index) => {
     rules.forEach((rule, priority) => {
+      const attempt: RuleAttempt = { ruleId: rule.id, ruleName: rule.name, chordId: chord.id, chordIndex: index, outcome: "no-fit" };
+      attempts.push(attempt);
       const p = rule.propose({ tune, index, chord, prev: chords[index - 1], next: chords[index + 1], afterNext: chords[index + 2] });
       if (!p) return;
       const move = buildMove(tune, rule, priority, p, chords, index);
+      attempt.moveId = move.id;
       const avoid = move.checks.melody.filter((m) => m.verdict === "avoid");
-      if (avoid.length) rejected.push({ move, reasons: avoid.map((a) => a.reason ?? `${a.note} is an avoid note`) });
-      else accepted.push(move);
+      if (avoid.length) {
+        attempt.outcome = "rejected";
+        rejected.push({ move, reasons: avoid.map((a) => a.reason ?? `${a.note} is an avoid note`) });
+      } else {
+        attempt.outcome = "accepted";
+        accepted.push(move);
+      }
     });
   });
+  return { accepted, rejected, attempts };
+}
+
+/** analyze → generate → filter (melody) → score. Pure and synchronous: safe to run on every UI change. */
+export function generateMoves(tune: Tune, rules: Rule[] = RULES): GenerateResult {
+  const { accepted, rejected } = generateMovesTraced(tune, rules);
   return { accepted, rejected };
 }
 

@@ -31,6 +31,7 @@ import { TransportBar } from "./components/TransportBar";
 import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { lazyWithPreload, whenIdle } from "./lazy";
+import { PanelBoundary } from "./components/PanelBoundary";
 import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
@@ -44,6 +45,8 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 // straight into Practice Mode), and all three are prefetched once the page is idle.
 const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
 const CompingCoach = lazyWithPreload(() => import("./components/practice/CompingCoach").then((m) => m.CompingCoach));
+// The X-ray (and, inside it, the Proof tab's fast-check worker) only loads when opened.
+const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
 const PracticeMode = lazyWithPreload(() => import("./components/practice/PracticeMode").then((m) => m.PracticeMode));
 
 /** What a lazy screen shows for the moment its chunk is still arriving. */
@@ -155,10 +158,8 @@ export function App() {
   const [view, setView] = useState<"reharm" | "original">("reharm");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const pathway = useMemo(
-    () => buildPathway(accepted, level, forced.map((id) => accepted.find((m) => m.id === id)).filter((m): m is ReharmMove => !!m)),
-    [accepted, level, forced],
-  );
+  const forcedMoves = useMemo(() => forced.map((id) => accepted.find((m) => m.id === id)).filter((m): m is ReharmMove => !!m), [accepted, forced]);
+  const pathway = useMemo(() => buildPathway(accepted, level, forcedMoves), [accepted, level, forcedMoves]);
   const realized = useMemo(() => realize(tune, pathway), [tune, pathway]);
   const original = useMemo(() => sortedHarmony(tune), [tune]);
   const shownChords = view === "reharm" ? realized : original;
@@ -228,6 +229,8 @@ export function App() {
       commit();
     };
     const vt = document.startViewTransition(commitOnce);
+    // A skipped transition rejects `ready`; that's expected here, not an error.
+    vt.ready.catch(() => {});
     setTimeout(() => {
       if (done) return;
       commitOnce();
@@ -235,6 +238,7 @@ export function App() {
     }, 400);
   }, []);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [xrayOpen, setXrayOpen] = useState(false);
   const openCoach = (id?: string) => {
     if (id) setSelectedId(id);
     if (id || selected) setCoachOpen(true);
@@ -308,6 +312,7 @@ export function App() {
       <SideRail playing={playback.status === "playing"} onPlay={playback.toggle} onPractice={() => openCoach()} onLibrary={DEMO ? undefined : () => setLibraryOpen(true)} />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && !DEMO && (
+        <PanelBoundary onClose={() => setLibraryOpen(false)}>
         <LibraryDrawer
           currentId={baseTune.id}
           onLoad={loadTune}
@@ -316,9 +321,24 @@ export function App() {
             if (id === baseTune.id) backToReference(`Deleted “${title}”, which was on the stand, so here's ${someday.title}.`);
           }}
         />
+        </PanelBoundary>
       )}
       {coachOpen && selected && (
-        <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
+        <PanelBoundary onClose={() => setCoachOpen(false)}>
+          <CompingCoach tune={tune} move={selected} midiStatus={midi.status} onConnectMidi={midi.connect} onClose={() => setCoachOpen(false)} />
+        </PanelBoundary>
+      )}
+      {xrayOpen && (
+        <PanelBoundary onClose={() => setXrayOpen(false)}>
+        <EngineXRay
+          tune={tune}
+          level={level}
+          forced={forcedMoves}
+          playheadBar={playback.status === "playing" ? (playback.position?.bar ?? null) : null}
+          startBar={selected?.span.from.bar ?? 1}
+          onClose={() => setXrayOpen(false)}
+        />
+        </PanelBoundary>
       )}
       </Suspense>
 
@@ -361,6 +381,15 @@ export function App() {
               </button>
             )}
             <ModeSwitch mode="study" onMode={setMode} />
+            <button
+              type="button"
+              onClick={() => setXrayOpen(true)}
+              onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
+              className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+              title="See how the engine decided, bar by bar, and run its proofs live"
+            >
+              🔬 Engine X-ray
+            </button>
             <KeyPicker {...keyControl} />
             <LevelDial level={level} onChange={changeLevel} />
           </div>
