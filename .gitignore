@@ -3,6 +3,13 @@ dist/
 dist-demo/
 *.log
 .DS_Store
+# secrets: every env file except the two committed templates
 .env
+.env.*
+!.env.example
+!.env.demo
 .cache/
 apps/api/data/
+# databases anywhere (the real one lives in apps/api/data/)
+*.sqlite
+*.sqlite-journal
