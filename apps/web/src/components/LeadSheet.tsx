@@ -10,6 +10,7 @@ import {
 } from "@reharm/theory-core";
 import { useRef } from "react";
 import { useRough } from "../design/rough";
+import { packLabels, textWidth, useFontsReady } from "../design/labels";
 import { CATEGORY_WASH, ink, seedOf } from "../design/tokens";
 import { ChordText } from "./ChordName";
 
@@ -19,6 +20,8 @@ const PER_SYS = 4;
 const LEFT = 12;
 const RIGHT_PAD = 14;
 const LINE_GAP = 10;
+/** Headroom above the first line, so a move name lifted to the second label row isn't clipped. */
+const TOP = 20;
 
 interface Props {
   tune: Tune;
@@ -80,7 +83,7 @@ export function LeadSheet({
   const bpb = tune.meter[0];
   const bars = Array.from({ length: lastBar - firstBar + 1 }, (_, i) => firstBar + i);
   const systems = Math.ceil(bars.length / PER_SYS);
-  const H = systems * SYS_H + 10;
+  const H = systems * SYS_H + TOP + 2;
   const ks = keySignature(tune);
   const keyAlter: Record<string, number> = {};
   (ks.flats ? FLAT_ORDER : SHARP_ORDER).slice(0, ks.count).forEach((l) => (keyAlter[l] = ks.flats ? -1 : 1));
@@ -92,7 +95,7 @@ export function LeadSheet({
     const col = idx % PER_SYS;
     const pre = prefixW(sys);
     const w = (W - LEFT - RIGHT_PAD - pre) / PER_SYS;
-    const y0 = 8 + sys * SYS_H;
+    const y0 = TOP + sys * SYS_H;
     return { sys, col, x: LEFT + pre + col * w, w, y0, staffTop: y0 + 84 };
   };
   const beatX = (bar: number, beat: number) => {
@@ -126,6 +129,24 @@ export function LeadSheet({
       }
     }
   }
+
+  // ── move names: full text, packed into lanes so two moves in one bar never overlap ──
+  // Lane 0 sits just above the wash; lane 1 lifts a colliding name one row up (with an ink
+  // tick back down to its wash). Names are measured in the real font, so the packing is exact.
+  useFontsReady();
+  const LABEL_FONT = "700 14px Kalam";
+  const LANE_Y = [19, 2];
+  const labels = [...new Set(segs.map((s) => s.sys))].flatMap((sys) =>
+    packLabels(
+      segs
+        .filter((s) => s.first && s.sys === sys)
+        .map((s) => {
+          const text = s.move.title.toUpperCase();
+          return { item: s, text, x: s.x1 + 6, width: textWidth(text, LABEL_FONT), maxRight: W - RIGHT_PAD };
+        }),
+      { lanes: LANE_Y.length, gap: 10, font: LABEL_FONT, minX: LEFT },
+    ),
+  );
 
   const washRef = useRef<SVGGElement>(null);
   const inkRef = useRef<SVGGElement>(null);
@@ -274,22 +295,29 @@ export function LeadSheet({
           );
         })}
 
-      {/* wash labels */}
-      {segs
-        .filter((s) => s.first)
-        .map((s) => (
-          <text
-            key={s.move.id}
-            x={s.x1 + 6}
-            y={s.y0 + 18}
-            transform={`rotate(-2 ${s.x1} ${s.y0 + 18})`}
-            className="fill-ink-soft font-marker uppercase"
-            fontSize={14}
-            fontWeight={700}
-          >
-            {s.move.title}
-          </text>
-        ))}
+      {/* wash labels (lane-packed; see `labels` above) */}
+      {labels.map((l) => {
+        const s = l.item;
+        const y = s.y0 + LANE_Y[l.lane];
+        return (
+          <g key={s.move.id}>
+            {l.lane > 0 && (
+              <path
+                d={`M ${l.x + 3} ${y + 4} Q ${l.x + 1} ${y + 12} ${Math.max(s.x1 + 6, Math.min(l.x + 3, s.x2 - 6))} ${s.y0 + 24}`}
+                fill="none"
+                stroke={ink.soft}
+                strokeWidth={1.2}
+                strokeLinecap="round"
+                opacity={0.7}
+              />
+            )}
+            <text x={l.x} y={y} transform={`rotate(-2 ${l.x} ${y})`} className="fill-ink-soft font-marker" fontSize={14} fontWeight={700}>
+              {l.truncated && <title>{s.move.title}</title>}
+              {l.shown}
+            </text>
+          </g>
+        );
+      })}
 
       {/* chord symbols */}
       {chords

@@ -15,6 +15,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { player } from "../../audio/player";
+import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
 import { ink, seedOf, VERDICT_COLOR } from "../../design/tokens";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
@@ -55,6 +56,12 @@ const H_DEFAULT = 250;
 const LOW = 48;
 const HIGH = 96;
 const KEEP_PASSES = 3;
+/** Loops up to this many bars show whole; longer ones show one PAGE at a time. */
+const WHOLE_MAX = 12;
+/** Bars per page (two 4-bar phrases), aligned to bar 1 like Practice Mode's lead sheet. */
+const PAGE = 8;
+const CHORD_FONT = '700 14px Kalam, "Noto Music"';
+const CHORD_LANE_Y = [14, 29];
 const LABEL: Record<LineNoteEval["verdict"], string> = { "chord-tone": "Chord tone", tension: "Tension", avoid: "Avoid", outside: "Chromatic / outside" };
 
 /**
@@ -85,13 +92,34 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   const loopStart = (loop.startBar - 1) * bpb;
   const loopEnd = loop.endBar * bpb;
   const span = loopEnd - loopStart;
-  const x = (beat: number) => ((beat - loopStart) / span) * W;
-  const y = (midi: number) => 28 + ((HIGH - Math.min(HIGH, Math.max(LOW, midi))) / (HIGH - LOW)) * (H - 46);
+
+  // ── paging: a long loop squeezed into one tape made chord names pile up and notes too thin
+  // to read, so loops over WHOLE_MAX bars show 8 bars at a time. Pages are aligned to bar 1
+  // (bars 1–8, 9–16 …), the same pages Practice Mode's lead sheet turns, so the two stay in step.
+  const loopBars = loop.endBar - loop.startBar + 1;
+  const paged = loopBars > WHOLE_MAX;
+  const pageOf = (bar: number) => Math.floor((bar - 1) / PAGE);
+  const firstPage = pageOf(loop.startBar);
+  const lastPage = pageOf(loop.endBar);
+  const [browsePage, setBrowsePage] = useState(firstPage);
+  const [head, setHead] = useState<number | null>(null);
+  const headBar = head !== null ? Math.floor(head / bpb) + 1 : null;
+  const pageIdx = !paged ? firstPage : headBar !== null ? Math.min(lastPage, Math.max(firstPage, pageOf(headBar))) : Math.min(lastPage, Math.max(firstPage, browsePage));
+  // keep the browse position on the page the music last showed, so Stop doesn't jump away
+  useEffect(() => {
+    if (paged && headBar !== null) setBrowsePage(pageIdx);
+  }, [paged, headBar, pageIdx]);
+  useEffect(() => setBrowsePage(pageOf(loop.startBar)), [loop.startBar, loop.endBar]);
+  const winFirstBar = paged ? Math.max(loop.startBar, pageIdx * PAGE + 1) : loop.startBar;
+  const winLastBar = paged ? Math.min(loop.endBar, pageIdx * PAGE + PAGE) : loop.endBar;
+  const winStart = (winFirstBar - 1) * bpb;
+  const winEnd = winLastBar * bpb;
+  const inWin = (start: number, end: number) => start < winEnd && end > winStart;
+  const x = (beat: number) => ((Math.min(winEnd, Math.max(winStart, beat)) - winStart) / (winEnd - winStart)) * W;
 
   const [armed, setArmed] = useState(true);
   const [notes, setNotes] = useState<HeatNote[]>([]);
   const [hint, setHint] = useState<string | null>(null);
-  const [head, setHead] = useState<number | null>(null);
   const pass = useRef(0);
   const lastBeat = useRef(-1);
   const nextId = useRef(1);
@@ -159,6 +187,21 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
 
   const changes = useMemo(() => chords.map((c) => ({ beat: absBeat(c.at, bpb), chord: c })), [chords, bpb]);
 
+  // chord names over this window, packed into two rows so crowded bars never overlap
+  useFontsReady();
+  const chordLabels = packLabels(
+    changes
+      .filter((c) => c.beat >= winStart && c.beat < winEnd && c.beat >= loopStart && c.beat < loopEnd)
+      .map((c) => {
+        const text = prettySymbol(symbol(c.chord));
+        return { item: c, text, x: x(c.beat) + 4, width: textWidth(text, CHORD_FONT), maxRight: W - 2 };
+      }),
+    { lanes: CHORD_LANE_Y.length, gap: 8, font: CHORD_FONT, minX: 2 },
+  );
+  // the notes start below whichever label rows are in use
+  const top = chordLabels.some((l) => l.lane > 0) ? 42 : 28;
+  const y = (midi: number) => top + ((HIGH - Math.min(HIGH, Math.max(LOW, midi))) / (HIGH - LOW)) * (H - top - 18);
+
   useNoteBus((m) => {
     const beat = player.currentBeat();
     if (m.type === "on") {
@@ -198,7 +241,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
 
   // ── drawing ──
   const g = useRef<SVGGElement>(null);
-  const done = notes.filter((n) => n.end !== null);
+  const done = notes.filter((n) => n.end !== null && inWin(n.start, n.end));
   useRough(
     g,
     (rc, add) => {
@@ -220,7 +263,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
         add(node);
       }
     },
-    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, span, loopStart, H],
+    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, winStart, winEnd, top, H],
   );
 
   const stats = useMemo(() => summarise(notes), [notes]);
@@ -240,6 +283,29 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
             Improv heatmap
           </h2>
           <div className="flex items-center gap-3 font-marker text-sm">
+            {paged && (
+              <span className="flex items-center gap-1 text-ink-soft" aria-live="polite">
+                <button
+                  type="button"
+                  aria-label="Previous 8 bars"
+                  disabled={headBar !== null || pageIdx <= firstPage}
+                  onClick={() => setBrowsePage(pageIdx - 1)}
+                  className="cursor-pointer rounded px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
+                >
+                  ‹
+                </button>
+                bars {winFirstBar}–{winLastBar} of {loop.endBar}
+                <button
+                  type="button"
+                  aria-label="Next 8 bars"
+                  disabled={headBar !== null || pageIdx >= lastPage}
+                  onClick={() => setBrowsePage(pageIdx + 1)}
+                  className="cursor-pointer rounded px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
+                >
+                  ›
+                </button>
+              </span>
+            )}
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={armed} onChange={(e) => setArmed(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
               Record my line
@@ -252,6 +318,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
         {!compact && (
           <p className="mt-1 text-sm text-ink-soft">
             Play single-note lines over the loop (bars {loop.startBar}–{loop.endBar}). Each note is judged against the chord sounding at that moment. Older passes fade.
+            {paged && " Long loops show 8 bars at a time, turning with the music (or with ‹ › when stopped)."}
           </p>
         )}
 
@@ -264,24 +331,23 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
             aria-label="Improv heatmap loop tape"
           >
             {/* bar grid + chord labels */}
-            {Array.from({ length: loop.endBar - loop.startBar + 1 }, (_, i) => {
-              const bx = x(loopStart + i * bpb);
+            {Array.from({ length: winLastBar - winFirstBar + 1 }, (_, i) => {
+              const bx = x(winStart + i * bpb);
               return (
-                <g key={i}>
+                <g key={winFirstBar + i}>
                   <line x1={bx} y1={18} x2={bx} y2={H - 6} className="stroke-ink-faint" strokeDasharray="4 5" strokeWidth={1} />
                   <text x={bx + 3} y={H - 8} fontSize={10} className="fill-ink-faint font-hand">
-                    {loop.startBar + i}
+                    {winFirstBar + i}
                   </text>
                 </g>
               );
             })}
-            {changes
-              .filter((c) => c.beat >= loopStart && c.beat < loopEnd)
-              .map((c) => (
-                <text key={c.chord.id} x={x(c.beat) + 4} y={14} fontSize={14} fontWeight={700} className="fill-ink font-marker">
-                  {prettySymbol(symbol(c.chord))}
-                </text>
-              ))}
+            {chordLabels.map((l) => (
+              <text key={l.item.chord.id} x={l.x} y={CHORD_LANE_Y[l.lane]} fontSize={14} fontWeight={700} className="fill-ink font-marker">
+                {l.truncated && <title>{l.text}</title>}
+                {l.shown}
+              </text>
+            ))}
             {[60, 72, 84].map((m) => (
               <text key={m} x={W - 4} y={y(m) + 3} textAnchor="end" fontSize={9} className="fill-ink-faint font-hand">
                 C{m / 12 - 1}
@@ -290,19 +356,19 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
             <g ref={g} />
             {/* notes still sounding */}
             {notes
-              .filter((n) => n.end === null && head !== null)
+              .filter((n) => n.end === null && head !== null && inWin(n.start, head!))
               .map((n) => (
                 <rect key={n.id} x={x(n.start)} y={y(n.midi) - 5} width={Math.max(6, x(head!) - x(n.start))} height={10} rx={2} fill={VERDICT_COLOR[n.ev.verdict]} />
               ))}
             {/* tooltips */}
-            {notes.map((n) => (
+            {notes.filter((n) => inWin(n.start, n.end ?? n.start + 0.25)).map((n) => (
               <rect key={`t${n.id}`} x={x(n.start)} y={y(n.midi) - 6} width={Math.max(8, x(n.end ?? n.start + 0.25) - x(n.start))} height={12} fill="transparent">
                 <title>
                   {`${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${LABEL[n.ev.verdict]}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`}
                 </title>
               </rect>
             ))}
-            {head !== null && <line x1={x(head)} y1={18} x2={x(head)} y2={H - 6} className="stroke-wash-brick" strokeWidth={2} />}
+            {head !== null && head >= winStart && head < winEnd && <line x1={x(head)} y1={18} x2={x(head)} y2={H - 6} className="stroke-wash-brick" strokeWidth={2} />}
           </svg>
         </div>
 
