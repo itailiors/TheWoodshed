@@ -1,0 +1,110 @@
+<!doctype html>
+<!--
+  The link-preview card (Open Graph / Twitter), 1200×630, in the app's "living lead sheet" style.
+  Regenerate apps/web/public/og-image.png with headless Chrome or Edge, from the repo root:
+    "C:/Program Files/Google/Chrome/Application/chrome.exe" --headless --disable-gpu --hide-scrollbars \
+      --window-size=1200,630 --virtual-time-budget=6000 \
+      --screenshot=apps/web/public/og-image.png apps/web/scripts/og-card.html
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Reharm Lab card</title>
+    <link href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Kalam:wght@400;700&family=Noto+Music&display=block" rel="stylesheet" />
+    <style>
+      :root {
+        --paper: #f6e9c9;
+        --paper-light: #fbf3df;
+        --ink: #1e2a78;
+        --ink-soft: #3e4c9e;
+        --ink-faint: #8a93c4;
+        --mustard: #e3b23c;
+        --blue: #5b85c2;
+        --pen: #c2311f;
+      }
+      * { box-sizing: border-box; margin: 0; }
+      html, body { width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "Architects Daughter", cursive;
+        position: relative;
+      }
+      .grain {
+        position: absolute; inset: 0; opacity: 0.55; pointer-events: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.30  0 0 0 0 0.12  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      }
+      .marker { font-family: "Kalam", cursive; }
+      .music { font-family: "Noto Music", serif; }
+      svg.frame { position: absolute; inset: 0; }
+      .wrap { position: absolute; inset: 54px 64px 46px 64px; display: grid; grid-template-columns: 1fr 430px; gap: 40px; }
+      h1 { font-family: "Kalam", cursive; font-weight: 700; font-size: 92px; line-height: 0.9; letter-spacing: 2px; text-transform: uppercase; transform: rotate(-1.2deg); }
+      .tag { margin-top: 18px; font-size: 27px; line-height: 1.25; color: var(--ink); max-width: 620px; }
+      .tag b { font-family: "Kalam", cursive; }
+      ul { list-style: none; padding: 0; margin-top: 18px; font-size: 21px; line-height: 1.5; color: var(--ink-soft); }
+      ul li::before { content: "✓ "; color: var(--pen); font-family: "Kalam", cursive; font-weight: 700; }
+      .sheet { position: relative; align-self: start; margin-top: 6px; padding: 26px 26px 22px; background: var(--paper-light); transform: rotate(1.4deg); }
+      .sheet h2 { font-family: "Kalam", cursive; font-size: 22px; letter-spacing: 3px; text-transform: uppercase; color: var(--ink-soft); }
+      .bar { margin-top: 14px; font-family: "Kalam", cursive; font-size: 36px; font-weight: 700; display: flex; gap: 18px; align-items: baseline; flex-wrap: wrap; }
+      .old { color: var(--ink-faint); position: relative; }
+      .old::after { content: ""; position: absolute; left: -6px; right: -6px; top: 52%; border-top: 3.5px solid var(--pen); transform: rotate(-8deg); }
+      .arrow { color: var(--pen); font-size: 30px; }
+      .wash { padding: 0 10px; border-radius: 6px 14px 8px 12px; }
+      .wash.blue { background: color-mix(in srgb, var(--blue) 45%, transparent); }
+      .wash.mustard { background: color-mix(in srgb, var(--mustard) 55%, transparent); }
+      .note { margin-top: 10px; font-size: 19px; color: var(--pen); transform: rotate(-1deg); }
+      .dial { margin-top: 22px; display: flex; gap: 14px; font-family: "Kalam", cursive; font-size: 24px; color: var(--ink-soft); }
+      .dial .on { color: var(--ink); font-weight: 700; padding: 0 8px; border: 3px solid var(--ink); border-radius: 50%; transform: rotate(-4deg); }
+      .stamp { margin-top: 22px; display: inline-block; padding: 6px 14px; border: 3px double var(--pen); color: var(--pen); font-family: "Kalam", cursive; font-weight: 700; font-size: 18px; letter-spacing: 2px; transform: rotate(-3deg); }
+      .foot { position: absolute; left: 64px; right: 64px; bottom: 30px; display: flex; justify-content: space-between; align-items: baseline; font-family: "Kalam", cursive; }
+      .brand { font-size: 23px; font-weight: 700; letter-spacing: 3px; }
+      .url { font-size: 20px; color: var(--ink-soft); }
+    </style>
+  </head>
+  <body>
+    <div class="grain"></div>
+    <!-- hand-drawn border and the sheet's box: two wobbly strokes each, like Rough.js -->
+    <svg class="frame" width="1200" height="630" viewBox="0 0 1200 630">
+      <defs>
+        <filter id="wobble"><feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="2" seed="7" /><feDisplacementMap in="SourceGraphic" scale="5" /></filter>
+      </defs>
+      <g fill="none" stroke="#1e2a78" stroke-linecap="round" filter="url(#wobble)">
+        <path d="M24 26 L1176 22 L1178 606 L22 608 Z" stroke-width="3" />
+        <path d="M30 31 L1171 29 L1172 600 L27 603 Z" stroke-width="1.4" opacity="0.7" />
+      </g>
+    </svg>
+
+    <div class="wrap">
+      <div>
+        <h1>Reharm<br />Lab</h1>
+        <p class="tag">A <b>deterministic</b> jazz reharmonization engine you can <b>play</b>: from ii–Vs to L4 Coltrane changes, every move checked against the melody.</p>
+        <ul>
+          <li>11 rules · 5 levels · voice-led and melody-safe</li>
+          <li>8 claims proven live in your browser</li>
+          <li>MIDI, walking bass &amp; brushes, practice coach</li>
+        </ul>
+      </div>
+
+      <div class="sheet">
+        <svg class="frame" width="100%" height="100%" style="overflow: visible">
+          <g fill="none" stroke="#1e2a78" stroke-width="2.2" filter="url(#wobble)"><rect x="2" y="2" width="99%" height="98%" /></g>
+        </svg>
+        <h2>Co-op Blues · bar 10</h2>
+        <div class="bar">
+          <span class="old">C7</span><span class="arrow">→</span><span class="wash blue">G<span class="music">♭</span>9</span>
+        </div>
+        <div class="bar">
+          <span class="arrow">or</span><span class="wash mustard">B<span class="music">♭</span>/C &nbsp;G<span class="music">♭</span>13(<span class="music">♯</span>11)</span>
+        </div>
+        <p class="note">the melody's C becomes the <span class="music">♯</span>11 ✓ · guide tones move by half steps</p>
+        <div class="dial"><span>L0</span><span>L1</span><span>L2</span><span class="on">L3</span><span>L4</span></div>
+        <div class="stamp">ORIGINAL COMPOSITION</div>
+      </div>
+    </div>
+
+    <div class="foot">
+      <span class="brand">ITAI LIOR // SOFTWARE &amp; JAZZ CO-OP</span>
+      <span class="url">itailiors.github.io/TheWoodshed</span>
+    </div>
+  </body>
+</html>

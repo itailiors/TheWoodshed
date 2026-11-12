@@ -333,7 +333,14 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
 ### Next: the launch track
 
 
-- Deploy the static demo, plus a CI badge, OG/meta tags (`index.html` has none) and a 20-second README GIF: the dial turning, chords moving, proofs going green. This is higher ROI than any in-app onboarding, because many recruiters never click through.
+- **Deployed (once Pages is enabled):**
+  - CI publishes `dist-demo` to **https://itailiors.github.io/TheWoodshed/** on every green push to `main`: the `deploy` job with `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4`. Main runs are never cancelled mid-deploy.
+  - One-time setup: repo Settings → Pages → Source: **GitHub Actions**.
+  - `index.html` has the description, Open Graph and Twitter tags. The 1200×630 card is `apps/web/public/og-image.png`, rendered from `apps/web/scripts/og-card.html`; the command is in that file.
+  - There's a favicon.
+  - The README has the live link, the CI badge and a GIF slot (the card stands in until `docs/media/demo.gif` exists).
+  - Verified: the build loads at a `/TheWoodshed/` subpath with every request 200, including the proofs worker and lazy chunks.
+- **Still to do:** record the 20-second GIF (the dial turning, chords moving, proofs going green). Many recruiters never click through.
 - **Deep-link URLs:** `?tune=…&level=3&key=Bb&play=1`, with a ▶ overlay. These double as onboarding and as shareable reharm links.
 - **Study-mode shortcuts** (Space, ← →, a `?` overlay) and showing the Practice legend below `xl`.
 - **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
