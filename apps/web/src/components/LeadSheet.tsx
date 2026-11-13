@@ -14,9 +14,9 @@ import { packLabels, textWidth, useFontsReady } from "../design/labels";
 import { CATEGORY_WASH, ink, seedOf } from "../design/tokens";
 import { ChordText } from "./ChordName";
 
-const W = 1000;
+/** Drawing width (viewBox units) for 4 bars a line; 2 bars a line (phones) gets a narrower page, so bars keep their size. */
+const PAGE_W = { 4: 1000, 2: 600 } as const;
 const SYS_H = 172;
-const PER_SYS = 4;
 const LEFT = 12;
 const RIGHT_PAD = 14;
 const LINE_GAP = 10;
@@ -40,6 +40,8 @@ interface Props {
   activeChordId?: string | null;
   /** Fill the parent box (scale to fit both width and height) instead of flowing at full width. */
   fit?: boolean;
+  /** Bars per line: 4 (the page as printed) or 2 (a phone held upright, so the notes stay readable). */
+  perSystem?: 2 | 4;
 }
 
 // Treble-clef staff positions (0 = bottom line E4) for key-signature accidentals.
@@ -79,7 +81,10 @@ export function LeadSheet({
   loopBars,
   activeChordId,
   fit = false,
+  perSystem = 4,
 }: Props) {
+  const PER_SYS = perSystem;
+  const W = PAGE_W[perSystem];
   const bpb = tune.meter[0];
   const bars = Array.from({ length: lastBar - firstBar + 1 }, (_, i) => firstBar + i);
   const systems = Math.ceil(bars.length / PER_SYS);
@@ -234,7 +239,7 @@ export function LeadSheet({
         );
       }
     },
-    [systems, firstBar, lastBar, melodyKey, selectedId, JSON.stringify(segs.map((s) => [s.move.id, s.x1, s.x2]))],
+    [systems, perSystem, ks.count, firstBar, lastBar, melodyKey, selectedId, JSON.stringify(segs.map((s) => [s.move.id, s.x1, s.x2]))],
   );
 
   return (

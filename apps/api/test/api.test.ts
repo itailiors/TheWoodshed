@@ -187,6 +187,24 @@ describe("library mode: import + practice history", () => {
     expect((await call(app, "/api/practice/due")).body).toEqual([]);
   });
 
+  it("self-checked coach runs (no MIDI, acoustic piano) are graded and scheduled like engine runs, and marked as such", async () => {
+    const { body: session } = await call(app, "/api/practice/sessions", json("POST", { tuneId: referenceTune.id, mode: "coach" }));
+    const run = { sessionId: session.id, tuneId: referenceTune.id, moveId: "functional.relatedTwo@1.1", ruleId: "functional.relatedTwo", misses: 0, leaps: 0, maxLeap: 0 };
+    const clean = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "Eb", gradedBy: "self" }));
+    expect(clean.status).toBe(201);
+    expect(clean.body).toMatchObject({ grade: 5, clean: true, review: { keyTonic: "Eb", reps: 1, intervalDays: 1 } });
+    const missed = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "E", misses: 1, gradedBy: "self" }));
+    expect(missed.body).toMatchObject({ grade: 3, clean: false });
+    expect((await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "E", gradedBy: "mic" }))).status).toBe(400);
+
+    const { getDb } = await import("../src/db/client");
+    const { coachAttempts } = await import("../src/db/schema");
+    const rows = getDb().select().from(coachAttempts).all();
+    expect(rows.filter((r) => r.ruleId === "functional.relatedTwo").map((r) => r.gradedBy)).toEqual(["self", "self"]);
+    // runs that don't say are engine-graded (older clients, MIDI)
+    expect(rows.filter((r) => r.ruleId === "dominant.tritoneSub").every((r) => r.gradedBy === "engine")).toBe(true);
+  });
+
   it("records improv runs and returns them per tune", async () => {
     const { body } = await call(app, "/api/practice/sessions", json("POST", { tuneId: referenceTune.id, mode: "improv" }));
     const run = {
@@ -219,13 +237,13 @@ describe("library mode: import + practice history", () => {
     const SQL = await initSqlJs();
     const onDisk = new SQL.Database(readFileSync(dbFile!));
     expect(onDisk.exec("select count(*) from tunes")[0].values[0][0]).toBe(BUNDLED_TUNES.length + 2); // bundled + the two imported
-    expect(onDisk.exec("select count(*) from coach_attempts")[0].values[0][0]).toBe(4);
+    expect(onDisk.exec("select count(*) from coach_attempts")[0].values[0][0]).toBe(6); // 4 engine-graded + 2 self-checked
   });
 
   it("deleting a tune keeps its practice history (tune link set to null)", async () => {
     expect((await call(app, "/api/tunes/test-one-itai-lior", json("DELETE"))).status).toBe(200);
     const sets = await call(app, "/api/setlists");
     expect(sets.body[0].tuneIds).toEqual(["test-two-itai-lior"]);
-    expect((await call(app, "/api/practice/progress")).body.concepts.length).toBe(3);
+    expect((await call(app, "/api/practice/progress")).body.concepts.length).toBe(5);
   });
 });

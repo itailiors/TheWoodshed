@@ -1,4 +1,6 @@
+import { useState } from "react";
 import type { PlaybackStatus } from "../audio/usePlayback";
+import { useNarrow, useTouchFirst } from "../device/media";
 import type { CountInBars, CountState, InstrumentSource } from "../audio/player";
 import type { TimePos } from "@reharm/theory-core";
 import type { BandSource } from "../audio/band";
@@ -37,6 +39,11 @@ const MIDI_TEXT: Record<MidiStatus, string> = {
 /** Play / tempo / loop / MIDI, styled as pencil marks in the lead sheet's margin. */
 export function TransportBar({ status, source, bandSource = null, onToggle, tempo, onTempo, loopSelection, onLoopSelection, canLoopSelection, midi, pulse, countIn }: Props) {
   const playing = status === "playing";
+  const narrow = useNarrow();
+  const touchFirst = useTouchFirst();
+  // phones: Play and tempo stay out; the band, count-in, loop and inputs fold away
+  const [more, setMore] = useState(false);
+  const extras = !narrow || more;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-marker">
       <button
@@ -52,7 +59,7 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
 
       {pulse.count ? <CountInDisplay count={pulse.count} size="sm" /> : <BeatPulse {...pulse} />}
 
-      {status === "loading" ? <LoadingLine /> : <TrioMixer />}
+      {status === "loading" ? <LoadingLine /> : extras && <TrioMixer />}
 
       <label className="flex items-center gap-2 text-sm">
         <span>♩ = {tempo}</span>
@@ -68,32 +75,51 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
         />
       </label>
 
-      <CountInPicker bars={countIn.bars} onChange={countIn.onChange} />
+      {narrow && (
+        <button
+          type="button"
+          aria-expanded={more}
+          onClick={() => setMore((m) => !m)}
+          className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 text-sm"
+        >
+          {more ? "▴ Fewer controls" : "▾ Band & input"}
+        </button>
+      )}
 
-      <label className={`flex items-center gap-2 text-sm ${canLoopSelection ? "" : "opacity-40"}`}>
-        <input
-          type="checkbox"
-          checked={loopSelection}
-          disabled={!canLoopSelection}
-          onChange={(e) => onLoopSelection(e.target.checked)}
-          className="h-4 w-4 accent-[var(--color-ink)]"
-        />
-        Loop selected move
-      </label>
+      {extras && (
+        <>
+          <CountInPicker bars={countIn.bars} onChange={countIn.onChange} />
 
-      <button
-        type="button"
-        onClick={midi.connect}
-        disabled={midi.status === "unsupported" || midi.status === "requesting"}
-        className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 text-sm hover:bg-paper-shade disabled:cursor-default"
-        title={midi.devices.join(", ") || undefined}
-      >
-        🎹 {MIDI_TEXT[midi.status]}
-        {midi.status === "connected" && `: ${midi.devices[0]}${midi.devices.length > 1 ? ` +${midi.devices.length - 1}` : ""}`}
-        <HeldNotes />
-      </button>
-      {midi.status === "connected" && <MidiMonitorToggle />}
-      <QwertyToggle compact={midi.status === "connected"} />
+          <label className={`flex items-center gap-2 text-sm ${canLoopSelection ? "" : "opacity-40"}`}>
+            <input
+              type="checkbox"
+              checked={loopSelection}
+              disabled={!canLoopSelection}
+              onChange={(e) => onLoopSelection(e.target.checked)}
+              className="h-4 w-4 accent-[var(--color-ink)]"
+            />
+            Loop selected move
+          </label>
+
+          {/* iPhone and iPad Safari have no Web MIDI at all: no button to press in vain */}
+          {!(touchFirst && midi.status === "unsupported") && (
+          <button
+            type="button"
+            onClick={midi.connect}
+            disabled={midi.status === "unsupported" || midi.status === "requesting"}
+            className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 text-sm hover:bg-paper-shade disabled:cursor-default"
+            title={midi.devices.join(", ") || undefined}
+          >
+            🎹 {MIDI_TEXT[midi.status]}
+            {midi.status === "connected" && `: ${midi.devices[0]}${midi.devices.length > 1 ? ` +${midi.devices.length - 1}` : ""}`}
+            <HeldNotes />
+          </button>
+          )}
+          {midi.status === "connected" && <MidiMonitorToggle />}
+          {/* playing on the computer keyboard needs a computer keyboard */}
+          {!touchFirst && <QwertyToggle compact={midi.status === "connected"} />}
+        </>
+      )}
 
       {status === "error" && <span className="text-sm text-wash-brick">Audio couldn't start. See the console.</span>}
       {source === "synth" && <span className="text-xs text-ink-faint">(piano samples unreachable, so this is a synth fallback)</span>}

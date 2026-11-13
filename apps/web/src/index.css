@@ -143,3 +143,44 @@
     mix-blend-mode: multiply;
   }
 }
+
+/*
+ * Touch. A finger is ~10mm, not a cursor's single pixel: on coarse pointers every pill button,
+ * tab and toggle grows to at least 44px tall (Apple HIG / WCAG 2.5.5), the label around a
+ * checkbox becomes the tap target, and taps skip the double-tap-to-zoom wait. Pinch zoom
+ * still works. (Hover styles need no guard: Tailwind v4 only applies `hover:` where hover exists.)
+ */
+@utility tap-lg {
+  min-height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+@layer base {
+  button,
+  a,
+  label,
+  select,
+  summary,
+  input,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+  /* no long-press callout or text selection on things you press and hold, like piano keys */
+  svg[role="group"] {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}
+@media (pointer: coarse) {
+  button.rounded-full,
+  [role="tab"],
+  [role="radio"],
+  select {
+    min-height: 44px;
+  }
+  label:has(> input[type="checkbox"]) {
+    min-height: 44px;
+  }
+}

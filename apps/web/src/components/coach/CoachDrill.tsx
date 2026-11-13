@@ -23,6 +23,10 @@ import { useChordStrikes } from "../../midi/noteBus";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { ChordName } from "../ChordName";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
+import { useNarrow } from "../../device/media";
+import { useWakeLock } from "../../device/wakeLock";
+import { useGradingMode, type GradingMode, type SelfVerdict } from "./gradingMode";
+import { SelfCheckPanel } from "./SelfCheckPanel";
 
 interface Props {
   tune: Tune;
@@ -36,11 +40,10 @@ interface Props {
   onConnectMidi: () => void;
 }
 
-interface Attempt {
-  step: number;
-  diff: StrikeDiff;
-  vl: VoiceLeadingDiff | null;
-}
+/** One go at one chord: heard and judged by the engine, or self-checked at an acoustic piano. */
+type Attempt =
+  | { step: number; pass: boolean; by: "engine"; diff: StrikeDiff; vl: VoiceLeadingDiff | null }
+  | { step: number; pass: boolean; by: "self"; diff?: undefined; vl?: undefined };
 
 const sameMidi = (played: number[], step: { target: { bass: number; upper: number[] } } | undefined) =>
   !!step && JSON.stringify([...played].sort((a, b) => a - b)) === JSON.stringify([step.target.bass, ...step.target.upper].sort((a, b) => a - b));
@@ -98,6 +101,13 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
   /** The step being heard right now ("Hear the move" / "Hear this chord"), or null. */
   const [heard, setHeard] = useState<number | null>(null);
   const savedRunId = useRef(-1);
+  const [mode, setMode] = useGradingMode(midiStatus);
+  /** Self-check: has the current chord's voicing been revealed, and was it just marked missed? */
+  const [revealed, setRevealed] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const narrow = useNarrow();
+  // a drill is hands-on-the-piano time: don't let the phone on the music stand go to sleep
+  useWakeLock(true);
 
   const steps = useMemo(() => {
     const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
@@ -112,6 +122,8 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
     setAttempts([]);
     setLastNotes(null);
     setPending([]);
+    setRevealed(false);
+    setRetrying(false);
   };
   useEffect(reset, [move.id, key]);
   useEffect(
@@ -124,7 +136,7 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
   useEffect(() => setShowHint(!transfer), [transfer]);
 
   const finished = stepIdx >= steps.length;
-  const passed = (a: Attempt) => a.diff.verdict === "perfect" || a.diff.verdict === "correct";
+  const passed = (a: Attempt) => a.pass;
   const winning = attempts.filter(passed);
   const misses = attempts.length - winning.length;
   const leaps = winning.filter((a) => a.vl && !a.vl.smooth).length;
@@ -149,7 +161,9 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
       const thisRun = runId.current;
       onRun?.({ key, clean: cleanRun });
       const maxLeap = Math.max(0, ...winning.map((a) => a.vl?.maxLeap ?? 0));
-      void saveCoachRun({ tuneId: tune.id, moveId: move.id, ruleId: move.ruleId, keyTonic: key, misses, leaps, maxLeap }).then(
+      // a run is self-graded if any chord in it was (a mixed run can't vouch for its leaps)
+      const gradedBy = attempts.some((a) => a.by === "self") ? "self" : "engine";
+      void saveCoachRun({ tuneId: tune.id, moveId: move.id, ruleId: move.ruleId, keyTonic: key, misses, leaps, maxLeap, gradedBy }).then(
         (r) => r && runId.current === thisRun && setSavedRun(r),
       );
     }
@@ -165,15 +179,34 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
     const step = steps[stepIdx];
     const diff = diffStrike(notes, step);
     const prevWin = [...attempts].reverse().find((a) => a.step === stepIdx - 1 && passed(a));
-    const vl = prevWin && lastNotes ? diffVoiceLeading(prevWin.diff.played, notes, steps[stepIdx - 1], step) : null;
-    setAttempts((a) => [...a, { step: stepIdx, diff, vl }]);
+    const vl = prevWin?.diff && lastNotes ? diffVoiceLeading(prevWin.diff.played, notes, steps[stepIdx - 1], step) : null;
+    const pass = diff.verdict === "perfect" || diff.verdict === "correct";
+    setAttempts((a) => [...a, { step: stepIdx, pass, by: "engine", diff, vl }]);
     setLastNotes(notes);
     setPending([]);
-    if (diff.verdict === "perfect" || diff.verdict === "correct") setStepIdx((i) => i + 1);
+    if (pass) setStepIdx((i) => i + 1);
   };
-  useChordStrikes(strike, true);
+  useChordStrikes(strike, mode === "listen");
 
-  const last = attempts[attempts.length - 1];
+  /** The self-check's verdict on the current chord. A miss keeps it revealed for another go. */
+  const selfGrade = (v: SelfVerdict) => {
+    if (finished) return;
+    setAttempts((a) => [...a, { step: stepIdx, pass: v === "nailed", by: "self" }]);
+    setLastNotes(null);
+    if (v === "nailed") {
+      setStepIdx((i) => i + 1);
+      setRevealed(false);
+      setRetrying(false);
+    } else setRetrying(true);
+  };
+  const switchMode = (m: GradingMode) => {
+    setMode(m);
+    reset();
+  };
+
+  // the engine's red pen only marks up strikes it heard
+  const lastAny = attempts[attempts.length - 1];
+  const last = lastAny?.by === "engine" ? lastAny : undefined;
   const current = steps[Math.min(stepIdx, steps.length - 1)];
   const missing: PenMark[] = last ? last.diff.guideTones.filter((g) => !g.present).map((g) => ({ midi: g.targetMidi, label: DEGREE_LABEL[g.degree] ?? `${prettyNote(g.degree)}?` })) : [];
   const wrong: PenMark[] = last ? last.diff.wrongNotes.map((w) => ({ midi: w.midi, label: prettyNote(w.name) })) : [];
@@ -185,6 +218,23 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
   };
 
   const keyName = (k: string) => `${prettyNote(k)} ${tune.key.mode}`;
+
+  // On a phone the full four-octave keyboard is ~11px a key: zoom to the octaves this move uses.
+  const range = useMemo(() => {
+    if (!narrow) return { low: 36, high: 84 };
+    const all = steps.flatMap(voicing);
+    const low = Math.max(21, Math.floor((Math.min(...all) - 2) / 12) * 12);
+    const high = Math.min(108, Math.max(low + 24, Math.ceil((Math.max(...all) + 2) / 12) * 12));
+    return { low, high };
+  }, [narrow, steps]);
+  const selfMode = mode === "self";
+  const stepPrompt = finished ? "" : current.resolution ? "…and resolve it." : steps.length > 1 ? `Chord ${stepIdx + 1} of ${steps.length}.` : "";
+  const noteNames = finished
+    ? ""
+    : `${spelled(current, current.target.bass)} (bass) · ${[...current.target.upper]
+        .sort((a, b) => a - b)
+        .map((m) => spelled(current, m))
+        .join(" ")}`;
 
   const hearMove = () => void player.playSequence(steps.map(voicing), 1.2, setHeard);
   const hearChord = () => {
@@ -204,6 +254,8 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
           bar {move.span.from.bar} of {tune.title} · L{move.level} · drilling in <span className="font-bold text-ink">{keyName(key)}</span>
         </p>
       </div>
+
+      <GradingSwitch mode={mode} onMode={switchMode} midiConnected={midiStatus === "connected"} />
 
       {/* the assignment */}
       <section aria-live="polite">
@@ -236,9 +288,11 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
         <p className="mt-1 text-sm text-ink-soft">
           {finished
             ? finishText
-            : current.resolution
-              ? "…and resolve it."
-              : `Strike ${prettySymbol(current.symbol)}${steps.length > 1 ? ` (${stepIdx + 1} of ${steps.length})` : ""}.`}
+            : selfMode
+              ? "Play each chord on your piano, check it against the voicing, and say how it went."
+              : current.resolution
+                ? "…and resolve it."
+                : `Strike ${prettySymbol(current.symbol)}${steps.length > 1 ? ` (${stepIdx + 1} of ${steps.length})` : ""}.`}
         </p>
         {finished && savedRun && (
           <p className="mt-1 font-hand text-sm text-ink-soft" role="status">
@@ -248,9 +302,18 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
       </section>
 
       {listening ? (
-        <PenKeyboard target={prevHeard ? voicing(prevHeard) : []} played={voicing(steps[heard])} pending={[]} missing={[]} wrong={[]} onKey={togglePending} />
+        <PenKeyboard {...range} target={prevHeard ? voicing(prevHeard) : []} played={voicing(steps[heard])} pending={[]} missing={[]} wrong={[]} onKey={togglePending} />
+      ) : selfMode ? (
+        // self-check: once revealed, the voicing in ink and the chord before as a dashed ghost
+        <PenKeyboard
+          {...range}
+          target={revealed && stepIdx > 0 && !finished ? voicing(steps[stepIdx - 1]) : []}
+          played={revealed && !finished ? voicing(current) : []}
+          check={finished && misses === 0}
+        />
       ) : (
         <PenKeyboard
+          {...range}
           target={showHint && !finished ? [current.target.bass, ...current.target.upper] : []}
           played={lastNotes ?? []}
           pending={pending}
@@ -272,6 +335,19 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
             <span className="text-ink-soft"> · ink = sounding now{steps.length > 1 ? ", dashes = the chord before" : ""}</span>
           )}
         </p>
+      )}
+
+      {selfMode && !finished && !listening && (
+        <SelfCheckPanel
+          symbol={current.symbol}
+          prompt={stepPrompt}
+          revealed={revealed}
+          onReveal={() => setRevealed(true)}
+          onVerdict={selfGrade}
+          noteNames={noteNames}
+          motion={stepIdx > 0 ? voiceMotion(steps[stepIdx - 1], current) : null}
+          retrying={retrying}
+        />
       )}
 
       {/* red-pen comments */}
@@ -328,15 +404,20 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
           <input type="checkbox" checked={transfer} onChange={(e) => setTransfer(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
           New key after every clean run
         </label>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={showHint} onChange={(e) => setShowHint(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
-          Show the voicing hint
-        </label>
+        {/* in a self-check the reveal is the hint */}
+        {!selfMode && (
+          <label className="flex items-center gap-2">
+            <input type="checkbox" checked={showHint} onChange={(e) => setShowHint(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
+            Show the voicing hint
+          </label>
+        )}
       </div>
       <p className="text-sm text-ink-soft">
         Think in function, not finger shapes: “{move.title}”. The engine has re-spelled every chord and voicing for {keyName(key)}.{" "}
         {midiStatus === "connected" ? (
           "Listening to your MIDI keyboard: strike each chord, then release all keys."
+        ) : selfMode ? (
+          "Self-checked runs are saved and scheduled for review like any other, marked as self-graded."
         ) : (
           <>
             No MIDI keyboard?{" "}
@@ -347,6 +428,32 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
           </>
         )}
       </p>
+    </div>
+  );
+}
+
+/** Listen (the engine hears your notes) or self-check (an acoustic piano, no cable). */
+function GradingSwitch({ mode, onMode, midiConnected }: { mode: GradingMode; onMode: (m: GradingMode) => void; midiConnected: boolean }) {
+  const opts: { id: GradingMode; label: string; title: string }[] = [
+    { id: "listen", label: midiConnected ? "🎹 Listening to MIDI" : "🎹 Play it here", title: "The engine hears what you play (MIDI, computer keys or the keys below) and marks it up" },
+    { id: "self", label: "✋ Self-check", title: "At an acoustic piano: reveal the voicing, play it, grade yourself" },
+  ];
+  return (
+    <div role="radiogroup" aria-label="How your playing is checked" className="flex flex-wrap items-center gap-2 font-marker text-sm">
+      {opts.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          role="radio"
+          aria-checked={mode === o.id}
+          disabled={midiConnected && o.id === "self"}
+          onClick={() => onMode(o.id)}
+          className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 disabled:cursor-default disabled:opacity-40 ${mode === o.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
+        >
+          {o.label}
+        </button>
+      ))}
+      {midiConnected && <span className="font-hand text-xs text-ink-soft">(MIDI connected, so the engine listens)</span>}
     </div>
   );
 }

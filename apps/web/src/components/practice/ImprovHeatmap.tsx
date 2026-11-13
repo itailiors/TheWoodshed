@@ -14,6 +14,7 @@ import {
   type Tune,
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNarrow } from "../../device/media";
 import { player } from "../../audio/player";
 import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
@@ -51,7 +52,9 @@ interface HeatNote {
   landing: boolean;
 }
 
-const W = 1000;
+/** Tape width in viewBox units; a phone gets a narrower tape (4-bar pages) so the notes keep their height. */
+const TAPE_W = 1000;
+const PHONE_TAPE_W = 520;
 const H_DEFAULT = 250;
 const LOW = 48;
 const HIGH = 96;
@@ -60,6 +63,8 @@ const KEEP_PASSES = 3;
 const WHOLE_MAX = 12;
 /** Bars per page (two 4-bar phrases), aligned to bar 1 like Practice Mode's lead sheet. */
 const PAGE = 8;
+/** On a phone a page is one 4-bar phrase, so notes and chord names keep a readable size. */
+const PHONE_PAGE = 4;
 const CHORD_FONT = '700 14px Kalam, "Noto Music"';
 const CHORD_LANE_Y = [14, 29];
 const LABEL: Record<LineNoteEval["verdict"], string> = { "chord-tone": "Chord tone", tension: "Tension", avoid: "Avoid", outside: "Chromatic / outside" };
@@ -84,9 +89,16 @@ function summarise(notes: HeatNote[]) {
   };
 }
 
+/** Why a note got its colour, in one line: "E = 3 over C7 · chord tone · guide-tone landing". */
+function explain(n: HeatNote) {
+  return `${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${LABEL[n.ev.verdict]}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`;
+}
+
 export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, level, view }: Props) {
   // In compact mode the tape takes the slot's aspect ratio, so it fills the space without distorting text.
   const [tapeRef, tapeSize] = useSize<HTMLDivElement>();
+  const narrow = useNarrow();
+  const W = narrow ? PHONE_TAPE_W : TAPE_W;
   const H = compact && tapeSize.w > 0 ? Math.max(110, Math.round((W * tapeSize.h) / tapeSize.w)) : H_DEFAULT;
   const bpb = tune.meter[0];
   const loopStart = (loop.startBar - 1) * bpb;
@@ -97,8 +109,9 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   // to read, so loops over WHOLE_MAX bars show 8 bars at a time. Pages are aligned to bar 1
   // (bars 1–8, 9–16 …), the same pages Practice Mode's lead sheet turns, so the two stay in step.
   const loopBars = loop.endBar - loop.startBar + 1;
-  const paged = loopBars > WHOLE_MAX;
-  const pageOf = (bar: number) => Math.floor((bar - 1) / PAGE);
+  const pageBars = narrow ? PHONE_PAGE : PAGE;
+  const paged = loopBars > (narrow ? PHONE_PAGE : WHOLE_MAX);
+  const pageOf = (bar: number) => Math.floor((bar - 1) / pageBars);
   const firstPage = pageOf(loop.startBar);
   const lastPage = pageOf(loop.endBar);
   const [browsePage, setBrowsePage] = useState(firstPage);
@@ -109,9 +122,9 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   useEffect(() => {
     if (paged && headBar !== null) setBrowsePage(pageIdx);
   }, [paged, headBar, pageIdx]);
-  useEffect(() => setBrowsePage(pageOf(loop.startBar)), [loop.startBar, loop.endBar]);
-  const winFirstBar = paged ? Math.max(loop.startBar, pageIdx * PAGE + 1) : loop.startBar;
-  const winLastBar = paged ? Math.min(loop.endBar, pageIdx * PAGE + PAGE) : loop.endBar;
+  useEffect(() => setBrowsePage(pageOf(loop.startBar)), [loop.startBar, loop.endBar, pageBars]);
+  const winFirstBar = paged ? Math.max(loop.startBar, pageIdx * pageBars + 1) : loop.startBar;
+  const winLastBar = paged ? Math.min(loop.endBar, pageIdx * pageBars + pageBars) : loop.endBar;
   const winStart = (winFirstBar - 1) * bpb;
   const winEnd = winLastBar * bpb;
   const inWin = (start: number, end: number) => start < winEnd && end > winStart;
@@ -120,6 +133,9 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   const [armed, setArmed] = useState(true);
   const [notes, setNotes] = useState<HeatNote[]>([]);
   const [hint, setHint] = useState<string | null>(null);
+  /** The note tapped for an explanation (touch has no hover, so <title> tooltips never show). */
+  const [picked, setPicked] = useState<number | null>(null);
+  const pickedNote = picked === null ? null : (notes.find((n) => n.id === picked) ?? null);
   const pass = useRef(0);
   const lastBeat = useRef(-1);
   const nextId = useRef(1);
@@ -263,7 +279,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
         add(node);
       }
     },
-    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, winStart, winEnd, top, H],
+    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, winStart, winEnd, top, W, H],
   );
 
   const stats = useMemo(() => summarise(notes), [notes]);
@@ -282,25 +298,25 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
           <h2 id="heat-h" className={`ink-wobble font-marker font-bold uppercase ${compact ? "text-lg" : "text-2xl md:text-3xl"}`}>
             Improv heatmap
           </h2>
-          <div className="flex items-center gap-3 font-marker text-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-marker text-sm">
             {paged && (
-              <span className="flex items-center gap-1 text-ink-soft" aria-live="polite">
+              <span className="flex items-center gap-1 whitespace-nowrap text-ink-soft" aria-live="polite">
                 <button
                   type="button"
-                  aria-label="Previous 8 bars"
+                  aria-label={`Previous ${pageBars} bars`}
                   disabled={headBar !== null || pageIdx <= firstPage}
                   onClick={() => setBrowsePage(pageIdx - 1)}
-                  className="cursor-pointer rounded px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
+                  className="min-w-8 cursor-pointer rounded-full px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
                 >
                   ‹
                 </button>
                 bars {winFirstBar}–{winLastBar} of {loop.endBar}
                 <button
                   type="button"
-                  aria-label="Next 8 bars"
+                  aria-label={`Next ${pageBars} bars`}
                   disabled={headBar !== null || pageIdx >= lastPage}
                   onClick={() => setBrowsePage(pageIdx + 1)}
-                  className="cursor-pointer rounded px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
+                  className="min-w-8 cursor-pointer rounded-full px-1 hover:bg-paper-shade disabled:cursor-default disabled:opacity-30"
                 >
                   ›
                 </button>
@@ -318,7 +334,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
         {!compact && (
           <p className="mt-1 text-sm text-ink-soft">
             Play single-note lines over the loop (bars {loop.startBar}–{loop.endBar}). Each note is judged against the chord sounding at that moment. Older passes fade.
-            {paged && " Long loops show 8 bars at a time, turning with the music (or with ‹ › when stopped)."}
+            {paged && ` Long loops show ${pageBars} bars at a time, turning with the music (or with ‹ › when stopped).`} Tap or hover a note to see why it got its colour.
           </p>
         )}
 
@@ -326,7 +342,7 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
           <svg
             viewBox={`0 0 ${W} ${H}`}
             preserveAspectRatio="xMidYMid meet"
-            className={compact ? "block h-full w-full" : "block h-auto w-full min-w-[560px]"}
+            className={compact ? "block h-full w-full" : "block h-auto w-full sm:min-w-[560px]"}
             role="img"
             aria-label="Improv heatmap loop tape"
           >
@@ -362,10 +378,17 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
               ))}
             {/* tooltips */}
             {notes.filter((n) => inWin(n.start, n.end ?? n.start + 0.25)).map((n) => (
-              <rect key={`t${n.id}`} x={x(n.start)} y={y(n.midi) - 6} width={Math.max(8, x(n.end ?? n.start + 0.25) - x(n.start))} height={12} fill="transparent">
-                <title>
-                  {`${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${LABEL[n.ev.verdict]}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`}
-                </title>
+              <rect
+                key={`t${n.id}`}
+                x={x(n.start)}
+                y={y(n.midi) - 9}
+                width={Math.max(14, x(n.end ?? n.start + 0.25) - x(n.start))}
+                height={18}
+                fill="transparent"
+                className="cursor-pointer"
+                onClick={() => setPicked((p) => (p === n.id ? null : n.id))}
+              >
+                <title>{explain(n)}</title>
               </rect>
             ))}
             {head !== null && head >= winStart && head < winEnd && <line x1={x(head)} y1={18} x2={x(head)} y2={H - 6} className="stroke-wash-brick" strokeWidth={2} />}
@@ -390,10 +413,15 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
             {stats.realAvoid > 0 ? `${stats.realAvoid} held avoid note${stats.realAvoid === 1 ? "" : "s"}: resolve them by step.` : "No held avoid notes."}
           </p>
         )}
+        {pickedNote && (
+          <p className={`shrink-0 font-hand ${compact ? "truncate text-sm" : "mt-2"}`} role="status">
+            <span className="inline-block h-3 w-3 -rotate-6 rounded-sm align-middle" style={{ background: VERDICT_COLOR[pickedNote.ev.verdict] }} /> {explain(pickedNote)}
+          </p>
+        )}
         {hint && <p className={`shrink-0 font-marker text-wash-brick ${compact ? "text-sm" : "mt-2"}`}>{hint}</p>}
 
         <details className={compact ? "hidden" : "mt-3"}>
-          <summary className="cursor-pointer font-marker text-sm text-ink-soft">No MIDI? Play with the mouse</summary>
+          <summary className="cursor-pointer font-marker text-sm text-ink-soft">No MIDI? Play on the keys here</summary>
           <PenKeyboard low={60} high={84} onKey={(m) => emit("on", m)} onKeyUp={(m) => emit("off", m)} className="mt-2 max-w-[520px]" />
         </details>
       </section>

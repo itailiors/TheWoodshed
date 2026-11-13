@@ -6,7 +6,6 @@ type Draw = (rc: RoughCanvas, add: (n: SVGElement) => void, seed: number) => voi
 const o = (seed: number, extra: Record<string, unknown> = {}) => ({ seed, stroke: ink.deep, strokeWidth: 2, roughness: 1, ...extra });
 
 const ICONS: Record<string, Draw> = {
-  menu: (rc, add, s) => [10, 20, 30].forEach((y, i) => add(rc.line(8, y, 32, y, o(s + i)))),
   keyboard: (rc, add, s) => {
     add(rc.rectangle(8, 8, 24, 24, o(s)));
     [14, 20, 26].forEach((x, i) => add(rc.rectangle(x - 2, 8, 4, 14, o(s + i + 1, { fill: ink.deep, fillStyle: "solid", strokeWidth: 1 }))));
@@ -16,14 +15,6 @@ const ICONS: Record<string, Draw> = {
       add(rc.circle(10, y, 5, o(s + i)));
       add(rc.line(17, y, 32, y, o(s + 10 + i)));
     }),
-  settings: (rc, add, s) => {
-    add(rc.circle(20, 20, 18, o(s)));
-    add(rc.circle(20, 20, 6, o(s + 1)));
-    for (let i = 0; i < 8; i++) {
-      const a = (i * Math.PI) / 4;
-      add(rc.line(20 + Math.cos(a) * 9, 20 + Math.sin(a) * 9, 20 + Math.cos(a) * 14, 20 + Math.sin(a) * 14, o(s + 2 + i)));
-    }
-  },
   play: (rc, add, s) => {
     add(rc.circle(20, 20, 34, o(s, { fill: ink.deep, fillStyle: "solid" })));
     add(rc.polygon([[16, 12], [16, 28], [29, 20]], o(s + 1, { fill: paper.light, fillStyle: "solid", stroke: paper.light })));
@@ -81,11 +72,9 @@ export function SideRail({
   onProgress?: () => void;
 }) {
   return (
-    <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 md:flex">
-      <RailIcon name="menu" label="Menu" />
+    <nav aria-label="Main" className="sticky top-0 hidden h-screen w-20 shrink-0 flex-col items-center gap-4 border-r-2 border-dashed border-ink/40 py-6 lg:flex">
       <RailIcon name="keyboard" label="Reharm Engine" active />
       <RailIcon name="practice" label="Comping Coach (opens its own page)" onClick={onPractice} />
-      <RailIcon name="settings" label="Settings" />
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />
       <div className="flex-1" />

@@ -1,0 +1,1 @@
+ALTER TABLE `coach_attempts` ADD `graded_by` text DEFAULT 'engine' NOT NULL;

@@ -15,6 +15,13 @@
       "when": 1794393402057,
       "tag": "0001_practice_history",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794610495248,
+      "tag": "0002_coach_graded_by",
+      "breakpoints": true
     }
   ]
 }

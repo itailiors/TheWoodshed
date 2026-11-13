@@ -38,6 +38,7 @@ export interface CoachAttemptInput {
   misses: number;
   leaps: number;
   maxLeap: number;
+  gradedBy?: "engine" | "self";
 }
 
 /** Store a coach run and advance that concept's spaced-repetition schedule. */

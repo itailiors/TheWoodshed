@@ -120,6 +120,13 @@ Every move goes through the same melody filter and voice-leading score, and come
 - **Voice-leading diffing:** between chords it pairs your right-hand voices and checks that each moves by step, comparing your total movement with the engine's.
 - **Teacher's red pen:** hand-drawn circles where a 3rd or 7th should be, crosses on wrong notes, a big checkmark for a clean, smooth strike, and written comments in the margin.
 - **12-key transfer drill:** jump to a random key, or move to a new one automatically after every clean run. The engine re-spells every chord and voicing; the hint can be hidden so you work from function.
+- **Self-check at an acoustic piano (no cable):** on a phone or iPad (and anywhere you pick ✋ *Self-check*) the Coach stops waiting for input. Play each chord from memory, tap **Show the voicing** to see the engine's voicing and how each voice moved, then grade yourself: **I played it perfectly** or **I missed it**. Self-checked runs go through the same SM-2 grading and review queue, and are stored as `graded_by = self`, since nobody heard the notes and voice-leading leaps can't be measured. Plugging in MIDI switches back to listening. The drill only deals in per-chord verdicts, so microphone pitch detection can be added later as another way of listening.
+
+### 📱 Phones and tablets
+- **Phone layout:** the lead sheet draws two bars a line instead of scrolling sideways, and the heatmap pages four bars at a time. Transport, band and key controls fold behind one toggle. In the Coach, the drill comes before the move list, with a voicing keyboard zoomed to the octaves the move uses.
+- **Touch:** pill buttons and checkbox labels grow to 44px on touch screens. Taps skip the double-tap-zoom delay. Heatmap notes explain themselves on tap, since touch has no hover. Controls that can't work are hidden: there's no QWERTY toggle without a keyboard, and no MIDI button on iPhone or iPad Safari, which has no Web MIDI.
+- **Wake lock:** the screen stays on while the band plays and during a Coach drill, so a phone on the music stand doesn't lock mid-chorus.
+- **iPad upright:** in Practice mode the lead sheet sits above the chord HUD rather than squeezed beside it.
 
 ### 🔥 Improv Heatmap
 - Solo over the backing loop. Every note is captured with its position in the loop and judged against the chord sounding at that moment:
@@ -275,7 +282,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 132 tests (engine + API), several thousand generated cases
+npm test          # 133 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

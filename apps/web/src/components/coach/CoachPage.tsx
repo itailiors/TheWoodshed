@@ -10,6 +10,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill } from "./CoachDrill";
+import { useTouchFirst } from "../../device/media";
 
 interface Props {
   tune: Tune;
@@ -37,6 +38,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const [moveId, setMoveId] = useState(first?.id ?? null);
   const [key, setKey] = useState(initial.key ?? tune.key.tonic);
   const move = accepted.find((m) => m.id === moveId) ?? first;
+  const touchFirst = useTouchFirst();
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
   // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done
@@ -100,6 +102,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         <h1 className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl" style={{ viewTransitionName: "tune-title" }}>
           Comping coach <span className="text-base font-normal normal-case text-ink-soft">· {tune.title}</span>
         </h1>
+        {/* no Web MIDI on iPhone/iPad Safari: the self-check is the way in there, not a dead button */}
+        {!(touchFirst && midi.status === "unsupported") && (
         <button
           type="button"
           onClick={midi.connect}
@@ -108,13 +112,14 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         >
           🎹 {midi.status === "connected" ? "MIDI connected" : midi.status === "requesting" ? "Connecting…" : "Connect MIDI"}
         </button>
+        )}
         {midi.status === "connected" && <MidiMonitorToggle compact />}
-        <QwertyToggle compact />
+        {!touchFirst && <QwertyToggle compact />}
       </header>
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[260px_minmax(0,1fr)_330px]">
         {/* ── left: what to drill ── */}
-        <nav aria-label="What to drill" className="space-y-5 lg:sticky lg:top-4">
+        <nav id="coach-moves" aria-label="What to drill" className="order-2 scroll-mt-4 space-y-5 lg:sticky lg:top-4 lg:order-none">
           {due.length > 0 && (
             <SketchBox seed={seedOf("coach-due")} fill={paper.base} className="-rotate-[0.4deg]">
               <section className="space-y-2 p-3">
@@ -156,7 +161,11 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                       <button
                         type="button"
                         aria-current={on || undefined}
-                        onClick={() => setMoveId(m.id)}
+                        onClick={() => {
+                          setMoveId(m.id);
+                          // one column (phone, tablet): the drill is above the list, so go back up to it
+                          if (!window.matchMedia("(min-width: 1024px)").matches) document.getElementById("coach-drill")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                        }}
                         className={`flex w-full cursor-pointer items-center gap-2 rounded-lg border-2 px-2 py-1.5 text-left hover:-rotate-1 ${on ? "border-ink bg-paper-light" : "border-transparent hover:border-ink-faint"}`}
                       >
                         <span className="h-3 w-3 shrink-0 -rotate-6 rounded-sm" style={{ background: CATEGORY_WASH[m.category] }} />
@@ -177,8 +186,12 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         </nav>
 
         {/* ── centre: the drill ── */}
+        <div id="coach-drill" className="order-1 scroll-mt-4 space-y-2 lg:order-none">
+        <a href="#coach-moves" className="inline-block font-marker text-sm text-ink-soft underline lg:hidden">
+          ↓ Drill a different move{due.length ? ` · ${due.length} due for review` : ""}
+        </a>
         <SketchBox seed={seedOf("coach-drill")} fill={paper.light} strokeWidth={2} style={{ viewTransitionName: "lead-sheet" }}>
-          <div className="p-4 md:p-6">
+          <div className="p-3 sm:p-4 md:p-6">
             <CoachDrill
               key={move.id}
               tune={tune}
@@ -196,9 +209,10 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
             />
           </div>
         </SketchBox>
+        </div>
 
         {/* ── right: this concept's passport page ── */}
-        <aside aria-labelledby="coach-passport-h" className="space-y-3 lg:sticky lg:top-4">
+        <aside aria-labelledby="coach-passport-h" className="order-3 space-y-3 lg:sticky lg:top-4 lg:order-none">
           <SketchBox seed={seedOf("coach-passport")} fill={paper.light}>
             <div className="space-y-3 p-4">
               <h3 id="coach-passport-h" className="font-marker text-lg uppercase">
@@ -215,7 +229,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                 onPractise={(r) => setKey(r.keyTonic)}
               />
               <p className="text-xs text-ink-soft">
-                Click a key to drill it there.{" "}
+                {touchFirst ? "Tap" : "Click"} a key to drill it there.{" "}
                 {DEMO ? "Stamps here come from a sample notebook plus your runs this visit; nothing is saved in the demo." : "Every run is saved and scheduled for review."}
               </p>
             </div>

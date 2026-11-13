@@ -41,6 +41,8 @@ import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
 import { MoveCard } from "./components/MoveCard";
 import { SideRail } from "./components/SideRail";
+import { useNarrow } from "./device/media";
+import { useWakeLock } from "./device/wakeLock";
 import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 
@@ -203,6 +205,9 @@ export function App() {
   }, [loopSelection, selected, bars]);
   const arrangement = useMemo(() => ({ tune, chords: shownChords, loop }), [tune, shownChords, loop]);
   const playback = usePlayback(arrangement, tempo);
+  // the phone on the music stand mustn't sleep mid-chorus (any mode: Study, Practice, Coach)
+  useWakeLock(playback.status === "playing");
+  const narrow = useNarrow();
   const midi = useMidi();
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
@@ -414,11 +419,11 @@ export function App() {
       )}
       </Suspense>
 
-      <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 py-5 md:px-8 md:py-8">
+      <main className="mx-auto w-full max-w-[1440px] flex-1 px-3 py-4 sm:px-4 sm:py-5 md:px-8 md:py-8">
         <OfflineBanner />
         {/* ── banner ── */}
         <SketchBox seed={11} strokeWidth={2} fill={paper.light} className="mb-5">
-          <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-4 md:px-8 md:py-5">
+          <header className="flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5 sm:py-4 md:px-8 md:py-5">
             <div>
               <h1 className="ink-wobble font-marker text-3xl font-bold uppercase leading-none tracking-wide md:text-5xl" style={{ viewTransitionName: "tune-title" }}>
                 {tune.title}
@@ -429,7 +434,7 @@ export function App() {
                   .join(" · ")}
               </p>
             </div>
-            <div className="ink-wobble text-right font-marker font-bold uppercase leading-[0.9] text-ink-soft">
+            <div className="ink-wobble hidden text-right font-marker font-bold uppercase leading-[0.9] text-ink-soft sm:block">
               <div className="text-2xl md:text-3xl">Reharm</div>
               <div className="text-2xl text-ink md:text-3xl">Lab</div>
             </div>
@@ -492,7 +497,7 @@ export function App() {
           {/* ── left: the living lead sheet ── */}
           <section aria-labelledby="lead-sheet-h">
             <SketchBox seed={21} strokeWidth={1.8} style={{ viewTransitionName: "lead-sheet" }}>
-              <div className="p-4 md:p-6">
+              <div className="p-3 sm:p-4 md:p-6">
                 <h2 id="lead-sheet-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
                   Lead sheet
                 </h2>
@@ -512,9 +517,11 @@ export function App() {
                     countIn={{ bars: playback.countInBars, onChange: playback.setCountIn }}
                   />
                 </div>
-                <div className="mt-2 overflow-x-auto">
-                  <div className="min-w-[640px]">
+                {/* phones get two bars a line rather than a sideways-scrolling page */}
+                <div className="mt-2">
+                  <div>
                     <LeadSheet
+                      perSystem={narrow ? 2 : 4}
                       tune={tune}
                       chords={shownChords}
                       moves={pathway}

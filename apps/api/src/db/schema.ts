@@ -90,6 +90,12 @@ export const coachAttempts = sqliteTable(
     misses: integer("misses").notNull(),
     leaps: integer("leaps").notNull(),
     maxLeap: integer("max_leap").notNull(),
+    /**
+     * Who judged the run: "engine" (notes played over MIDI or the on-screen keys, diffed by the
+     * engine) or "self" (the player checked their own acoustic-piano voicing against the reveal).
+     * Self-checked runs can't measure leaps, so their leaps are 0.
+     */
+    gradedBy: text("graded_by", { enum: ["engine", "self"] }).notNull().default("engine"),
     /** 0–5 recall grade fed to the scheduler. */
     grade: integer("grade").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),

@@ -18,6 +18,8 @@ const CoachAttemptBody = z.object({
   misses: z.number().int().min(0).max(1000),
   leaps: z.number().int().min(0).max(1000),
   maxLeap: z.number().int().min(0).max(127),
+  /** Who judged the run: the engine (MIDI / on-screen keys) or the player (self-check at an acoustic piano). */
+  gradedBy: z.enum(["engine", "self"]).default("engine"),
 });
 
 const ImprovRunBody = z.object({

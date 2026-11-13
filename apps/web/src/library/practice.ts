@@ -122,7 +122,10 @@ function couldntSave() {
 
 // ── writes ──
 
-/** A finished Coach run. The server grades it (0–5) from the misses and leaps and reschedules the concept. */
+/**
+ * A finished Coach run, heard by the engine or self-checked. The server grades it (0–5) from the
+ * misses and leaps and reschedules the concept, the same SM-2 path either way.
+ */
 export async function saveCoachRun(run: {
   tuneId: string;
   moveId: string;
@@ -132,6 +135,8 @@ export async function saveCoachRun(run: {
   leaps: number;
   maxLeap: number;
   tempo?: number;
+  /** "self" when the player checked their own acoustic-piano voicing (no notes were heard). */
+  gradedBy?: "engine" | "self";
 }): Promise<CoachRunResult | null> {
   if (DEMO) return null;
   const tuneId = chartId(run.tuneId);
@@ -146,6 +151,7 @@ export async function saveCoachRun(run: {
     misses: run.misses,
     leaps: run.leaps,
     maxLeap: Math.min(127, run.maxLeap),
+    gradedBy: run.gradedBy ?? "engine",
   });
   if (!res) couldntSave();
   else saved();

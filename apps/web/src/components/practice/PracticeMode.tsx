@@ -9,7 +9,8 @@ import {
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { NARROW, useMediaQuery, useTouchFirst } from "../../device/media";
 import { player } from "../../audio/player";
 import type { Playback } from "../../audio/usePlayback";
 import { BeatPulse, CountInDisplay, CountInPicker } from "../BeatPulse";
@@ -73,6 +74,12 @@ export function PracticeMode(p: Props) {
   const bpb = tune.meter[0];
   const playing = playback.status === "playing";
   const keys = useQwerty();
+  // A phone (upright, or on its side where height is what's short) can't fit the full top bar
+  // and still leave room for the HUD: keep Play and the pulse, fold the rest away.
+  const cramped = useMediaQuery(`${NARROW}, (max-height: 520px)`);
+  const touchFirst = useTouchFirst();
+  const [more, setMore] = useState(false);
+  const extras = !cramped || more;
 
   // ── sync: one improv map per chord list; the Tone.Draw-timed position picks the entry ──
   const entries = useMemo(() => {
@@ -180,8 +187,21 @@ export function PracticeMode(p: Props) {
           {playing ? "■ Stop" : playback.status === "loading" ? "… Loading" : "▶ Play"}
         </button>
         <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
-        {playback.status === "loading" ? <LoadingLine /> : <TrioMixer compact />}
+        {playback.status === "loading" && <LoadingLine />}
         <span className="font-marker">♩ = {p.tempo}</span>
+        {cramped && (
+          <button
+            type="button"
+            aria-expanded={more}
+            onClick={() => setMore((m) => !m)}
+            className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 font-marker text-sm"
+          >
+            {more ? "▴ Less" : "▾ Band, key & dial"}
+          </button>
+        )}
+        {extras && (
+          <>
+        {playback.status !== "loading" && <TrioMixer compact />}
         <CountInPicker compact bars={playback.countInBars} onChange={playback.setCountIn} />
         <KeyPicker compact {...p.keyControl} />
         <LevelDial level={p.level} onChange={p.onLevel} />
@@ -190,10 +210,12 @@ export function PracticeMode(p: Props) {
           {p.loopSelection && " · looping the move"}
         </span>
         <span className="font-marker text-sm text-ink-soft">
-          🎹 {p.midi.status === "connected" ? p.midi.devices[0] : p.midi.status === "requesting" ? "connecting…" : "no MIDI"}
+          🎹 {p.midi.status === "connected" ? p.midi.devices[0] : p.midi.status === "requesting" ? "connecting…" : p.midi.status === "unsupported" && touchFirst ? "play along on your own piano" : "no MIDI"}
           <HeldNotes />
         </span>
-        {p.midi.status === "connected" ? <MidiMonitorToggle compact /> : <QwertyToggle compact />}
+        {p.midi.status === "connected" ? <MidiMonitorToggle compact /> : !touchFirst && <QwertyToggle compact />}
+          </>
+        )}
         <span className="ml-auto hidden gap-3 text-xs text-ink-faint xl:flex" aria-label="Keyboard shortcuts">
           {SHORTCUTS.filter(([k]) => !(keys.enabled && QWERTY_TAKES.has(k))).map(([k, v]) => (
             <span key={k}>
@@ -204,7 +226,7 @@ export function PracticeMode(p: Props) {
       </header>
 
       {/* ── sheet + HUD: top two thirds ── */}
-      <div className="grid min-h-0 flex-[2] grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">
+      <div className="grid min-h-0 flex-[2] grid-cols-1 gap-3 max-sm:flex-[1.15] md:portrait:grid-rows-[minmax(0,1.15fr)_minmax(0,1fr)] md:landscape:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">
         <SketchBox
           seed={seedOf("practice-sheet")}
           strokeWidth={1.8}
