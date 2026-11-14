@@ -18,6 +18,7 @@ export * from "./coach";
 export * from "./lineEval";
 export * from "./analysis";
 export * from "./band";
+export * from "./motif";
 export * from "./import/ireal";
 export { someday } from "./fixtures/someday";
 export { coopBlues } from "./fixtures/coopBlues";

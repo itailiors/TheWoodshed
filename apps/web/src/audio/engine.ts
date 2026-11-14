@@ -14,8 +14,10 @@ const SALAMANDER_URL = "https://tonejs.github.io/audio/salamander/";
 const SAMPLED = ["A1", "C2", "D#2", "F#2", "A2", "C3", "D#3", "F#3", "A3", "C4", "D#4", "F#4", "A4", "C5", "D#5", "F#5", "A5", "C6"];
 const LOAD_TIMEOUT_MS = 12000;
 
-/** Jazz-waltz comping: where the "2&" lands. 2/3 of a beat = a swung eighth. */
+/** Swung eighth-note offbeat ("2&", "4&"): 2/3 of a beat, matching the drummer's SWING_SKIP. */
 const SWING_OFFBEAT = 2 / 3;
+/** Straight eighth-note offbeat for bossa, ballad, and straight-8th feels. */
+const STRAIGHT_OFFBEAT = 0.5;
 
 interface NoteEvent {
   beat: number; // absolute beat from the top
@@ -26,24 +28,81 @@ interface NoteEvent {
   lh?: boolean;
 }
 
-/** Turn a chord list into a waltz comping part: bass on 1 (and the 5th on 3), RH on 1 and the swung "2&". */
+/**
+ * Turn a chord list into a meter- and feel-aware piano comping part:
+ * - 3/4 waltz: bass on 1 (and 5th on 3), RH on 1 and the swung "2&".
+ * - 4/4 swing: Charleston ("1", swung "2&") + Red Garland / Sonny Clark "4&" anticipation,
+ *   alternating on multi-bar chords with a syncopated "1&", "3", "4&" groove so beats 3–4 stay alive.
+ * - 4/4 bossa / straight8: straight-eighth syncopated clave ("1", "2&", "3&", "4&") locking with the drums.
+ * - 4/4 ballad: warm half-note pads on 1 and 3 with a gentle pickup on "4&".
+ */
 export function arrange(tune: Tune, chords: ChordEvent[]): NoteEvent[] {
   const bpb = tune.meter[0];
+  const swung = tune.feel === "swing" || tune.feel === "waltz";
+  const offbeat = swung ? SWING_OFFBEAT : STRAIGHT_OFFBEAT;
   const voicings = voiceProgression(chords);
   const events: NoteEvent[] = [];
+
   chords.forEach((c, i) => {
     const v = voicings[i];
     const start = absBeat(c.at, bpb);
     const L = c.beats;
-    if (L >= 3) {
-      events.push({ beat: start, notes: [v.bass], dur: 1.9, vel: 0.62, lh: true });
-      const fifth = v.bass + 7 <= 52 ? v.bass + 7 : v.bass - 5;
-      events.push({ beat: start + 2, notes: [fifth], dur: 0.95, vel: 0.5, lh: true });
-    } else {
-      events.push({ beat: start, notes: [v.bass], dur: L * 0.95, vel: 0.62, lh: true });
+    const fifth = v.bass + 7 <= 52 ? v.bass + 7 : v.bass - 5;
+
+    // Slice multi-bar chords into bar-sized segments so the groove continues across every bar.
+    for (let off = 0, barIdx = 0; off < L; off += bpb, barIdx++) {
+      const segStart = start + off;
+      const segLen = Math.min(bpb, L - off);
+
+      // Left-hand bass (muted automatically when the upright bassist is in the mix)
+      if (segLen >= 3) {
+        events.push({ beat: segStart, notes: [v.bass], dur: 1.9, vel: 0.62, lh: true });
+        events.push({ beat: segStart + 2, notes: [fifth], dur: Math.min(1.9, (segLen - 2) * 0.95), vel: 0.5, lh: true });
+      } else {
+        events.push({ beat: segStart, notes: [v.bass], dur: segLen * 0.95, vel: 0.62, lh: true });
+      }
+
+      // Right-hand comping
+      if (bpb === 3 || tune.feel === "waltz") {
+        events.push({ beat: segStart, notes: v.upper, dur: Math.min(0.9, segLen * 0.9), vel: 0.5 });
+        if (segLen >= 2) events.push({ beat: segStart + 1 + offbeat, notes: v.upper, dur: 0.3, vel: 0.36 });
+      } else if (segLen < 2) {
+        events.push({ beat: segStart, notes: v.upper, dur: segLen * 0.85, vel: 0.5 });
+      } else if (segLen < 3) {
+        // 2-beat harmonic rhythm (e.g. two chords per 4/4 bar): Charleston stab on 1 and "&" of 2
+        events.push({ beat: segStart, notes: v.upper, dur: 0.85, vel: 0.5 });
+        events.push({ beat: segStart + 1 + offbeat, notes: v.upper, dur: 0.3, vel: 0.38 });
+      } else if (tune.feel === "bossa" || tune.feel === "straight8") {
+        // Straight-8th bossa / partido-alto comping locked to 0.5 subdivisions
+        events.push({ beat: segStart, notes: v.upper, dur: 0.9, vel: 0.48 });
+        events.push({ beat: segStart + 1 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.75, vel: 0.42 });
+        if (segLen >= 4) {
+          events.push({ beat: segStart + 2 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.45, vel: 0.36 });
+          events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.35, vel: 0.38 });
+        }
+      } else if (tune.feel === "ballad") {
+        // Ballad: warm half-note pads on 1 and 3
+        events.push({ beat: segStart, notes: v.upper, dur: 1.8, vel: 0.46 });
+        events.push({ beat: segStart + 2, notes: v.upper, dur: Math.min(1.8, (segLen - 2) * 0.9), vel: 0.4 });
+        if (segLen >= 4) events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.4, vel: 0.32 });
+      } else {
+        // 4/4 swing: Charleston (1, 2&) + Red Garland / Sonny Clark 4& anticipation;
+        // on continuation bars of a held chord, vary with 1&, 3, 4& so comping breathes.
+        if (barIdx % 2 === 0) {
+          events.push({ beat: segStart, notes: v.upper, dur: 0.85, vel: 0.5 });
+          events.push({ beat: segStart + 1 + SWING_OFFBEAT, notes: v.upper, dur: 0.45, vel: 0.42 });
+          if (segLen >= 4) {
+            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: v.upper, dur: 0.32, vel: 0.38 });
+          }
+        } else {
+          events.push({ beat: segStart + SWING_OFFBEAT, notes: v.upper, dur: 0.42, vel: 0.4 });
+          events.push({ beat: segStart + 2, notes: v.upper, dur: 0.8, vel: 0.45 });
+          if (segLen >= 4) {
+            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: v.upper, dur: 0.32, vel: 0.38 });
+          }
+        }
+      }
     }
-    events.push({ beat: start, notes: v.upper, dur: Math.min(0.9, L * 0.9), vel: 0.5 });
-    if (L >= 2) events.push({ beat: start + 1 + SWING_OFFBEAT, notes: v.upper, dur: 0.3, vel: 0.36 });
   });
   for (const n of tune.melody) {
     events.push({ beat: absBeat(n.at, bpb), notes: [midiOf(n.pitch)], dur: n.beats * 0.95, vel: 0.78 });
@@ -101,8 +160,8 @@ export class AudioEngine {
    * hang loading for good. A suspended context still loads samples; the next tap, key
    * press or Play wakes it (see resume()).
    */
-  async init(): Promise<InstrumentSource> {
-    void Tone.start().catch(() => {});
+  async init(unlock = true): Promise<InstrumentSource> {
+    if (unlock) void Tone.start().catch(() => {});
     const reverb = new Tone.Reverb({ decay: 2.4, wet: 0.16 }).toDestination();
     // Bass and drums sit drier than the piano; a little room keeps them in the same club.
     const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).toDestination();
@@ -354,13 +413,22 @@ export class AudioEngine {
 
   // Live notes use Tone.immediate() (the raw audio clock), not Tone.now(): now() adds the
   // context's lookAhead (0.1 s), which is right for the scheduled band and far too late for a
-  // key you just pressed.
+  // key you just pressed. Per-pitch timestamps stay strictly monotonic so re-striking a
+  // sustained note (noteOff + noteOn in the same tick) never schedules its release after the new attack.
+  private noteTime = new Map<number, number>();
+
   noteOn(midi: number, velocity = 0.6) {
-    this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), Tone.immediate(), velocity);
+    const prev = this.noteTime.get(midi) ?? 0;
+    const at = Math.max(Tone.immediate(), prev + 0.001);
+    this.noteTime.set(midi, at);
+    this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), at, velocity);
   }
 
   noteOff(midi: number) {
-    this.instrument?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), Tone.immediate() + 0.03);
+    const prev = this.noteTime.get(midi) ?? 0;
+    const at = Math.max(Tone.immediate(), prev + 0.005);
+    this.noteTime.set(midi, at);
+    this.instrument?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), at);
   }
 
   /** Wake a context the OS suspended (iOS after a call or an app switch; tabs left in the background). */

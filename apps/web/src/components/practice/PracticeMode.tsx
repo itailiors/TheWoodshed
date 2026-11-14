@@ -2,11 +2,14 @@ import {
   absBeat,
   chordAtBeat,
   chroma,
+  GHOST_PERSONALITIES,
   KEYS,
   improvMap,
   type ChordEvent,
+  type GhostPersonality,
   type ImprovEntry,
   type ReharmMove,
+  type TradeSpan,
   type Tune,
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -56,6 +59,7 @@ const SHORTCUTS: [string, string][] = [
   ["← →", "spice"],
   ["A", "A/B"],
   ["L", "loop move"],
+  ["T", "trade 2s/4s"],
   ["[ ]", "tempo"],
   [", .", "key ½ step"],
   ["1–4", "pno/bass/dr/click"],
@@ -63,7 +67,7 @@ const SHORTCUTS: [string, string][] = [
   ["Esc", "study"],
 ];
 /** Shortcuts the letter keys can't serve while they're playing notes. */
-const QWERTY_TAKES = new Set(["A", "L"]);
+const QWERTY_TAKES = new Set(["A", "L", "T"]);
 
 /**
  * Practice Mode: both hands on the piano. A fixed 100dvh layout (sheet + Current
@@ -79,7 +83,10 @@ export function PracticeMode(p: Props) {
   const cramped = useMediaQuery(`${NARROW}, (max-height: 520px)`);
   const touchFirst = useTouchFirst();
   const [more, setMore] = useState(false);
+  const [tradeBars, setTradeBars] = useState<TradeSpan>(0);
+  const [ghostPersonality, setGhostPersonality] = useState<GhostPersonality>("side-slipper");
   const extras = !cramped || more;
+  const cycleTrade = () => setTradeBars((t) => (t === 0 ? 2 : t === 2 ? 4 : 0));
 
   // ── sync: one improv map per chord list; the Tone.Draw-timed position picks the entry ──
   const entries = useMemo(() => {
@@ -130,6 +137,10 @@ export function PracticeMode(p: Props) {
           case "L":
             s.onLoopSelection(!s.loopSelection);
             return true;
+          case "t":
+          case "T":
+            setTradeBars((t) => (t === 0 ? 2 : t === 2 ? 4 : 0));
+            return true;
           case "[":
             s.onTempo(Math.max(60, s.tempo - 4));
             return true;
@@ -169,7 +180,7 @@ export function PracticeMode(p: Props) {
   }, []);
 
   return (
-    <div className="flex h-dvh flex-col gap-3 overflow-hidden p-3 text-ink md:p-4">
+    <div className="flex min-h-dvh flex-col gap-3 overflow-y-auto p-3 text-ink md:h-dvh md:overflow-hidden md:p-4">
       <SketchFilters />
 
       {/* ── top bar ── */}
@@ -189,6 +200,39 @@ export function PracticeMode(p: Props) {
         <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
         {playback.status === "loading" && <LoadingLine />}
         <span className="font-marker">♩ = {p.tempo}</span>
+        <button
+          type="button"
+          onClick={cycleTrade}
+          aria-pressed={tradeBars > 0}
+          title="Cycle Trading Fours / Twos with the Ghost Master (shortcut: T)"
+          className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm transition-colors ${
+            tradeBars > 0 ? "border-ink bg-wash-sage/40 font-bold text-ink" : "border-dashed border-ink-soft hover:bg-paper-shade"
+          }`}
+        >
+          {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
+        </button>
+        {tradeBars > 0 && (
+          <div role="radiogroup" aria-label="Ghost Master personality" className="inline-flex flex-wrap items-center gap-1 font-marker text-xs">
+            {GHOST_PERSONALITIES.map((gp) => {
+              const active = ghostPersonality === gp.id;
+              return (
+                <button
+                  key={gp.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  title={`${gp.label} (${gp.master}): ${gp.blurb}`}
+                  onClick={() => setGhostPersonality(gp.id)}
+                  className={`cursor-pointer rounded-full border px-2.5 py-0.5 ${
+                    active ? "border-ink bg-ink text-paper-light" : "border-ink-faint text-ink-soft hover:bg-paper-shade"
+                  }`}
+                >
+                  👻 {gp.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {cramped && (
           <button
             type="button"
@@ -226,7 +270,7 @@ export function PracticeMode(p: Props) {
       </header>
 
       {/* ── sheet + HUD: top two thirds ── */}
-      <div className="grid min-h-0 flex-[2] grid-cols-1 gap-3 max-sm:flex-[1.15] md:portrait:grid-rows-[minmax(0,1.15fr)_minmax(0,1fr)] md:landscape:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">
+      <div className="grid min-h-[260px] flex-[1.6] grid-cols-1 gap-3 sm:flex-[2] md:min-h-0 md:portrait:grid-rows-[minmax(0,1.15fr)_minmax(0,1fr)] md:landscape:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">
         <SketchBox
           seed={seedOf("practice-sheet")}
           strokeWidth={1.8}
@@ -253,7 +297,7 @@ export function PracticeMode(p: Props) {
             activeChordId={playing ? at?.chord.id : null}
           />
         </SketchBox>
-        <div className="relative min-h-0">
+        <div className="relative min-h-[250px] md:min-h-0">
           <ChordHUD now={now} next={next} beatsToNext={beatsToNext} playing={playing} />
           {/* the count-in, written big over the HUD until the band comes in */}
           {playback.count && (
@@ -268,8 +312,22 @@ export function PracticeMode(p: Props) {
       </div>
 
       {/* ── heatmap tape: bottom third ── */}
-      <div className="min-h-0 flex-1">
-        <ImprovHeatmap key={tune.id} compact tune={tune} chords={chords} loop={loop} playing={playing} level={p.level} view={p.view} />
+      <div className="min-h-[180px] flex-1 md:min-h-0">
+        <ImprovHeatmap
+          key={tune.id}
+          compact
+          tune={tune}
+          chords={chords}
+          loop={loop}
+          playing={playing}
+          level={p.level}
+          view={p.view}
+          tempo={p.tempo}
+          tradeBars={tradeBars}
+          onTradeBars={setTradeBars}
+          ghostPersonality={ghostPersonality}
+          onGhostPersonality={setGhostPersonality}
+        />
       </div>
 
       {playback.source === "synth" && <p className="sr-only">Piano samples unreachable; using a synth.</p>}

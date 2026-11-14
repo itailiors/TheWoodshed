@@ -3,22 +3,27 @@ import {
   chordAtBeat,
   chroma,
   evaluateLineNote,
+  GHOST_PERSONALITIES,
   guideTones,
   melodyIn,
   pitchClass,
   prettyNote,
   prettySymbol,
   symbol,
+  transformMotif,
   type ChordEvent,
+  type GhostNote,
+  type GhostPersonality,
   type LineNoteEval,
+  type TradeSpan,
   type Tune,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNarrow } from "../../device/media";
 import { player } from "../../audio/player";
 import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
-import { ink, seedOf, VERDICT_COLOR } from "../../design/tokens";
+import { ink, seedOf, VERDICT_COLOR, wash } from "../../design/tokens";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { PenKeyboard } from "./PenKeyboard";
 import { saveImprovRun } from "../../library/practice";
@@ -33,6 +38,13 @@ interface Props {
   /** Saved with each pass, so the history knows what you were soloing over. */
   level: number;
   view: "reharm" | "original";
+  /** Current playback tempo (BPM) for scheduling Ghost Master responses in time. */
+  tempo?: number;
+  /** Trading 2s or 4s with a Ghost Master (0 = off). */
+  tradeBars?: TradeSpan;
+  onTradeBars?: (span: TradeSpan) => void;
+  ghostPersonality?: GhostPersonality;
+  onGhostPersonality?: (p: GhostPersonality) => void;
 }
 
 /** Passes shorter than this aren't worth a history entry (a stray note or two). */
@@ -89,12 +101,44 @@ function summarise(notes: HeatNote[]) {
   };
 }
 
+interface StoredGhostNote extends GhostNote {
+  id: number;
+  pass: number;
+  personality: GhostPersonality;
+  /** Optional link from the end of the user's call motif to the first note of the Ghost response. */
+  callFrom?: { beat: number; midi: number };
+}
+
 /** Why a note got its colour, in one line: "E = 3 over C7 · chord tone · guide-tone landing". */
 function explain(n: HeatNote) {
   return `${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${LABEL[n.ev.verdict]}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`;
 }
 
-export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, level, view }: Props) {
+function explainGhost(n: StoredGhostNote) {
+  const meta = GHOST_PERSONALITIES.find((p) => p.id === n.personality);
+  return `👻 ${meta?.label ?? "Ghost Master"} (${meta?.master ?? ""}): ${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${n.tag}`;
+}
+
+export function ImprovHeatmap({
+  tune,
+  chords,
+  loop,
+  playing,
+  compact = false,
+  level,
+  view,
+  tempo = 120,
+  tradeBars: controlledTrade,
+  onTradeBars,
+  ghostPersonality: controlledPersonality,
+  onGhostPersonality,
+}: Props) {
+  const [localTrade, setLocalTrade] = useState<TradeSpan>(0);
+  const [localPersonality, setLocalPersonality] = useState<GhostPersonality>("side-slipper");
+  const tradeBars = controlledTrade ?? localTrade;
+  const setTradeBars = onTradeBars ?? setLocalTrade;
+  const ghostPersonality = controlledPersonality ?? localPersonality;
+  const setGhostPersonality = onGhostPersonality ?? setLocalPersonality;
   // In compact mode the tape takes the slot's aspect ratio, so it fills the space without distorting text.
   const [tapeRef, tapeSize] = useSize<HTMLDivElement>();
   const narrow = useNarrow();
@@ -115,8 +159,8 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   const firstPage = pageOf(loop.startBar);
   const lastPage = pageOf(loop.endBar);
   const [browsePage, setBrowsePage] = useState(firstPage);
-  const [head, setHead] = useState<number | null>(null);
-  const headBar = head !== null ? Math.floor(head / bpb) + 1 : null;
+  const [headBar, setHeadBar] = useState<number | null>(null);
+  const [passVersion, setPassVersion] = useState(0);
   const pageIdx = !paged ? firstPage : headBar !== null ? Math.min(lastPage, Math.max(firstPage, pageOf(headBar))) : Math.min(lastPage, Math.max(firstPage, browsePage));
   // keep the browse position on the page the music last showed, so Stop doesn't jump away
   useEffect(() => {
@@ -132,14 +176,80 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
 
   const [armed, setArmed] = useState(true);
   const [notes, setNotes] = useState<HeatNote[]>([]);
+  const [ghostNotes, setGhostNotes] = useState<StoredGhostNote[]>([]);
+  const [ghostSummary, setGhostSummary] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   /** The note tapped for an explanation (touch has no hover, so <title> tooltips never show). */
   const [picked, setPicked] = useState<number | null>(null);
   const pickedNote = picked === null ? null : (notes.find((n) => n.id === picked) ?? null);
+  const pickedGhost = picked === null ? null : (ghostNotes.find((n) => n.id === picked) ?? null);
   const pass = useRef(0);
   const lastBeat = useRef(-1);
+  const lastHeadBar = useRef<number | null>(null);
+  const lastGhostPhraseKey = useRef<string | null>(null);
+  const ghostTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const headBeatRef = useRef<number | null>(null);
+  const playheadRef = useRef<SVGLineElement>(null);
+  const openNotesRef = useRef<SVGGElement>(null);
+  const winRef = useRef({ winStart, winEnd, W });
+  winRef.current = { winStart, winEnd, W };
   const nextId = useRef(1);
   const open = useRef(new Map<number, number>()); // midi -> note id
+
+  /** Effective trade span in bars, clamped so even a short 2-bar loop splits into 1 bar Call + 1 bar Response. */
+  const effTradeBars = tradeBars > 0 ? Math.max(1, Math.min(tradeBars, Math.floor(loopBars / 2) || 1)) : 0;
+  const isGhostBeat = useCallback(
+    (beat: number) => {
+      if (effTradeBars <= 0) return false;
+      const phraseBeats = effTradeBars * bpb;
+      const phraseIdx = Math.floor(Math.max(0, beat - loopStart) / phraseBeats);
+      return phraseIdx % 2 === 1;
+    },
+    [effTradeBars, bpb, loopStart],
+  );
+  const tradeCtxRef = useRef({ effTradeBars, ghostPersonality, tune, chords, bpb, loopStart, loopEnd, tempo });
+  tradeCtxRef.current = { effTradeBars, ghostPersonality, tune, chords, bpb, loopStart, loopEnd, tempo };
+
+  const clearGhostTimers = useCallback(() => {
+    ghostTimers.current.forEach((t) => clearTimeout(t));
+    ghostTimers.current = [];
+  }, []);
+  useEffect(() => () => clearGhostTimers(), [clearGhostTimers]);
+
+  /** Imperatively move the playhead <line> and stretch any held-note <rect>s without re-rendering React. */
+  const syncPlayhead = useCallback((b: number | null) => {
+    const { winStart: ws, winEnd: we, W: width } = winRef.current;
+    const spanBeats = we - ws;
+    const toX = (beat: number) => ((Math.min(we, Math.max(ws, beat)) - ws) / spanBeats) * width;
+    const line = playheadRef.current;
+    if (line) {
+      if (b !== null && b >= ws && b < we) {
+        const px = String(toX(b));
+        line.setAttribute("x1", px);
+        line.setAttribute("x2", px);
+        line.style.display = "";
+      } else {
+        line.style.display = "none";
+      }
+    }
+    const openGroup = openNotesRef.current;
+    if (openGroup) {
+      const rects = openGroup.children;
+      for (let i = 0; i < rects.length; i++) {
+        const rect = rects[i] as SVGRectElement;
+        const start = Number(rect.dataset.start);
+        if (b !== null && b >= start && start < we && b > ws) {
+          const x1 = toX(start);
+          const x2 = toX(b);
+          rect.setAttribute("x", String(x1));
+          rect.setAttribute("width", String(Math.max(6, x2 - x1)));
+          rect.style.display = "";
+        } else {
+          rect.style.display = "none";
+        }
+      }
+    }
+  }, []);
 
   // ── saving: one history entry per pass over the loop ──
   const notesRef = useRef(notes);
@@ -175,44 +285,132 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
   // Leaving mid-pass (switching modes, changing tune) still counts what you played.
   useEffect(() => () => savePassRef.current(pass.current), []);
 
-  // smooth playhead + loop-wrap detection
+  // smooth playhead + loop-wrap detection + Ghost Master Call-and-Response trigger
   useEffect(() => {
     if (!playing) {
-      setHead(null);
+      headBeatRef.current = null;
+      lastBeat.current = -1;
+      lastHeadBar.current = null;
+      lastGhostPhraseKey.current = null;
+      clearGhostTimers();
+      setHeadBar(null);
+      syncPlayhead(null);
       // Stopping ends the pass: save it, and start a fresh one for the next Play.
       savePassRef.current(pass.current);
-      if (notesRef.current.some((n) => n.pass === pass.current)) pass.current++;
+      if (notesRef.current.some((n) => n.pass === pass.current)) {
+        pass.current++;
+        setPassVersion((v) => v + 1);
+      }
       return;
     }
     let raf = 0;
     const tick = () => {
       const b = player.currentBeat();
+      headBeatRef.current = b;
       if (b !== null) {
-        if (b < lastBeat.current - 0.5) {
+        if (lastBeat.current >= 0 && b < lastBeat.current - 0.5) {
           savePassRef.current(pass.current); // the loop wrapped: that pass is finished
           pass.current++;
+          lastGhostPhraseKey.current = null;
+          clearGhostTimers();
+          setPassVersion((v) => v + 1);
         }
         lastBeat.current = b;
-        setHead(b);
+        const bar = Math.floor(b / bpb) + 1;
+        if (bar !== lastHeadBar.current) {
+          lastHeadBar.current = bar;
+          setHeadBar(bar);
+        }
+
+        // ── Trading 2s / 4s: trigger Ghost Master response on entering an odd phrase window ──
+        const tc = tradeCtxRef.current;
+        if (tc.effTradeBars > 0) {
+          const phraseBeats = tc.effTradeBars * tc.bpb;
+          const phraseIdx = Math.floor(Math.max(0, b - tc.loopStart) / phraseBeats);
+          if (phraseIdx % 2 === 1) {
+            const pKey = `${pass.current}:${phraseIdx}`;
+            if (lastGhostPhraseKey.current !== pKey) {
+              lastGhostPhraseKey.current = pKey;
+              const callStartBeat = tc.loopStart + (phraseIdx - 1) * phraseBeats;
+              const callEndBeat = tc.loopStart + phraseIdx * phraseBeats;
+              const respStartBeat = callEndBeat;
+              const respEndBeat = Math.min(tc.loopEnd, respStartBeat + phraseBeats);
+
+              // Close any user notes still held across the Call -> Response barline
+              if (open.current.size > 0) {
+                open.current.clear();
+                setNotes((ns) =>
+                  ns.map((n) => (n.end === null && n.pass === pass.current ? { ...n, end: callEndBeat } : n)),
+                );
+              }
+
+              const callNotes = notesRef.current
+                .filter((n) => n.pass === pass.current && n.start < callEndBeat && (n.end ?? callEndBeat) > callStartBeat)
+                .map((n) => ({ midi: n.midi, start: n.start, end: n.end ?? callEndBeat }));
+
+              const resp = transformMotif({
+                notes: callNotes,
+                personality: tc.ghostPersonality,
+                tune: tc.tune,
+                chords: tc.chords,
+                callStartBeat,
+                callEndBeat,
+                respStartBeat,
+                respEndBeat,
+              });
+
+              const lastUserNote = callNotes.length > 0 ? callNotes[callNotes.length - 1] : undefined;
+              const curPass = pass.current;
+              const stamped: StoredGhostNote[] = resp.notes.map((gn, idx) => ({
+                ...gn,
+                id: nextId.current++,
+                pass: curPass,
+                personality: tc.ghostPersonality,
+                callFrom: idx === 0 && lastUserNote ? { beat: lastUserNote.end ?? lastUserNote.start, midi: lastUserNote.midi } : undefined,
+              }));
+
+              setGhostNotes((prev) => [...prev.filter((g) => g.pass > curPass - KEEP_PASSES), ...stamped]);
+              setGhostSummary(resp.summary);
+
+              // Schedule Ghost Master audio playback in time with the trio
+              clearGhostTimers();
+              const spb = 60 / Math.max(40, tc.tempo);
+              for (const gn of stamped) {
+                const delaySec = Math.max(0, (gn.start - b) * spb);
+                const durSec = Math.max(0.14, (gn.end - gn.start) * spb * 0.92);
+                const timerId = setTimeout(() => {
+                  void player.playNotes(gn.voicing, durSec, 0);
+                }, Math.round(delaySec * 1000));
+                ghostTimers.current.push(timerId);
+              }
+            }
+          }
+        }
       }
+      syncPlayhead(b);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, bpb, syncPlayhead, clearGhostTimers]);
 
   const changes = useMemo(() => chords.map((c) => ({ beat: absBeat(c.at, bpb), chord: c })), [chords, bpb]);
 
   // chord names over this window, packed into two rows so crowded bars never overlap
-  useFontsReady();
-  const chordLabels = packLabels(
-    changes
-      .filter((c) => c.beat >= winStart && c.beat < winEnd && c.beat >= loopStart && c.beat < loopEnd)
-      .map((c) => {
-        const text = prettySymbol(symbol(c.chord));
-        return { item: c, text, x: x(c.beat) + 4, width: textWidth(text, CHORD_FONT), maxRight: W - 2 };
-      }),
-    { lanes: CHORD_LANE_Y.length, gap: 8, font: CHORD_FONT, minX: 2 },
+  const fontsReady = useFontsReady();
+  const chordLabels = useMemo(
+    () =>
+      packLabels(
+        changes
+          .filter((c) => c.beat >= winStart && c.beat < winEnd && c.beat >= loopStart && c.beat < loopEnd)
+          .map((c) => {
+            const text = prettySymbol(symbol(c.chord));
+            const cx = ((Math.min(winEnd, Math.max(winStart, c.beat)) - winStart) / (winEnd - winStart)) * W;
+            return { item: c, text, x: cx + 4, width: textWidth(text, CHORD_FONT), maxRight: W - 2 };
+          }),
+        { lanes: CHORD_LANE_Y.length, gap: 8, font: CHORD_FONT, minX: 2 },
+      ),
+    [changes, winStart, winEnd, loopStart, loopEnd, W, fontsReady],
   );
   // the notes start below whichever label rows are in use
   const top = chordLabels.some((l) => l.lane > 0) ? 42 : 28;
@@ -255,31 +453,126 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
     }
   }, armed);
 
+  // Keep newly mounted open-note <rect>s and window switches aligned with the current playhead immediately on commit.
+  useLayoutEffect(() => {
+    syncPlayhead(headBeatRef.current);
+  }, [notes, winStart, winEnd, W, H, top, syncPlayhead]);
+
   // ── drawing ──
   const g = useRef<SVGGElement>(null);
-  const done = notes.filter((n) => n.end !== null && inWin(n.start, n.end));
+  const done = notes.filter((n) => n.end !== null && n.pass > pass.current - KEEP_PASSES && inWin(n.start, n.end));
+  const doneGhost = ghostNotes.filter((n) => n.pass > pass.current - KEEP_PASSES && inWin(n.start, n.end));
   useRough(
     g,
-    (rc, add) => {
+    (rc, add, memo) => {
       for (const n of done) {
         const age = pass.current - n.pass;
-        const x1 = x(n.start);
-        const w = Math.max(7, x(n.end!) - x1);
-        const color = VERDICT_COLOR[n.ev.verdict];
-        const node = rc.rectangle(x1, y(n.midi) - 5, w, 10, {
-          seed: seedOf("n" + n.id),
-          fill: color,
-          fillStyle: n.passing ? "hachure" : age === 0 ? "solid" : "hachure",
-          hachureGap: 2.5,
-          stroke: n.landing ? ink.deep : color,
-          strokeWidth: n.landing ? 1.8 : 1,
-          roughness: 1.1,
+        const fillStyle = n.passing ? "hachure" : age === 0 ? "solid" : "hachure";
+        const key = `${n.id}:${n.end}:${fillStyle}:${winStart}:${winEnd}:${top}:${W}:${H}`;
+        const node = memo(key, () => {
+          const x1 = x(n.start);
+          const w = Math.max(7, x(n.end!) - x1);
+          const color = VERDICT_COLOR[n.ev.verdict];
+          return rc.rectangle(x1, y(n.midi) - 5, w, 10, {
+            seed: seedOf("n" + n.id),
+            fill: color,
+            fillStyle,
+            hachureGap: 2.5,
+            stroke: n.landing ? ink.deep : color,
+            strokeWidth: n.landing ? 1.8 : 1,
+            roughness: 1.1,
+          });
         });
         node.setAttribute("opacity", String(age === 0 ? 1 : age === 1 ? 0.45 : 0.2));
         add(node);
       }
+
+      // ── Ghost Master answer notes (Sage / Mustard wash + motif connector arc) ──
+      for (const gn of doneGhost) {
+        const age = pass.current - gn.pass;
+        const opacity = String(age === 0 ? 0.95 : age === 1 ? 0.45 : 0.2);
+
+        // If this is the first note of the Ghost Master's response, sketch a curved arrow from the user's call
+        if (gn.callFrom && gn.callFrom.beat >= winStart && gn.start <= winEnd) {
+          const arcKey = `arc:${gn.id}:${winStart}:${winEnd}:${top}:${W}:${H}`;
+          const arcNode = memo(arcKey, () => {
+            const x1 = x(gn.callFrom!.beat);
+            const y1 = y(gn.callFrom!.midi);
+            const x2 = x(gn.start);
+            const y2 = y(gn.midi);
+            const mx = (x1 + x2) / 2;
+            const my = Math.max(top + 4, Math.min(y1, y2) - 18);
+            return rc.curve(
+              [
+                [x1, y1],
+                [mx, my],
+                [x2, y2],
+              ],
+              {
+                seed: seedOf("arc" + gn.id),
+                stroke: wash.sage,
+                strokeWidth: 1.5,
+                roughness: 1.2,
+              },
+            );
+          });
+          arcNode.setAttribute("opacity", opacity);
+          add(arcNode);
+        }
+
+        // For Block-Chord Harmonizer, draw the lower harmonized voices in soft sage underneath the melody
+        if (gn.voicing.length > 1) {
+          for (const vMidi of gn.voicing.slice(0, -1)) {
+            if (vMidi < LOW || vMidi > HIGH) continue;
+            const vKey = `gv:${gn.id}:${vMidi}:${winStart}:${winEnd}:${top}:${W}:${H}`;
+            const vNode = memo(vKey, () => {
+              const x1 = x(gn.start);
+              const w = Math.max(7, x(gn.end) - x1);
+              return rc.rectangle(x1, y(vMidi) - 3.5, w, 7, {
+                seed: seedOf(`gv${gn.id}:${vMidi}`),
+                fill: wash.sage,
+                fillStyle: "hachure",
+                hachureGap: 3.5,
+                stroke: wash.sage,
+                strokeWidth: 0.9,
+                roughness: 0.9,
+              });
+            });
+            vNode.setAttribute("opacity", String(age === 0 ? 0.55 : 0.22));
+            add(vNode);
+          }
+        }
+
+        const gFill = gn.enclosure ? wash.mustard : wash.sage;
+        const gKey = `gn:${gn.id}:${gn.end}:${winStart}:${winEnd}:${top}:${W}:${H}`;
+        const gNode = memo(gKey, () => {
+          const x1 = x(gn.start);
+          const w = Math.max(8, x(gn.end) - x1);
+          return rc.rectangle(x1, y(gn.midi) - 5.5, w, 11, {
+            seed: seedOf("gn" + gn.id),
+            fill: gFill,
+            fillStyle: gn.enclosure ? "cross-hatch" : "solid",
+            hachureGap: 2.5,
+            stroke: ink.deep,
+            strokeWidth: gn.landing ? 2 : 1.4,
+            roughness: 1.2,
+          });
+        });
+        gNode.setAttribute("opacity", opacity);
+        add(gNode);
+      }
     },
-    [done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","), pass.current, winStart, winEnd, top, W, H],
+    [
+      done.map((n) => `${n.id}:${n.end}:${n.passing}`).join(","),
+      doneGhost.map((n) => `${n.id}:${n.end}`).join(","),
+      passVersion,
+      pass.current,
+      winStart,
+      winEnd,
+      top,
+      W,
+      H,
+    ],
   );
 
   const stats = useMemo(() => summarise(notes), [notes]);
@@ -326,7 +619,39 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
               <input type="checkbox" checked={armed} onChange={(e) => setArmed(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
               Record my line
             </label>
-            <button type="button" onClick={() => setNotes([])} className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 hover:bg-paper-shade">
+            <button
+              type="button"
+              onClick={() => setTradeBars(tradeBars === 0 ? 2 : tradeBars === 2 ? 4 : 0)}
+              aria-pressed={tradeBars > 0}
+              className={`cursor-pointer rounded-full border-2 px-3 py-0.5 ${
+                tradeBars > 0 ? "border-ink bg-wash-sage/40 font-bold text-ink" : "border-dashed border-ink-soft hover:bg-paper-shade"
+              }`}
+            >
+              {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
+            </button>
+            {tradeBars > 0 && (
+              <select
+                aria-label="Ghost Master personality"
+                value={ghostPersonality}
+                onChange={(e) => setGhostPersonality(e.target.value as GhostPersonality)}
+                className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2.5 py-0.5 font-marker text-xs text-ink"
+              >
+                {GHOST_PERSONALITIES.map((gp) => (
+                  <option key={gp.id} value={gp.id}>
+                    👻 {gp.label} ({gp.master})
+                  </option>
+                ))}
+              </select>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setNotes([]);
+                setGhostNotes([]);
+                setGhostSummary(null);
+              }}
+              className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 hover:bg-paper-shade"
+            >
               Clear
             </button>
           </div>
@@ -346,15 +671,34 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
             role="img"
             aria-label="Improv heatmap loop tape"
           >
-            {/* bar grid + chord labels */}
+            {/* bar grid + Call/Response phase tinting + chord labels */}
             {Array.from({ length: winLastBar - winFirstBar + 1 }, (_, i) => {
-              const bx = x(winStart + i * bpb);
+              const barNum = winFirstBar + i;
+              const barBeat = winStart + i * bpb;
+              const bx = x(barBeat);
+              const bw = x(barBeat + bpb) - bx;
+              const ghostBar = effTradeBars > 0 && isGhostBeat(barBeat);
+              const prevGhostBar = effTradeBars > 0 && i > 0 ? isGhostBeat(barBeat - bpb) : !ghostBar;
+              const phaseStart = effTradeBars > 0 && (i === 0 || ghostBar !== prevGhostBar);
               return (
-                <g key={winFirstBar + i}>
+                <g key={barNum}>
+                  {ghostBar && <rect x={bx} y={18} width={bw} height={H - 24} fill={wash.sage} opacity={0.12} />}
                   <line x1={bx} y1={18} x2={bx} y2={H - 6} className="stroke-ink-faint" strokeDasharray="4 5" strokeWidth={1} />
                   <text x={bx + 3} y={H - 8} fontSize={10} className="fill-ink-faint font-hand">
-                    {winFirstBar + i}
+                    {barNum}
                   </text>
+                  {phaseStart && (
+                    <text
+                      x={bx + 4}
+                      y={H - 20}
+                      fontSize={9}
+                      fontWeight={700}
+                      fill={ghostBar ? wash.sage : ink.soft}
+                      className="font-marker uppercase"
+                    >
+                      {ghostBar ? "👻 Ghost answer" : "🎷 Your call"}
+                    </text>
+                  )}
                 </g>
               );
             })}
@@ -370,28 +714,56 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
               </text>
             ))}
             <g ref={g} />
-            {/* notes still sounding */}
+            {/* notes still sounding (stretched imperatively in rAF via openNotesRef) */}
+            <g ref={openNotesRef}>
+              {notes
+                .filter((n) => n.end === null)
+                .map((n) => (
+                  <rect
+                    key={n.id}
+                    data-start={n.start}
+                    x={x(n.start)}
+                    y={y(n.midi) - 5}
+                    width={6}
+                    height={10}
+                    rx={2}
+                    fill={VERDICT_COLOR[n.ev.verdict]}
+                    style={{ display: "none" }}
+                  />
+                ))}
+            </g>
+            {/* tooltips for user notes and Ghost Master notes */}
             {notes
-              .filter((n) => n.end === null && head !== null && inWin(n.start, head!))
+              .filter((n) => n.pass > pass.current - KEEP_PASSES && inWin(n.start, n.end ?? n.start + 0.25))
               .map((n) => (
-                <rect key={n.id} x={x(n.start)} y={y(n.midi) - 5} width={Math.max(6, x(head!) - x(n.start))} height={10} rx={2} fill={VERDICT_COLOR[n.ev.verdict]} />
+                <rect
+                  key={`t${n.id}`}
+                  x={x(n.start)}
+                  y={y(n.midi) - 9}
+                  width={Math.max(14, x(n.end ?? n.start + 0.25) - x(n.start))}
+                  height={18}
+                  fill="transparent"
+                  className="cursor-pointer"
+                  onClick={() => setPicked((p) => (p === n.id ? null : n.id))}
+                >
+                  <title>{explain(n)}</title>
+                </rect>
               ))}
-            {/* tooltips */}
-            {notes.filter((n) => inWin(n.start, n.end ?? n.start + 0.25)).map((n) => (
+            {doneGhost.map((gn) => (
               <rect
-                key={`t${n.id}`}
-                x={x(n.start)}
-                y={y(n.midi) - 9}
-                width={Math.max(14, x(n.end ?? n.start + 0.25) - x(n.start))}
+                key={`gt${gn.id}`}
+                x={x(gn.start)}
+                y={y(gn.midi) - 9}
+                width={Math.max(14, x(gn.end) - x(gn.start))}
                 height={18}
                 fill="transparent"
                 className="cursor-pointer"
-                onClick={() => setPicked((p) => (p === n.id ? null : n.id))}
+                onClick={() => setPicked((p) => (p === gn.id ? null : gn.id))}
               >
-                <title>{explain(n)}</title>
+                <title>{explainGhost(gn)}</title>
               </rect>
             ))}
-            {head !== null && head >= winStart && head < winEnd && <line x1={x(head)} y1={18} x2={x(head)} y2={H - 6} className="stroke-wash-brick" strokeWidth={2} />}
+            <line ref={playheadRef} x1={0} y1={18} x2={0} y2={H - 6} className="stroke-wash-brick" strokeWidth={2} style={{ display: "none" }} />
           </svg>
         </div>
 
@@ -405,7 +777,17 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
           <span className="flex items-center gap-2">
             <span className="inline-block h-3 w-6 rounded-sm border-2 border-ink" /> guide-tone landing
           </span>
+          {tradeBars > 0 && (
+            <span className="flex items-center gap-2 font-marker">
+              <span className="inline-block h-3 w-6 -rotate-1 rounded-sm border border-ink" style={{ background: wash.sage }} /> 👻 Ghost Master answer
+            </span>
+          )}
         </div>
+        {ghostSummary && tradeBars > 0 && (
+          <p className={`shrink-0 font-hand text-ink-soft ${compact ? "truncate text-xs" : "mt-1.5 text-sm"}`} role="status">
+            👻 {ghostSummary}
+          </p>
+        )}
         {stats.n > 0 && (
           <p className={`shrink-0 font-marker ${compact ? "truncate text-sm" : "mt-2 text-[15px]"}`}>
             {stats.strong !== null && <>Chord tones on the beat: {stats.strong}%. </>}
@@ -416,6 +798,11 @@ export function ImprovHeatmap({ tune, chords, loop, playing, compact = false, le
         {pickedNote && (
           <p className={`shrink-0 font-hand ${compact ? "truncate text-sm" : "mt-2"}`} role="status">
             <span className="inline-block h-3 w-3 -rotate-6 rounded-sm align-middle" style={{ background: VERDICT_COLOR[pickedNote.ev.verdict] }} /> {explain(pickedNote)}
+          </p>
+        )}
+        {pickedGhost && (
+          <p className={`shrink-0 font-hand ${compact ? "truncate text-sm" : "mt-2"}`} role="status">
+            <span className="inline-block h-3 w-3 -rotate-6 rounded-sm border border-ink align-middle" style={{ background: wash.sage }} /> {explainGhost(pickedGhost)}
           </p>
         )}
         {hint && <p className={`shrink-0 font-marker text-wash-brick ${compact ? "text-sm" : "mt-2"}`}>{hint}</p>}

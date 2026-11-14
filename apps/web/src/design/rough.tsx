@@ -3,6 +3,8 @@ import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode, 
 
 export type RoughCanvas = RoughSVG;
 type Add = (node: SVGElement) => void;
+/** Cache a generated Rough SVG node by key across renders so unchanged shapes aren't regenerated or detached. */
+export type RoughMemo = (key: string, build: () => SVGElement) => SVGElement;
 
 /*
  * Rough.js arrives as its own small chunk, requested the moment this module loads (so in
@@ -18,9 +20,13 @@ const roughReady = import("roughjs").then((m) => {
 /**
  * Draw Rough.js shapes into an <g>. The drawing is redone only when deps change,
  * and shapes take a seed, so the sketch stays put between renders.
+ * Callers with many independent shapes (e.g. `ImprovHeatmap`) can use the `memo`
+ * third parameter to reuse unchanged SVG nodes across renders in O(1) without
+ * tearing down or regenerating existing Rough.js paths.
  */
-export function useRough(gRef: RefObject<SVGGElement | null>, draw: (rc: RoughCanvas, add: Add) => void, deps: unknown[]) {
+export function useRough(gRef: RefObject<SVGGElement | null>, draw: (rc: RoughCanvas, add: Add, memo: RoughMemo) => void, deps: unknown[]) {
   const [ready, setReady] = useState(roughLib !== null);
+  const nodeCache = useRef(new Map<string, SVGElement>());
   useLayoutEffect(() => {
     if (ready) return;
     let live = true;
@@ -33,8 +39,30 @@ export function useRough(gRef: RefObject<SVGGElement | null>, draw: (rc: RoughCa
     const g = gRef.current;
     const svg = g?.ownerSVGElement;
     if (!g || !svg || !roughLib) return;
-    while (g.firstChild) g.removeChild(g.firstChild);
-    draw(roughLib.svg(svg), (n) => g.appendChild(n));
+    const prevCache = nodeCache.current;
+    const nextCache = new Map<string, SVGElement>();
+    const desired: SVGElement[] = [];
+    const memo: RoughMemo = (key, build) => {
+      const hit = prevCache.get(key) ?? nextCache.get(key);
+      const node = hit ?? build();
+      nextCache.set(key, node);
+      return node;
+    };
+    draw(roughLib.svg(svg), (n) => desired.push(n), memo);
+    nodeCache.current = nextCache;
+
+    // Reconcile children in place so cached nodes stay attached without full DOM teardown.
+    const keep = new Set<Node>(desired);
+    for (let c = g.firstChild; c; ) {
+      const next = c.nextSibling;
+      if (!keep.has(c)) g.removeChild(c);
+      c = next;
+    }
+    for (let i = 0; i < desired.length; i++) {
+      const node = desired[i];
+      const cur = g.childNodes[i] ?? null;
+      if (cur !== node) g.insertBefore(node, cur);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, ...deps]);
 }

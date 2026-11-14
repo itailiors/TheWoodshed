@@ -67,8 +67,8 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
   const access = useRef<MIDIAccess | null>(null);
   const onNoteRef = useRef(onNote);
   onNoteRef.current = onNote;
-  /** port id → { name, notes held on it }. The source of truth for releasing. */
-  const heldBy = useRef(new Map<string, { name: string; notes: Set<number> }>());
+  /** port id → { name, notes held on it, sustain pedal state }. The source of truth for releasing. */
+  const heldBy = useRef(new Map<string, { name: string; notes: Set<number>; pedal: boolean }>());
 
   const syncHeld = useCallback(() => {
     const all = new Set<number>();
@@ -81,11 +81,16 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
     onNoteRef.current?.(ev);
   }, []);
 
-  /** Release everything a device is holding. Returns how many notes were let go. */
+  /** Release everything a device is holding (including sustain pedal CC64). Returns how many notes were let go. */
   const releaseDevice = useCallback(
     (id: string) => {
       const d = heldBy.current.get(id);
-      if (!d || d.notes.size === 0) return 0;
+      if (!d || (d.notes.size === 0 && !d.pedal)) return 0;
+      if (d.pedal) {
+        d.pedal = false;
+        controlBus.emit({ cc: 64, value: 0, channel: 1, device: d.name });
+      }
+      if (d.notes.size === 0) return 0;
       const notes = [...d.notes];
       d.notes.clear();
       for (const note of notes) deliver({ type: "off", note, velocity: 0, channel: 0, device: d.name, time: performance.now() });
@@ -102,9 +107,17 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
       const cmd = status & 0xf0;
       const channel = (status & 0x0f) + 1;
       if (cmd === 0xb0) {
+        let d = heldBy.current.get(id);
+        if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set(), pedal: false }));
+        if (d1 === 64) {
+          d.pedal = d2 >= 64;
+          debug(`[MIDI] sustain ${d.pedal ? "down" : "up"} (${device})`);
+        }
         // CC 120 All Sound Off / CC 123 All Notes Off: some controllers send these from a panic button
-        if (d1 === 120 || d1 === 123) releaseDevice(id);
-        if (d1 === 64) debug(`[MIDI] sustain ${d2 >= 64 ? "down" : "up"} (${device})`);
+        if (d1 === 120 || d1 === 123) {
+          releaseDevice(id);
+          controlBus.emit({ cc: 64, value: 0, channel, device });
+        }
         controlBus.emit({ cc: d1, value: d2, channel, device });
         return;
       }
@@ -114,7 +127,7 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
       if (!ev) return;
       debug(`[MIDI] note ${ev.type.padEnd(3)} ${midiName(ev.note).padEnd(4)} #${ev.note} vel ${ev.velocity} ch ${channel} · ${device}`);
       let d = heldBy.current.get(id);
-      if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set() }));
+      if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set(), pedal: false }));
       if (ev.type === "on") d.notes.add(ev.note);
       else if (!d.notes.delete(ev.note)) return; // an off for a key we never saw go down (or already released): nothing to do
       deliver(ev); // the note bus (and so the sound) first; the readout can wait a frame

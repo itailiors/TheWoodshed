@@ -174,9 +174,9 @@
   }
 }
 @media (pointer: coarse) {
-  button.rounded-full,
+  button.rounded-full:not([data-circle-key]),
   [role="tab"],
-  [role="radio"],
+  [role="radio"]:not([data-circle-key]),
   select {
     min-height: 44px;
   }

@@ -37,6 +37,7 @@ function silenceAll() {
   for (const n of new Set([...held, ...sustained])) player.noteOff(n);
   held.clear();
   sustained.clear();
+  pedalDown = false;
 }
 
 export const midiMonitor = {
@@ -79,9 +80,13 @@ export function installMidiMonitor() {
   });
 
   controlBus.on((c) => {
+    if (c.cc === 120 || c.cc === 123) {
+      silenceAll();
+      return;
+    }
     if (c.cc !== 64) return;
     const down = c.value >= 64;
-    if (down === pedalDown) return;
+    if (down === pedalDown && (down || sustained.size === 0)) return;
     pedalDown = down;
     if (!down) {
       for (const n of sustained) if (!held.has(n)) player.noteOff(n);

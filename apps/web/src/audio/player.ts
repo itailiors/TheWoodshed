@@ -61,10 +61,12 @@ export interface CountState {
 
 function loadCountIn(): CountInBars {
   try {
-    const n = Number(localStorage.getItem(COUNT_IN_KEY) ?? 1);
-    return n === 0 || n === 2 ? n : 1;
+    const raw = localStorage.getItem(COUNT_IN_KEY);
+    if (raw === null) return 0;
+    const n = Number(raw);
+    return n === 1 || n === 2 ? n : 0;
   } catch {
-    return 1;
+    return 0;
   }
 }
 const NOT_LOADED: LoadProgress = { piano: "idle", bass: "idle", drums: "idle" };
@@ -73,13 +75,34 @@ let engineModule: Promise<typeof import("./engine")> | null = null;
 const loadEngineModule = () => (engineModule ??= import("./engine"));
 
 /**
- * Fetch the audio engine's code ahead of time (no sound, no AudioContext unlock), so the
- * first Play doesn't wait on the download and stays inside the click's activation window.
+ * Pre-fetch and warm the audio engine, convolution reverbs, and instrument samples on initial load
+ * so clicking Play starts music immediately without a 3–6 s download/initialization stall.
+ * Also attaches a one-time gesture listener to unlock the Web Audio clock on the first interaction.
  */
+let gestureBound = false;
 export function prefetchAudio() {
-  const go = () => void loadEngineModule().catch(() => (engineModule = null));
-  if ("requestIdleCallback" in window) requestIdleCallback(go, { timeout: 4000 });
-  else setTimeout(go, 1500);
+  if (typeof window !== "undefined" && !gestureBound) {
+    gestureBound = true;
+    const unlock = () => {
+      player.resume();
+      window.removeEventListener("pointerdown", unlock, true);
+      window.removeEventListener("keydown", unlock, true);
+    };
+    window.addEventListener("pointerdown", unlock, { capture: true, passive: true });
+    window.addEventListener("keydown", unlock, { capture: true, passive: true });
+  }
+  const warm = () => {
+    void loadEngineModule()
+      .then(() => player.init(false))
+      .catch(() => {
+        engineModule = null;
+      });
+  };
+  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+    requestIdleCallback(warm, { timeout: 300 });
+  } else {
+    setTimeout(warm, 50);
+  }
 }
 
 type Listener = (pos: TimePos | null) => void;
@@ -104,8 +127,13 @@ class Player {
   /** The count-in in progress, or null. Drives the "1 · 2 · 3" display. */
   count: CountState | null = null;
 
-  /** Loads the engine and the instruments. Call from a user gesture (browser autoplay rules). */
-  init(): Promise<InstrumentSource> {
+  /**
+   * Loads the engine, convolution reverbs, and instrument samples.
+   * When `unlock` is false (background pre-warming), samples and reverbs load into the
+   * suspended context without triggering autoplay warnings; the first user gesture wakes it.
+   */
+  init(unlock = true): Promise<InstrumentSource> {
+    if (unlock) this.resume();
     this.booting ??= (async () => {
       const { AudioEngine } = await loadEngineModule();
       const engine = new AudioEngine({
@@ -124,7 +152,7 @@ class Player {
       // attempt (Play shows an error and the next press starts over) and throw away the
       // straggler if it ever does finish.
       let timedOut = false;
-      const loading = engine.init();
+      const loading = engine.init(unlock);
       const source = await Promise.race([
         loading,
         new Promise<never>((_, reject) =>
@@ -265,9 +293,20 @@ class Player {
     this.auditionToken++;
   }
 
-  /** On-screen and computer keys: sound while held. `velocity` is 0–1. */
+  /** Tracks the latest active noteOn token per MIDI pitch so a sync noteOff during async init cancels the pending attack. */
+  private liveNotes = new Map<number, number>();
+  private noteSeq = 0;
+
+  /** On-screen, MIDI, and computer keys: sound while held. `velocity` is 0–1. */
   async noteOn(midi: number, velocity?: number) {
+    const seq = ++this.noteSeq;
+    this.liveNotes.set(midi, seq);
+    if (this.engine) {
+      this.engine.noteOn(midi, velocity);
+      return;
+    }
     await this.init();
+    if (this.liveNotes.get(midi) !== seq) return;
     this.engine?.noteOn(midi, velocity);
   }
 
@@ -277,6 +316,7 @@ class Player {
   }
 
   noteOff(midi: number) {
+    this.liveNotes.delete(midi);
     this.engine?.noteOff(midi);
   }
 
