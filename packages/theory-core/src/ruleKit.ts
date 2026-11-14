@@ -1,7 +1,7 @@
 /** Shared types and helpers for reharm rules. */
 import { chordTones, symbol } from "./chords";
 import { parseNote, prettyNote as pn, prettySymbol, simplifyNote } from "./pitch";
-import type { ChordEvent, MoveCategory, MoveText, Quality, Tune, VoiceMotion } from "./types";
+import type { ChordEvent, MoveCategory, MoveText, Quality, RulePedagogy, Tune, VoiceMotion } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
 export type NewChord = Omit<ChordEvent, "id" | "at">;
@@ -25,6 +25,7 @@ export interface Proposal {
   category: MoveCategory;
   styleTags: string[];
   voicingHint?: { lh: string[]; rh: string[] };
+  voicingHints?: Array<{ lh: string[]; rh: string[] }>;
   voiceLeading?: VoiceMotion[];
   facts: Record<string, unknown>;
   text: MoveText;
@@ -33,6 +34,7 @@ export interface Proposal {
 export interface Rule {
   id: string;
   name: string;
+  pedagogy?: RulePedagogy;
   propose(ctx: RuleContext): Proposal | null;
 }
 

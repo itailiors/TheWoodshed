@@ -102,6 +102,18 @@ export interface VoiceMotion {
   toDegree: string;
 }
 
+/** Key-agnostic, generalized pedagogy for a reharmonization rule. */
+export interface RulePedagogy {
+  /** Short roman-numeral / degree formula, e.g. "V7 → ♭II7 → I" */
+  formula: string;
+  /** Generalized harmonic context where this move applies (max ~12 words). */
+  whenToUse: string;
+  /** Punchy 1-sentence acoustic/voice-leading reason the rule works in any key (max ~30 words). */
+  whyItWorks: string;
+  /** Mental shortcut to find the voicing on the bandstand in real time. */
+  bandstandCue: string;
+}
+
 export interface MoveText {
   summary: string;
   theory: string;
@@ -127,6 +139,8 @@ export interface ReharmMove {
   /** Symbol of the chord the move resolves into, if any. */
   targetSymbol?: string;
   voicingHint?: { lh: PitchName[]; rh: PitchName[] };
+  /** Explicit two-hand voicing grips for each step of the move (and optional resolution step). */
+  voicingHints?: Array<{ lh: PitchName[]; rh: PitchName[] }>;
   checks: {
     melody: MelodyCheck[];
     /** False when no melody was entered for this span. */

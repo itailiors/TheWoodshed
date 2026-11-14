@@ -1,9 +1,18 @@
 import { chordTones, guideTones, symbol, type ChordTone } from "./chords";
+import { generateMoves } from "./engine";
 import { classifyNote } from "./melody";
-import { chroma, mod, prettyNote, spellChroma } from "./pitch";
+import { chroma, mod, prettyNote, prettySymbol, simplifyNote, spellChroma, transpose } from "./pitch";
+import { RULES } from "./ruleset";
 import { sortedHarmony } from "./time";
-import type { ChordEvent, ReharmMove, Tune } from "./types";
+import type { ChordEvent, HarmonicFunction, Quality, ReharmMove, Tune } from "./types";
 import { voiceChord, voiceProgression, type Voicing } from "./voicing";
+
+export interface StepCue {
+  /** Short functional role badge, e.g. "Tritone sub (♭II7)" or "Resolution target". */
+  role: string;
+  /** Voice-leading / harmonic reason for this specific step in the active key. */
+  whyHere: string;
+}
 
 /** One chord the player has to strike, with the engine's reference voicing. */
 export interface DrillStep {
@@ -16,6 +25,113 @@ export interface DrillStep {
   colors: ChordTone[];
   /** True for the chord the move resolves into (not part of the move itself). */
   resolution: boolean;
+  /** Pre-strike functional role and voice-leading cue for this step. */
+  stepCue: StepCue;
+}
+
+function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordEvent[], resolution: boolean, target?: ChordEvent): StepCue {
+  const sym = prettySymbol(symbol(c));
+  const nextSym = chords[i + 1] ? prettySymbol(symbol(chords[i + 1])) : undefined;
+  const orig0 = move.original[0] ? prettySymbol(symbol(move.original[0])) : undefined;
+  const gts = guideTones(c).map((g) => prettyNote(g.note)).join(" & ");
+
+  if (resolution) {
+    if (move.ruleId === "voicing.rootlessTwoFiveOne" && move.voicingHints?.[i]) {
+      const h = move.voicingHints[i];
+      return {
+        role: `Type A resolution (${sym})`,
+        whyHere: `Resolve into the 3–5–7–9 rootless grip (${[...h.lh, ...h.rh].map(prettyNote).join("–")}) on ${sym}.`,
+      };
+    }
+    return {
+      role: `Resolution (${sym})`,
+      whyHere: `Land smoothly by resolving the guide tones by step into ${sym} (${gts}).`,
+    };
+  }
+
+  switch (move.ruleId) {
+    case "dominant.tritoneSub":
+      return {
+        role: `Tritone sub (♭II7 · ${sym})`,
+        whyHere: `Shares the exact 3rd & ♭7 tritone (${gts}) with ${orig0 ?? "the V7"}, while the bass ${prettyNote(c.root)} slides down a half step${nextSym ? ` into ${nextSym}` : ""}.`,
+      };
+    case "functional.secondaryTwoFive":
+      if (i === 0) {
+        return {
+          role: `Related ii (${sym})`,
+          whyHere: `Sets up the dominant a 5th below (${nextSym ?? "V7"}); lock in guide tones ${gts}.`,
+        };
+      }
+      return {
+        role: `Secondary V7 (${sym})`,
+        whyHere: `The 7th of ${prettySymbol(symbol(chords[0]))} drops a half step to become the 3rd of ${sym} (${gts}), pulling into ${nextSym ?? "the target"}.`,
+      };
+    case "voicing.rootlessTwoFiveOne": {
+      const h = move.voicingHints?.[i];
+      if (i === 0) {
+        return {
+          role: `Type A rootless ii (${sym})`,
+          whyHere: h
+            ? `Stack ♭3–5–♭7–9 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}) with no root in the bass.`
+            : `Stack ♭3–5–♭7–9 in close rootless position.`,
+        };
+      }
+      return {
+        role: `Type B rootless V (${sym})`,
+        whyHere: h
+          ? `Hold common tones and drop the ♭7 of ii a half step to the 3rd of V for ♭7–9–3–13 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}).`
+          : `Drop only the ♭7 of ii a half step to form the ♭7–9–3–13 Type B grip.`,
+      };
+    }
+    case "voicing.upperStructureBVI":
+      return {
+        role: `Upper-structure ♭VI (${sym})`,
+        whyHere: move.voicingHint
+          ? `LH holds the ${move.voicingHint.lh.map(prettyNote).join("–")} shell; RH stacks a ${prettyNote(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(prettyNote).join("–")}) for ♭13, 1, and ♯9.`
+          : `Stack the ♭VI major triad in RH over the root–♭7–3 shell in LH.`,
+      };
+    case "voicing.upperStructureII":
+      return {
+        role: `Upper-structure II (${sym})`,
+        whyHere: move.voicingHint
+          ? `LH holds the ${move.voicingHint.lh.map(prettyNote).join("–")} shell; RH plays a ${prettyNote(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(prettyNote).join("–")}) for 9, ♯11, and 13.`
+          : `Stack the II major triad in RH over the root–3–♭7 shell in LH.`,
+      };
+    case "chromatic.minorLineCliche": {
+      const degs = ["1 (root)", "♮7 (major 7th)", "♭7 (minor 7th)", "6 (sixth)"];
+      return {
+        role: `Line cliché step ${i + 1} (${sym})`,
+        whyHere: `Keep the ${prettyNote(c.root)} minor triad anchored while the moving voice steps to ${degs[i] ?? "the next degree"}.`,
+      };
+    }
+    case "gospel.halfStepTurnaround":
+      if (i === 0) {
+        return {
+          role: `IV/V gospel sus (${sym})`,
+          whyHere: `Suspends the leading tone by stacking a major triad a whole step below the dominant root before the chromatic approach.`,
+        };
+      }
+      return {
+        role: `♭II13(♯11) approach (${sym})`,
+        whyHere: `Tritone-sub cluster a half step above ${nextSym ?? "home"}; every upper voice slides down by semitone or holds common tones.`,
+      };
+    case "modal.backdoorTwoFive":
+      if (i === 0 && move.chords.length > 1) {
+        return {
+          role: `Borrowed iv (${sym})`,
+          whyHere: `Minor iv borrowed from the parallel minor; prepares the ♭VII7 backdoor dominant (${nextSym ?? "♭VII7"}).`,
+        };
+      }
+      return {
+        role: `Backdoor ♭VII7 (${sym})`,
+        whyHere: `Whole step below ${nextSym ?? "I"}; its ♭7 falls a half step to the 5th of the tonic while the root steps up a whole tone.`,
+      };
+    default:
+      return {
+        role: move.chords.length > 1 ? `${move.title} (${i + 1} of ${move.chords.length})` : move.title,
+        whyHere: `Voice-lead guide tones (${gts}) smoothly${nextSym ? ` toward ${nextSym}` : ""}.`,
+      };
+  }
 }
 
 /** Turn a hint like {lh:[G,F,B], rh:[Eb,G,Bb]} into MIDI: LH from the bass register up, RH stacked above. */
@@ -44,20 +160,110 @@ export function drillSteps(tune: Tune, move: ReharmMove): DrillStep[] {
   const voicings: Voicing[] = [];
   chords.forEach((c, i) => {
     const prev = voicings[i - 1] ?? seed;
-    voicings.push(i === 0 && move.voicingHint ? hintToVoicing(move.voicingHint) : voiceChord(c, prev));
+    const stepHint = move.voicingHints?.[i] ?? (i === 0 ? move.voicingHint : undefined);
+    voicings.push(stepHint ? hintToVoicing(stepHint) : voiceChord(c, prev));
   });
   return chords.map((c, i) => {
     const tones = chordTones(c);
     const upperPcs = new Set(voicings[i].upper.map((m) => mod(m, 12)));
+    const resolution = !!target && i === chords.length - 1;
     return {
       chord: c,
       symbol: symbol(c),
       target: voicings[i],
       required: guideTones(c),
       colors: tones.filter((t) => !["1", "3", "b3", "4", "5", "b7", "7", "bb7", "6"].includes(t.degree) && upperPcs.has(chroma(t.note))),
-      resolution: !!target && i === chords.length - 1,
+      resolution,
+      stepCue: buildStepCue(move, c, i, chords, resolution, target),
     };
   });
+}
+
+export type ConceptDrillResult = DrillStep[] & {
+  tune: Tune;
+  move: ReharmMove;
+  steps: DrillStep[];
+};
+
+/**
+ * Build a pure, tune-independent canonical cadence for any rule in `targetKey`
+ * and return its `DrillStep[]` (also carrying `.tune`, `.move`, and `.steps`).
+ */
+export function conceptDrillSteps(ruleId: string, targetKey: string): ConceptDrillResult {
+  const T = simplifyNote(targetKey);
+  const ii = simplifyNote(transpose(T, "2"));
+  const IV = simplifyNote(transpose(T, "4"));
+  const V = simplifyNote(transpose(T, "5"));
+
+  const ev = (
+    id: string,
+    bar: number,
+    root: string,
+    quality: Quality,
+    roman: string,
+    func: HarmonicFunction,
+    alterations: string[] = [],
+  ): ChordEvent => ({
+    id,
+    at: { bar, beat: 1 },
+    beats: 4,
+    root,
+    quality,
+    extensions: [],
+    alterations,
+    analysis: { roman, func },
+  });
+
+  let harmony: ChordEvent[];
+  let mode: "major" | "minor" = "major";
+
+  switch (ruleId) {
+    case "chromatic.passingDiminished":
+      harmony = [ev("c1", 1, T, "maj7", "Imaj7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
+      break;
+    case "chromatic.commonToneDiminished":
+      harmony = [ev("c0", 1, V, "7", "V7", "D"), ev("c1", 2, T, "maj7", "Imaj7", "T"), ev("c2", 3, IV, "maj7", "IVmaj7", "PD")];
+      break;
+    case "modal.borrowedIv":
+      harmony = [ev("c1", 1, IV, "maj7", "IVmaj7", "PD"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
+      break;
+    case "voicing.upperStructureBVI":
+      mode = "minor";
+      harmony = [ev("c1", 1, V, "7", "V7", "D", ["b13"]), ev("c2", 2, T, "m6", "im6", "T")];
+      break;
+    case "chromatic.minorLineCliche":
+      mode = "minor";
+      harmony = [ev("c1", 1, T, "m7", "im7", "T"), ev("c2", 2, IV, "m7", "ivm7", "PD")];
+      break;
+    case "symmetric.coltraneSubstitution":
+    case "voicing.rootlessTwoFiveOne":
+      harmony = [ev("c1", 1, ii, "m7", "iim7", "PD"), ev("c2", 2, V, "7", "V7", "D"), ev("c3", 3, T, "maj7", "Imaj7", "T")];
+      break;
+    default:
+      // All V7 → Imaj7 rules (secondaryTwoFive, tritoneSub, upperStructureII, gospelTurnaround, backdoorTwoFive, flatSixFlatSeven, constantStructure)
+      harmony = [ev("c1", 1, V, "7", "V7", "D"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
+      break;
+  }
+
+  const rule = RULES.find((r) => r.id === ruleId) ?? RULES[0];
+  const tune: Tune = {
+    id: `concept:${rule.id}`,
+    title: `${rule.name} (12-Key Concept Drill)`,
+    key: { tonic: T, mode },
+    meter: [4, 4],
+    feel: "swing",
+    tempo: 120,
+    sections: [{ id: "A", label: "A", startBar: 1, bars: harmony.length }],
+    formOrder: ["A"],
+    harmony,
+    melody: [],
+    melodyCoverage: "none",
+    source: { kind: "manual", personalUseOnly: true },
+  };
+
+  const generated = generateMoves(tune, [rule]).accepted[0] ?? generateMoves(tune).accepted[0];
+  const steps = drillSteps(tune, generated);
+  return Object.assign(steps, { tune, move: generated, steps });
 }
 
 export interface ToneCheck {

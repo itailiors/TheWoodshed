@@ -301,12 +301,10 @@ class Player {
   async noteOn(midi: number, velocity?: number) {
     const seq = ++this.noteSeq;
     this.liveNotes.set(midi, seq);
-    if (this.engine) {
-      this.engine.noteOn(midi, velocity);
-      return;
+    if (!this.engine) {
+      await this.init();
+      if (this.liveNotes.get(midi) !== seq) return;
     }
-    await this.init();
-    if (this.liveNotes.get(midi) !== seq) return;
     this.engine?.noteOn(midi, velocity);
   }
 

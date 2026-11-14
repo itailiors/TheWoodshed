@@ -18,6 +18,12 @@ export type { NewChord, Proposal, Rule, RuleContext } from "./ruleKit";
 export const secondaryTwoFive: Rule = {
   id: "functional.secondaryTwoFive",
   name: "Secondary ii–V",
+  pedagogy: {
+    formula: "V7 → ii7 – V7 → I",
+    whenToUse: "Before any major or minor target chord (or solitary V7) with at least 2 beats.",
+    whyItWorks: "Splitting one chord into a fifth-falling ii–V doubles harmonic momentum and creates a smooth 7th → 3rd guide-tone chain.",
+    bandstandCue: "From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
+  },
   propose({ chord, prev, next }) {
     if (!next) return null;
     const tMajor = isMajorQ(next.quality);
@@ -89,6 +95,12 @@ export const secondaryTwoFive: Rule = {
 export const tritoneSub: Rule = {
   id: "dominant.tritoneSub",
   name: "Tritone substitution",
+  pedagogy: {
+    formula: "V7 → ♭II7 → I",
+    whenToUse: "Any dominant 7th chord resolving down a perfect 5th.",
+    whyItWorks: "Dominant chords a tritone apart share the exact same 3rd and ♭7 (with roles swapped), so the tritone still resolves while the bass slides down by half step.",
+    bandstandCue: "Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+  },
   propose({ chord, next }) {
     if (!next || chord.quality !== "7" || !resolvesDownFifth(chord, next)) return null;
     const subRoot = simplifyNote(transpose(chord.root, "b5"));
@@ -124,6 +136,12 @@ export const tritoneSub: Rule = {
 export const upperStructure: Rule = {
   id: "voicing.upperStructureBVI",
   name: "Upper-structure triad",
+  pedagogy: {
+    formula: "♭VI triad / V7 shell",
+    whenToUse: "Any altered dominant 7th (especially V7 resolving to a minor chord).",
+    whyItWorks: "A plain major triad built on ♭13 stacks the ♭13, root, and ♯9 in the right hand over the left hand's root–♭7–3 dominant shell.",
+    bandstandCue: "Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
+  },
   propose({ chord, next }) {
     if (!next || chord.quality !== "7") return null;
     const altered = chord.alterations.some((a) => a === "#5" || a === "b13");
@@ -164,6 +182,12 @@ export const upperStructure: Rule = {
 export const gospelTurnaround: Rule = {
   id: "gospel.halfStepTurnaround",
   name: "Gospel turnaround",
+  pedagogy: {
+    formula: "IV/V → ♭II13(♯11) → I",
+    whenToUse: "A V7 resolving to a major tonic with at least 2 beats.",
+    whyItWorks: "The IV/V sus delays the leading tone; the ♭II13(♯11) is a tritone-sub cluster a half step above I where every voice slides down by semitone or holds.",
+    bandstandCue: "Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
+  },
   propose({ chord, next }) {
     if (!next || chord.quality !== "7" || !isMajorQ(next.quality) || !resolvesDownFifth(chord, next)) return null;
     const split = splitBeats(chord.beats);
@@ -198,4 +222,110 @@ export const gospelTurnaround: Rule = {
   },
 };
 
-export const CORE_RULES: Rule[] = [secondaryTwoFive, tritoneSub, upperStructure, gospelTurnaround];
+// ── Rule 5: Bill Evans rootless ii–V–I (Type A → Type B → Type A) ──────
+export const rootlessTwoFiveOne: Rule = {
+  id: "voicing.rootlessTwoFiveOne",
+  name: "Rootless ii–V–I",
+  pedagogy: {
+    formula: "ii9 (3–5–♭7–9) → V13 (♭7–9–3–13) → Imaj9 (3–5–7–9)",
+    whenToUse: "Over any major ii–V–I when comping with a bassist or playing rootless left-hand shells.",
+    whyItWorks: "Alternating Type A (3–5–7–9) and Type B (7–9–3–13) grips keeps common tones anchored while the 7th of each chord drops a half step into the next chord's 3rd.",
+    bandstandCue: "Play ♭3–5–♭7–9 on ii; hold 3 fingers and drop only the ♭7 down a half step to 3 for V13; then step down into 3–5–7–9 on I.",
+  },
+  propose({ chord, next, afterNext }) {
+    if (!next || !afterNext || afterNext.display) return null;
+    if (chord.quality !== "m7" || next.quality !== "7" || afterNext.quality !== "maj7") return null;
+    if (!resolvesDownFifth(chord, next) || !resolvesDownFifth(next, afterNext)) return null;
+    if (!chord.analysis && chord.extensions.length === 0) return null;
+
+    const iiChord = mk(chord.root, "m7", chord.beats, ["9"]);
+    const vChord = mk(next.root, "7", next.beats, ["9", "13"]);
+
+    const iiGrip = {
+      lh: [tidy(transpose(chord.root, "b3")), tidy(transpose(chord.root, "5"))],
+      rh: [tidy(transpose(chord.root, "b7")), tidy(transpose(chord.root, "9"))],
+    };
+    const vGrip = {
+      lh: [tidy(transpose(next.root, "b7")), tidy(transpose(next.root, "9"))],
+      rh: [tidy(transpose(next.root, "3")), tidy(transpose(next.root, "13"))],
+    };
+    const iGrip = {
+      lh: [tidy(transpose(afterNext.root, "3")), tidy(transpose(afterNext.root, "5"))],
+      rh: [tidy(transpose(afterNext.root, "7")), tidy(transpose(afterNext.root, "9"))],
+    };
+
+    const b7ii = iiGrip.rh[0];
+    const thirdV = vGrip.rh[0];
+    return {
+      replaceCount: 2,
+      title: "Rootless ii–V–I (Type A → B)",
+      level: 2,
+      category: "voicing",
+      styleTags: ["bill-evans", "standard", "bebop"],
+      chords: [iiChord, vChord],
+      voicingHint: iiGrip,
+      voicingHints: [iiGrip, vGrip, iGrip],
+      facts: {
+        typeA_ii: [...iiGrip.lh, ...iiGrip.rh],
+        typeB_V: [...vGrip.lh, ...vGrip.rh],
+        typeA_I: [...iGrip.lh, ...iGrip.rh],
+        movingVoice: `${pn(b7ii)} → ${pn(thirdV)}`,
+      },
+      text: {
+        summary: `Voice ${ps(iiChord)} → ${ps(vChord)} → ${ps(afterNext)} with Bill Evans rootless Type A and Type B grips.`,
+        theory:
+          `On ${ps(iiChord)}, stack ♭3–5–♭7–9 (${[...iiGrip.lh, ...iiGrip.rh].map(pn).join("–")}). ` +
+          `To reach ${ps(vChord)}, three voices stay put (${pn(vGrip.lh[0])}, ${pn(vGrip.lh[1])}, ${pn(vGrip.rh[1])}) while only ${pn(b7ii)} drops a half step to ${pn(thirdV)} ` +
+          `to form the ♭7–9–3–13 Type B grip. From there, step down into ${ps(afterNext)} (${[...iGrip.lh, ...iGrip.rh].map(pn).join("–")}).`,
+        recreateRule:
+          "Over ii–V–I, voice ii as ♭3–5–♭7–9 (Type A), drop only the ♭7 a half step to get ♭7–9–3–13 on V (Type B), then resolve into 3–5–7–9 on I.",
+      },
+    };
+  },
+};
+
+// ── Rule 6: upper-structure II triad (Lydian dominant 13#11 grip) ──────
+export const upperStructureII: Rule = {
+  id: "voicing.upperStructureII",
+  name: "Upper-structure II (Lydian dominant)",
+  pedagogy: {
+    formula: "II triad / V7 shell → 13(♯11)",
+    whenToUse: "Over any Lydian dominant 7(♯11), backdoor ♭VII7, tritone sub, or bright major-target V7.",
+    whyItWorks: "Stacking a major triad a whole step above the root puts the 9th, ♯11th, and 13th in the right hand over the 1–3–♭7 shell in the left hand.",
+    bandstandCue: "Play the 1–3–♭7 shell in LH; in RH play a plain major triad built a whole step above the chord root.",
+  },
+  propose({ chord, next }) {
+    if (!next || chord.quality !== "7") return null;
+    const hasSharp11 = chord.alterations.includes("#11");
+    const hasOtherAlt = chord.alterations.some((a) => a !== "#11");
+    if (hasOtherAlt) return null;
+    const toMaj7 = next.quality === "maj7" && !next.display && resolvesDownFifth(chord, next) && !!chord.analysis;
+    if (!hasSharp11 && !toMaj7) return null;
+
+    const newChord = mk(chord.root, "7", chord.beats, ["9", "13"], ["#11"]);
+    const tr = tidy(transpose(chord.root, "2"));
+    const lh = [chord.root, tidy(transpose(chord.root, "3")), tidy(transpose(chord.root, "b7"))];
+    const rh = [tr, tidy(transpose(tr, "3")), tidy(transpose(tr, "5"))];
+    return {
+      title: "Upper-structure II (13♯11)",
+      level: 2,
+      category: "voicing",
+      styleTags: ["modern", "bebop", "lydian-dominant"],
+      chords: [newChord],
+      voicingHint: { lh, rh },
+      voicingHints: [{ lh, rh }],
+      facts: { triad: rh, shell: lh, triadRoot: tr },
+      text: {
+        summary: `Stack a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell for ${ps(newChord)}.`,
+        theory:
+          `The left hand plays the ${pn(chord.root)}7 guide-tone shell (${lh.map(pn).join("–")}). ` +
+          `The right hand plays a plain ${pn(tr)} major triad (${rh.map(pn).join(" ")}), a whole step above ${pn(chord.root)}, ` +
+          `which automatically supplies the 9th (${pn(rh[0])}), ♯11th (${pn(rh[1])}), and 13th (${pn(rh[2])}) — the signature Lydian dominant polychord.`,
+        recreateRule:
+          "Over a dominant 7th, hold the root–3–♭7 shell in the left hand and play the major triad a whole step above the root in the right hand for 13(♯11).",
+      },
+    };
+  },
+};
+
+export const CORE_RULES: Rule[] = [secondaryTwoFive, tritoneSub, upperStructure, gospelTurnaround, rootlessTwoFiveOne, upperStructureII];

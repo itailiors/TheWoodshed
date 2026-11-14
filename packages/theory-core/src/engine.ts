@@ -118,6 +118,7 @@ function buildMove(tune: Tune, rule: Rule, priority: number, p: Proposal, chords
     chords: newChords,
     targetSymbol: after ? symbol(after) : undefined,
     voicingHint: p.voicingHint,
+    voicingHints: p.voicingHints,
     checks: {
       melody,
       melodyVerified: tune.melodyCoverage === "full" || heardMelody,

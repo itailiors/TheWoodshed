@@ -7,6 +7,7 @@ const WH = 112;
 const BW = 13;
 const BH = 70;
 const TOP = 52; // room for red-pen labels above the keys
+const SPLIT_MIDI = 55; // G3: notes below G3 are left-hand bass/shell; G3 and up are right-hand upper voices
 const IS_BLACK = [false, true, false, true, false, false, true, false, true, false, true, false];
 
 export interface PenMark {
@@ -19,7 +20,7 @@ interface Props {
   high?: number;
   /** Ghost of the reference voicing (dashed outline). */
   target?: number[];
-  /** What you played (ink dots). */
+  /** What you played on the current step (ink dots). */
   played?: number[];
   /** On-screen selection waiting to be struck. */
   pending?: number[];
@@ -29,6 +30,8 @@ interface Props {
   wrong?: PenMark[];
   /** Draw the big red checkmark. */
   check?: boolean;
+  /** Show the LH / RH split marker at G3 (MIDI 55). Default true. */
+  showSplit?: boolean;
   onKey?: (midi: number) => void;
   onKeyUp?: (midi: number) => void;
   className?: string;
@@ -45,9 +48,23 @@ function layout(low: number, high: number) {
 }
 
 /** A keyboard the teacher marks up: dashed ghost of the target, your notes in ink, corrections in red pen. */
-export function PenKeyboard({ low = 36, high = 84, target = [], played = [], pending = [], missing = [], wrong = [], check, onKey, onKeyUp, className = "" }: Props) {
+export function PenKeyboard({
+  low = 36,
+  high = 84,
+  target = [],
+  played = [],
+  pending = [],
+  missing = [],
+  wrong = [],
+  check,
+  showSplit = true,
+  onKey,
+  onKeyUp,
+  className = "",
+}: Props) {
   const { keys, width } = layout(low, high);
   const pos = new Map(keys.map((k) => [k.midi, k]));
+  const splitX = showSplit ? pos.get(SPLIT_MIDI)?.x ?? null : null;
   const center = (m: number) => {
     const k = pos.get(m);
     if (!k) return null;
@@ -55,7 +72,11 @@ export function PenKeyboard({ low = 36, high = 84, target = [], played = [], pen
   };
   const g = useRef<SVGGElement>(null);
   const marks = useRef<SVGGElement>(null);
-  const keyState = JSON.stringify([low, high, target, played, pending]);
+  // Never render target and played for two different chords at the same time:
+  // if a strike was played on this step, only show unplayed target notes as dashed ghosts.
+  const playedSet = new Set(played);
+  const visibleTarget = target.filter((m) => !playedSet.has(m));
+  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX]);
   const markState = JSON.stringify([missing, wrong, check]);
 
   useRough(
@@ -69,9 +90,30 @@ export function PenKeyboard({ low = 36, high = 84, target = [], played = [], pen
       for (const k of keys.filter((k) => k.black)) {
         add(rc.rectangle(k.x, TOP, BW, BH, { ...base, seed: seedOf("pb" + k.midi), fill: pend.has(k.midi) ? wash.mustard : ink.deep, fillStyle: "solid" }));
       }
-      for (const m of target) {
+      if (splitX !== null) {
+        add(
+          rc.line(splitX, TOP - 6, splitX, TOP + WH + 4, {
+            stroke: ink.soft,
+            strokeWidth: 1.5,
+            roughness: 0.9,
+            strokeLineDash: [4, 4],
+            seed: seedOf("split55"),
+          }),
+        );
+      }
+      for (const m of visibleTarget) {
         const c = center(m);
-        if (c) add(rc.circle(c.x, c.y, 15, { seed: seedOf("t" + m), stroke: c.black ? paper.light : ink.soft, strokeWidth: 1.4, roughness: 1, strokeLineDash: [3, 3] }));
+        if (!c) continue;
+        const isLh = m < SPLIT_MIDI;
+        add(
+          rc.circle(c.x, c.y, 15, {
+            seed: seedOf("t" + m),
+            stroke: c.black ? paper.light : isLh ? wash.blue : ink.soft,
+            strokeWidth: 1.6,
+            roughness: 1,
+            strokeLineDash: [3, 3],
+          }),
+        );
       }
       for (const m of played) {
         const c = center(m);
@@ -117,6 +159,16 @@ export function PenKeyboard({ low = 36, high = 84, target = [], played = [], pen
             C{k.midi / 12 - 1}
           </text>
         ))}
+      {splitX !== null && (
+        <g aria-label="Left and right hand split at G3">
+          <text x={splitX - 5} y={TOP + WH + 13} textAnchor="end" fontSize={10} className="fill-ink-soft font-marker">
+            ← LH
+          </text>
+          <text x={splitX + 5} y={TOP + WH + 13} textAnchor="start" fontSize={10} className="fill-ink-soft font-marker">
+            G3 · RH →
+          </text>
+        </g>
+      )}
       <g ref={marks} />
       {missing.map((mk, i) => {
         const c = center(mk.midi);

@@ -4,7 +4,7 @@
  * Every rule reasons in intervals relative to its local target, so it works in all keys
  * and on tonicized chords, not just the home key.
  */
-import { chordTones, guideTones, isMajorQ, resolvesDownFifth } from "./chords";
+import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
 import { chain, distribute, mk, pn, ps, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
@@ -35,6 +35,12 @@ const isMajorTarget = (c?: ChordEvent): c is ChordEvent => !!c && isMajorQ(c.qua
 export const backdoorTwoFive: Rule = {
   id: "modal.backdoorTwoFive",
   name: "Backdoor ii–V",
+  pedagogy: {
+    formula: "iv7 → ♭VII9 → Imaj7",
+    whenToUse: "Replacing a V7 resolving to a major tonic.",
+    whyItWorks: "Borrowed from the parallel minor, ♭VII7 replaces the leading-tone tritone pull with a darker whole-step bass rise and common-tone warmth.",
+    bandstandCue: "Play the minor 7th on the 4th degree of the target key, then drop the 7th to make the dominant a whole step below I.",
+  },
   propose({ chord, next }) {
     if (!isMajorTarget(next) || chord.quality !== "7" || !resolvesDownFifth(chord, next)) return null;
     const T = next.root;
@@ -68,6 +74,12 @@ export const backdoorTwoFive: Rule = {
 export const flatSixFlatSeven: Rule = {
   id: "modal.flatSixFlatSeven",
   name: "♭VI–♭VII–I",
+  pedagogy: {
+    formula: "♭VImaj7 → ♭VII6/9 → Imaj7",
+    whenToUse: "Replacing V7 before a major tonic (especially phrase endings).",
+    whyItWorks: "Borrowed from parallel Aeolian, parallel major chords climb by whole steps into I, creating cadential lift through bass planing rather than tritone tension.",
+    bandstandCue: "Build major chords on ♭6 and ♭7 of the target key and walk them up by whole steps into I.",
+  },
   propose({ chord, next }) {
     if (!isMajorTarget(next) || chord.quality !== "7" || !resolvesDownFifth(chord, next)) return null;
     const split = splitBeats(chord.beats);
@@ -98,6 +110,12 @@ export const flatSixFlatSeven: Rule = {
 export const borrowedIv: Rule = {
   id: "modal.borrowedIv",
   name: "Borrowed iv",
+  pedagogy: {
+    formula: "IVmaj7 → iv6 → Imaj7",
+    whenToUse: "When a major IV chord resolves directly to a major I.",
+    whyItWorks: "Lowering the 3rd of IV creates the classic 6 → ♭6 → 5 inner-voice line into the 5th of I (the minor plagal cadence).",
+    bandstandCue: "Keep your IV chord voicing and drop its 3rd down a half step to ♭3 (adding the 6th) before landing on I.",
+  },
   propose({ chord, next }) {
     if (!isMajorTarget(next) || !isMajorQ(chord.quality) || chord.display || up(next, chord) !== 5) return null;
     const split = splitBeats(chord.beats);
@@ -127,6 +145,12 @@ export const borrowedIv: Rule = {
 export const passingDiminished: Rule = {
   id: "chromatic.passingDiminished",
   name: "Passing diminished",
+  pedagogy: {
+    formula: "X → ♯X°7 → Y (or ♭X°7)",
+    whenToUse: "Between any two chords whose roots lie a whole step apart.",
+    whyItWorks: "Ascending, ♯I°7 acts as a rootless V7(♭9) of the target chord; descending, the symmetrical °7 bridges the whole step so every voice moves by semitone.",
+    bandstandCue: "Fill the whole-step bass gap with a diminished 7th chord on the chromatic note in between.",
+  },
   propose({ chord, next }) {
     if (!next || chord.quality === "dim7" || next.quality === "dim7" || chord.display) return null;
     const dist = up(chord, next);
@@ -163,6 +187,12 @@ export const passingDiminished: Rule = {
 export const commonToneDiminished: Rule = {
   id: "chromatic.commonToneDiminished",
   name: "Common-tone diminished",
+  pedagogy: {
+    formula: "I°7 → Imaj7",
+    whenToUse: "Extending or leaning into a sustained major chord.",
+    whyItWorks: "Sharing the root as a pedal, the °7's ♭3 and ♭5 act as chromatic appoggiaturas (♯2 and ♯4) that resolve upward by half step into the major 3rd and 5th.",
+    bandstandCue: "Strike a diminished 7th on the major chord's own root, then slide the middle voices up a half step into the major chord.",
+  },
   propose({ chord, prev, next }) {
     if (!next || !prev || !isMajorQ(chord.quality) || chord.display || chroma(prev.root) === chroma(chord.root)) return null;
     const split = splitBeats(chord.beats);
@@ -194,6 +224,12 @@ export const commonToneDiminished: Rule = {
 export const coltraneSubstitution: Rule = {
   id: "symmetric.coltraneSubstitution",
   name: "Coltrane substitution",
+  pedagogy: {
+    formula: "ii – V/♭VI – ♭VImaj7 – V/III – IIImaj7 – V – I",
+    whenToUse: "Over a 2-bar (or 6+ beat) major ii–V–I progression.",
+    whyItWorks: "Divides the octave symmetrically into major 3rds (an augmented triad of tonic centers), tonicizing each center with its own V7 before landing on I.",
+    bandstandCue: "Cycle tonic centers down by major 3rds (I → ♭VI → III → I), preceding each new tonic with the dominant a 5th above it.",
+  },
   propose({ chord, next, afterNext }) {
     if (!next || !isMajorTarget(afterNext)) return null;
     if (chord.quality !== "m7" || next.quality !== "7" || up(next, chord) !== 7 || !resolvesDownFifth(next, afterNext)) return null;
@@ -229,6 +265,12 @@ export const coltraneSubstitution: Rule = {
 export const constantStructure: Rule = {
   id: "chromatic.constantStructure",
   name: "Constant structure",
+  pedagogy: {
+    formula: "[Target]@+2 → [Target]@+1 → Target",
+    whenToUse: "Approaching any target chord on the final 1–2 beats of the preceding bar.",
+    whyItWorks: "Keeping an identical chord quality and voicing while planing in parallel half steps creates coherent horizontal ear-leading where every voice moves by 1 semitone.",
+    bandstandCue: "Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+  },
   propose({ chord, next }) {
     if (!next || next.display || next.bass) return null;
     // already planing into the target (same shape a half step above): nothing to add
@@ -262,6 +304,51 @@ export const constantStructure: Rule = {
   },
 };
 
+// ── Minor line cliché: im → im(maj7) → im7 → im6 (1–7–♭7–6) ─────────────────
+export const minorLineCliche: Rule = {
+  id: "chromatic.minorLineCliche",
+  name: "Minor line cliché",
+  pedagogy: {
+    formula: "im → im(maj7) → im7 → im6 (1–7–♭7–6)",
+    whenToUse: "Over any sustained minor chord (4+ beats) to create inner-voice movement.",
+    whyItWorks: "Keeping the minor triad (1–♭3–5) anchored while stepping the octave voice down chromatically (1 → 7 → ♭7 → 6) creates a counterline without leaving the harmony.",
+    bandstandCue: "Hold the minor shell and walk one inner voice down by half steps from the root: 1 → ♮7 → ♭7 → 6.",
+  },
+  propose({ chord, next }) {
+    if (!isMinorQ(chord.quality) || chord.display) return null;
+    if (chord.beats < 4) return null;
+    if (next?.quality === "7" && resolvesDownFifth(chord, next)) return null;
+    if (chord.quality === "m7" && !chord.analysis) return null;
+    const beats = distribute(chord.beats, 4);
+    if (!beats) return null;
+
+    const r = chord.root;
+    const chords: NewChord[] = [
+      mk(r, "m", beats[0], ["9"]),
+      mk(r, "mMaj7", beats[1], ["9"]),
+      mk(r, "m7", beats[2], ["9"]),
+      mk(r, "m6", beats[3], ["9"]),
+    ];
+    const line = [r, tidy(transpose(r, "7")), tidy(transpose(r, "b7")), tidy(transpose(r, "6"))];
+    return {
+      title: "Minor line cliché",
+      level: 2,
+      category: "chromatic",
+      styleTags: ["bill-evans", "standard", "ballad"],
+      chords,
+      facts: { root: r, chromaticLine: line },
+      text: {
+        summary: `Walk an inner voice chromatically down through ${ps(chord)}: ${chords.map(ps).join(" → ")}.`,
+        theory:
+          `Sitting on ${ps(chord)} for a full bar can feel static. Keeping ${pn(transpose(r, "b3"))} and ${pn(transpose(r, "5"))} anchored while walking the root voice ` +
+          `down by half steps (${line.map(pn).join(" → ")}) creates the classic 1–7–♭7–6 minor line cliché.`,
+        recreateRule:
+          "Over a sustained minor chord, keep the minor triad still and walk the root voice down by half steps: 1 → ♮7 → ♭7 → 6 (m → m(maj7) → m7 → m6).",
+      },
+    };
+  },
+};
+
 export const ADVANCED_RULES: Rule[] = [
   passingDiminished,
   backdoorTwoFive,
@@ -270,4 +357,5 @@ export const ADVANCED_RULES: Rule[] = [
   commonToneDiminished,
   coltraneSubstitution,
   constantStructure,
+  minorLineCliche,
 ];

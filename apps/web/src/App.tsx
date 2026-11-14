@@ -253,48 +253,44 @@ export function App() {
   }, []);
   const [xrayOpen, setXrayOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
-  // The Coach page opens on one exact move, in one key. Usually the selected move in the
-  // tune's key, but the review queue can ask for any move (even one the dial isn't showing).
-  const [coachTarget, setCoachTarget] = useState<{ moveId: string; key?: string } | null>(null);
+  // The Coach page opens on a specific tune move or directly on a 12-key concept drill.
+  const [coachTarget, setCoachTarget] = useState<{
+    moveId: string | null;
+    ruleId?: string | null;
+    key?: string;
+    scope?: "concept" | "tune";
+  } | null>(null);
   const openCoach = (id?: string) => {
+    const targetMoveId = id ?? selected?.id ?? null;
     if (id) setSelectedId(id);
-    setCoachTarget({ moveId: id ?? selected?.id ?? "" });
+    const targetMove = accepted.find((m) => m.id === targetMoveId);
+    setCoachTarget({
+      moveId: targetMoveId,
+      ruleId: targetMove?.ruleId ?? null,
+      scope: targetMove ? "tune" : "concept",
+    });
     void setMode("coach");
   };
 
   /**
-   * "Practise →" from the passport: open the Coach on that concept, in that key. If it was
-   * last practised on another chart, load that chart first; then pick the exact move (or any
-   * move of the same rule in this tune).
+   * "Practise →" from the passport or due queue: route directly to the 12-Key Concept Drill
+   * screen for that rule and key without failing if the current tune has no spot for it.
    */
-  const [pendingPractise, setPendingPractise] = useState<(PractiseRequest & { tuneId: string }) | null>(null);
-  const practiseConcept = async (r: PractiseRequest) => {
+  const practiseConcept = (r: PractiseRequest) => {
     setPassportOpen(false);
-    const tuneId = r.lastPlace?.tuneId ?? baseTune.id;
-    if (tuneId !== baseTune.id) {
-      try {
-        await loadTune(tuneId);
-      } catch {
-        toast(`Couldn't open the tune you last practised this on, so trying it in ${baseTune.title}.`, { tone: "warn" });
-        setPendingPractise({ ...r, lastPlace: null, tuneId: baseTune.id });
-        return;
-      }
-    }
-    setPendingPractise({ ...r, tuneId });
-  };
-  useEffect(() => {
-    const p = pendingPractise;
-    if (!p || baseTune.id !== p.tuneId) return; // wait until the right chart is on the stand
-    setPendingPractise(null);
-    const move = accepted.find((m) => m.id === p.lastPlace?.moveId) ?? accepted.find((m) => m.ruleId === p.ruleId);
-    if (!move) {
-      toast(`${tune.title} has no spot for that concept. Load a tune where it fits, then open the Coach from its move card.`, { tone: "warn" });
-      return;
-    }
-    setSelectedId(move.id);
-    setCoachTarget({ moveId: move.id, key: p.keyTonic });
+    const matchingMove =
+      (r.lastPlace?.tuneId === baseTune.id && accepted.find((m) => m.id === r.lastPlace?.moveId)) ||
+      accepted.find((m) => m.ruleId === r.ruleId) ||
+      null;
+    if (matchingMove) setSelectedId(matchingMove.id);
+    setCoachTarget({
+      moveId: matchingMove?.id ?? null,
+      ruleId: r.ruleId,
+      key: r.keyTonic,
+      scope: "concept",
+    });
     void setMode("coach");
-  }, [pendingPractise, baseTune.id, accepted, tune.title, setMode]);
+  };
   /**
    * "Practice this move": select it, loop it (one bar of run-up through its resolution),
    * go to Practice Mode, and start the band if it isn't already playing. If it is, the
@@ -335,14 +331,19 @@ export function App() {
         <Toaster />
         <PanelBoundary onClose={() => void setMode("study")}>
           <CoachPage
-            key={`${baseTune.id}:${coachTarget?.moveId ?? ""}:${coachTarget?.key ?? ""}`}
+            key={`${baseTune.id}:${coachTarget?.scope ?? ""}:${coachTarget?.ruleId ?? ""}:${coachTarget?.moveId ?? ""}:${coachTarget?.key ?? ""}`}
             tune={tune}
             accepted={accepted}
             pathway={pathway}
-            initial={{ moveId: coachTarget?.moveId || selected?.id || null, key: coachTarget?.key }}
+            initial={{
+              moveId: coachTarget?.moveId ?? selected?.id ?? null,
+              ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
+              key: coachTarget?.key,
+              scope: coachTarget?.scope,
+            }}
             midi={midi}
             onMode={setMode}
-            onPractise={(r) => void practiseConcept(r)}
+            onPractise={(r) => practiseConcept(r)}
           />
         </PanelBoundary>
       </Suspense>

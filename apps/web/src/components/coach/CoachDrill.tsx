@@ -1,16 +1,22 @@
 import {
+  KEYS,
+  RULES,
   chordTones,
   chroma,
+  conceptDrillSteps,
   diffStrike,
   diffVoiceLeading,
   drillSteps,
   generateMoves,
+  mod,
   prettyNote,
   prettySymbol,
   randomKey,
+  symbol,
   transposeTune,
   type DrillStep,
   type ReharmMove,
+  type RulePedagogy,
   type StrikeDiff,
   type Tune,
   type VoiceLeadingDiff,
@@ -28,10 +34,16 @@ import { useWakeLock } from "../../device/wakeLock";
 import { useGradingMode, type GradingMode, type SelfVerdict } from "./gradingMode";
 import { SelfCheckPanel } from "./SelfCheckPanel";
 
+export type KeyFlow = "fourths" | "fifths" | "hold";
+
 interface Props {
   tune: Tune;
   move: ReharmMove;
-  /** The key being drilled (the page's 12-key passport and "random key" both set it). */
+  /** When set, drills the rule's pure canonical cadence in `drillKey` via `conceptDrillSteps`. */
+  conceptRuleId?: string | null;
+  /** How the key advances around the circle after a clean run. */
+  keyFlow?: KeyFlow;
+  /** The key being drilled (the page's 12-key passport and circle ribbon both set it). */
   drillKey: string;
   onDrillKey: (k: string) => void;
   /** Every finished run, saved or not (the page stamps the passport straight away). */
@@ -88,7 +100,23 @@ const DEGREE_LABEL: Record<string, string> = { "3": "3rd?", b3: "♭3rd?", "4": 
  * feedback on every strike, then take it to another key. Each finished run is saved to the
  * practice history (graded and scheduled by the server).
  */
-export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRun, midiStatus, onConnectMidi }: Props) {
+export function nextCircleKey(currentKey: string, flow: KeyFlow): string {
+  if (flow === "fourths") return KEYS[mod(chroma(currentKey) + 5, 12)];
+  if (flow === "fifths") return KEYS[mod(chroma(currentKey) + 7, 12)];
+  return currentKey;
+}
+
+export function CoachDrill({
+  tune,
+  move,
+  conceptRuleId = null,
+  keyFlow = "hold",
+  drillKey: key,
+  onDrillKey: setKey,
+  onRun,
+  midiStatus,
+  onConnectMidi,
+}: Props) {
   const [transfer, setTransfer] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const [stepIdx, setStepIdx] = useState(0);
@@ -109,11 +137,30 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
   // a drill is hands-on-the-piano time: don't let the phone on the music stand go to sleep
   useWakeLock(true);
 
-  const steps = useMemo(() => {
+  const { dmove, steps, rule, activeTune } = useMemo(() => {
+    if (conceptRuleId) {
+      const res = conceptDrillSteps(conceptRuleId, key);
+      const matchedRule = RULES.find((r) => r.id === conceptRuleId);
+      return {
+        dmove: res.move,
+        steps: res.steps,
+        rule: matchedRule,
+        activeTune: res.tune,
+      };
+    }
     const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
-    const dmove = generateMoves(dtune).accepted.find((m) => m.id === move.id) ?? move;
-    return drillSteps(dtune, dmove);
-  }, [tune, move, key]);
+    const found = generateMoves(dtune).accepted.find((m) => m.id === move.id) ?? move;
+    const matchedRule = RULES.find((r) => r.id === found.ruleId);
+    return {
+      dmove: found,
+      steps: drillSteps(dtune, found),
+      rule: matchedRule,
+      activeTune: dtune,
+    };
+  }, [conceptRuleId, tune, move, key]);
+
+  const drillIdentity = `${conceptRuleId ?? move.id}:${key}`;
+  const [activeDrillIdentity, setActiveDrillIdentity] = useState(drillIdentity);
 
   const reset = () => {
     runId.current++;
@@ -125,25 +172,31 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
     setRevealed(false);
     setRetrying(false);
   };
-  useEffect(reset, [move.id, key]);
+
+  if (activeDrillIdentity !== drillIdentity) {
+    setActiveDrillIdentity(drillIdentity);
+    reset();
+  }
+
   useEffect(
     () => () => {
       player.cancelAudition();
       setHeard(null);
     },
-    [move.id, key],
+    [move.id, conceptRuleId, key],
   );
   useEffect(() => setShowHint(!transfer), [transfer]);
 
-  const finished = stepIdx >= steps.length;
+  const finished = activeDrillIdentity === drillIdentity && stepIdx >= steps.length;
   const passed = (a: Attempt) => a.pass;
   const winning = attempts.filter(passed);
   const misses = attempts.length - winning.length;
   const leaps = winning.filter((a) => a.vl && !a.vl.smooth).length;
   const cleanRun = finished && misses === 0 && leaps === 0;
+  const autoAdvance = transfer || keyFlow !== "hold";
   const finishText = cleanRun
-    ? transfer
-      ? "Clean run! Next key coming up…"
+    ? autoAdvance
+      ? `Clean run! Advancing to ${prettyNote(keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key))}…`
       : "Clean run! Try it in another key."
     : [
         misses ? `Done, with ${misses} miss${misses === 1 ? "" : "es"}.` : "Done.",
@@ -163,28 +216,34 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
       const maxLeap = Math.max(0, ...winning.map((a) => a.vl?.maxLeap ?? 0));
       // a run is self-graded if any chord in it was (a mixed run can't vouch for its leaps)
       const gradedBy = attempts.some((a) => a.by === "self") ? "self" : "engine";
-      void saveCoachRun({ tuneId: tune.id, moveId: move.id, ruleId: move.ruleId, keyTonic: key, misses, leaps, maxLeap, gradedBy }).then(
+      void saveCoachRun({ tuneId: tune.id, moveId: dmove.id, ruleId: dmove.ruleId, keyTonic: key, misses, leaps, maxLeap, gradedBy }).then(
         (r) => r && runId.current === thisRun && setSavedRun(r),
       );
     }
-    if (transfer && cleanRun) {
-      const t = setTimeout(() => setKey(randomKey(key)), 2200);
+    if (autoAdvance && cleanRun) {
+      const nextK = keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key);
+      const t = setTimeout(() => setKey(nextK), 1400);
       return () => clearTimeout(t);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finished, cleanRun, transfer, key]);
+  }, [finished, cleanRun, autoAdvance, keyFlow, key]);
 
   const strike = (notes: number[]) => {
     if (finished) return;
     const step = steps[stepIdx];
     const diff = diffStrike(notes, step);
     const prevWin = [...attempts].reverse().find((a) => a.step === stepIdx - 1 && passed(a));
-    const vl = prevWin?.diff && lastNotes ? diffVoiceLeading(prevWin.diff.played, notes, steps[stepIdx - 1], step) : null;
+    const vl = prevWin?.diff ? diffVoiceLeading(prevWin.diff.played, notes, steps[stepIdx - 1], step) : null;
     const pass = diff.verdict === "perfect" || diff.verdict === "correct";
     setAttempts((a) => [...a, { step: stepIdx, pass, by: "engine", diff, vl }]);
-    setLastNotes(notes);
     setPending([]);
-    if (pass) setStepIdx((i) => i + 1);
+    if (pass) {
+      // Immediately clear lastNotes on step advance so the next chord starts on a clean slate
+      setLastNotes(null);
+      setStepIdx((i) => i + 1);
+    } else {
+      setLastNotes(notes);
+    }
   };
   useChordStrikes(strike, mode === "listen");
 
@@ -204,20 +263,26 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
     reset();
   };
 
-  // the engine's red pen only marks up strikes it heard
-  const lastAny = attempts[attempts.length - 1];
-  const last = lastAny?.by === "engine" ? lastAny : undefined;
+  // Strictly scope the engine's red-pen markup to the active stepIdx so prior chords never bleed
+  const lastForStep = !finished
+    ? [...attempts].reverse().find((a) => a.step === stepIdx && a.by === "engine")
+    : undefined;
+  const last = lastForStep?.by === "engine" ? lastForStep : undefined;
+  const prevPassed =
+    stepIdx > 0
+      ? [...attempts].reverse().find((a) => a.step === stepIdx - 1 && a.pass && a.by === "engine")
+      : undefined;
   const current = steps[Math.min(stepIdx, steps.length - 1)];
   const missing: PenMark[] = last ? last.diff.guideTones.filter((g) => !g.present).map((g) => ({ midi: g.targetMidi, label: DEGREE_LABEL[g.degree] ?? `${prettyNote(g.degree)}?` })) : [];
   const wrong: PenMark[] = last ? last.diff.wrongNotes.map((w) => ({ midi: w.midi, label: prettyNote(w.name) })) : [];
-  const showCheck = !!last && last.diff.verdict === "perfect" && (!last.vl || last.vl.smooth);
+  const showCheck = finished && cleanRun;
 
   const togglePending = (m: number) => {
     setPending((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m].sort((a, b) => a - b)));
     void player.playNotes([m], 0.5);
   };
 
-  const keyName = (k: string) => `${prettyNote(k)} ${tune.key.mode}`;
+  const keyName = (k: string) => `${prettyNote(k)} ${activeTune.key.mode}`;
 
   // On a phone the full four-octave keyboard is ~11px a key: zoom to the octaves this move uses.
   const range = useMemo(() => {
@@ -248,14 +313,24 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
     <div className="space-y-4">
       <div>
         <h2 id="coach-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
-          {move.title}
+          {dmove.title}
         </h2>
         <p className="text-sm text-ink-soft">
-          bar {move.span.from.bar} of {tune.title} · L{move.level} · drilling in <span className="font-bold text-ink">{keyName(key)}</span>
+          {conceptRuleId ? "12-Key Concept Cadence" : `bar ${dmove.span.from.bar} of ${tune.title}`} · L{dmove.level} · drilling in{" "}
+          <span className="font-bold text-ink">{keyName(key)}</span>
         </p>
       </div>
 
       <GradingSwitch mode={mode} onMode={switchMode} midiConnected={midiStatus === "connected"} />
+
+      {rule?.pedagogy && (
+        <WhyThisWorksCard
+          pedagogy={rule.pedagogy}
+          move={dmove}
+          keyLabel={keyName(key)}
+          activeStep={!finished ? current : undefined}
+        />
+      )}
 
       {/* the assignment */}
       <section aria-live="polite">
@@ -265,9 +340,10 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
             <span key={s.chord.id + i} className="flex items-baseline gap-2">
               {i > 0 && <span className="font-marker text-ink-soft">→</span>}
               <span
-                className={`relative rounded px-1 transition-transform duration-150 ${i === stepIdx && !listening ? "bg-wash-mustard/40" : ""} ${
+                title={s.stepCue ? `${s.stepCue.role}: ${s.stepCue.whyHere}` : undefined}
+                className={`relative rounded px-1 transition-transform duration-150 ${i === stepIdx && !listening && !finished ? "bg-wash-mustard/40" : ""} ${
                   heard === i ? "-rotate-2 scale-110" : ""
-                } ${s.resolution ? "opacity-80" : ""}`}
+                } ${s.resolution ? "opacity-80" : ""} ${i < stepIdx ? "opacity-55" : ""}`}
                 style={heard === i ? { boxShadow: `0 0 0 2px ${pen.red}` } : undefined}
               >
                 {heard === i && (
@@ -294,6 +370,12 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
                 ? "…and resolve it."
                 : `Strike ${prettySymbol(current.symbol)}${steps.length > 1 ? ` (${stepIdx + 1} of ${steps.length})` : ""}.`}
         </p>
+        {!finished && prevPassed?.by === "engine" && !last && (
+          <p className="mt-1 font-hand text-xs text-ink-soft" role="status">
+            ✓ {prettySymbol(steps[prevPassed.step].symbol)} nailed
+            {prevPassed.vl ? ` · ${prevPassed.vl.comment}` : ""}
+          </p>
+        )}
         {finished && savedRun && (
           <p className="mt-1 font-hand text-sm text-ink-soft" role="status">
             ✎ Saved to your passport: graded {savedRun.grade}/5 in {prettyNote(savedRun.review.keyTonic)} · {nextReview(savedRun.review.intervalDays)}
@@ -302,20 +384,20 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
       </section>
 
       {listening ? (
-        <PenKeyboard {...range} target={prevHeard ? voicing(prevHeard) : []} played={voicing(steps[heard])} pending={[]} missing={[]} wrong={[]} onKey={togglePending} />
+        <PenKeyboard {...range} target={voicing(steps[heard])} played={[]} pending={[]} missing={[]} wrong={[]} onKey={togglePending} />
       ) : selfMode ? (
-        // self-check: once revealed, the voicing in ink and the chord before as a dashed ghost
+        // self-check: once revealed, isolate only the current chord's target voicing
         <PenKeyboard
           {...range}
-          target={revealed && stepIdx > 0 && !finished ? voicing(steps[stepIdx - 1]) : []}
-          played={revealed && !finished ? voicing(current) : []}
+          target={revealed && !finished ? voicing(current) : []}
+          played={[]}
           check={finished && misses === 0}
         />
       ) : (
         <PenKeyboard
           {...range}
           target={showHint && !finished ? [current.target.bass, ...current.target.upper] : []}
-          played={lastNotes ?? []}
+          played={!finished && last ? (lastNotes ?? []) : []}
           pending={pending}
           missing={missing}
           wrong={wrong}
@@ -332,7 +414,7 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
           {prevHeard ? (
             <span className="text-ink-soft"> · {voiceMotion(prevHeard, steps[heard])}</span>
           ) : (
-            <span className="text-ink-soft"> · ink = sounding now{steps.length > 1 ? ", dashes = the chord before" : ""}</span>
+            <span className="text-ink-soft"> · isolated voicing for this step</span>
           )}
         </p>
       )}
@@ -413,7 +495,7 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
         )}
       </div>
       <p className="text-sm text-ink-soft">
-        Think in function, not finger shapes: “{move.title}”. The engine has re-spelled every chord and voicing for {keyName(key)}.{" "}
+        Think in function, not finger shapes: “{dmove.title}”. The engine has re-spelled every chord and voicing for {keyName(key)}.{" "}
         {midiStatus === "connected" ? (
           "Listening to your MIDI keyboard: strike each chord, then release all keys."
         ) : selfMode ? (
@@ -429,6 +511,68 @@ export function CoachDrill({ tune, move, drillKey: key, onDrillKey: setKey, onRu
         )}
       </p>
     </div>
+  );
+}
+
+/** Generalized rule card + transposed original progression + active step cue shown before striking a chord. */
+function WhyThisWorksCard({
+  pedagogy,
+  move,
+  keyLabel,
+  activeStep,
+}: {
+  pedagogy: RulePedagogy;
+  move: ReharmMove;
+  keyLabel: string;
+  activeStep?: DrillStep;
+}) {
+  return (
+    <aside
+      aria-label="Why this move works"
+      className="space-y-1.5 rounded-lg border-2 border-ink/80 bg-wash-mustard/20 px-3.5 py-2.5 text-sm leading-snug"
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="font-marker text-xs font-bold uppercase tracking-wider text-ink-soft">
+          💡 Why this works · <span className="text-ink">{pedagogy.formula}</span>
+        </span>
+        {move.original.length > 0 && (
+          <span className="font-hand text-xs text-ink-soft">
+            Replaces{" "}
+            {move.original.map((c, i) => (
+              <span key={c.id + i}>
+                {i > 0 && " → "}
+                <ChordName symbol={symbol(c)} className="font-bold text-ink line-through decoration-1" />
+              </span>
+            ))}
+            {move.targetSymbol && (
+              <>
+                {" → "}
+                <ChordName symbol={move.targetSymbol} className="text-ink-soft" />
+              </>
+            )}
+          </span>
+        )}
+      </div>
+
+      <p className="font-medium text-ink">{pedagogy.whyItWorks}</p>
+
+      <p className="text-xs text-ink-soft">
+        <span className="font-marker uppercase text-ink">When to use:</span> {pedagogy.whenToUse}{" "}
+        <span className="text-ink-faint">·</span>{" "}
+        <span className="font-marker uppercase text-ink">Bandstand cue:</span> {pedagogy.bandstandCue}{" "}
+        <span className="text-ink-faint">·</span>{" "}
+        <span className="font-marker uppercase text-ink">In {keyLabel}:</span> {move.text.summary}
+      </p>
+
+      {activeStep?.stepCue && (
+        <div className="mt-1 border-t border-dashed border-ink-faint pt-1.5 text-xs text-ink">
+          <span className="font-marker uppercase tracking-wide text-ink">
+            Active step — {activeStep.stepCue.role}:
+          </span>{" "}
+          <span className="text-ink-soft">{activeStep.stepCue.whyHere}</span>
+        </div>
+      )}
+    </aside>
   );
 }
 

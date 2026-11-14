@@ -1,11 +1,12 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { chordTones, guideTones, symbol } from "../src/chords";
-import { diffStrike, diffVoiceLeading, drillSteps } from "../src/coach";
+import { conceptDrillSteps, diffStrike, diffVoiceLeading, drillSteps } from "../src/coach";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
 import { chordAtBeat, evaluateLineNote } from "../src/lineEval";
 import { chroma, midiOf, mod, spellMidi } from "../src/pitch";
+import { RULES } from "../src/ruleset";
 import { suggestScales } from "../src/scales";
 import { KEYS, transposeTune } from "../src/transpose";
 import { progressionArb } from "./arbitraries";
@@ -127,6 +128,43 @@ describe("comping coach diff", () => {
     expect(ok.smooth).toBe(true);
     const jumpy = diffVoiceLeading([a.target.bass, ...a.target.upper], [b.target.bass, ...b.target.upper.map((m, i) => (i === 0 ? m + 12 : m))], a, b);
     expect(jumpy.smooth).toBe(false);
+  });
+
+  it("conceptDrillSteps generates tune-independent cadences for all 14 rules across all 12 keys with pedagogy and stepCue", () => {
+    expect(RULES.length).toBe(14);
+    for (const r of RULES) {
+      expect(r.pedagogy).toBeDefined();
+      expect(r.pedagogy!.formula.length).toBeGreaterThan(0);
+      expect(r.pedagogy!.whyItWorks.length).toBeGreaterThan(0);
+      for (const k of KEYS) {
+        const res = conceptDrillSteps(r.id, k);
+        expect(res.move.ruleId).toBe(r.id);
+        expect(res.length).toBeGreaterThanOrEqual(2);
+        for (const s of res) {
+          expect(s.stepCue.role.length).toBeGreaterThan(0);
+          expect(s.stepCue.whyHere.length).toBeGreaterThan(0);
+          const d = diffStrike([s.target.bass, ...s.target.upper], s);
+          expect(d.verdict).toBe("perfect");
+        }
+      }
+    }
+  });
+
+  it("drills the 3 new curriculum moves (rootlessTwoFiveOne, upperStructureII, minorLineCliche)", () => {
+    const rootless = conceptDrillSteps("voicing.rootlessTwoFiveOne", "C");
+    expect(rootless.move.voicingHints).toHaveLength(3);
+    expect(rootless.map((s) => s.symbol)).toEqual(["Dm9", "G13", "Cmaj7"]);
+    // Dm9 Type A (F A C E) -> G13 Type B (F A B E): 3 common tones held, C drops 1 semitone to B
+    expect(rootless.move.voicingHints![0]).toEqual({ lh: ["F", "A"], rh: ["C", "E"] });
+    expect(rootless.move.voicingHints![1]).toEqual({ lh: ["F", "A"], rh: ["B", "E"] });
+    expect(rootless.move.voicingHints![2]).toEqual({ lh: ["E", "G"], rh: ["B", "D"] });
+
+    const usII = conceptDrillSteps("voicing.upperStructureII", "C");
+    expect(usII.map((s) => s.symbol)).toEqual(["G13(#11)", "Cmaj7"]);
+    expect(usII.move.voicingHint).toEqual({ lh: ["G", "B", "F"], rh: ["A", "C#", "E"] });
+
+    const cliche = conceptDrillSteps("chromatic.minorLineCliche", "C");
+    expect(cliche.map((s) => s.symbol)).toEqual(["Cm(add9)", "Cm(maj7)", "Cm9", "Cm6", "Fm7"]);
   });
 });
 
