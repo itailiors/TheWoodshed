@@ -102,36 +102,93 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
 
   const handle = useCallback(
     (id: string, device: string) => (msg: MIDIMessageEvent) => {
-      if (!msg.data || msg.data.length < 2) return;
-      const [status, d1, d2 = 0] = msg.data;
-      const cmd = status & 0xf0;
-      const channel = (status & 0x0f) + 1;
-      if (cmd === 0xb0) {
-        let d = heldBy.current.get(id);
-        if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set(), pedal: false }));
-        if (d1 === 64) {
-          d.pedal = d2 >= 64;
-          debug(`[MIDI] sustain ${d.pedal ? "down" : "up"} (${device})`);
-        }
-        // CC 120 All Sound Off / CC 123 All Notes Off: some controllers send these from a panic button
-        if (d1 === 120 || d1 === 123) {
-          releaseDevice(id);
-          controlBus.emit({ cc: 64, value: 0, channel, device });
-        }
-        controlBus.emit({ cc: d1, value: d2, channel, device });
-        return;
-      }
-      let ev: MidiNoteEvent | null = null;
-      if (cmd === 0x90 && d2 > 0) ev = { type: "on", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
-      else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) ev = { type: "off", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
-      if (!ev) return;
-      debug(`[MIDI] note ${ev.type.padEnd(3)} ${midiName(ev.note).padEnd(4)} #${ev.note} vel ${ev.velocity} ch ${channel} · ${device}`);
+      const data = msg.data;
+      if (!data || data.length === 0) return;
+
       let d = heldBy.current.get(id);
       if (!d) heldBy.current.set(id, (d = { name: device, notes: new Set(), pedal: false }));
-      if (ev.type === "on") d.notes.add(ev.note);
-      else if (!d.notes.delete(ev.note)) return; // an off for a key we never saw go down (or already released): nothing to do
-      deliver(ev); // the note bus (and so the sound) first; the readout can wait a frame
-      syncHeld();
+
+      // Parse the full packet: USB MIDI on Windows/macOS often batches Aftertouch (0xD0/0xA0)
+      // or CC (0xB0) and Note Off (0x80 / 0x90 vel 0) into a single MIDIMessageEvent.data array.
+      let runningStatus = 0;
+      let i = 0;
+      let heldChanged = false;
+
+      while (i < data.length) {
+        const b = data[i];
+        // 1-byte System Real-Time messages (0xF8 timing clock .. 0xFF reset) can appear anywhere
+        if (b >= 0xf8) {
+          i++;
+          continue;
+        }
+        // System Common / SysEx (0xF0..0xF7): skip to next status byte
+        if (b >= 0xf0) {
+          runningStatus = 0;
+          i++;
+          while (i < data.length && (data[i] & 0x80) === 0) i++;
+          continue;
+        }
+
+        let status: number;
+        if (b & 0x80) {
+          status = b;
+          runningStatus = b;
+          i++;
+        } else if (runningStatus !== 0) {
+          status = runningStatus;
+        } else {
+          i++;
+          continue;
+        }
+
+        const cmd = status & 0xf0;
+        const channel = (status & 0x0f) + 1;
+
+        // 2-byte Channel messages: Program Change (0xC0) & Channel Pressure / Aftertouch (0xD0)
+        if (cmd === 0xc0 || cmd === 0xd0) {
+          i += 1;
+          continue;
+        }
+
+        // 3-byte Channel messages (0x80, 0x90, 0xA0, 0xB0, 0xE0)
+        if (i >= data.length) break;
+        const d1 = data[i++];
+        const d2 = i < data.length && (data[i] & 0x80) === 0 ? data[i++] : 0;
+
+        if (cmd === 0xb0) {
+          if (d1 === 64) {
+            d.pedal = d2 >= 64;
+            debug(`[MIDI] sustain ${d.pedal ? "down" : "up"} (${device})`);
+          }
+          // CC 120 All Sound Off / CC 123 All Notes Off: some controllers send these from a panic button
+          if (d1 === 120 || d1 === 123) {
+            releaseDevice(id);
+            controlBus.emit({ cc: 64, value: 0, channel, device });
+          }
+          controlBus.emit({ cc: d1, value: d2, channel, device });
+          continue;
+        }
+
+        let ev: MidiNoteEvent | null = null;
+        if (cmd === 0x90 && d2 > 0) {
+          ev = { type: "on", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
+        } else if (cmd === 0x80 || (cmd === 0x90 && d2 === 0)) {
+          ev = { type: "off", note: d1, velocity: d2, channel, device, time: msg.timeStamp };
+        }
+        if (!ev) continue;
+
+        debug(`[MIDI] note ${ev.type.padEnd(3)} ${midiName(ev.note).padEnd(4)} #${ev.note} vel ${ev.velocity} ch ${channel} · ${device}`);
+        if (ev.type === "on") {
+          d.notes.add(ev.note);
+          heldChanged = true;
+        } else if (d.notes.delete(ev.note)) {
+          heldChanged = true;
+        }
+        // Always deliver to noteBus so no downstream listener (heatmap, monitor) can miss a note-off
+        deliver(ev);
+      }
+
+      if (heldChanged) syncHeld();
     },
     [deliver, releaseDevice, syncHeld],
   );

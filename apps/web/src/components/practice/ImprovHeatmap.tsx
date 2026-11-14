@@ -20,11 +20,13 @@ import {
 } from "@reharm/theory-core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNarrow } from "../../device/media";
+import { ghostSax, type GhostInstrument } from "../../audio/band";
 import { player } from "../../audio/player";
 import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
 import { ink, seedOf, VERDICT_COLOR, wash } from "../../design/tokens";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
+import { VolumeMixer } from "../VolumeMixer";
 import { PenKeyboard } from "./PenKeyboard";
 import { saveImprovRun } from "../../library/practice";
 
@@ -45,6 +47,8 @@ interface Props {
   onTradeBars?: (span: TradeSpan) => void;
   ghostPersonality?: GhostPersonality;
   onGhostPersonality?: (p: GhostPersonality) => void;
+  ghostInstrument?: GhostInstrument;
+  onGhostInstrument?: (inst: GhostInstrument) => void;
 }
 
 /** Passes shorter than this aren't worth a history entry (a stray note or two). */
@@ -132,13 +136,18 @@ export function ImprovHeatmap({
   onTradeBars,
   ghostPersonality: controlledPersonality,
   onGhostPersonality,
+  ghostInstrument: controlledInstrument,
+  onGhostInstrument,
 }: Props) {
   const [localTrade, setLocalTrade] = useState<TradeSpan>(0);
   const [localPersonality, setLocalPersonality] = useState<GhostPersonality>("side-slipper");
+  const [localInstrument, setLocalInstrument] = useState<GhostInstrument>("sax");
   const tradeBars = controlledTrade ?? localTrade;
   const setTradeBars = onTradeBars ?? setLocalTrade;
   const ghostPersonality = controlledPersonality ?? localPersonality;
   const setGhostPersonality = onGhostPersonality ?? setLocalPersonality;
+  const ghostInstrument = controlledInstrument ?? localInstrument;
+  const setGhostInstrument = onGhostInstrument ?? setLocalInstrument;
   // In compact mode the tape takes the slot's aspect ratio, so it fills the space without distorting text.
   const [tapeRef, tapeSize] = useSize<HTMLDivElement>();
   const narrow = useNarrow();
@@ -184,6 +193,10 @@ export function ImprovHeatmap({
   const pickedNote = picked === null ? null : (notes.find((n) => n.id === picked) ?? null);
   const pickedGhost = picked === null ? null : (ghostNotes.find((n) => n.id === picked) ?? null);
   const pass = useRef(0);
+  const totalLoops = useRef(0);
+  const [loopCount, setLoopCount] = useState(0);
+  /** Saves the user's final call phrase of a chorus before the loop wipe so Chorus N+1 can open with a Ghost response (e.g. 12-bar blues Trading 4s). */
+  const prevChorusCall = useRef<{ notes: { midi: number; start: number; end: number }[]; callStartBeat: number; callEndBeat: number } | null>(null);
   const lastBeat = useRef(-1);
   const lastHeadBar = useRef<number | null>(null);
   const lastGhostPhraseKey = useRef<string | null>(null);
@@ -198,21 +211,28 @@ export function ImprovHeatmap({
 
   /** Effective trade span in bars, clamped so even a short 2-bar loop splits into 1 bar Call + 1 bar Response. */
   const effTradeBars = tradeBars > 0 ? Math.max(1, Math.min(tradeBars, Math.floor(loopBars / 2) || 1)) : 0;
+  /**
+   * Continuous phrase index across chorus boundaries: `absoluteBeat = totalLoops * span + (beat - loopStart)`.
+   * On a 12-bar blues (3 × 4-bar phrases), Chorus 1 is User(0), Ghost(1), User(2), and Chorus 2
+   * automatically begins at phraseIdx 3 (Ghost), preventing the user from playing 8 bars in a row.
+   */
   const isGhostBeat = useCallback(
-    (beat: number) => {
+    (beat: number, chorusIdx = loopCount) => {
       if (effTradeBars <= 0) return false;
       const phraseBeats = effTradeBars * bpb;
-      const phraseIdx = Math.floor(Math.max(0, beat - loopStart) / phraseBeats);
+      const absoluteBeat = chorusIdx * span + Math.max(0, beat - loopStart);
+      const phraseIdx = Math.floor(absoluteBeat / phraseBeats);
       return phraseIdx % 2 === 1;
     },
-    [effTradeBars, bpb, loopStart],
+    [effTradeBars, bpb, span, loopStart, loopCount],
   );
-  const tradeCtxRef = useRef({ effTradeBars, ghostPersonality, tune, chords, bpb, loopStart, loopEnd, tempo });
-  tradeCtxRef.current = { effTradeBars, ghostPersonality, tune, chords, bpb, loopStart, loopEnd, tempo };
+  const tradeCtxRef = useRef({ effTradeBars, ghostPersonality, ghostInstrument, tune, chords, bpb, loopStart, loopEnd, span, tempo });
+  tradeCtxRef.current = { effTradeBars, ghostPersonality, ghostInstrument, tune, chords, bpb, loopStart, loopEnd, span, tempo };
 
   const clearGhostTimers = useCallback(() => {
     ghostTimers.current.forEach((t) => clearTimeout(t));
     ghostTimers.current = [];
+    ghostSax.release();
   }, []);
   useEffect(() => () => clearGhostTimers(), [clearGhostTimers]);
 
@@ -285,13 +305,31 @@ export function ImprovHeatmap({
   // Leaving mid-pass (switching modes, changing tune) still counts what you played.
   useEffect(() => () => savePassRef.current(pass.current), []);
 
-  // smooth playhead + loop-wrap detection + Ghost Master Call-and-Response trigger
+  // smooth playhead + loop-wrap wipe + continuous-chorus Ghost Master Call-and-Response trigger
   useEffect(() => {
     if (!playing) {
+      // Immediately cap any held notes (`end === null`) at the stop beat so they don't keep stretching across the tape
+      const stopBeat = headBeatRef.current ?? (lastBeat.current >= 0 ? lastBeat.current : null);
+      if (open.current.size > 0 || notesRef.current.some((n) => n.end === null)) {
+        open.current.clear();
+        const capped = notesRef.current.map((n) => {
+          if (n.end !== null) return n;
+          const end = stopBeat !== null && stopBeat > n.start ? stopBeat : Math.min(loopEnd, n.start + 0.25);
+          const dur = end - n.start;
+          const offbeat = Math.abs(n.start - Math.round(n.start)) > 0.15;
+          return { ...n, end, passing: n.ev.verdict === "avoid" && dur < 0.5 && offbeat };
+        });
+        notesRef.current = capped;
+        setNotes(capped);
+      }
+
       headBeatRef.current = null;
       lastBeat.current = -1;
       lastHeadBar.current = null;
       lastGhostPhraseKey.current = null;
+      totalLoops.current = 0;
+      prevChorusCall.current = null;
+      setLoopCount(0);
       clearGhostTimers();
       setHeadBar(null);
       syncPlayhead(null);
@@ -308,11 +346,32 @@ export function ImprovHeatmap({
       const b = player.currentBeat();
       headBeatRef.current = b;
       if (b !== null) {
+        const tc = tradeCtxRef.current;
+        const phraseBeats = tc.effTradeBars * tc.bpb;
+
         if (lastBeat.current >= 0 && b < lastBeat.current - 0.5) {
-          savePassRef.current(pass.current); // the loop wrapped: that pass is finished
+          // Save the completed pass before wiping the tape clean for the new chorus
+          savePassRef.current(pass.current);
+
+          // Preserve the user's final call phrase of the outgoing chorus in case Chorus N+1 opens with a Ghost response
+          if (tc.effTradeBars > 0) {
+            const tailStart = Math.max(tc.loopStart, tc.loopEnd - phraseBeats);
+            const tailNotes = notesRef.current
+              .filter((n) => n.pass === pass.current && n.start < tc.loopEnd && (n.end ?? tc.loopEnd) > tailStart)
+              .map((n) => ({ midi: n.midi, start: n.start, end: n.end ?? tc.loopEnd }));
+            prevChorusCall.current = { notes: tailNotes, callStartBeat: tailStart, callEndBeat: tc.loopEnd };
+          }
+
           pass.current++;
+          totalLoops.current++;
+          setLoopCount(totalLoops.current);
           lastGhostPhraseKey.current = null;
           clearGhostTimers();
+          open.current.clear();
+          notesRef.current = [];
+          setNotes([]);
+          setGhostNotes([]);
+          setPicked(null);
           setPassVersion((v) => v + 1);
         }
         lastBeat.current = b;
@@ -322,31 +381,42 @@ export function ImprovHeatmap({
           setHeadBar(bar);
         }
 
-        // ── Trading 2s / 4s: trigger Ghost Master response on entering an odd phrase window ──
-        const tc = tradeCtxRef.current;
+        // ── Trading 2s / 4s: continuous phraseIdx across chorus boundaries ──
         if (tc.effTradeBars > 0) {
-          const phraseBeats = tc.effTradeBars * tc.bpb;
-          const phraseIdx = Math.floor(Math.max(0, b - tc.loopStart) / phraseBeats);
-          if (phraseIdx % 2 === 1) {
-            const pKey = `${pass.current}:${phraseIdx}`;
+          const localOffset = Math.max(0, b - tc.loopStart);
+          const absoluteBeat = totalLoops.current * tc.span + localOffset;
+          const continuousPhraseIdx = Math.floor(absoluteBeat / phraseBeats);
+          if (continuousPhraseIdx % 2 === 1) {
+            const pKey = `${totalLoops.current}:${continuousPhraseIdx}`;
             if (lastGhostPhraseKey.current !== pKey) {
               lastGhostPhraseKey.current = pKey;
-              const callStartBeat = tc.loopStart + (phraseIdx - 1) * phraseBeats;
-              const callEndBeat = tc.loopStart + phraseIdx * phraseBeats;
-              const respStartBeat = callEndBeat;
+              const localPhraseIdx = Math.floor(localOffset / phraseBeats);
+              const respStartBeat = tc.loopStart + localPhraseIdx * phraseBeats;
               const respEndBeat = Math.min(tc.loopEnd, respStartBeat + phraseBeats);
 
               // Close any user notes still held across the Call -> Response barline
               if (open.current.size > 0) {
                 open.current.clear();
                 setNotes((ns) =>
-                  ns.map((n) => (n.end === null && n.pass === pass.current ? { ...n, end: callEndBeat } : n)),
+                  ns.map((n) => (n.end === null && n.pass === pass.current ? { ...n, end: respStartBeat } : n)),
                 );
               }
 
-              const callNotes = notesRef.current
-                .filter((n) => n.pass === pass.current && n.start < callEndBeat && (n.end ?? callEndBeat) > callStartBeat)
-                .map((n) => ({ midi: n.midi, start: n.start, end: n.end ?? callEndBeat }));
+              // If the Ghost opens at the top of a new chorus (localPhraseIdx === 0), answer the previous chorus's final call phrase
+              let callStartBeat = tc.loopStart + (localPhraseIdx - 1) * phraseBeats;
+              let callEndBeat = respStartBeat;
+              let callNotes: { midi: number; start: number; end: number }[];
+              if (localPhraseIdx === 0 && prevChorusCall.current) {
+                callStartBeat = prevChorusCall.current.callStartBeat;
+                callEndBeat = prevChorusCall.current.callEndBeat;
+                callNotes = prevChorusCall.current.notes;
+              } else {
+                callStartBeat = Math.max(tc.loopStart, respStartBeat - phraseBeats);
+                callEndBeat = respStartBeat;
+                callNotes = notesRef.current
+                  .filter((n) => n.pass === pass.current && n.start < callEndBeat && (n.end ?? callEndBeat) > callStartBeat)
+                  .map((n) => ({ midi: n.midi, start: n.start, end: n.end ?? callEndBeat }));
+              }
 
               const resp = transformMotif({
                 notes: callNotes,
@@ -359,7 +429,7 @@ export function ImprovHeatmap({
                 respEndBeat,
               });
 
-              const lastUserNote = callNotes.length > 0 ? callNotes[callNotes.length - 1] : undefined;
+              const lastUserNote = localPhraseIdx > 0 && callNotes.length > 0 ? callNotes[callNotes.length - 1] : undefined;
               const curPass = pass.current;
               const stamped: StoredGhostNote[] = resp.notes.map((gn, idx) => ({
                 ...gn,
@@ -369,17 +439,27 @@ export function ImprovHeatmap({
                 callFrom: idx === 0 && lastUserNote ? { beat: lastUserNote.end ?? lastUserNote.start, midi: lastUserNote.midi } : undefined,
               }));
 
-              setGhostNotes((prev) => [...prev.filter((g) => g.pass > curPass - KEEP_PASSES), ...stamped]);
+              setGhostNotes((prev) => [...prev.filter((g) => g.pass === curPass), ...stamped]);
               setGhostSummary(resp.summary);
 
-              // Schedule Ghost Master audio playback in time with the trio
+              // Ensure the rhythm section (walking upright bass + swinging drums) keeps grooving under the Ghost's solo
+              if (!player.mix.bass) player.setMix("bass", true);
+              if (!player.mix.drums) player.setMix("drums", true);
+
+              // Schedule Ghost Master audio playback (Saxophone MonoSynth or Piano Sampler) in time with the trio
               clearGhostTimers();
               const spb = 60 / Math.max(40, tc.tempo);
+              const useSax = tc.ghostInstrument === "sax";
               for (const gn of stamped) {
                 const delaySec = Math.max(0, (gn.start - b) * spb);
                 const durSec = Math.max(0.14, (gn.end - gn.start) * spb * 0.92);
                 const timerId = setTimeout(() => {
-                  void player.playNotes(gn.voicing, durSec, 0);
+                  if (useSax) {
+                    player.resume();
+                    ghostSax.play(gn.voicing, durSec, 0);
+                  } else {
+                    void player.playNotes(gn.voicing, durSec, 0);
+                  }
                 }, Math.round(delaySec * 1000));
                 ghostTimers.current.push(timerId);
               }
@@ -417,7 +497,8 @@ export function ImprovHeatmap({
   const y = (midi: number) => top + ((HIGH - Math.min(HIGH, Math.max(LOW, midi))) / (HIGH - LOW)) * (H - top - 18);
 
   useNoteBus((m) => {
-    const beat = player.currentBeat();
+    const rawBeat = player.currentBeat();
+    const beat = rawBeat ?? headBeatRef.current ?? (lastBeat.current >= 0 ? lastBeat.current : null);
     if (m.type === "on") {
       if (beat === null) {
         setHint("Press Play to start the backing loop, then solo over it.");
@@ -432,24 +513,32 @@ export function ImprovHeatmap({
       const landing = !!change && guideTones(change.chord).some((g) => chroma(g.note) === m.note % 12);
       const id = nextId.current++;
       open.current.set(m.note, id);
-      setNotes((ns) =>
-        [...ns, { id, midi: m.note, start: beat, end: null, pass: pass.current, chordSymbol: symbol(at.chord), ev, passing: false, landing }].filter(
-          (n) => n.pass > pass.current - KEEP_PASSES,
-        ),
-      );
+      setNotes((ns) => {
+        // Close any previously unclosed note on the same MIDI pitch before starting the new one
+        const closedPrev = ns.map((n) =>
+          n.midi === m.note && n.end === null ? { ...n, end: Math.max(n.start + 0.08, beat) } : n,
+        );
+        const next = [
+          ...closedPrev,
+          { id, midi: m.note, start: beat, end: null, pass: pass.current, chordSymbol: symbol(at.chord), ev, passing: false, landing },
+        ].filter((n) => n.pass > pass.current - KEEP_PASSES);
+        notesRef.current = next;
+        return next;
+      });
     } else {
-      const id = open.current.get(m.note);
-      if (id === undefined) return;
       open.current.delete(m.note);
-      setNotes((ns) =>
-        ns.map((n) => {
-          if (n.id !== id) return n;
-          const end = beat === null || beat < n.start ? loopEnd : beat;
+      setNotes((ns) => {
+        if (!ns.some((n) => n.midi === m.note && n.end === null)) return ns;
+        const next = ns.map((n) => {
+          if (n.midi !== m.note || n.end !== null) return n;
+          const end = beat === null || beat < n.start ? Math.min(loopEnd, n.start + 0.25) : Math.max(n.start + 0.08, beat);
           const dur = end - n.start;
           const offbeat = Math.abs(n.start - Math.round(n.start)) > 0.15;
           return { ...n, end, passing: n.ev.verdict === "avoid" && dur < 0.5 && offbeat };
-        }),
-      );
+        });
+        notesRef.current = next;
+        return next;
+      });
     }
   }, armed);
 
@@ -630,19 +719,30 @@ export function ImprovHeatmap({
               {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
             </button>
             {tradeBars > 0 && (
-              <select
-                aria-label="Ghost Master personality"
-                value={ghostPersonality}
-                onChange={(e) => setGhostPersonality(e.target.value as GhostPersonality)}
-                className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2.5 py-0.5 font-marker text-xs text-ink"
-              >
-                {GHOST_PERSONALITIES.map((gp) => (
-                  <option key={gp.id} value={gp.id}>
-                    👻 {gp.label} ({gp.master})
-                  </option>
-                ))}
-              </select>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setGhostInstrument(ghostInstrument === "sax" ? "piano" : "sax")}
+                  title="Switch Ghost Master instrument between Saxophone and Piano"
+                  className="cursor-pointer rounded-full border-2 border-ink bg-wash-mustard/40 px-2.5 py-0.5 text-xs font-bold text-ink hover:bg-wash-mustard/60"
+                >
+                  {ghostInstrument === "sax" ? "🎷 Sax" : "🎹 Piano"}
+                </button>
+                <select
+                  aria-label="Ghost Master personality"
+                  value={ghostPersonality}
+                  onChange={(e) => setGhostPersonality(e.target.value as GhostPersonality)}
+                  className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2.5 py-0.5 font-marker text-xs text-ink"
+                >
+                  {GHOST_PERSONALITIES.map((gp) => (
+                    <option key={gp.id} value={gp.id}>
+                      👻 {gp.label} ({gp.master})
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
+            {!compact && <VolumeMixer compact />}
             <button
               type="button"
               onClick={() => {

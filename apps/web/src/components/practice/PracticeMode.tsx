@@ -14,6 +14,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { NARROW, useMediaQuery, useTouchFirst } from "../../device/media";
+import type { GhostInstrument } from "../../audio/band";
 import { player } from "../../audio/player";
 import type { Playback } from "../../audio/usePlayback";
 import { BeatPulse, CountInDisplay, CountInPicker } from "../BeatPulse";
@@ -29,6 +30,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
+import { VolumeMixer } from "../VolumeMixer";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
 
@@ -85,6 +87,7 @@ export function PracticeMode(p: Props) {
   const [more, setMore] = useState(false);
   const [tradeBars, setTradeBars] = useState<TradeSpan>(0);
   const [ghostPersonality, setGhostPersonality] = useState<GhostPersonality>("side-slipper");
+  const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("sax");
   const extras = !cramped || more;
   const cycleTrade = () => setTradeBars((t) => (t === 0 ? 2 : t === 2 ? 4 : 0));
 
@@ -200,6 +203,7 @@ export function PracticeMode(p: Props) {
         <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
         {playback.status === "loading" && <LoadingLine />}
         <span className="font-marker">♩ = {p.tempo}</span>
+        <VolumeMixer compact />
         <button
           type="button"
           onClick={cycleTrade}
@@ -212,26 +216,52 @@ export function PracticeMode(p: Props) {
           {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
         </button>
         {tradeBars > 0 && (
-          <div role="radiogroup" aria-label="Ghost Master personality" className="inline-flex flex-wrap items-center gap-1 font-marker text-xs">
-            {GHOST_PERSONALITIES.map((gp) => {
-              const active = ghostPersonality === gp.id;
-              return (
-                <button
-                  key={gp.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={active}
-                  title={`${gp.label} (${gp.master}): ${gp.blurb}`}
-                  onClick={() => setGhostPersonality(gp.id)}
-                  className={`cursor-pointer rounded-full border px-2.5 py-0.5 ${
-                    active ? "border-ink bg-ink text-paper-light" : "border-ink-faint text-ink-soft hover:bg-paper-shade"
-                  }`}
-                >
-                  👻 {gp.label}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div role="radiogroup" aria-label="Ghost Master instrument" className="inline-flex items-center gap-1 font-marker text-xs">
+              {(
+                [
+                  { id: "sax", label: "🎷 Sax" },
+                  { id: "piano", label: "🎹 Piano" },
+                ] as const
+              ).map((inst) => {
+                const active = ghostInstrument === inst.id;
+                return (
+                  <button
+                    key={inst.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setGhostInstrument(inst.id)}
+                    className={`cursor-pointer rounded-full border px-2.5 py-0.5 ${
+                      active ? "border-ink bg-wash-mustard/50 font-bold text-ink" : "border-ink-faint text-ink-soft hover:bg-paper-shade"
+                    }`}
+                  >
+                    {inst.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div role="radiogroup" aria-label="Ghost Master personality" className="inline-flex flex-wrap items-center gap-1 font-marker text-xs">
+              {GHOST_PERSONALITIES.map((gp) => {
+                const active = ghostPersonality === gp.id;
+                return (
+                  <button
+                    key={gp.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    title={`${gp.label} (${gp.master}): ${gp.blurb}`}
+                    onClick={() => setGhostPersonality(gp.id)}
+                    className={`cursor-pointer rounded-full border px-2.5 py-0.5 ${
+                      active ? "border-ink bg-ink text-paper-light" : "border-ink-faint text-ink-soft hover:bg-paper-shade"
+                    }`}
+                  >
+                    👻 {gp.label}
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
         {cramped && (
           <button
@@ -327,6 +357,8 @@ export function PracticeMode(p: Props) {
           onTradeBars={setTradeBars}
           ghostPersonality={ghostPersonality}
           onGhostPersonality={setGhostPersonality}
+          ghostInstrument={ghostInstrument}
+          onGhostInstrument={setGhostInstrument}
         />
       </div>
 

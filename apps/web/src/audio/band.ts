@@ -7,7 +7,120 @@ import * as Tone from "tone";
  */
 
 export type BandSource = "sampled" | "synth";
+export type GhostInstrument = "sax" | "piano";
 const hz = (midi: number) => Tone.Frequency(midi, "midi").toFrequency();
+
+// ── master & per-instrument channel volumes ─────────────────────────────
+
+const MASTER_VOL_KEY = "reharm.masterVolume";
+const CHANNEL_VOL_KEY = "reharm.channelVolumes";
+const masterVolSubs = new Set<() => void>();
+const channelVolSubs = new Set<() => void>();
+
+export type ChannelId = "playerPiano" | "bgPiano" | "bass" | "drums";
+export type ChannelVolumes = Readonly<Record<ChannelId, number>>;
+
+const clampDb = (db: number) => (Number.isFinite(db) ? Math.max(-24, Math.min(12, Math.round(db * 2) / 2)) : 0);
+
+let masterVolumeDb = (() => {
+  try {
+    const raw = localStorage.getItem(MASTER_VOL_KEY);
+    return raw !== null ? clampDb(Number(raw)) : 0;
+  } catch {
+    return 0;
+  }
+})();
+
+let channelVolumes: ChannelVolumes = (() => {
+  const defaults: ChannelVolumes = { playerPiano: 0, bgPiano: 0, bass: 0, drums: 0 };
+  try {
+    const raw = localStorage.getItem(CHANNEL_VOL_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Partial<Record<ChannelId, number>>;
+    return {
+      playerPiano: clampDb(parsed.playerPiano ?? 0),
+      bgPiano: clampDb(parsed.bgPiano ?? 0),
+      bass: clampDb(parsed.bass ?? 0),
+      drums: clampDb(parsed.drums ?? 0),
+    };
+  } catch {
+    return defaults;
+  }
+})();
+
+export function getMasterVolume(): number {
+  return masterVolumeDb;
+}
+
+export function setMasterVolume(db: number): void {
+  masterVolumeDb = clampDb(db);
+  try {
+    localStorage.setItem(MASTER_VOL_KEY, String(masterVolumeDb));
+  } catch {
+    /* private mode */
+  }
+  try {
+    Tone.getDestination().volume.value = masterVolumeDb;
+  } catch {
+    /* audio context not yet created */
+  }
+  masterVolSubs.forEach((fn) => fn());
+}
+
+export function subscribeMasterVolume(fn: () => void): () => void {
+  masterVolSubs.add(fn);
+  return () => void masterVolSubs.delete(fn);
+}
+
+export function getChannelVolumes(): ChannelVolumes {
+  return channelVolumes;
+}
+
+export function setChannelVolume(channel: ChannelId, db: number): void {
+  const next = clampDb(db);
+  if (channelVolumes[channel] === next) return;
+  channelVolumes = { ...channelVolumes, [channel]: next };
+  try {
+    localStorage.setItem(CHANNEL_VOL_KEY, JSON.stringify(channelVolumes));
+  } catch {
+    /* private mode */
+  }
+  if (channel === "playerPiano" && saxVol) {
+    saxVol.volume.value = next;
+  }
+  channelVolSubs.forEach((fn) => fn());
+}
+
+export function resetChannelVolumes(): void {
+  channelVolumes = { playerPiano: 0, bgPiano: 0, bass: 0, drums: 0 };
+  try {
+    localStorage.setItem(CHANNEL_VOL_KEY, JSON.stringify(channelVolumes));
+  } catch {
+    /* private mode */
+  }
+  if (saxVol) saxVol.volume.value = 0;
+  channelVolSubs.forEach((fn) => fn());
+}
+
+export function subscribeChannelVolumes(fn: () => void): () => void {
+  channelVolSubs.add(fn);
+  return () => void channelVolSubs.delete(fn);
+}
+
+export const getPlayerPianoVolume = () => channelVolumes.playerPiano;
+export const setPlayerPianoVolume = (db: number) => setChannelVolume("playerPiano", db);
+
+export const getBgPianoVolume = () => channelVolumes.bgPiano;
+export const setBgPianoVolume = (db: number) => setChannelVolume("bgPiano", db);
+
+export const getPianoVolume = () => channelVolumes.bgPiano;
+export const setPianoVolume = (db: number) => setChannelVolume("bgPiano", db);
+
+export const getBassVolume = () => channelVolumes.bass;
+export const setBassVolume = (db: number) => setChannelVolume("bass", db);
+
+export const getDrumsVolume = () => channelVolumes.drums;
+export const setDrumsVolume = (db: number) => setChannelVolume("drums", db);
 
 // ── upright bass ────────────────────────────────────────────────────────
 
@@ -50,6 +163,15 @@ export interface BassInstrument {
 }
 
 export async function loadBass(out: Tone.ToneAudioNode): Promise<BassInstrument> {
+  try {
+    Tone.getDestination().volume.value = masterVolumeDb;
+  } catch {
+    /* ignore */
+  }
+  const bassBus = new Tone.Volume(channelVolumes.bass).connect(out);
+  const unsub = subscribeChannelVolumes(() => {
+    bassBus.volume.value = channelVolumes.bass;
+  });
   for (const baseUrl of BASS_SOUNDFONTS) {
     try {
       const s = await loadSampler({
@@ -58,24 +180,32 @@ export async function loadBass(out: Tone.ToneAudioNode): Promise<BassInstrument>
         release: 0.12, // a walking line is legato, but the string still stops when the finger lifts
       });
       s.volume.value = -2;
-      s.connect(out);
+      s.connect(bassBus);
       return {
         source: "sampled",
         play: (midi, seconds, time, vel) => s.triggerAttackRelease(hz(midi), seconds, time, vel),
         release: (time) => s.releaseAll(time),
-        dispose: () => s.dispose(),
+        dispose: () => {
+          unsub();
+          s.dispose();
+          bassBus.dispose();
+        },
       };
     } catch (err) {
       console.warn(`[audio] bass samples unavailable at ${baseUrl}:`, err);
     }
   }
   console.warn("[audio] all bass soundfonts failed, using the synth bass");
-  const synth = synthBass(out);
+  const synth = synthBass(bassBus);
   return {
     source: "synth",
     play: (midi, seconds, time, vel) => synth.triggerAttackRelease(hz(midi), seconds, time, vel),
     release: (time) => synth.triggerRelease(time),
-    dispose: () => synth.dispose(),
+    dispose: () => {
+      unsub();
+      synth.dispose();
+      bassBus.dispose();
+    },
   };
 }
 
@@ -158,8 +288,12 @@ function oneShot(buffer: Tone.ToneAudioBuffer, dest: Tone.ToneAudioNode, time: n
  *              stays a precise tick rather than part of the band's sound
  */
 export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode): Promise<DrumKit> {
+  const drumsBus = new Tone.Volume(channelVolumes.drums).connect(out);
+  const unsub = subscribeChannelVolumes(() => {
+    drumsBus.volume.value = channelVolumes.drums;
+  });
   // GM kits have no brush swirl, so the sweep stays a quiet filtered-noise texture.
-  const brush = makeBrush(out);
+  const brush = makeBrush(drumsBus);
   const notes = Object.values(GM);
   const cues = Object.values(GM_CUE);
   for (const kit of DRUM_KITS) {
@@ -171,7 +305,7 @@ export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode
       const cue = Object.fromEntries(cues.map((n, i) => [n, cueBuffers[i]])) as Record<number, Tone.ToneAudioBuffer>;
       const sampler = new Tone.Sampler({ urls: Object.fromEntries(notes.map((n, i) => [n, buffers[i]])) });
       sampler.volume.value = -6;
-      sampler.connect(out);
+      sampler.connect(drumsBus);
       const strike = (note: number, time: number, vel: number) => sampler.triggerAttack(hz(note), time, Math.min(1, vel));
       return {
         source: "sampled",
@@ -194,8 +328,10 @@ export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode
           sampler.releaseAll(time);
         },
         dispose: () => {
+          unsub();
           brush.dispose();
           sampler.dispose();
+          drumsBus.dispose();
         },
       };
     } catch (err) {
@@ -203,7 +339,14 @@ export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode
     }
   }
   console.warn("[audio] all drum kits failed, using the synth kit");
-  return synthKit(out, dry, brush);
+  const fallback = synthKit(drumsBus, dry, brush);
+  const origDispose = fallback.dispose;
+  fallback.dispose = () => {
+    unsub();
+    origDispose();
+    drumsBus.dispose();
+  };
+  return fallback;
 }
 
 function makeBrush(out: Tone.ToneAudioNode): Tone.NoiseSynth {
@@ -270,3 +413,59 @@ export function humanTime(time: number): number {
 export function humanVel(vel: number, spread = 0.08): number {
   return Math.min(1, Math.max(0.02, vel * (1 + (Math.random() * 2 - 1) * spread)));
 }
+
+// ── Ghost Master Saxophone (MonoSynth with reedy filter envelope, vibrato & portamento) ──
+
+let saxSynth: Tone.MonoSynth | null = null;
+let saxVib: Tone.Vibrato | null = null;
+let saxVol: Tone.Volume | null = null;
+let saxLastTime = 0;
+
+function ensureGhostSax(): Tone.MonoSynth {
+  if (saxSynth) return saxSynth;
+  saxVol = new Tone.Volume(channelVolumes.playerPiano).toDestination();
+  saxVib = new Tone.Vibrato({ frequency: 5.2, depth: 0.14 }).connect(saxVol);
+  saxSynth = new Tone.MonoSynth({
+    oscillator: { type: "sawtooth" },
+    portamento: 0.028,
+    envelope: {
+      attack: 0.022,
+      decay: 0.16,
+      sustain: 0.8,
+      release: 0.18,
+    },
+    filter: {
+      type: "lowpass",
+      rolloff: -24,
+      Q: 2.4,
+    },
+    filterEnvelope: {
+      attack: 0.028,
+      decay: 0.22,
+      sustain: 0.42,
+      release: 0.18,
+      baseFrequency: 360,
+      octaves: 2.7,
+    },
+  }).connect(saxVib);
+  saxSynth.volume.value = -5;
+  return saxSynth;
+}
+
+/**
+ * Lightweight, expressive jazz saxophone synth for Trading 2s / 4s with the Ghost Master.
+ * Uses a reedy sawtooth MonoSynth with a breathy filter envelope, legato portamento, and vibrato.
+ */
+export const ghostSax = {
+  play(midiOrVoicing: number | number[], durSeconds: number, delaySeconds = 0, vel = 0.72) {
+    const midi = Array.isArray(midiOrVoicing) ? midiOrVoicing[midiOrVoicing.length - 1] : midiOrVoicing;
+    if (midi === undefined) return;
+    const synth = ensureGhostSax();
+    const at = Math.max(Tone.now() + 0.02 + delaySeconds, saxLastTime + 0.005);
+    saxLastTime = at;
+    synth.triggerAttackRelease(hz(midi), Math.max(0.08, durSeconds), at, humanVel(vel, 0.06));
+  },
+  release() {
+    saxSynth?.triggerRelease(Tone.now());
+  },
+};

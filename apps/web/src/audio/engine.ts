@@ -1,6 +1,18 @@
 import { absBeat, bassLine, drumPattern, formBars, midiOf, voiceProgression, type ChordEvent, type DrumVoice, type TimePos, type Tune } from "@reharm/theory-core";
 import * as Tone from "tone";
-import { humanTime, humanVel, loadBass, loadDrums, type BandSource, type BassInstrument, type DrumKit, type Sticks } from "./band";
+import {
+  getBgPianoVolume,
+  getPlayerPianoVolume,
+  humanTime,
+  humanVel,
+  loadBass,
+  loadDrums,
+  subscribeChannelVolumes,
+  type BandSource,
+  type BassInstrument,
+  type DrumKit,
+  type Sticks,
+} from "./band";
 import type { Arrangement, CountState, Instrument, InstrumentSource, LoadPart, LoadState, Mix } from "./player";
 
 /*
@@ -138,7 +150,13 @@ export interface EngineHost {
  * That is the A/B "ghost" switch.
  */
 export class AudioEngine {
+  /** Backing band piano (comping + head melody). */
   private instrument: Tone.Sampler | Tone.PolySynth | null = null;
+  /** Player + Ghost Master + Coach audition piano, routed to its own volume bus. */
+  private playerInstrument: Tone.Sampler | Tone.PolySynth | null = null;
+  private bgPianoBus: Tone.Volume | null = null;
+  private playerPianoBus: Tone.Volume | null = null;
+  private unsubVolumes: (() => void) | null = null;
   private bass: BassInstrument | null = null;
   private drums: DrumKit | null = null;
   private part: Tone.Part<Timed<NoteEvent>> | null = null;
@@ -167,6 +185,15 @@ export class AudioEngine {
     const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).toDestination();
     await Promise.all([reverb.ready, room.ready]);
 
+    // Dedicated volume buses for Background Piano vs. Player/Ghost Master Piano
+    this.bgPianoBus = new Tone.Volume(getBgPianoVolume()).connect(reverb);
+    this.playerPianoBus = new Tone.Volume(getPlayerPianoVolume()).connect(reverb);
+    this.unsubVolumes?.();
+    this.unsubVolumes = subscribeChannelVolumes(() => {
+      if (this.bgPianoBus) this.bgPianoBus.volume.value = getBgPianoVolume();
+      if (this.playerPianoBus) this.playerPianoBus.volume.value = getPlayerPianoVolume();
+    });
+
     // All three load in parallel and report in as each one lands, sampled or synth.
     const { progress } = this.host;
     (["piano", "bass", "drums"] as const).forEach((i) => progress(i, "loading"));
@@ -183,16 +210,16 @@ export class AudioEngine {
       return d;
     });
     try {
-      this.instrument = await new Promise<Tone.Sampler>((resolve, reject) => {
+      const s = await new Promise<Tone.Sampler>((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error("sample load timed out")), LOAD_TIMEOUT_MS);
-        const s = new Tone.Sampler({
+        const sampler = new Tone.Sampler({
           urls: Object.fromEntries(SAMPLED.map((n) => [n, `${n.replace("#", "s")}.mp3`])),
           baseUrl: SALAMANDER_URL,
           release: 1.2,
           onload: () => {
             clearTimeout(timer);
-            trimOnsets(s);
-            resolve(s);
+            trimOnsets(sampler);
+            resolve(sampler);
           },
           onerror: (e) => {
             clearTimeout(timer);
@@ -200,18 +227,19 @@ export class AudioEngine {
           },
         });
       });
+      this.instrument = s;
+      this.playerInstrument = cloneSamplerFromBuffers(s);
       this.source = "salamander";
     } catch (err) {
       console.warn("[audio] Salamander samples unavailable, using synth fallback:", err);
-      this.instrument = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: "triangle8" },
-        envelope: { attack: 0.004, decay: 0.6, sustain: 0.18, release: 1.1 },
-      });
-      this.instrument.maxPolyphony = 48;
+      this.instrument = makeFallbackPianoSynth();
+      this.playerInstrument = makeFallbackPianoSynth();
       this.source = "synth";
     }
     this.instrument.volume.value = -8;
-    this.instrument.connect(reverb);
+    this.instrument.connect(this.bgPianoBus);
+    this.playerInstrument.volume.value = -8;
+    this.playerInstrument.connect(this.playerPianoBus);
     progress("piano", this.source === "salamander" ? "ready" : "fallback");
     const [b, d] = await Promise.all([bass, drums]);
     this.bandSource = { bass: b.source, drums: d.source };
@@ -365,6 +393,7 @@ export class AudioEngine {
     this.cancelCountIn();
     Tone.getTransport().stop();
     this.instrument?.releaseAll();
+    this.playerInstrument?.releaseAll();
     this.bass?.release();
     this.drums?.release();
     this.host.position(null);
@@ -373,14 +402,21 @@ export class AudioEngine {
   /** Remove everything this engine put on the shared Transport and audio graph. */
   dispose() {
     this.stop();
+    this.unsubVolumes?.();
+    this.unsubVolumes = null;
     if (this.clockId !== null) Tone.getTransport().clear(this.clockId);
     this.clockId = null;
     for (const p of [this.part, this.bassPart, this.drumPart, this.clickPart]) p?.dispose();
     this.part = this.bassPart = this.drumPart = this.clickPart = null;
     this.instrument?.dispose();
+    this.playerInstrument?.dispose();
+    this.bgPianoBus?.dispose();
+    this.playerPianoBus?.dispose();
     this.bass?.dispose();
     this.drums?.dispose();
-    this.instrument = this.bass = this.drums = null;
+    this.instrument = this.playerInstrument = null;
+    this.bgPianoBus = this.playerPianoBus = null;
+    this.bass = this.drums = null;
   }
 
   /** Playing, or counting in (so Space during the count-in stops rather than restarts). */
@@ -394,12 +430,14 @@ export class AudioEngine {
     return t.state === "started" ? t.ticks / t.PPQ : null;
   }
 
-  // Direct auditions ignore the mixer: muting the band's piano never silences the
-  // coach's "hear it" or the on-screen keys.
+  // Direct auditions, Ghost Master piano replies, and live keys route through
+  // `playerInstrument` -> `playerPianoBus` so the Player/Master Piano volume slider
+  // controls them independently of the backing band's comping piano.
 
   playNotes(midis: number[], seconds: number, delay: number) {
     const freqs = midis.map((m) => Tone.Frequency(m, "midi").toFrequency());
-    this.instrument?.triggerAttackRelease(freqs, seconds, Tone.now() + 0.03 + delay, 0.6);
+    const target = this.playerInstrument ?? this.instrument;
+    target?.triggerAttackRelease(freqs, seconds, Tone.now() + 0.03 + delay, 0.6);
   }
 
   /**
@@ -421,14 +459,16 @@ export class AudioEngine {
     const prev = this.noteTime.get(midi) ?? 0;
     const at = Math.max(Tone.immediate(), prev + 0.001);
     this.noteTime.set(midi, at);
-    this.instrument?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), at, velocity);
+    const target = this.playerInstrument ?? this.instrument;
+    target?.triggerAttack(Tone.Frequency(midi, "midi").toFrequency(), at, velocity);
   }
 
   noteOff(midi: number) {
     const prev = this.noteTime.get(midi) ?? 0;
     const at = Math.max(Tone.immediate(), prev + 0.005);
     this.noteTime.set(midi, at);
-    this.instrument?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), at);
+    const target = this.playerInstrument ?? this.instrument;
+    target?.triggerRelease(Tone.Frequency(midi, "midi").toFrequency(), at);
   }
 
   /** Wake a context the OS suspended (iOS after a call or an app switch; tabs left in the background). */
@@ -436,6 +476,39 @@ export class AudioEngine {
     const ctx = Tone.getContext().rawContext as AudioContext;
     if (ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
   }
+}
+
+function makeFallbackPianoSynth(): Tone.PolySynth {
+  const synth = new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: "triangle8" },
+    envelope: { attack: 0.004, decay: 0.6, sustain: 0.18, release: 1.1 },
+  });
+  synth.maxPolyphony = 48;
+  return synth;
+}
+
+/**
+ * Build a second `Tone.Sampler` sharing the already-decoded, onset-trimmed `ToneAudioBuffer`
+ * objects from the primary Salamander sampler, avoiding any duplicate network fetches while
+ * giving the Player/Master piano its own independent `Tone.Volume` bus.
+ */
+function cloneSamplerFromBuffers(source: Tone.Sampler): Tone.Sampler | Tone.PolySynth {
+  try {
+    const map = (source as unknown as { _buffers?: { _buffers?: Map<string | number, Tone.ToneAudioBuffer> } })._buffers?._buffers;
+    if (map && map.size > 0) {
+      const urls: Record<string, Tone.ToneAudioBuffer> = {};
+      for (const [key, buf] of map) {
+        const noteName = typeof key === "number" || /^\d+$/.test(String(key))
+          ? Tone.Frequency(Number(key), "midi").toNote()
+          : String(key);
+        urls[noteName] = buf;
+      }
+      return new Tone.Sampler({ urls, release: 1.2 });
+    }
+  } catch (err) {
+    console.warn("[audio] couldn't clone Salamander buffers, falling back to PolySynth for player channel", err);
+  }
+  return makeFallbackPianoSynth();
 }
 
 /**

@@ -212,11 +212,16 @@ function extractSeedMotif(
 
   const picked = monophonic.slice(-MAX_MOTIF_NOTES);
   if (picked.length > 0) {
+    // Shift all motif notes left by the first note's offset so the Ghost Master always
+    // enters confidently on Beat 0 (the downbeat) of its response window.
+    const firstOffset = Math.max(0, picked[0].start - callStartBeat);
     return picked.map((n, i) => {
-      const relStart = Math.max(0, Math.min(span - 0.25, n.start - callStartBeat));
+      const shiftedStart = Math.max(0, n.start - callStartBeat - firstOffset);
+      const relStart = Math.max(0, Math.min(span - 0.25, shiftedStart));
       const rawEnd = n.end !== null ? Math.min(callEndBeat, n.end) : callEndBeat;
-      const nextRel = i + 1 < picked.length ? Math.max(relStart + 0.2, picked[i + 1].start - callStartBeat) : span;
-      const dur = Math.max(0.25, Math.min(2.0, rawEnd - n.start, nextRel - relStart));
+      const nextShifted =
+        i + 1 < picked.length ? Math.max(relStart + 0.2, picked[i + 1].start - callStartBeat - firstOffset) : span;
+      const dur = Math.max(0.25, Math.min(2.0, rawEnd - n.start, nextShifted - relStart));
       return { relStart, dur, midi: clampRegister(n.midi) };
     });
   }
@@ -301,8 +306,10 @@ export function transformMotif(args: TransformMotifArgs): GhostResponse {
       });
     }
   } else if (personality === "bebop-encloser") {
-    // Bud Powell / Barry Harris: transpose motif to target guide tone, then wrap the final
+    // Bud Powell / Barry Harris: transpose motif to target guide tone, then wrap the
     // resolution note with a diatonic-above -> chromatic-below -> target guide-tone enclosure.
+    // Anchor the phrase on Beat 0 of the response window: if the motif has only 1 note (relStart = 0),
+    // the 2-note enclosure starts right on Beat 0 (`respStartBeat`) and resolves on `respStartBeat + 2 * stepDur`.
     const stepDur = tune.feel === "swing" || tune.feel === "waltz" ? 1 / 3 : 0.5;
     const targetStart = Math.min(respEndBeat - 0.35, Math.max(respStartBeat + stepDur * 2, respStartBeat + lastSeed.relStart));
     const encStart1 = targetStart - stepDur * 2;

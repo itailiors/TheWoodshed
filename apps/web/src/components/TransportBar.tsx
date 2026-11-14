@@ -10,6 +10,7 @@ import { LoadingLine } from "./LoadingLine";
 import { MidiMonitorToggle } from "./MidiMonitorToggle";
 import { QwertyToggle } from "./QwertyToggle";
 import { TrioMixer } from "./TrioMixer";
+import { VolumeMixer } from "./VolumeMixer";
 
 interface Props {
   status: PlaybackStatus;
@@ -74,6 +75,8 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
           aria-label="Tempo"
         />
       </label>
+
+      <VolumeMixer />
 
       {narrow && (
         <button
