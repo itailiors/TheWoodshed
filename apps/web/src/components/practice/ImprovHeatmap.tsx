@@ -427,6 +427,7 @@ export function ImprovHeatmap({
                 callEndBeat,
                 respStartBeat,
                 respEndBeat,
+                continuousPhraseIdx,
               });
 
               const lastUserNote = localPhraseIdx > 0 && callNotes.length > 0 ? callNotes[callNotes.length - 1] : undefined;
@@ -450,15 +451,18 @@ export function ImprovHeatmap({
               clearGhostTimers();
               const spb = 60 / Math.max(40, tc.tempo);
               const useSax = tc.ghostInstrument === "sax";
-              for (const gn of stamped) {
+              for (let idx = 0; idx < stamped.length; idx++) {
+                const gn = stamped[idx];
+                const nextGn = stamped[idx + 1];
                 const delaySec = Math.max(0, (gn.start - b) * spb);
-                const durSec = Math.max(0.14, (gn.end - gn.start) * spb * 0.92);
+                const maxBeforeNextSec = nextGn ? Math.max(0.05, (nextGn.start - gn.start) * spb * 0.76) : Infinity;
+                const durSec = Math.min(maxBeforeNextSec, Math.max(0.06, (gn.end - gn.start) * spb * 0.82));
                 const timerId = setTimeout(() => {
                   if (useSax) {
                     player.resume();
-                    ghostSax.play(gn.voicing, durSec, 0);
+                    ghostSax.play(gn.voicing, durSec, 0, gn.vel);
                   } else {
-                    void player.playNotes(gn.voicing, durSec, 0);
+                    void player.playNotes(gn.voicing, durSec, 0, gn.vel);
                   }
                 }, Math.round(delaySec * 1000));
                 ghostTimers.current.push(timerId);

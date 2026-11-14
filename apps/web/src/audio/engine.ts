@@ -434,10 +434,10 @@ export class AudioEngine {
   // `playerInstrument` -> `playerPianoBus` so the Player/Master Piano volume slider
   // controls them independently of the backing band's comping piano.
 
-  playNotes(midis: number[], seconds: number, delay: number) {
+  playNotes(midis: number[], seconds: number, delay: number, vel = 0.6) {
     const freqs = midis.map((m) => Tone.Frequency(m, "midi").toFrequency());
     const target = this.playerInstrument ?? this.instrument;
-    target?.triggerAttackRelease(freqs, seconds, Tone.now() + 0.03 + delay, 0.6);
+    target?.triggerAttackRelease(freqs, seconds, Tone.now() + 0.03 + delay, vel);
   }
 
   /**

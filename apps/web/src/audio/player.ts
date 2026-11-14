@@ -264,10 +264,10 @@ class Player {
 
   // ── direct auditions (ignore the mixer) ──
 
-  /** Audition a voicing (coach "hear it"). */
-  async playNotes(midis: number[], seconds = 1.6, delay = 0) {
+  /** Audition a voicing (coach "hear it") or play a Ghost Master phrase with dynamic velocity. */
+  async playNotes(midis: number[], seconds = 1.6, delay = 0, vel = 0.6) {
     await this.init();
-    this.engine?.playNotes(midis, seconds, delay);
+    this.engine?.playNotes(midis, seconds, delay, vel);
   }
 
   private auditionToken = 0;

@@ -427,12 +427,12 @@ function ensureGhostSax(): Tone.MonoSynth {
   saxVib = new Tone.Vibrato({ frequency: 5.2, depth: 0.14 }).connect(saxVol);
   saxSynth = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
-    portamento: 0.028,
+    portamento: 0.008,
     envelope: {
-      attack: 0.022,
-      decay: 0.16,
-      sustain: 0.8,
-      release: 0.18,
+      attack: 0.014,
+      decay: 0.14,
+      sustain: 0.72,
+      release: 0.09,
     },
     filter: {
       type: "lowpass",
@@ -440,10 +440,10 @@ function ensureGhostSax(): Tone.MonoSynth {
       Q: 2.4,
     },
     filterEnvelope: {
-      attack: 0.028,
-      decay: 0.22,
-      sustain: 0.42,
-      release: 0.18,
+      attack: 0.018,
+      decay: 0.18,
+      sustain: 0.38,
+      release: 0.09,
       baseFrequency: 360,
       octaves: 2.7,
     },
