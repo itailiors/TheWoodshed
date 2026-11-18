@@ -1,0 +1,34 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/session-state.mjs\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 180,
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/verify-on-stop.mjs\" . ts,tsx \"npm run typecheck && npm test\""
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "deny": [
+      "Edit(/apps/api/data/**)",
+      "Write(/apps/api/data/**)",
+      "Edit(apps/api/data/**)",
+      "Write(apps/api/data/**)"
+    ]
+  }
+}
