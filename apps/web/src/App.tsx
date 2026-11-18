@@ -28,7 +28,7 @@ import { pen } from "./design/tokens";
 import { usePlayback } from "./audio/usePlayback";
 import { ImprovCard } from "./components/ImprovCard";
 import { TransportBar } from "./components/TransportBar";
-import { ModeSwitch, type AppMode } from "./components/ModeSwitch";
+import { APP_MODES, ModeSwitch, type AppMode } from "./components/ModeSwitch";
 import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { lazyWithPreload, whenIdle } from "./lazy";
 import { PanelBoundary } from "./components/PanelBoundary";
@@ -51,6 +51,7 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 // straight into Practice Mode), and all three are prefetched once the page is idle.
 const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
 const CoachPage = lazyWithPreload(() => import("./components/coach/CoachPage").then((m) => m.CoachPage));
+const ChangesPage = lazyWithPreload(() => import("./components/changes/ChangesPage").then((m) => m.ChangesPage));
 // The X-ray (and, inside it, the Proof tab's fast-check worker) only loads when opened.
 const PracticeDashboard = lazyWithPreload(() => import("./components/progress/PracticeDashboard").then((m) => m.PracticeDashboard));
 const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
@@ -227,7 +228,8 @@ export function App() {
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem("reharm.mode");
-      return saved === "practice" || saved === "coach" ? saved : "study";
+      // anything unknown (an old build's value, a typo) falls back to Study
+      return (APP_MODES as readonly string[]).includes(saved ?? "") ? (saved as AppMode) : "study";
     } catch {
       return "study";
     }
@@ -248,6 +250,7 @@ export function App() {
     if (!document.startViewTransition || reduce) return commit();
     if (m === "practice") await PracticeMode.preload().catch(() => {});
     if (m === "coach") await CoachPage.preload().catch(() => {});
+    if (m === "changes") await ChangesPage.preload().catch(() => {});
     // The browser runs the update only after it has captured the old screen. If it can't
     // render a frame (a backgrounded or embedded tab), that never happens, so after a short
     // wait we switch anyway and drop the animation: the mode change must never hang on it.
@@ -340,6 +343,24 @@ export function App() {
   }, [baseTune]);
 
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
+
+  // The Changes game plays its own chords: a band carrying on underneath would clash, so it stops
+  // on the way in (it doesn't restart on the way out; Play is one tap away).
+  const { status: bandStatus, toggle: toggleBand } = playback;
+  useEffect(() => {
+    if (mode === "changes" && bandStatus === "playing") toggleBand();
+  }, [mode, bandStatus, toggleBand]);
+
+  if (mode === "changes") {
+    return (
+      <Suspense fallback={<Inking label="Opening the changes" />}>
+        <Toaster />
+        <PanelBoundary onClose={() => void setMode("study")}>
+          <ChangesPage midi={midi} onMode={setMode} />
+        </PanelBoundary>
+      </Suspense>
+    );
+  }
 
   if (mode === "coach") {
     return (
