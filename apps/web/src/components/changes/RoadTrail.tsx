@@ -48,7 +48,7 @@ function layout(stations: Station[], connectors: Connector[]) {
   return { xs, width: x + W + PAD };
 }
 
-export function RoadTrail({ stations, connectors, seed, label, scale = 1 }: { stations: Station[]; connectors: Connector[]; seed: number; label: string; scale?: number }) {
+export function RoadTrail({ stations, connectors, seed, label, scale = 1, fit = false }: { stations: Station[]; connectors: Connector[]; seed: number; label: string; scale?: number; /** Shrink a long road to the width available instead of scrolling it. */ fit?: boolean }) {
   const g = useRef<SVGGElement>(null);
   const { xs, width } = layout(stations, connectors);
   const state = JSON.stringify([stations, connectors, seed]);
@@ -118,7 +118,7 @@ export function RoadTrail({ stations, connectors, seed, label, scale = 1 }: { st
 
   return (
     <div className="-mx-1 overflow-x-auto px-1" role="img" aria-label={label}>
-      <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width * scale} height={HEIGHT * scale} className="block select-none">
+      <svg viewBox={`0 0 ${width} ${HEIGHT}`} width={width * scale} height={HEIGHT * scale} className="block select-none" style={fit ? { maxWidth: "100%", height: "auto" } : undefined}>
         <g ref={g} />
         {connectors.map((c, i) =>
           c.kind === "tritoneHop" ? (

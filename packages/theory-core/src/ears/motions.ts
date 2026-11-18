@@ -219,7 +219,7 @@ export const ALTS: Record<AltMotionId, AltRule> = {
     // instead of V (from ii) or on the way home from V: ♭II7 shares V7's tritone and slides down into I
     from: [2, 5],
     spell: (tonic) => spellChord(transpose(tonic, "b2"), "7", tonic, null),
-    line: (_, p) => `That works, and it's a real jazz move: ${ps(p)} is the tritone sub, sliding down a half step into home.`,
+    line: (_, p) => `A real jazz move: ${ps(p)} is the tritone sub, sliding down a half step into home.`,
   },
   backdoor: {
     id: "backdoor",
@@ -229,7 +229,7 @@ export const ALTS: Record<AltMotionId, AltRule> = {
     from: [4],
     spell: (tonic) => spellChord(transpose(tonic, "b7"), "7", tonic, null),
     line: (tonic, p) =>
-      `That works, and it's a real jazz move: a perfect fifth down to ${ps(p)}, the backdoor that slips into ${pn(tonic)} from a whole step below. ` +
+      `A real jazz move: a perfect fifth down to ${ps(p)}, the backdoor that slips into ${pn(tonic)} from a whole step below. ` +
       `It steps outside the key for a moment, though.`,
   },
   passingDim: {
@@ -237,7 +237,7 @@ export const ALTS: Record<AltMotionId, AltRule> = {
     // from home, a diminished chord a half step up climbs chromatically to ii
     from: [1],
     spell: (tonic) => spellChord(raisedTonic(tonic), "dim7", tonic, null),
-    line: (_, p) => `That works, and it's a real jazz move: ${ps(p)} is a passing diminished, a stepping stone up to the ii.`,
+    line: (_, p) => `A real jazz move: ${ps(p)} is a passing diminished, a stepping stone up to the ii.`,
   },
 };
 

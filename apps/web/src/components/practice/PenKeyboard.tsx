@@ -3,9 +3,9 @@ import { useRough } from "../../design/rough";
 import { ink, paper, pen, sageInk, seedOf, wash } from "../../design/tokens";
 
 const WW = 22;
-const WH = 112;
+const WH_FULL = 112;
 const BW = 13;
-const BH = 70;
+const BH_FULL = 70;
 const LABEL_ROOM = 52; // room for red-pen labels above the keys
 const SLIM_ROOM = 10; // with `slim`, while there's nothing to write above the keys
 const SPLIT_MIDI = 55; // G3: notes below G3 are left-hand bass/shell; G3 and up are right-hand upper voices
@@ -42,6 +42,8 @@ export interface PenKeyboardProps {
   labels?: PenMark[];
   /** A small sage-ink tick on these keys (a right answer). */
   ticks?: number[];
+  /** Shorter keys (a keyboard docked at the bottom of a phone screen). */
+  short?: boolean;
   /** A mustard ring around these keys (a valid alternative). */
   rings?: number[];
 }
@@ -74,7 +76,10 @@ export function PenKeyboard({
   labels = [],
   ticks = [],
   rings = [],
+  short = false,
 }: PenKeyboardProps) {
+  const WH = short ? 60 : WH_FULL;
+  const BH = short ? 38 : BH_FULL;
   const here = (mk: PenMark) => mk.midi >= low && mk.midi <= high; // a split keyboard gets the whole chord's marks
   const TOP = slim && !missing.some(here) && !wrong.some(here) && !labels.some(here) && !check ? SLIM_ROOM : LABEL_ROOM;
   const { keys, width } = layout(low, high);
@@ -95,8 +100,8 @@ export function PenKeyboard({
   // if a strike was played on this step, only show unplayed target notes as dashed ghosts.
   const playedSet = new Set(played);
   const visibleTarget = target.filter((m) => !playedSet.has(m));
-  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP]);
-  const markState = JSON.stringify([missing, wrong, check, TOP, ticks, rings]);
+  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP, WH]);
+  const markState = JSON.stringify([missing, wrong, check, TOP, ticks, rings, WH]);
 
   useRough(
     g,

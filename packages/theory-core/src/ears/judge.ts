@@ -59,7 +59,7 @@ export function verdictLine(step: Step, key: string, v: AnswerVerdict): string {
     case "alt":
       return v.move in ALTS
         ? `${ALTS[v.move as AltMotionId].line(key, v.played)} This round goes to ${there}.`
-        : `That works too: ${prettySymbol(v.played.symbol)} is ${MOTIONS[v.move as EarMotionId].model}. This round goes to ${there}.`;
+        : `A real move too: ${prettySymbol(v.played.symbol)} is ${MOTIONS[v.move as EarMotionId].model}. This round goes to ${there}.`;
     case "wrong":
       return MOTIONS[step.motion].wrong(ctx);
   }

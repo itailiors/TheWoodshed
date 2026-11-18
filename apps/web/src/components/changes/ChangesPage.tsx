@@ -1,5 +1,5 @@
-import { currentOptions, LEVELS, prettyNote, summarise, type LevelId, type Stage } from "@reharm/theory-core";
-import { useEffect } from "react";
+import { currentOptions, FUNCTION_CHIPS, LEVELS, prettyNote, prettySymbol, summarise, type LevelId, type Stage } from "@reharm/theory-core";
+import { useEffect, useState } from "react";
 import { player } from "../../audio/player";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { paper, seedOf } from "../../design/tokens";
@@ -11,6 +11,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { PenKeyboard, type PenKeyboardProps } from "../practice/PenKeyboard";
 import { QwertyToggle } from "../QwertyToggle";
+import { FunctionChips, LevelPicker, StageSelector } from "./Controls";
 import { FeedbackLine, OptionCards, PromptChord } from "./GamePieces";
 import { RoadTrail } from "./RoadTrail";
 import { roadOf } from "./roadModel";
@@ -21,9 +22,9 @@ import { useChangesGame } from "./useChangesGame";
  * chord, and you say where it wants to go next, by playing the root (MIDI, the computer keys or
  * the keys on screen) or, with help on, tapping a card.
  *
- * Step 5 of the build: Level 1 (the landing) at the Guided stage, playable end to end. Levels
- * 2–3, the Choices/Open stages and the function chips are wired in the reducer and arrive on
- * screen in step 7; the road (step 6) and the saved progress and summary (step 8) after that.
+ * Levels 1–3, each at three stages of help (Guided: cards that say what they are; Choices:
+ * names only; Open: play it yourself, and from Level 2 name the function too). Saved
+ * progress and the full session summary arrive in step 8.
  */
 
 interface Props {
@@ -31,8 +32,26 @@ interface Props {
   onMode: (m: AppMode) => void;
 }
 
-const V1_LEVEL: LevelId = 1;
-const V1_STAGE: Stage = "guided";
+/** The level and stage you last played, remembered per browser. */
+const SETTINGS_KEY = "reharm.changes";
+function loadSettings(): { level: LevelId; stage: Stage } {
+  try {
+    const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+    return {
+      level: [1, 2, 3].includes(v.level) ? v.level : 1,
+      stage: ["guided", "choices", "open"].includes(v.stage) ? v.stage : "guided",
+    };
+  } catch {
+    return { level: 1, stage: "guided" };
+  }
+}
+function saveSettings(v: { level: LevelId; stage: Stage }) {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(v));
+  } catch {
+    /* private mode: it lasts this visit */
+  }
+}
 
 export function ChangesPage({ midi, onMode }: Props) {
   const game = useChangesGame();
@@ -42,17 +61,42 @@ export function ChangesPage({ midi, onMode }: Props) {
   const playing = s.phase !== "idle" && s.phase !== "summary";
   useWakeLock(playing);
 
+  const [settings, setSettings] = useState(loadSettings);
+  const updateSettings = (v: Partial<typeof settings>) =>
+    setSettings((cur) => {
+      const next = { ...cur, ...v };
+      saveSettings(next);
+      return next;
+    });
+  // the stage you end up at (moved up, or picked mid-game) is the one you start with next time
+  useEffect(() => {
+    if (playing) updateSettings({ stage: s.stage });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, s.stage]);
+  const startSession = () => game.start(settings.level, settings.stage);
+
+  // moved up a stage: say so, with an Undo, for a few seconds
+  const [promoted, setPromoted] = useState<Stage | null>(null);
+  useEffect(() => {
+    if (!s.promotedFrom) return setPromoted(null);
+    setPromoted(s.promotedFrom);
+    const t = setTimeout(() => setPromoted(null), 8000);
+    return () => clearTimeout(t);
+  }, [s.promotedFrom]);
+
   const options = currentOptions(s);
   const road = roadOf(s);
   const cardStage = s.stage === "open" ? null : s.stage;
+  const chips = FUNCTION_CHIPS[s.level];
 
-  // keyboard shortcuts: 1–3 pick a card, Space plays it again / skips ahead, Enter goes on, Esc ends
+  // keyboard shortcuts: 1–3 pick a card, 1–7 pick a chip, Space plays it again / skips ahead, Enter goes on, Esc ends
   useEffect(() => {
     if (!playing) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey || e.ctrlKey || e.metaKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
       const n = Number(e.key);
-      if (n >= 1 && n <= options.length && s.phase === "awaiting") dispatch({ type: "PICK", pc: options[n - 1].pc });
+      if (s.phase === "chip" && n >= 1 && n <= chips.length) dispatch({ type: "CHIP", chip: chips[n - 1] });
+      else if (n >= 1 && n <= options.length && s.phase === "awaiting") dispatch({ type: "PICK", pc: options[n - 1].pc });
       else if (e.key === " ") {
         if (s.phase === "feedback") dispatch({ type: "ADVANCE" });
         else if (s.phase === "awaiting") game.playPrompt();
@@ -64,7 +108,7 @@ export function ChangesPage({ midi, onMode }: Props) {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [playing, s.phase, options, dispatch, game]);
+  }, [playing, s.phase, options, chips, dispatch, game]);
 
   return (
     <div className="min-h-dvh p-3 text-ink md:p-5">
@@ -93,7 +137,7 @@ export function ChangesPage({ midi, onMode }: Props) {
 
       <SketchBox seed={seedOf("changes-stage")} fill={paper.light} strokeWidth={2} className="mx-auto max-w-2xl">
         <div className="space-y-4 p-4 md:p-6">
-          {s.phase === "idle" && <Intro onStart={() => game.start(V1_LEVEL, V1_STAGE)} />}
+          {s.phase === "idle" && <Intro settings={settings} onSettings={updateSettings} onStart={startSession} />}
 
           {playing && step && round && (
             <>
@@ -105,8 +149,20 @@ export function ChangesPage({ midi, onMode }: Props) {
                   {s.points} pts · streak {s.streak}
                 </span>
               </div>
+              <StageSelector value={s.stage} onChange={(stage) => dispatch({ type: "SET_STAGE", stage })} />
+              {promoted && (
+                <p className="flex flex-wrap items-baseline gap-2 font-hand text-sm" role="status">
+                  <span className="font-marker" style={{ color: "var(--color-sage-ink)" }}>
+                    Moved up to {s.stage === "open" ? "Open" : "Choices"}:
+                  </span>{" "}
+                  8 right in a row.
+                  <button type="button" onClick={() => dispatch({ type: "UNDO_PROMOTE" })} className="cursor-pointer font-marker underline">
+                    Undo
+                  </button>
+                </p>
+              )}
 
-              {road && <RoadTrail {...road} seed={round.seed} scale={narrow ? 1 : 1.4} />}
+              {road && <RoadTrail {...road} seed={round.seed} scale={narrow ? 1 : 1.4} fit={!narrow} />}
 
               {/* at the round's end, the chord shown is where you landed: home */}
               <PromptChord
@@ -117,7 +173,9 @@ export function ChangesPage({ midi, onMode }: Props) {
               />
 
               <div aria-live="polite" className="min-h-[1.5rem]">
-                {s.phase === "awaiting" && <p className="font-marker text-lg">Where does it want to go?</p>}
+                {s.phase === "awaiting" && (
+                  <p className="font-marker text-lg">{s.stage === "open" ? "Where does it want to go? Play the root." : "Where does it want to go?"}</p>
+                )}
                 {s.phase === "roundEnd" && <p className="font-marker text-lg">Home. Hear the whole trip…</p>}
               </div>
 
@@ -132,12 +190,17 @@ export function ChangesPage({ midi, onMode }: Props) {
                 />
               )}
 
+              {s.phase === "chip" && (
+                <FunctionChips chips={chips} root={prettySymbol(step.expected.symbol)} onPick={(chip) => dispatch({ type: "CHIP", chip })} />
+              )}
+
               {(s.phase === "feedback" || s.phase === "fixing") && s.verdict && (
                 <FeedbackLine
                   verdict={s.verdict}
                   step={step}
                   keyTonic={round.key}
                   fixing={s.phase === "fixing"}
+                  chip={s.chip}
                   whyOpen={s.whyOpen}
                   canNext={s.phase === "feedback"}
                   onWhy={() => dispatch({ type: "WHY_TOGGLE" })}
@@ -159,42 +222,55 @@ export function ChangesPage({ midi, onMode }: Props) {
             </>
           )}
 
-          {s.phase === "summary" && <Summary s={s} onAgain={() => game.start(s.level, s.stage)} />}
+          {s.phase === "summary" && <Summary s={s} settings={settings} onSettings={updateSettings} onAgain={startSession} />}
         </div>
       </SketchBox>
     </div>
   );
 }
 
-function Intro({ onStart }: { onStart: () => void }) {
+type Settings = { level: LevelId; stage: Stage };
+
+/** Pick a level and how much help, then go. (Step 8 marks the next unmastered level "next up"; until then, Level 1.) */
+function SessionSetup({ settings, onSettings, onStart, startLabel }: { settings: Settings; onSettings: (v: Partial<Settings>) => void; onStart: () => void; startLabel: string }) {
   return (
     <div className="space-y-3">
+      <LevelPicker value={settings.level} onChange={(level) => onSettings({ level })} nextUp={1} />
+      <div className="flex flex-wrap items-center gap-3">
+        <StageSelector value={settings.stage} onChange={(stage) => onSettings({ stage })} />
+        <button type="button" onClick={onStart} className="tap-lg ml-auto cursor-pointer rounded-full border-2 border-ink bg-ink px-5 font-marker text-lg text-paper-light">
+          {startLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Intro({ settings, onSettings, onStart }: { settings: Settings; onSettings: (v: Partial<Settings>) => void; onStart: () => void }) {
+  return (
+    <div className="space-y-4">
       <p className="font-hand text-lg">
         You're on a chord. Play or pick the root it wants to go to next, hear the move, and learn why it works: the landing, the setup,
         the fourths staircase.
       </p>
       <p className="font-hand text-sm text-ink-soft">Any octave counts. No keyboard? Tap the keys on screen, or press M to play with your computer keys.</p>
-      <button type="button" onClick={onStart} className="tap-lg cursor-pointer rounded-full border-2 border-ink bg-ink px-5 font-marker text-lg text-paper-light">
-        Start · Level 1, {LEVELS[0].name}
-      </button>
+      <SessionSetup settings={settings} onSettings={onSettings} onStart={onStart} startLabel="Start" />
     </div>
   );
 }
 
-function Summary({ s, onAgain }: { s: Parameters<typeof summarise>[0]; onAgain: () => void }) {
+function Summary({ s, settings, onSettings, onAgain }: { s: Parameters<typeof summarise>[0]; settings: Settings; onSettings: (v: Partial<Settings>) => void; onAgain: () => void }) {
   const sum = summarise(s);
   return (
-    <div className="space-y-3" aria-live="polite">
+    <div className="space-y-4" aria-live="polite">
       <h2 className="font-marker text-2xl uppercase">Session</h2>
       <p className="font-hand text-lg">
         {sum.points} points · best streak {sum.bestStreak} · {sum.roundsPlayed} of {s.rounds.length} trips home
       </p>
       {sum.discoveries.length > 0 && (
-        <p className="font-hand text-sm text-ink-soft">Discoveries: {sum.discoveries.map((d) => d.symbol.replace(/b/g, "♭")).join(", ")}</p>
+        <p className="font-hand text-sm text-ink-soft">Discoveries: {sum.discoveries.map((d) => prettySymbol(d.symbol)).join(", ")}</p>
       )}
-      <button type="button" onClick={onAgain} className="tap-lg cursor-pointer rounded-full border-2 border-ink bg-ink px-5 font-marker text-paper-light">
-        Again
-      </button>
+      <SessionSetup settings={settings} onSettings={onSettings} onStart={onAgain} startLabel="Again" />
     </div>
   );
 }
@@ -209,6 +285,7 @@ function keyboardMarks(s: ReturnType<typeof useChangesGame>["s"], optionPcs: num
   if (!step) return {};
   const at = (pc: number) => OCTAVE4 + pc;
   if (s.phase === "awaiting" && s.stage === "guided") return { target: optionPcs.map(at) };
+  if (s.phase === "chip") return { played: [at(step.expected.pc)], ticks: [at(step.expected.pc)] };
   if (s.phase === "fixing") return { target: [at(step.expected.pc)], labels: [{ midi: at(step.expected.pc), label: prettyNote(step.expected.root) }] };
   if (s.phase === "feedback" && s.verdict) {
     const expected = { midi: at(step.expected.pc), label: prettyNote(step.expected.root) };
@@ -227,18 +304,23 @@ function pressKey(m: number) {
 }
 
 function AnswerKeyboard({ narrow, listening, marks }: { narrow: boolean; listening: boolean; marks: Omit<PenKeyboardProps, "low" | "high"> }) {
-  // two octaves from C3: any octave counts, so this is plenty. A phone gets them as two rows, higher on top.
-  const rows = narrow
-    ? [
-        { low: 60, high: 72 },
-        { low: 48, high: 59 },
-      ]
-    : [{ low: 48, high: 72 }];
+  // Any octave counts, so two octaves from C3 is plenty, and a phone (docked at the bottom) needs
+  // just one, with short keys, so the game above stays in view.
+  const rows = narrow ? [{ low: 60, high: 72 }] : [{ low: 48, high: 72 }];
   return (
-    <div className={`space-y-1 transition-opacity ${listening ? "" : "opacity-60"}`} aria-label={listening ? "Keyboard: play the next root" : "Keyboard: listening…"}>
-      {rows.map((r) => (
-        <PenKeyboard key={r.low} {...r} {...marks} showSplit={false} slim={narrow} onKey={pressKey} />
-      ))}
+    // on a phone the keys stay docked at the bottom of the screen, so the answer is always in reach
+    <div
+      className={
+        narrow
+          ? "sticky bottom-0 z-20 -mx-4 border-t-2 border-ink bg-paper-light px-3 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]"
+          : ""
+      }
+    >
+      <div className={`space-y-1 transition-opacity ${listening ? "" : "opacity-60"}`} aria-label={listening ? "Keyboard: play the next root" : "Keyboard: listening…"}>
+        {rows.map((r) => (
+          <PenKeyboard key={r.low} {...r} {...marks} showSplit={false} slim={narrow} short={narrow} onKey={pressKey} />
+        ))}
+      </div>
     </div>
   );
 }

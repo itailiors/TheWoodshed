@@ -110,6 +110,7 @@ export function FeedbackLine({
   step,
   keyTonic,
   fixing,
+  chip,
   whyOpen,
   canNext,
   onWhy,
@@ -119,6 +120,8 @@ export function FeedbackLine({
   step: Step;
   keyTonic: string;
   fixing: boolean;
+  /** The function chip given at Open (Levels 2–3), if one was asked. */
+  chip: { picked: string; right: boolean } | null;
   whyOpen: boolean;
   canNext: boolean;
   onWhy: () => void;
@@ -136,6 +139,13 @@ export function FeedbackLine({
           <span className="font-hand">{verdictLine(step, keyTonic, verdict)}</span>
         </span>
       </p>
+      {chip && (
+        <p className="font-hand" style={{ color: chip.right ? "var(--color-sage-ink)" : pen.red }}>
+          {chip.right
+            ? `And yes, it's the ${chipOf(step.expected)}. (+4)`
+            : `${prettySymbol(step.expected.symbol)} is the ${chipOf(step.expected)} here, not the ${chip.picked}. The root still counts.`}
+        </p>
+      )}
       {fixing && (
         <p className="font-marker" style={{ color: pen.red }}>
           → Play {prettyNote(step.expected.root)} to go on.
