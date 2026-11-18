@@ -28,7 +28,7 @@ export function StageSelector({ value, onChange }: { value: Stage; onChange: (s:
   );
 }
 
-export function LevelPicker({ value, onChange, nextUp }: { value: LevelId; onChange: (l: LevelId) => void; nextUp: LevelId | null }) {
+export function LevelPicker({ value, onChange, nextUp, mastered = [] }: { value: LevelId; onChange: (l: LevelId) => void; nextUp: LevelId | null; mastered?: LevelId[] }) {
   return (
     <div role="radiogroup" aria-label="Level" className="grid gap-2 sm:grid-cols-3">
       {LEVELS.map((l) => (
@@ -42,6 +42,7 @@ export function LevelPicker({ value, onChange, nextUp }: { value: LevelId; onCha
         >
           <span className="block font-marker">
             {l.id}. {l.name}
+            {mastered.includes(l.id) && <span className="ml-1.5" style={{ color: "var(--color-sage-ink)" }} aria-label="mastered">✓</span>}
           </span>
           <span className="block font-hand text-xs text-ink-soft">{LEVEL_BLURB[l.id]}</span>
           {nextUp === l.id && (

@@ -1,8 +1,9 @@
-import { currentOptions, FUNCTION_CHIPS, LEVELS, prettyNote, prettySymbol, summarise, type LevelId, type Stage } from "@reharm/theory-core";
+import { currentOptions, EAR_MOTION_NAME, FUNCTION_CHIPS, LEVELS, motionOfRuleId, prettyNote, prettySymbol, summarise, type LevelId, type Stage } from "@reharm/theory-core";
 import { useEffect, useState } from "react";
 import { player } from "../../audio/player";
 import { SketchBox, SketchFilters } from "../../design/rough";
-import { paper, seedOf } from "../../design/tokens";
+import { paper, pen, seedOf } from "../../design/tokens";
+import type { DueItem } from "../../library/practice";
 import { useNarrow, useTouchFirst } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
 import { noteBus } from "../../midi/noteBus";
@@ -16,6 +17,7 @@ import { FeedbackLine, OptionCards, PromptChord } from "./GamePieces";
 import { RoadTrail } from "./RoadTrail";
 import { roadOf } from "./roadModel";
 import { useChangesGame } from "./useChangesGame";
+import { levelFor, useChangesProgress, type ChangesProgress } from "./useChangesProgress";
 
 /*
  * The Changes tab: harmony games with sound. Its first game is "Make the Changes": you're on a
@@ -73,7 +75,15 @@ export function ChangesPage({ midi, onMode }: Props) {
     if (playing) updateSettings({ stage: s.stage });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playing, s.stage]);
-  const startSession = () => game.start(settings.level, settings.stage);
+  const progress = useChangesProgress();
+  // due reviews of this level come first in any session (planSession skips other levels' ones)
+  const startSession = () => game.start(settings.level, settings.stage, progress?.due ?? []);
+  // "Review them": the level that covers them, at Open (only Open answers count for the scheduler)
+  const startReview = (level: LevelId, due: DueItem[]) => {
+    updateSettings({ level, stage: "open" });
+    game.start(level, "open", due);
+  };
+  const setup = { settings, onSettings: updateSettings, progress, onReview: startReview };
 
   // moved up a stage: say so, with an Undo, for a few seconds
   const [promoted, setPromoted] = useState<Stage | null>(null);
@@ -137,7 +147,7 @@ export function ChangesPage({ midi, onMode }: Props) {
 
       <SketchBox seed={seedOf("changes-stage")} fill={paper.light} strokeWidth={2} className="mx-auto max-w-2xl">
         <div className="space-y-4 p-4 md:p-6">
-          {s.phase === "idle" && <Intro settings={settings} onSettings={updateSettings} onStart={startSession} />}
+          {s.phase === "idle" && <Intro {...setup} onStart={startSession} />}
 
           {playing && step && round && (
             <>
@@ -222,7 +232,7 @@ export function ChangesPage({ midi, onMode }: Props) {
             </>
           )}
 
-          {s.phase === "summary" && <Summary s={s} settings={settings} onSettings={updateSettings} onAgain={startSession} />}
+          {s.phase === "summary" && <Summary s={s} {...setup} onStart={startSession} />}
         </div>
       </SketchBox>
     </div>
@@ -230,12 +240,47 @@ export function ChangesPage({ midi, onMode }: Props) {
 }
 
 type Settings = { level: LevelId; stage: Stage };
+type SetupProps = {
+  settings: Settings;
+  onSettings: (v: Partial<Settings>) => void;
+  onStart: () => void;
+  progress: ChangesProgress | null;
+  onReview: (level: LevelId, due: DueItem[]) => void;
+};
 
-/** Pick a level and how much help, then go. (Step 8 marks the next unmastered level "next up"; until then, Level 1.) */
-function SessionSetup({ settings, onSettings, onStart, startLabel }: { settings: Settings; onSettings: (v: Partial<Settings>) => void; onStart: () => void; startLabel: string }) {
+/** "2 reviews due: the setup in B♭ · the landing in F", and a button to play them (at Open, where reviews count). */
+function DueReviewsNote({ due, onReview }: { due: DueItem[]; onReview: (level: LevelId, due: DueItem[]) => void }) {
+  if (!due.length) return null;
+  const motions = due.map((d) => motionOfRuleId(d.ruleId)!);
+  const level = Math.max(...motions.map(levelFor)) as LevelId;
+  return (
+    <p className="flex flex-wrap items-baseline gap-x-2 rounded-lg border-2 border-dashed border-ink-soft px-3 py-2 font-hand" role="status">
+      <span className="font-marker">
+        {due.length} review{due.length === 1 ? "" : "s"} due:
+      </span>
+      <span className="text-ink-soft">{due.slice(0, 4).map((d, i) => `${EAR_MOTION_NAME[motions[i]].replace(/ \(.*\)$/, "").toLowerCase()} in ${prettyNote(d.keyTonic)}`).join(" · ")}</span>
+      <button type="button" onClick={() => onReview(level, due)} className="ml-auto cursor-pointer font-marker text-ink underline">
+        Review them →
+      </button>
+    </p>
+  );
+}
+
+/** Pick a level and how much help, then go. The first level not yet mastered is "next up". */
+function SessionSetup({ settings, onSettings, onStart, startLabel, progress, onReview }: SetupProps & { startLabel: string }) {
   return (
     <div className="space-y-3">
-      <LevelPicker value={settings.level} onChange={(level) => onSettings({ level })} nextUp={1} />
+      {progress && <DueReviewsNote due={progress.due} onReview={onReview} />}
+      <LevelPicker
+        value={settings.level}
+        onChange={(level) => onSettings({ level })}
+        nextUp={progress ? progress.nextUp : 1}
+        mastered={progress ? LEVELS.filter((l) => progress.mastery[l.id].mastered).map((l) => l.id) : []}
+      />
+      <p className="font-hand text-sm text-ink-soft">
+        {progress?.mastery[settings.level].mastered ? "Mastered. " : `To master it: ${LEVELS[settings.level - 1].mastery} `}
+        {progress && !progress.mastery[settings.level].mastered && progress.sessions.some((x) => x.level === settings.level) && `(${progress.mastery[settings.level].detail})`}
+      </p>
       <div className="flex flex-wrap items-center gap-3">
         <StageSelector value={settings.stage} onChange={(stage) => onSettings({ stage })} />
         <button type="button" onClick={onStart} className="tap-lg ml-auto cursor-pointer rounded-full border-2 border-ink bg-ink px-5 font-marker text-lg text-paper-light">
@@ -246,7 +291,7 @@ function SessionSetup({ settings, onSettings, onStart, startLabel }: { settings:
   );
 }
 
-function Intro({ settings, onSettings, onStart }: { settings: Settings; onSettings: (v: Partial<Settings>) => void; onStart: () => void }) {
+function Intro(props: SetupProps) {
   return (
     <div className="space-y-4">
       <p className="font-hand text-lg">
@@ -254,23 +299,72 @@ function Intro({ settings, onSettings, onStart }: { settings: Settings; onSettin
         the fourths staircase.
       </p>
       <p className="font-hand text-sm text-ink-soft">Any octave counts. No keyboard? Tap the keys on screen, or press M to play with your computer keys.</p>
-      <SessionSetup settings={settings} onSettings={onSettings} onStart={onStart} startLabel="Start" />
+      <SessionSetup {...props} startLabel="Start" />
     </div>
   );
 }
 
-function Summary({ s, settings, onSettings, onAgain }: { s: Parameters<typeof summarise>[0]; settings: Settings; onSettings: (v: Partial<Settings>) => void; onAgain: () => void }) {
+const ALT_NAME: Record<string, string> = { tritoneSub: "the tritone sub", backdoor: "the backdoor", passingDim: "a passing diminished" };
+
+/** The end of a session: how it went, what you found, and where to go next. */
+function Summary({ s, ...setup }: SetupProps & { s: Parameters<typeof summarise>[0] }) {
   const sum = summarise(s);
+  const level = LEVELS[s.level - 1];
+  const mastery = setup.progress?.mastery[s.level];
+  const next = LEVELS[s.level]; // undefined after the last level
+  const suggestion = mastery?.mastered
+    ? next
+      ? `Level ${s.level} is mastered. Next up: Level ${next.id}, ${next.name}.`
+      : "All three levels mastered. Keep them warm with your reviews."
+    : s.stage !== "open"
+      ? `Try ${s.stage === "guided" ? "Choices" : "Open"} next: less help, more points.`
+      : `Mastering it: ${mastery?.detail ?? level.mastery}`;
   return (
     <div className="space-y-4" aria-live="polite">
-      <h2 className="font-marker text-2xl uppercase">Session</h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-marker text-2xl uppercase">
+          Session · Level {s.level}, {level.name}
+        </h2>
+        <span className="font-marker text-2xl">{sum.points} pts</span>
+      </div>
       <p className="font-hand text-lg">
-        {sum.points} points · best streak {sum.bestStreak} · {sum.roundsPlayed} of {s.rounds.length} trips home
+        Best streak {sum.bestStreak} · {sum.roundsPlayed} of {s.rounds.length} trips home
       </p>
-      {sum.discoveries.length > 0 && (
-        <p className="font-hand text-sm text-ink-soft">Discoveries: {sum.discoveries.map((d) => prettySymbol(d.symbol)).join(", ")}</p>
+
+      {sum.byMotion.length > 0 && (
+        <ul className="space-y-1.5" aria-label="Accuracy by move">
+          {sum.byMotion.map((m) => (
+            <li key={m.motion} className="flex items-center gap-3 font-hand">
+              <span className="w-44 shrink-0 text-sm">{EAR_MOTION_NAME[m.motion]}</span>
+              <span className="relative h-3 flex-1 rounded-full border border-ink-faint" aria-hidden>
+                <span className="absolute inset-y-0 left-0 rounded-full bg-wash-sage/70" style={{ width: `${(100 * m.right) / m.total}%` }} />
+              </span>
+              <span className="w-12 shrink-0 text-right text-sm">
+                {m.right}/{m.total}
+              </span>
+            </li>
+          ))}
+        </ul>
       )}
-      <SessionSetup settings={settings} onSettings={onSettings} onStart={onAgain} startLabel="Again" />
+
+      {sum.stamped.length > 0 && (
+        <p className="flex flex-wrap items-center gap-2 font-hand text-sm">
+          Played clean at Open:
+          {sum.stamped.map((x) => (
+            <span key={`${x.motion}${x.key}`} className="-rotate-3 rounded border-2 px-1.5 font-marker text-xs uppercase" style={{ borderColor: pen.red, color: pen.red }}>
+              {prettyNote(x.key)} clean
+            </span>
+          ))}
+        </p>
+      )}
+      {sum.discoveries.length > 0 && (
+        <p className="font-hand text-sm">
+          ⑂ Discoveries: {sum.discoveries.map((d) => `${prettySymbol(d.symbol)}${ALT_NAME[d.move] ? ` (${ALT_NAME[d.move]})` : ""}`).join(", ")}
+        </p>
+      )}
+      <p className="font-marker">{suggestion}</p>
+
+      <SessionSetup {...setup} startLabel="Again" />
     </div>
   );
 }

@@ -3,8 +3,11 @@ import {
   currentStep,
   gameReducer,
   initialGame,
+  srsRuns,
+  summarise,
   trail,
   voiceChord,
+  type DueItem,
   type GameState,
   type LevelId,
   type SpelledChord,
@@ -14,6 +17,7 @@ import {
 import { useCallback, useEffect, useReducer, useRef } from "react";
 import { player } from "../../audio/player";
 import { useNoteBus } from "../../midi/noteBus";
+import { saveChangesSession } from "../../library/practice";
 
 /*
  * Make the Changes in the browser: theory-core's pure reducer, plus the three things it leaves
@@ -47,12 +51,52 @@ export function useChangesGame() {
   const [s, dispatch] = useReducer(gameReducer, undefined, () => initialGame());
   /** The prompt chord's voicing, so replays and the next prompt voice-lead from it. */
   const lastVoicing = useRef<Voicing | undefined>(undefined);
+  const startedAt = useRef(new Date());
 
-  const start = useCallback((level: LevelId, stage: Stage) => {
+  const start = useCallback((level: LevelId, stage: Stage, due: readonly DueItem[] = []) => {
     void player.init(); // a user gesture: wakes the audio (phones need this tap)
     lastVoicing.current = undefined;
-    dispatch({ type: "START", level, stage, seed: Math.floor(Math.random() * 2 ** 31) });
+    startedAt.current = new Date();
+    dispatch({ type: "START", level, stage, seed: Math.floor(Math.random() * 2 ** 31), due });
   }, []);
+
+  // ── saving: each session once, when it ends (or, if you leave mid-way, what you played of it) ──
+  const savedSession = useRef<number | null>(null);
+  const latest = useRef(s);
+  latest.current = s;
+  const persist = useCallback((st: GameState) => {
+    const id = st.rounds[0]?.seed;
+    if (id === undefined || savedSession.current === id || st.answers.length === 0) return;
+    savedSession.current = id;
+    const sum = summarise(st);
+    void saveChangesSession(
+      {
+        level: st.level,
+        stage: st.stage,
+        startedAt: startedAt.current,
+        endedAt: new Date(),
+        points: sum.points,
+        bestStreak: sum.bestStreak,
+        roundsPlayed: sum.roundsPlayed,
+        totalRounds: st.rounds.length,
+        answers: st.answers,
+        stamped: sum.stamped,
+        discoveries: sum.discoveries,
+      },
+      srsRuns(st),
+    );
+  }, []);
+  useEffect(() => {
+    if (s.phase === "summary") persist(s);
+  }, [s.phase, s, persist]);
+  useEffect(
+    () => () => {
+      // leaving the tab mid-session: keep what was played (StrictMode's test unmount is idle: a no-op)
+      const st = latest.current;
+      if (st.phase !== "idle" && st.phase !== "summary") persist(st);
+    },
+    [persist],
+  );
 
   const step = currentStep(s);
   const stepKey = `${s.roundIdx}:${s.stepIdx}`;

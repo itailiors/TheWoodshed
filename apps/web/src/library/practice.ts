@@ -1,7 +1,7 @@
 import { DEMO } from "../demo";
 import { reportApiUnreachable } from "./apiStatus";
 import { toast } from "../components/Toaster";
-import { localProgress, localStore } from "./localPractice";
+import { localProgress, localStore, type ChangesSessionRecord } from "./localPractice";
 
 /*
  * The practice-history client: the Coach and the heatmap report here, the dashboard reads
@@ -143,6 +143,31 @@ export async function forgetLocalPractice(): Promise<void> {
   await (await localStore()).clear();
   saved();
 }
+
+// ── the Changes game ──
+
+/** The chart id the game's reviews are filed under (no tune: "where it was practised" is the game). */
+export const CHANGES_CHART = "changes";
+
+/**
+ * Save a session of Make the Changes. The session itself (answers, points, stamps) stays in this
+ * browser in every build; its Open answers are handed to the spaced-repetition scheduler as
+ * `ear:<motion>` concepts per key, through the same path as a Coach run (the API, or the browser
+ * in the demo), so they show up in the passport and come back when due.
+ */
+export async function saveChangesSession(rec: ChangesSessionRecord, runs: { ruleId: string; keyTonic: string; misses: number; leaps: number }[]) {
+  const store = await localStore();
+  await store.recordChangesSession(rec);
+  for (const r of runs) await saveCoachRun({ tuneId: CHANGES_CHART, moveId: r.ruleId, ...r, maxLeap: 0, gradedBy: "engine" });
+  if (!runs.length) saved();
+}
+
+/** Every saved session of the game, oldest first. */
+export const fetchChangesSessions = async (): Promise<ChangesSessionRecord[]> =>
+  (await (await localStore()).readChangesSessions()).sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
+
+/** The game's due reviews (`ear:*`), most overdue first; reharm reviews are the Coach's business. */
+export const fetchEarDue = async (): Promise<DueItem[]> => ((await fetchDue()) ?? []).filter((d) => d.ruleId.startsWith("ear:"));
 
 // ── writes ──
 

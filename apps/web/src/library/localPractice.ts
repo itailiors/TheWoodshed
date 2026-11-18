@@ -5,8 +5,12 @@ import {
   type CoachAttemptRecord,
   type CoachRunInput,
   type ConceptReview,
+  type AnswerRecord,
+  type EarMotionId,
   type ImprovRunRecord,
+  type LevelId,
   type ProgressSummary,
+  type Stage,
 } from "@reharm/theory-core";
 
 /*
@@ -19,18 +23,44 @@ import {
  */
 
 const DB_NAME = "reharm-practice";
-const DB_VERSION = 1;
+/** v2 adds the Changes game's sessions (an additive upgrade: v1's stores are untouched). */
+const DB_VERSION = 2;
 const REVIEWS = "reviews"; // key: [ruleId, keyTonic]
 const ATTEMPTS = "coachAttempts"; // auto-increment
 const IMPROV = "improvRuns"; // auto-increment
+const CHANGES = "changesSessions"; // key: id (auto-increment)
 
 export type ImprovRunData = Omit<ImprovRunRecord, "id" | "createdAt">;
+
+/**
+ * One session of Make the Changes, as played. Kept in this browser in every build (the API has
+ * no tables for it), it's what mastery, the "next up" level and the stats are worked out from.
+ * Its Open answers also go to the spaced-repetition scheduler, as `ear:<motion>` concepts.
+ */
+export interface ChangesSessionRecord {
+  id?: number;
+  level: LevelId;
+  /** The stage it ended at (it may have moved up along the way). */
+  stage: Stage;
+  startedAt: Date;
+  endedAt: Date;
+  points: number;
+  bestStreak: number;
+  roundsPlayed: number;
+  totalRounds: number;
+  /** Every answer, in order (mastery reads the Open ones). */
+  answers: AnswerRecord[];
+  stamped: { motion: EarMotionId; key: string }[];
+  discoveries: { move: string; symbol: string }[];
+}
 
 interface Backend {
   readonly persistent: boolean;
   recordCoachRun(run: CoachRunInput & { tuneId: string | null; moveId: string }, now: Date): Promise<ReturnType<typeof applyCoachRun>>;
   recordImprovRun(run: ImprovRunData, now: Date): Promise<void>;
   readAll(): Promise<{ reviews: ConceptReview[]; attempts: CoachAttemptRecord[]; improv: ImprovRunRecord[] }>;
+  recordChangesSession(rec: ChangesSessionRecord): Promise<void>;
+  readChangesSessions(): Promise<ChangesSessionRecord[]>;
   clear(): Promise<void>;
 }
 
@@ -40,8 +70,15 @@ function memoryBackend(): Backend {
   const reviews = new Map<string, ConceptReview>();
   const attempts: CoachAttemptRecord[] = [];
   const improv: ImprovRunRecord[] = [];
+  const changes: ChangesSessionRecord[] = [];
   return {
     persistent: false,
+    async recordChangesSession(rec) {
+      changes.push({ ...rec, id: changes.length + 1 });
+    },
+    async readChangesSessions() {
+      return [...changes];
+    },
     async recordCoachRun(run, now) {
       const id = `${run.ruleId}|${normaliseKey(run.keyTonic)}`;
       const result = applyCoachRun(reviews.get(id) ?? null, run, now);
@@ -59,6 +96,7 @@ function memoryBackend(): Backend {
       reviews.clear();
       attempts.length = 0;
       improv.length = 0;
+      changes.length = 0;
     },
   };
 }
@@ -97,8 +135,14 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(REVIEWS)) db.createObjectStore(REVIEWS, { keyPath: ["ruleId", "keyTonic"] });
       if (!db.objectStoreNames.contains(ATTEMPTS)) db.createObjectStore(ATTEMPTS, { autoIncrement: true });
       if (!db.objectStoreNames.contains(IMPROV)) db.createObjectStore(IMPROV, { keyPath: "id", autoIncrement: true });
+      if (!db.objectStoreNames.contains(CHANGES)) db.createObjectStore(CHANGES, { keyPath: "id", autoIncrement: true });
     };
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => {
+      const db = req.result;
+      // a newer build opening in another tab asks for an upgrade: step aside rather than block it
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     req.onerror = () => reject(req.error);
     req.onblocked = () => reject(new Error("IndexedDB upgrade blocked by another tab"));
   });
@@ -132,9 +176,21 @@ function indexedDbBackend(db: IDBDatabase): Backend {
       ]);
       return { reviews: reviews as ConceptReview[], attempts: attempts as CoachAttemptRecord[], improv: improv as ImprovRunRecord[] };
     },
+    async recordChangesSession(rec) {
+      const tx = db.transaction(CHANGES, "readwrite");
+      const { id: _drop, ...row } = rec;
+      void _drop;
+      tx.objectStore(CHANGES).add(row);
+      await finished(tx);
+    },
+    async readChangesSessions() {
+      const tx = db.transaction(CHANGES, "readonly");
+      return (await done(tx.objectStore(CHANGES).getAll())) as ChangesSessionRecord[];
+    },
     async clear() {
-      const tx = db.transaction([REVIEWS, ATTEMPTS, IMPROV], "readwrite");
-      for (const s of [REVIEWS, ATTEMPTS, IMPROV]) tx.objectStore(s).clear();
+      const stores = [REVIEWS, ATTEMPTS, IMPROV, CHANGES];
+      const tx = db.transaction(stores, "readwrite");
+      for (const s of stores) tx.objectStore(s).clear();
       await finished(tx);
     },
   };
