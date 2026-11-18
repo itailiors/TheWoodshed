@@ -188,13 +188,14 @@ describe("valid-but-different answers", () => {
 });
 
 describe("levels and passport ids", () => {
-  it("v1 is Levels 1–3, each building on the last, in v1 keys only", () => {
+  it("v1 is Levels 1–3, each building on the last; Level 1 in all 12 keys, the rest in v1 keys only", () => {
     expect(LEVELS.map((l) => l.id)).toEqual([1, 2, 3]);
     for (let i = 1; i < LEVELS.length; i++) {
       for (const m of LEVELS[i - 1].motions) expect(LEVELS[i].motions).toContain(m);
-      for (const k of LEVELS[i - 1].keys) expect(LEVELS[i].keys).toContain(k);
     }
-    for (const l of LEVELS) for (const k of l.keys) expect(V1_KEYS).toContain(k);
+    expect(LEVELS[0].keys).toHaveLength(12);
+    expect(LEVELS[2].keys).toEqual(expect.arrayContaining([...LEVELS[1].keys]));
+    for (const l of LEVELS.slice(1)) for (const k of l.keys) expect(V1_KEYS).toContain(k);
     expect(LEVELS[0].asksFunction).toBe(false);
   });
 

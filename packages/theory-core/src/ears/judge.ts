@@ -126,7 +126,7 @@ function currentRun(answers: readonly AnswerRecord[], needChip: boolean): Answer
 
 /**
  * Has the player mastered a level, from its answers in order? All at the Open stage.
- * - L1: 10 right in a row, both C and F among them
+ * - L1: right in a row, every one of the 12 keys among them (so at least 12)
  * - L2: 10 right in a row with the function named, all three keys among them
  * - L3: two clean walks home from vii or iii in two different keys, and one clean turnaround
  */
@@ -134,12 +134,14 @@ export function masteryProgress(level: LevelId, answers: readonly AnswerRecord[]
   if (level === 1 || level === 2) {
     const run = currentRun(answers, level === 2);
     const missing = keys.filter((k) => !run.some((a) => sameKey(a.key, k)));
-    const mastered = run.length >= 10 && missing.length === 0;
+    const need = Math.max(10, keys.length);
+    const mastered = run.length >= need && missing.length === 0;
+    const toCome = missing.length > 3 ? `${missing.length} keys` : missing.map(prettyNote).join(" and ");
     return {
       mastered,
       detail: mastered
         ? "Mastered."
-        : `${Math.min(run.length, 10)} of 10 in a row${missing.length ? `; ${missing.map(prettyNote).join(" and ")} still to come` : ""}.`,
+        : `${Math.min(run.length, need)} of ${need} in a row${missing.length ? `; ${toCome} still to come` : ""}.`,
     };
   }
   // Level 3: whole rounds, every step right with its function named

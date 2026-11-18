@@ -131,7 +131,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
   - **the fourths staircase**: down a fifth through every chord in the key, *"down a fifth, but stay in the key"*. The one wider step, IV → vii, is drawn as a hop;
   - **the turnaround door**: I → vi, to start the loop back home.
 - **Three levels:** *The Landing* (V → I), *The Setup* (ii → V → I) and *The Staircase* (the whole walk home, and the turnaround). The first level not yet mastered is marked "next up".
-- **Keys:** each level deals its own keys by default ("Mixed": C and F; then B♭; then E♭ and G too), or pick **any one of the 12** to drill it on its own, on any level. Every key is spelled as its key signature says (C♭ in G♭ major, E♯°7 in E). Reviews are always dealt in their own key.
+- **Keys:** each level deals its own keys by default ("Mixed": all 12 for *The Landing*, since V → I is the move to know everywhere; C, F and B♭ for *The Setup*; then E♭ and G too), shuffled like a deck so every key comes up once before any repeats. Or pick **any one of the 12** to drill it on its own, on any level. *The Landing* is mastered by a run of right answers at Open that lands in all 12 keys. Every key is spelled as its key signature says (C♭ in G♭ major, E♯°7 in E). Reviews are always dealt in their own key.
 - **Three stages of help, per level:**
   - **Guided:** up to three cards, the likeliest first, each saying what it is, with ghosts on the keyboard.
   - **Choices:** names only.
@@ -321,7 +321,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 207 tests (engine + API), several thousand generated cases
+npm test          # 208 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 

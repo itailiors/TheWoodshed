@@ -90,7 +90,8 @@ export function FunctionChips({ chips, root, onPick }: { chips: readonly string[
  * 12, to drill a key on its own. A native select (13 choices are too many pills), styled as one.
  */
 export function KeySelect({ value, level, onChange }: { value: string; level: LevelId; onChange: (key: string) => void }) {
-  const own = LEVELS[level - 1].keys.map(prettyNote).join(", ");
+  const levelKeys = LEVELS[level - 1].keys;
+  const own = levelKeys.length === KEYS.length ? "all 12 keys" : levelKeys.map(prettyNote).join(", ");
   return (
     <label className="flex items-center gap-2 font-marker text-sm">
       Keys

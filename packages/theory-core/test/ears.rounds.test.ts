@@ -77,13 +77,28 @@ describe("rounds", () => {
     );
   });
 
-  it("4 · spells every chord in its key's signature: no sharps in C, F, B♭ or E♭, only F♯ in G", () => {
+  it("4 · spells every chord in its key's signature: no sharps on the flat side, no flats on the sharp side, only F♯ in G", () => {
+    const SHARP_SIDE = ["G", "D", "A", "E", "B"];
     fc.assert(
       fc.property(roundArb, (r) => {
         for (const c of chordsOf(r)) {
+          const accidental = c.root.slice(1);
           if (r.key === "G") expect(["F#", "C", "D", "E", "G", "A", "B"]).toContain(c.root);
-          else expect(c.root).not.toContain("#");
+          if (r.key === "C") expect(accidental).toBe("");
+          else if (SHARP_SIDE.includes(r.key)) expect(accidental).not.toContain("b");
+          else expect(accidental).not.toContain("#");
         }
+      }),
+    );
+  });
+
+  it("Level 1 plays in all 12 keys; a session deals each once before any comes round again", () => {
+    expect([...LEVELS[0].keys].sort()).toEqual([...KEYS].sort());
+    fc.assert(
+      fc.property(fc.nat(), fc.integer({ min: 1, max: 30 }), (seed, n) => {
+        const s = planSession(1, seed, [], n);
+        for (let i = 0; i < s.length; i += 12) expect(new Set(s.slice(i, i + 12).map((r) => r.key)).size).toBe(Math.min(12, s.length - i));
+        for (let i = 1; i < s.length; i++) expect(s[i].key).not.toBe(s[i - 1].key);
       }),
     );
   });
@@ -254,13 +269,19 @@ describe("mastery", () => {
     ...o,
   });
 
-  it("Level 1: ten right in a row at Open, in both C and F", () => {
-    const tenC = Array.from({ length: 10 }, () => answer({ key: "C" }));
-    expect(masteryProgress(1, tenC, ["C", "F"])).toMatchObject({ mastered: false, detail: "10 of 10 in a row; F still to come." });
-    expect(masteryProgress(1, [...tenC.slice(1), answer({ key: "F" })], ["C", "F"]).mastered).toBe(true);
+  it("Level 1: right in a row at Open until all 12 keys have landed", () => {
+    const keys = LEVELS[0].keys;
+    const all = keys.map((key) => answer({ key }));
+    expect(masteryProgress(1, all, keys)).toMatchObject({ mastered: true, detail: "Mastered." });
+    expect(masteryProgress(1, all.slice(0, 5), keys).detail).toBe("5 of 12 in a row; 7 keys still to come.");
+    expect(masteryProgress(1, all.slice(0, 10), keys).detail).toBe("10 of 12 in a row; B♭ and B still to come.");
+    // ten in C alone isn't enough: every key has to land
+    const tenC = Array.from({ length: 12 }, () => answer({ key: "C" }));
+    expect(masteryProgress(1, tenC, keys).mastered).toBe(false);
     // a miss resets the run; help (Guided/Choices) doesn't count but doesn't break it either
-    const broken = [...tenC.slice(0, 5), answer({ key: "F", verdict: "wrong" }), ...tenC.slice(5), answer({ key: "F", stage: "guided" })];
-    expect(masteryProgress(1, broken, ["C", "F"]).mastered).toBe(false);
+    const broken = [...all.slice(0, 6), answer({ key: "F", verdict: "wrong" }), ...all.slice(6), answer({ key: "F", stage: "guided" })];
+    expect(masteryProgress(1, broken, keys).mastered).toBe(false);
+    expect(masteryProgress(1, [...all.slice(0, 6), answer({ key: "F", stage: "guided" }), ...all.slice(6)], keys).mastered).toBe(true);
   });
 
   it("Level 2: the run needs the function named every time", () => {

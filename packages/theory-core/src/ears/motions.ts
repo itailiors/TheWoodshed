@@ -1,6 +1,7 @@
 import { romanFor } from "../analysis";
 import { symbol } from "../chords";
 import { chroma, mod, noteName, parseNote, prettyNote, prettySymbol, simplifyNote, transpose } from "../pitch";
+import { KEYS } from "../transpose";
 import type { Quality } from "../types";
 
 /*
@@ -40,7 +41,7 @@ export const DIATONIC_MAJOR: readonly DegreeChord[] = [
 
 const MAJOR_INTERVALS = ["1", "2", "3", "4", "5", "6", "7"] as const;
 
-/** The keys v1 plays in: natural and flat-side jazz keys, so every spelling is plain. */
+/** Levels 2–3 play in these: natural and flat-side jazz keys, so every spelling is plain. Level 1 plays in all 12. */
 export const V1_KEYS = ["C", "F", "Bb", "Eb", "G"] as const;
 
 /** A chord spelled in a key: what the player sees and hears. */
@@ -262,7 +263,7 @@ export interface Level {
   name: string;
   /** The motions its rounds are built from. */
   motions: readonly EarMotionId[];
-  keys: readonly (typeof V1_KEYS)[number][];
+  keys: readonly (typeof KEYS)[number][];
   /** At the Open stage, naming the function (ii / V / I…) is asked for too. */
   asksFunction: boolean;
   /** What mastering it takes, in plain words (the summary card shows this). */
@@ -274,9 +275,10 @@ export const LEVELS: readonly Level[] = [
     id: 1,
     name: "The Landing",
     motions: ["landing"],
-    keys: ["C", "F"],
+    // the most basic move there is, so it's learned in every key from the start
+    keys: KEYS,
     asksFunction: false,
-    mastery: "10 right in a row at Open, in both C and F.",
+    mastery: "Right in a row at Open until every one of the 12 keys has landed.",
   },
   {
     id: 2,

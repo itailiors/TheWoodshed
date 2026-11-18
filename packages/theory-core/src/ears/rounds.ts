@@ -154,8 +154,8 @@ function roundForMotion(level: LevelId, motion: EarMotionId): { kind: RoundKind;
 
 /**
  * A session's rounds: due reviews first (in the order given, those this level teaches, in their
- * own key), then rounds in seeded random keys of the level, never the same key twice in a row
- * where there's more than one. `onlyKeys` narrows (or widens) the keys from the level's own: one key to
+ * own key), then the level's keys dealt like a seeded deck: each key once before any repeats, and
+ * never the same key twice in a row where there's more than one. `onlyKeys` narrows (or widens) the keys from the level's own: one key to
  * drill it, any of the 12 (the key picker); due reviews in other keys are left for another session.
  */
 export function planSession(level: LevelId, seed: number, due: readonly DueItem[] = [], rounds = SESSION_ROUNDS, onlyKeys?: readonly string[]): Round[] {
@@ -171,10 +171,16 @@ export function planSession(level: LevelId, seed: number, due: readonly DueItem[
     const shape = motion && key ? roundForMotion(level, motion) : null;
     if (shape && key) out.push(makeRound(level, key, roundSeed(), shape));
   }
+  // dealt like cards: every key once (in a seeded order) before any comes round again
+  let deck: string[] = [];
   while (out.length < rounds) {
     const prev = out[out.length - 1]?.key;
-    const pool = keys.length > 1 ? keys.filter((k) => k !== prev) : keys;
-    out.push(makeRound(level, pick(rng, pool), roundSeed()));
+    if (!deck.length) {
+      deck = shuffle(rng, keys);
+      // a fresh deck mustn't start on the key just played
+      if (deck.length > 1 && deck[0] === prev) deck.push(deck.shift()!);
+    }
+    out.push(makeRound(level, deck.shift()!, roundSeed()));
   }
   return out;
 }
