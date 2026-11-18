@@ -6,7 +6,8 @@ const WW = 22;
 const WH = 112;
 const BW = 13;
 const BH = 70;
-const TOP = 52; // room for red-pen labels above the keys
+const LABEL_ROOM = 52; // room for red-pen labels above the keys
+const SLIM_ROOM = 10; // with `slim`, while there's nothing to write above the keys
 const SPLIT_MIDI = 55; // G3: notes below G3 are left-hand bass/shell; G3 and up are right-hand upper voices
 const IS_BLACK = [false, true, false, true, false, false, true, false, true, false, true, false];
 
@@ -15,7 +16,7 @@ export interface PenMark {
   label: string;
 }
 
-interface Props {
+export interface PenKeyboardProps {
   low?: number;
   high?: number;
   /** Ghost of the reference voicing (dashed outline). */
@@ -35,6 +36,10 @@ interface Props {
   onKey?: (midi: number) => void;
   onKeyUp?: (midi: number) => void;
   className?: string;
+  /** Keep the band above the keys only while there are red-pen marks to write there (saves height on a phone). */
+  slim?: boolean;
+  /** Ink note names written above keys (study mode: which notes to press). */
+  labels?: PenMark[];
 }
 
 function layout(low: number, high: number) {
@@ -61,8 +66,16 @@ export function PenKeyboard({
   onKey,
   onKeyUp,
   className = "",
-}: Props) {
+  slim = false,
+  labels = [],
+}: PenKeyboardProps) {
+  const here = (mk: PenMark) => mk.midi >= low && mk.midi <= high; // a split keyboard gets the whole chord's marks
+  const TOP = slim && !missing.some(here) && !wrong.some(here) && !labels.some(here) && !check ? SLIM_ROOM : LABEL_ROOM;
   const { keys, width } = layout(low, high);
+  // Toggle keyboards (no onKeyUp: tap notes in, then strike) act on a tap when touched, so a page
+  // scroll that starts on the keyboard doesn't add notes. Mouse clicks still act on press.
+  const toggleOnTap = !!onKey && !onKeyUp;
+  const lastPointer = useRef<string>("mouse");
   const pos = new Map(keys.map((k) => [k.midi, k]));
   const splitX = showSplit ? pos.get(SPLIT_MIDI)?.x ?? null : null;
   const center = (m: number) => {
@@ -76,8 +89,8 @@ export function PenKeyboard({
   // if a strike was played on this step, only show unplayed target notes as dashed ghosts.
   const playedSet = new Set(played);
   const visibleTarget = target.filter((m) => !playedSet.has(m));
-  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX]);
-  const markState = JSON.stringify([missing, wrong, check]);
+  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP]);
+  const markState = JSON.stringify([missing, wrong, check, TOP]);
 
   useRough(
     g,
@@ -150,7 +163,7 @@ export function PenKeyboard({
   );
 
   return (
-    <svg viewBox={`-2 0 ${width + 4} ${TOP + WH + 16}`} className={`block h-auto w-full select-none ${className}`} role="group" aria-label="Practice keyboard">
+    <svg viewBox={`-2 0 ${width + 4} ${TOP + WH + 16}`} className={`block h-auto w-full touch-manipulation select-none ${className}`} role="group" aria-label="Practice keyboard">
       <g ref={g} />
       {keys
         .filter((k) => !k.black && k.midi % 12 === 0)
@@ -178,6 +191,18 @@ export function PenKeyboard({
           </text>
         ) : null;
       })}
+      {[...labels]
+        .filter(here)
+        .sort((a, b) => a.midi - b.midi)
+        .map((mk, i) => {
+          // neighbours a half step apart would collide: alternate two heights
+          const c = center(mk.midi);
+          return c ? (
+            <text key={`nl${mk.midi}`} x={c.x} y={TOP - 8 - (i % 2) * 17} textAnchor="middle" fontSize={14} fontWeight={700} className="fill-ink font-marker">
+              {mk.label}
+            </text>
+          ) : null;
+        })}
       {wrong.map((mk, i) => {
         const c = center(mk.midi);
         return c ? (
@@ -200,9 +225,12 @@ export function PenKeyboard({
             fill="transparent"
             className="cursor-pointer"
             onPointerDown={(e) => {
+              lastPointer.current = e.pointerType;
+              if (toggleOnTap && e.pointerType !== "mouse") return; // wait for the tap (click)
               e.preventDefault();
               onKey(k.midi);
             }}
+            onClick={toggleOnTap ? () => lastPointer.current !== "mouse" && onKey(k.midi) : undefined}
             onPointerUp={() => onKeyUp?.(k.midi)}
             onPointerLeave={(e) => e.buttons && onKeyUp?.(k.midi)}
           />

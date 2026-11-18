@@ -11,12 +11,15 @@ import type { MidiStatus } from "../../midi/useMidi";
  *    you ask, you play it, and you say whether you nailed it. Same misses, same SM-2 grade,
  *    but no leap detection (nobody heard the notes), and the run is saved as self-graded.
  *
+ *  - "study":  nothing is graded or saved. The keyboard shows each chord of the move, with how to
+ *    play it (left hand, right hand, how the voices moved), and arrows step from chord to chord.
+ *
  * The drill only ever sees per-step outcomes, so a future "mic" mode (Web Audio polyphonic
  * pitch detection on the real piano) needs no new grading path: publish the detected chord
  * to the note bus as another strike source and it becomes a "listen" mode, the self-check
  * panel stepping aside on its own.
  */
-export type GradingMode = "listen" | "self";
+export type GradingMode = "listen" | "self" | "study";
 /** The verdict a self-check gives one chord. */
 export type SelfVerdict = "nailed" | "missed";
 
@@ -25,7 +28,7 @@ const KEY = "reharm.coachGrading";
 function stored(): GradingMode | null {
   try {
     const v = localStorage.getItem(KEY);
-    return v === "listen" || v === "self" ? v : null;
+    return v === "listen" || v === "self" || v === "study" ? v : null;
   } catch {
     return null;
   }
@@ -45,7 +48,8 @@ export function autoMode(midi: MidiStatus, touchFirst = isTouchFirst()): Grading
 export function useGradingMode(midi: MidiStatus): [GradingMode, (m: GradingMode) => void] {
   const [override, setOverride] = useState<GradingMode | null>(stored);
   // plugging in MIDI always means "listen to me", whatever was picked before
-  const mode = midi === "connected" ? "listen" : (override ?? autoMode(midi));
+  // (Study is the exception: nothing is graded there, so a keyboard being plugged in changes nothing)
+  const mode = midi === "connected" && override !== "study" ? "listen" : (override ?? autoMode(midi));
   const set = useCallback((m: GradingMode) => {
     setOverride(m);
     try {

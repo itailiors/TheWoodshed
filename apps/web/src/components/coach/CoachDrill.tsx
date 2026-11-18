@@ -28,7 +28,7 @@ import { saveCoachRun, type CoachRunResult } from "../../library/practice";
 import { useChordStrikes } from "../../midi/noteBus";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { ChordName } from "../ChordName";
-import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
+import { PenKeyboard, type PenKeyboardProps, type PenMark } from "../practice/PenKeyboard";
 import { useNarrow } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
 import { useGradingMode, type GradingMode, type SelfVerdict } from "./gradingMode";
@@ -133,6 +133,9 @@ export function CoachDrill({
   /** Self-check: has the current chord's voicing been revealed, and was it just marked missed? */
   const [revealed, setRevealed] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  /** Study mode: which chord of the move is on the keyboard. */
+  const [studyIdx, setStudyIdx] = useState(0);
+  const studyMode = mode === "study";
   const narrow = useNarrow();
   // a drill is hands-on-the-piano time: don't let the phone on the music stand go to sleep
   useWakeLock(true);
@@ -171,6 +174,7 @@ export function CoachDrill({
     setPending([]);
     setRevealed(false);
     setRetrying(false);
+    setStudyIdx(0);
   };
 
   if (activeDrillIdentity !== drillIdentity) {
@@ -284,14 +288,23 @@ export function CoachDrill({
 
   const keyName = (k: string) => `${prettyNote(k)} ${activeTune.key.mode}`;
 
-  // On a phone the full four-octave keyboard is ~11px a key: zoom to the octaves this move uses.
-  const range = useMemo(() => {
-    if (!narrow) return { low: 36, high: 84 };
-    const all = steps.flatMap(voicing);
-    const low = Math.max(21, Math.floor((Math.min(...all) - 2) / 12) * 12);
-    const high = Math.min(108, Math.max(low + 24, Math.ceil((Math.max(...all) + 2) / 12) * 12));
-    return { low, high };
-  }, [narrow, steps]);
+  // On a phone the four-octave keyboard is ~11px a key, and even the octaves one move uses come to
+  // ~15px. So take just the notes this move needs and, past ~10 white keys, stack two rows.
+  const rows = useMemo(() => (narrow ? phoneKeyboardRows(steps.flatMap(voicing)) : [{ low: 36, high: 84 }]), [narrow, steps]);
+  const keyboard = (p: Omit<PenKeyboardProps, "low" | "high">) =>
+    rows.length === 1 ? (
+      <PenKeyboard {...rows[0]} {...p} />
+    ) : (
+      // higher notes on top, like a grand staff; both rows at the same key size (the shorter row is
+      // narrower, not stretched); the checkmark goes on the top row only
+      <div role="group" aria-label="Practice keyboard, in two rows" className="space-y-1">
+        {[...rows].reverse().map((r, i) => (
+          <div key={r.low} style={{ width: `${(100 * whiteCount(r.low, r.high)) / Math.max(...rows.map((x) => whiteCount(x.low, x.high)))}%` }}>
+            <PenKeyboard {...r} {...p} check={i === 0 ? p.check : false} showSplit={false} slim />
+          </div>
+        ))}
+      </div>
+    );
   const selfMode = mode === "self";
   const stepPrompt = finished ? "" : current.resolution ? "…and resolve it." : steps.length > 1 ? `Chord ${stepIdx + 1} of ${steps.length}.` : "";
   const noteNames = finished
@@ -303,11 +316,31 @@ export function CoachDrill({
 
   const hearMove = () => void player.playSequence(steps.map(voicing), 1.2, setHeard);
   const hearChord = () => {
-    const at = Math.min(stepIdx, steps.length - 1);
+    const at = Math.min(studyMode ? studyIdx : stepIdx, steps.length - 1);
     void player.playSequence([voicing(steps[at])], 1.6, (i) => setHeard(i === null ? null : at));
   };
   const listening = heard !== null;
   const prevHeard = heard !== null && heard > 0 ? steps[heard - 1] : null;
+
+  // Study: step through the chords; ← → too, unless you're typing somewhere
+  const studyStep = Math.min(studyIdx, steps.length - 1);
+  const studyTo = (i: number) => setStudyIdx(Math.max(0, Math.min(steps.length - 1, i)));
+  useEffect(() => {
+    if (!studyMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || (e.target as HTMLElement | null)?.closest?.("input, textarea, select, [contenteditable]")) return;
+      if (e.key === "ArrowLeft") setStudyIdx((i) => Math.max(0, i - 1));
+      else if (e.key === "ArrowRight") setStudyIdx((i) => Math.min(steps.length - 1, i + 1));
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [studyMode, steps.length]);
+
+  const why = rule?.pedagogy && (
+    <WhyThisWorksCard pedagogy={rule.pedagogy} move={dmove} keyLabel={keyName(key)} activeStep={!finished ? current : undefined} />
+  );
 
   return (
     <div className="space-y-4">
@@ -323,27 +356,32 @@ export function CoachDrill({
 
       <GradingSwitch mode={mode} onMode={switchMode} midiConnected={midiStatus === "connected"} />
 
-      {rule?.pedagogy && (
-        <WhyThisWorksCard
-          pedagogy={rule.pedagogy}
-          move={dmove}
-          keyLabel={keyName(key)}
-          activeStep={!finished ? current : undefined}
-        />
-      )}
+      {!narrow && why}
 
       {/* the assignment */}
       <section aria-live="polite">
-        <p className="font-marker text-sm uppercase tracking-wider text-ink-soft">Play</p>
+        <p className="font-marker text-sm uppercase tracking-wider text-ink-soft">{studyMode ? "Study" : "Play"}</p>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-3xl">
           {steps.map((s, i) => (
             <span key={s.chord.id + i} className="flex items-baseline gap-2">
               {i > 0 && <span className="font-marker text-ink-soft">→</span>}
               <span
                 title={s.stepCue ? `${s.stepCue.role}: ${s.stepCue.whyHere}` : undefined}
-                className={`relative rounded px-1 transition-transform duration-150 ${i === stepIdx && !listening && !finished ? "bg-wash-mustard/40" : ""} ${
-                  heard === i ? "-rotate-2 scale-110" : ""
-                } ${s.resolution ? "opacity-80" : ""} ${i < stepIdx ? "opacity-55" : ""}`}
+                // in study mode each chord is a button: tap it to put it on the keyboard
+                {...(studyMode
+                  ? {
+                      role: "button",
+                      tabIndex: 0,
+                      "aria-pressed": i === studyStep,
+                      onClick: () => studyTo(i),
+                      onKeyDown: (e: { key: string; preventDefault(): void }) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), studyTo(i)),
+                    }
+                  : {})}
+                className={`relative rounded px-1 transition-transform duration-150 ${
+                  (studyMode ? i === studyStep : i === stepIdx && !finished) && !listening ? "bg-wash-mustard/40" : ""
+                } ${studyMode ? "cursor-pointer hover:-translate-y-0.5" : ""} ${heard === i ? "-rotate-2 scale-110" : ""} ${s.resolution ? "opacity-80" : ""} ${
+                  !studyMode && i < stepIdx ? "opacity-55" : ""
+                }`}
                 style={heard === i ? { boxShadow: `0 0 0 2px ${pen.red}` } : undefined}
               >
                 {heard === i && (
@@ -352,7 +390,7 @@ export function CoachDrill({
                   </span>
                 )}
                 <ChordName symbol={s.symbol} />
-                {i < stepIdx && (
+                {!studyMode && i < stepIdx && (
                   <span className="absolute -right-2 -top-3 font-marker text-lg" style={{ color: pen.red }} aria-label="done">
                     ✓
                   </span>
@@ -362,7 +400,9 @@ export function CoachDrill({
           ))}
         </div>
         <p className="mt-1 text-sm text-ink-soft">
-          {finished
+          {studyMode
+            ? "Nothing is graded here: see each chord on the keys, hear it, then step to the next."
+            : finished
             ? finishText
             : selfMode
               ? "Play each chord on your piano, check it against the voicing, and say how it went."
@@ -383,27 +423,46 @@ export function CoachDrill({
         )}
       </section>
 
-      {listening ? (
-        <PenKeyboard {...range} target={voicing(steps[heard])} played={[]} pending={[]} missing={[]} wrong={[]} onKey={togglePending} />
-      ) : selfMode ? (
-        // self-check: once revealed, isolate only the current chord's target voicing
-        <PenKeyboard
-          {...range}
-          target={revealed && !finished ? voicing(current) : []}
-          played={[]}
-          check={finished && misses === 0}
-        />
-      ) : (
-        <PenKeyboard
-          {...range}
-          target={showHint && !finished ? [current.target.bass, ...current.target.upper] : []}
-          played={!finished && last ? (lastNotes ?? []) : []}
-          pending={pending}
-          missing={missing}
-          wrong={wrong}
-          check={showCheck}
-          onKey={togglePending}
-        />
+      {/* study: the chord arrows sit right above the keys, so stepping and seeing stay on one screen */}
+      {studyMode && !listening && <StudyNav steps={steps} at={studyStep} onStep={studyTo} onHear={hearChord} />}
+      {listening
+        ? keyboard({ target: voicing(steps[heard]), played: [], pending: [], missing: [], wrong: [], onKey: togglePending })
+        : studyMode
+          ? // study: the chord's voicing as pressed keys, each named; tap a key to hear that note
+            keyboard({
+              played: voicing(steps[studyStep]),
+              labels: voicing(steps[studyStep]).map((m) => ({ midi: m, label: spelled(steps[studyStep], m) })),
+              onKey: (m) => void player.playNotes([m], 0.6),
+            })
+          : selfMode
+          ? // self-check: once revealed, isolate only the current chord's target voicing
+            keyboard({ target: revealed && !finished ? voicing(current) : [], played: [], check: finished && misses === 0 })
+          : keyboard({
+              target: showHint && !finished ? [current.target.bass, ...current.target.upper] : [],
+              played: !finished && last ? (lastNotes ?? []) : [],
+              pending,
+              missing,
+              wrong,
+              check: showCheck,
+              onKey: togglePending,
+            })}
+      {studyMode && !listening && <StudyNotes steps={steps} at={studyStep} />}
+      {/* on a phone, Strike sits right under the keys so you don't scroll between tapping and striking */}
+      {narrow && !selfMode && !studyMode && !listening && (
+        <div className="-mt-2 flex min-h-11 items-center gap-2 font-marker">
+          {pending.length >= 2 ? (
+            <>
+              <button type="button" onClick={() => strike(pending)} className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 text-paper-light">
+                Strike {pending.length} notes
+              </button>
+              <button type="button" onClick={() => setPending([])} className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5">
+                Clear
+              </button>
+            </>
+          ) : (
+            !finished && <span className="font-hand text-sm text-ink-soft">Tap the notes, then strike.</span>
+          )}
+        </div>
       )}
       {listening && (
         <p className="-mt-2 font-hand text-sm" aria-live="polite">
@@ -455,7 +514,7 @@ export function CoachDrill({
       )}
 
       <div className="flex flex-wrap items-center gap-2 font-marker">
-        {pending.length >= 2 && (
+        {pending.length >= 2 && !narrow && (
           <button type="button" onClick={() => strike(pending)} className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 text-paper-light">
             Strike {pending.length} notes
           </button>
@@ -487,7 +546,7 @@ export function CoachDrill({
           New key after every clean run
         </label>
         {/* in a self-check the reveal is the hint */}
-        {!selfMode && (
+        {!selfMode && !studyMode && (
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={showHint} onChange={(e) => setShowHint(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
             Show the voicing hint
@@ -496,7 +555,9 @@ export function CoachDrill({
       </div>
       <p className="text-sm text-ink-soft">
         Think in function, not finger shapes: “{dmove.title}”. The engine has re-spelled every chord and voicing for {keyName(key)}.{" "}
-        {midiStatus === "connected" ? (
+        {studyMode ? (
+          "When it sits under your fingers, switch to Play it here or Self-check and run it for real."
+        ) : midiStatus === "connected" ? (
           "Listening to your MIDI keyboard: strike each chord, then release all keys."
         ) : selfMode ? (
           "Self-checked runs are saved and scheduled for review like any other, marked as self-graded."
@@ -510,8 +571,47 @@ export function CoachDrill({
           </>
         )}
       </p>
+
+      {/* on a phone the theory folds away below the drill, so the keys come first */}
+      {narrow && why && (
+        <details className="group">
+          <summary className="cursor-pointer list-none font-marker text-sm uppercase tracking-wider text-ink-soft">
+            <span className="inline-block transition-transform group-open:rotate-90">▸</span> 💡 Why this works · <span className="text-ink">{rule?.pedagogy?.formula}</span>
+          </summary>
+          <div className="mt-2">{why}</div>
+        </details>
+      )}
     </div>
   );
+}
+
+/**
+ * The keyboard for a phone: just the notes this move uses (two semitones of room either side,
+ * snapped to white keys) and, when that's more than ~10 white keys, two rows split at a C near
+ * the middle, so every key stays wide enough to tap.
+ */
+const isBlackKey = (m: number) => [1, 3, 6, 8, 10].includes(((m % 12) + 12) % 12);
+const whiteCount = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i) => a + i).filter((m) => !isBlackKey(m)).length;
+
+export function phoneKeyboardRows(notes: number[]): { low: number; high: number }[] {
+  const black = isBlackKey;
+  let low = Math.max(21, Math.min(...notes) - 2);
+  let high = Math.min(108, Math.max(...notes) + 2);
+  while (black(low)) low--;
+  while (black(high)) high++;
+  if (high - low < 12) high = low + 12 + (black(low + 12) ? 1 : 0); // at least an octave to play in
+  const whites = whiteCount;
+  if (whites(low, high) <= 10) return [{ low, high }];
+  // split at a C or an F (white keys whose neighbour below is white too, so each row starts and
+  // ends on a white key): the one that balances the rows best
+  const cuts = Array.from({ length: high - low }, (_, i) => low + 1 + i).filter((m) => m % 12 === 0 || m % 12 === 5);
+  if (!cuts.length) return [{ low, high }];
+  const balance = (c: number) => Math.min(whites(low, c - 1), whites(c, high));
+  const c = cuts.reduce((best, x) => (balance(x) > balance(best) ? x : best));
+  return [
+    { low, high: c - 1 },
+    { low: c, high },
+  ];
 }
 
 /** Generalized rule card + transposed original progression + active step cue shown before striking a chord. */
@@ -576,11 +676,102 @@ function WhyThisWorksCard({
   );
 }
 
-/** Listen (the engine hears your notes) or self-check (an acoustic piano, no cable). */
+const SPLIT = 55; // G3, as on the keyboard: below it the left hand, from it up the right
+const DEGREE_NAME: Record<string, string> = { "1": "root", "3": "3rd", b3: "♭3rd", "4": "4th", "5": "5th", b5: "♭5th", "#5": "♯5th", "6": "6th", "7": "7th", b7: "♭7th", bb7: "°7th" };
+
+const INTERVAL_NAME = ["root", "♭9", "9", "♯9", "3rd", "11", "♯11", "5th", "♭13", "13", "♭7th", "7th"];
+
+/** A note of the voicing as you'd say it at the piano: "B♭ (♭3rd)". */
+function noteWithDegree(step: DrillStep, midi: number) {
+  const tone = chordTones(step.chord).find((t) => chroma(t.note) === midi % 12);
+  // a colour the engine added to the voicing (the 9 on an F6) isn't a chord tone: name it from the root
+  const degree = tone ? (DEGREE_NAME[tone.degree] ?? prettyNote(tone.degree)) : INTERVAL_NAME[(midi - chroma(step.chord.root) + 120) % 12];
+  return { name: spelled(step, midi), degree };
+}
+
+const STUDY_PILL = "tap-lg cursor-pointer whitespace-nowrap rounded-full border-2 border-ink px-3 font-marker hover:bg-paper-shade disabled:cursor-default disabled:opacity-35";
+
+/** Study mode, above the keys: ‹ Last chord · which chord this is · Next chord ›, and a play button. */
+function StudyNav({ steps, at, onStep, onHear }: { steps: DrillStep[]; at: number; onStep: (i: number) => void; onHear: () => void }) {
+  const step = steps[at];
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <button type="button" onClick={() => onStep(at - 1)} disabled={at === 0} aria-label="Last chord" className={STUDY_PILL}>
+        ‹ Last
+      </button>
+      <button type="button" onClick={onHear} className="min-w-0 cursor-pointer text-center" aria-live="polite" title="Hear this chord">
+        <span className="flex items-baseline justify-center gap-1.5">
+          <ChordName symbol={step.symbol} className="text-2xl" />
+          <span aria-hidden className="text-sm text-ink-soft">▶</span>
+        </span>
+        <span className="block font-hand text-xs text-ink-soft">
+          chord {at + 1} of {steps.length}
+          {step.resolution ? " · resolution" : ""}
+        </span>
+      </button>
+      <button type="button" onClick={() => onStep(at + 1)} disabled={at === steps.length - 1} aria-label="Next chord" className={STUDY_PILL}>
+        Next ›
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Study mode, below the keys: how to play the chord shown on them. Each hand's notes bottom to
+ * top with their degrees, how the voices got here from the last chord, and the step's job in
+ * the move. Nothing is graded.
+ */
+function StudyNotes({ steps, at }: { steps: DrillStep[]; at: number }) {
+  const step = steps[at];
+  const notes = [step.target.bass, ...step.target.upper].sort((a, b) => a - b);
+  const hand = (lh: boolean) => notes.filter((m) => (m < SPLIT) === lh).map((m) => noteWithDegree(step, m));
+  const left = hand(true);
+  const right = hand(false);
+  return (
+    <div className="space-y-2 rounded-xl border-2 border-dashed border-ink-faint p-3 md:p-4">
+      <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-1 font-hand text-base">
+        {[
+          ["Left hand", left],
+          ["Right hand", right],
+        ].map(([label, ns]) =>
+          (ns as ReturnType<typeof noteWithDegree>[]).length ? (
+            <div key={label as string} className="contents">
+              <dt className="font-marker text-sm uppercase tracking-wide text-ink-soft">{label as string}</dt>
+              <dd>
+                {(ns as ReturnType<typeof noteWithDegree>[]).map((n, i) => (
+                  <span key={i}>
+                    {i > 0 && <span className="text-ink-faint"> · </span>}
+                    <span className="font-marker text-ink">{n.name}</span>
+                    {n.degree && <span className="text-sm text-ink-soft"> ({n.degree})</span>}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null,
+        )}
+      </dl>
+      <p className="-mt-1 font-hand text-xs text-ink-faint">Bottom to top. Keys from G3 up are the right hand.</p>
+
+      {at > 0 && (
+        <p className="font-hand text-sm">
+          <span className="font-marker text-ink-soft">From {prettySymbol(steps[at - 1].symbol)}:</span> {voiceMotion(steps[at - 1], step)}
+        </p>
+      )}
+      {step.stepCue && (
+        <p className="font-hand text-sm">
+          <span className="font-marker text-ink-soft">{step.stepCue.role}:</span> {step.stepCue.whyHere}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Listen (the engine hears your notes), self-check (an acoustic piano, no cable) or study (nothing graded). */
 function GradingSwitch({ mode, onMode, midiConnected }: { mode: GradingMode; onMode: (m: GradingMode) => void; midiConnected: boolean }) {
   const opts: { id: GradingMode; label: string; title: string }[] = [
     { id: "listen", label: midiConnected ? "🎹 Listening to MIDI" : "🎹 Play it here", title: "The engine hears what you play (MIDI, computer keys or the keys below) and marks it up" },
     { id: "self", label: "✋ Self-check", title: "At an acoustic piano: reveal the voicing, play it, grade yourself" },
+    { id: "study", label: "📖 Study it", title: "See each chord on the keys and how to play it, chord by chord. Nothing is graded" },
   ];
   return (
     <div role="radiogroup" aria-label="How your playing is checked" className="flex flex-wrap items-center gap-2 font-marker text-sm">

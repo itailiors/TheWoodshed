@@ -140,6 +140,14 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
     [],
   );
 
+  // ‹ Prev / Next ›: step through the list on the left without scrolling to it (on a phone it's far below)
+  const stepList: { id: string; pick: () => void }[] =
+    scope === "concept"
+      ? conceptSamples.map(({ rule: r }) => ({ id: r.id, pick: () => setRuleId(r.id) }))
+      : groups.flatMap((g) => g.moves).map((m) => ({ id: m.id, pick: () => (setMoveId(m.id), setRuleId(m.ruleId)) }));
+  const stepIdx = stepList.findIndex((s) => s.id === (scope === "concept" ? activeRuleId : move.id));
+  const stepTo = (d: -1 | 1) => stepList[stepIdx + d]?.pick();
+
   const due = (progress?.due ?? []).slice(0, 5);
   const now = Date.now();
   const activeCleanKeys = cleanFor(activeRuleId);
@@ -323,12 +331,38 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         </nav>
 
         {/* ── Zone 2 (Center Stage): 12-Key Circle-of-Fifths Ribbon + Drill ── */}
-        <div id="coach-drill" className="order-1 scroll-mt-4 space-y-3 lg:order-none">
-          <a href="#coach-moves" className="inline-block font-marker text-sm text-ink-soft underline lg:hidden">
-            ↓ Drill a different concept{due.length ? ` · ${due.length} due for review` : ""}
-          </a>
+        {/* below lg the drill comes first and the ribbon after it (flex order); lg keeps source order */}
+        <div id="coach-drill" className="order-1 flex scroll-mt-4 flex-col gap-3 lg:order-none">
+          <div className="flex flex-wrap items-center gap-2 font-marker text-sm">
+            <button
+              type="button"
+              onClick={() => stepTo(-1)}
+              disabled={stepIdx <= 0}
+              aria-label={`Previous ${scope === "concept" ? "concept" : "move"}`}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 hover:bg-paper-shade disabled:cursor-default disabled:opacity-35"
+            >
+              ‹ Prev
+            </button>
+            <span className="text-ink-soft" aria-live="polite">
+              {scope === "concept" ? "Concept" : "Move"} {stepIdx + 1} of {stepList.length}
+            </span>
+            <button
+              type="button"
+              onClick={() => stepTo(1)}
+              disabled={stepIdx >= stepList.length - 1}
+              aria-label={`Next ${scope === "concept" ? "concept" : "move"}`}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 hover:bg-paper-shade disabled:cursor-default disabled:opacity-35"
+            >
+              Next ›
+            </button>
+            <a href="#coach-moves" className="ml-auto text-ink-soft underline lg:hidden">
+              ↓ All {scope === "concept" ? "concepts" : "moves"}
+              {due.length ? ` · ${due.length} due` : ""}
+            </a>
+          </div>
 
           {/* 12-Key Circle-of-Fifths Ribbon & Key Flow Selector */}
+          <div className="order-2 lg:order-none">
           <SketchBox seed={seedOf("coach-ribbon")} fill={paper.base} strokeWidth={1.6}>
             <div className="space-y-2.5 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -400,7 +434,9 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               </ol>
             </div>
           </SketchBox>
+          </div>
 
+          <div className="order-1 lg:order-none">
           <SketchBox seed={seedOf("coach-drill")} fill={paper.light} strokeWidth={2} style={{ viewTransitionName: "lead-sheet" }}>
             <div className="p-3 sm:p-4 md:p-6">
               <CoachDrill
@@ -422,6 +458,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               />
             </div>
           </SketchBox>
+          </div>
         </div>
 
         {/* ── Zone 3 (Right Rail): Concept Passport Page ── */}
