@@ -99,6 +99,8 @@ export interface AnswerRecord {
   verdict: AnswerVerdict["kind"];
   /** Function named right; null where it isn't asked (Level 1). */
   chipRight: boolean | null;
+  /** The motion the step was asking about (for the summary's per-motion accuracy). */
+  motion?: EarMotionId;
   /** Which round it belonged to, so whole rounds can be judged clean. */
   round: { id: number; kind: RoundKind; start: number; steps: number };
 }
