@@ -19,6 +19,7 @@ interface Props {
   level: number;
   /** Your picks from "Also works here": they go in first, just as in the app. */
   forced: ReharmMove[];
+  kept?: string[];
   bar: number;
 }
 
@@ -40,20 +41,20 @@ const chordsOf = (cs: { root: string; quality: string }[]) => cs.map((c) => pret
  * The data is the engine's own trace (generateMovesTraced / buildPathwayTraced), the same
  * code path the app plays from, so nothing here is reconstructed after the fact.
  */
-export function XRayPipeline({ tune, level, forced, bar }: Props) {
+export function XRayPipeline({ tune, level, forced, kept = [], bar }: Props) {
   const bpb = tune.meter[0];
   const trace = useMemo(() => generateMovesTraced(tune), [tune]);
-  const path = useMemo(() => buildPathwayTraced(trace.accepted, level, forced), [trace, level, forced]);
+  const path = useMemo(() => buildPathwayTraced(trace.accepted, level, forced, kept), [trace, level, forced, kept]);
   const byId = useMemo(() => new Map(trace.accepted.map((m) => [m.id, m])), [trace]);
 
   const [from, to] = [(bar - 1) * bpb, bar * bpb];
   const touches = (m: ReharmMove) => m.spanBeats.start < to && m.spanBeats.end > from;
 
   const rows: Row[] = useMemo(() => {
-    const kept = trace.accepted.filter(touches).map((m) => ({ move: m, struck: null, decision: path.decisions.get(m.id) ?? null }));
+    const accepted = trace.accepted.filter(touches).map((m) => ({ move: m, struck: null, decision: path.decisions.get(m.id) ?? null }));
     const cut = trace.rejected.filter((r) => touches(r.move)).map((r) => ({ move: r.move, struck: r.reasons, decision: null }));
     const order = (r: Row) => (r.decision?.kind === "forced" || r.decision?.kind === "chosen" ? 0 : r.struck ? 2 : 1);
-    return [...kept, ...cut].sort((a, b) => order(a) - order(b) || rankOf(b.decision) - rankOf(a.decision) || a.move.priority - b.move.priority);
+    return [...accepted, ...cut].sort((a, b) => order(a) - order(b) || rankOf(b.decision) - rankOf(a.decision) || a.move.priority - b.move.priority);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trace, path, bar]);
 
@@ -223,6 +224,8 @@ function Verdict({ d, byId }: { d: PathwayDecision | null; byId: Map<string, Reh
           </p>
         </div>
       );
+    case "kept":
+      return <p className="text-sm text-ink-soft">you kept this chord as written</p>;
     case "dial-off":
       return <p className="text-sm text-ink-soft">dial at L0: the tune as written</p>;
     case "above-dial":

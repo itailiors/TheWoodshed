@@ -40,6 +40,7 @@ import { LevelDial } from "./components/LevelDial";
 import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
 import { MoveCard } from "./components/MoveCard";
+import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { SideRail } from "./components/SideRail";
 import { useNarrow } from "./device/media";
 import { useWakeLock } from "./device/wakeLock";
@@ -160,11 +161,13 @@ export function App() {
 
   const [level, setLevel] = useState(2);
   const [forced, setForced] = useState<string[]>([]);
+  /** Chord ids you asked to keep as written (Chord by chord). Chord ids belong to a chart. */
+  const [kept, setKept] = useState<string[]>([]);
   const [view, setView] = useState<"reharm" | "original">("reharm");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const forcedMoves = useMemo(() => forced.map((id) => accepted.find((m) => m.id === id)).filter((m): m is ReharmMove => !!m), [accepted, forced]);
-  const pathway = useMemo(() => buildPathway(accepted, level, forcedMoves), [accepted, level, forcedMoves]);
+  const pathway = useMemo(() => buildPathway(accepted, level, forcedMoves, kept), [accepted, level, forcedMoves, kept]);
   const realized = useMemo(() => realize(tune, pathway), [tune, pathway]);
   const original = useMemo(() => sortedHarmony(tune), [tune]);
   const shownChords = view === "reharm" ? realized : original;
@@ -180,6 +183,7 @@ export function App() {
   const changeLevel = (l: number) => {
     setLevel(l);
     setForced([]);
+    setKept([]);
     setSelectedId(null);
   };
   // A linked pedal or mod wheel moves only the dial. Unlike a click it keeps your picks and
@@ -188,7 +192,18 @@ export function App() {
   usePedalLevel(setLevel);
   const pick = (alt: ReharmMove) => {
     setForced((f) => [...f.filter((id) => !overlaps(accepted.find((m) => m.id === id)!, alt)), alt.id]);
+    setKept((k) => k.filter((id) => !alt.replaces.includes(id))); // picking a move over a kept chord un-keeps it
     setSelectedId(alt.id);
+  };
+  // Chord by chord: keep one chord as written, or hand it back to the dial
+  const dropPicksOn = (chordId: string) => setForced((f) => f.filter((id) => !accepted.find((m) => m.id === id)?.replaces.includes(chordId)));
+  const keepChord = (chordId: string) => {
+    dropPicksOn(chordId);
+    setKept((k) => (k.includes(chordId) ? k : [...k, chordId]));
+  };
+  const dialChord = (chordId: string) => {
+    dropPicksOn(chordId);
+    setKept((k) => k.filter((id) => id !== chordId));
   };
 
   const usedCategories = [...new Set(pathway.map((m) => m.category))];
@@ -318,6 +333,7 @@ export function App() {
   // ids are positional, so your picks, the selected move and the loop all carry across keys.
   useEffect(() => {
     setForced([]);
+    setKept([]);
     setSelectedId(null);
     setTempo(baseTune.tempo);
     setLoopSelection(false);
@@ -412,6 +428,7 @@ export function App() {
           tune={tune}
           level={level}
           forced={forcedMoves}
+          kept={kept}
           playheadBar={playback.status === "playing" ? (playback.position?.bar ?? null) : null}
           startBar={selected?.span.from.bar ?? 1}
           onClose={() => setXrayOpen(false)}
@@ -564,6 +581,26 @@ export function App() {
                 </div>
               </div>
             </SketchBox>
+
+            {accepted.length > 0 && (
+              <SketchBox seed={seedOf("chord-by-chord")} fill={paper.light} className="mt-6">
+                <div className="p-3 sm:p-4">
+                  <ChordMoveSelector
+                    chords={original}
+                    accepted={accepted}
+                    pathway={pathway}
+                    forcedIds={forced}
+                    keptIds={kept}
+                    level={level}
+                    selectedId={selected?.id}
+                    onPick={pick}
+                    onKeep={keepChord}
+                    onDial={dialChord}
+                    onSelect={setSelectedId}
+                  />
+                </div>
+              </SketchBox>
+            )}
 
             <div className="mt-6">
               <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} level={level} view={view} />

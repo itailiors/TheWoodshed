@@ -44,6 +44,7 @@ export interface Rank {
 /**
  * What the pathway builder decided about one candidate move, and why. Exactly one per move.
  *  - forced: you picked it ("Also works here"), so it goes in first
+ *  - kept: you asked for a chord it replaces (`chordId`) to stay as written
  *  - chosen: won its phrase on rank
  *  - dial-off: the dial is at 0 (the tune as written)
  *  - above-dial: its level is spicier than the dial allows
@@ -52,6 +53,7 @@ export interface Rank {
  */
 export type PathwayDecision =
   | { kind: "forced" }
+  | { kind: "kept"; chordId: string }
   | { kind: "chosen"; rank: Rank; window: [number, number] }
   | { kind: "dial-off" }
   | { kind: "above-dial"; level: number; maxLevel: number }
@@ -69,16 +71,24 @@ export interface PathwayTrace {
  * − 1.5 for every earlier use of the same rule (keeps arrangements varied),
  * until the phrase's quota (DENSITY) is used up.
  * `forced` moves (user picks) always go in first and count toward their phrase's quota.
+ * `kept` chord ids are chords you want as written: no move that replaces one gets in (a pick
+ * of a move over a kept chord loses to the keep).
  */
-export function buildPathway(moves: ReharmMove[], maxLevel: number, forced: ReharmMove[] = []): ReharmMove[] {
-  return buildPathwayTraced(moves, maxLevel, forced).chosen;
+export function buildPathway(moves: ReharmMove[], maxLevel: number, forced: ReharmMove[] = [], kept: string[] = []): ReharmMove[] {
+  return buildPathwayTraced(moves, maxLevel, forced, kept).chosen;
 }
 
 /** `buildPathway`, plus the reason for every candidate's fate. Same code path, so it can't drift. */
-export function buildPathwayTraced(moves: ReharmMove[], maxLevel: number, forced: ReharmMove[] = []): PathwayTrace {
+export function buildPathwayTraced(moves: ReharmMove[], maxLevel: number, forced: ReharmMove[] = [], kept: string[] = []): PathwayTrace {
   const decisions = new Map<string, PathwayDecision>();
   const chosen: ReharmMove[] = [];
+  const keep = new Set(kept);
+  for (const m of [...forced, ...moves]) {
+    const chordId = m.replaces.find((id) => keep.has(id));
+    if (chordId && !decisions.has(m.id)) decisions.set(m.id, { kind: "kept", chordId });
+  }
   for (const f of forced) {
+    if (decisions.has(f.id)) continue;
     const clash = chosen.find((c) => overlaps(c, f));
     if (clash) decisions.set(f.id, { kind: "overlaps", by: clash.id });
     else {

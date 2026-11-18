@@ -9,6 +9,8 @@ interface Props {
   tune: Tune;
   level: number;
   forced: ReharmMove[];
+  /** Chord ids you asked to keep as written (the chord-by-chord selector). */
+  kept?: string[];
   /** The bar under the playhead while playing, else null. */
   playheadBar: number | null;
   /** Where to look when nothing is playing (the selected move's bar). */
@@ -22,7 +24,7 @@ type Tab = "xray" | "proof";
  * The Engine X-ray: how the reharm engine decided, bar by bar (X-ray tab), and the
  * evidence that it always decides the same way (Proof tab).
  */
-export function EngineXRay({ tune, level, forced, playheadBar, startBar, onClose }: Props) {
+export function EngineXRay({ tune, level, forced, kept = [], playheadBar, startBar, onClose }: Props) {
   const [tab, setTab] = useState<Tab>("xray");
   const [bar, setBar] = useState(startBar);
   const [follow, setFollow] = useState(true);
@@ -104,7 +106,7 @@ export function EngineXRay({ tune, level, forced, playheadBar, startBar, onClose
                   </label>
                   <span className="text-xs text-ink-faint">← → step bars</span>
                 </div>
-                <XRayPipeline tune={tune} level={level} forced={forced} bar={shown} />
+                <XRayPipeline tune={tune} level={level} forced={forced} kept={kept} bar={shown} />
               </>
             ) : (
               <ProofPanel tune={tune} />
