@@ -73,7 +73,7 @@ export interface GameState {
 }
 
 export type GameEvent =
-  | { type: "START"; level: LevelId; stage: Stage; seed: number; due?: readonly DueItem[]; rounds?: number }
+  | { type: "START"; level: LevelId; stage: Stage; seed: number; due?: readonly DueItem[]; rounds?: number; keys?: readonly string[] }
   | { type: "PROMPT_READY" }
   /** A note from the keyboard (any source on the note bus): MIDI number or pitch class, and when. */
   | { type: "NOTE"; note: number; at: number }
@@ -220,7 +220,7 @@ function answer(s: GameState, pc: number, at: number | null): GameState {
 export function gameReducer(s: GameState, e: GameEvent): GameState {
   switch (e.type) {
     case "START": {
-      const rounds = planSession(e.level, e.seed, e.due ?? [], e.rounds);
+      const rounds = planSession(e.level, e.seed, e.due ?? [], e.rounds, e.keys);
       return { ...initialGame(e.level, e.stage), rounds, phase: "prompting" };
     }
 

@@ -155,11 +155,12 @@ function roundForMotion(level: LevelId, motion: EarMotionId): { kind: RoundKind;
 /**
  * A session's rounds: due reviews first (in the order given, those this level teaches, in their
  * own key), then rounds in seeded random keys of the level, never the same key twice in a row
- * where the level has more than one.
+ * where there's more than one. `onlyKeys` narrows (or widens) the keys from the level's own: one key to
+ * drill it, any of the 12 (the key picker); due reviews in other keys are left for another session.
  */
-export function planSession(level: LevelId, seed: number, due: readonly DueItem[] = [], rounds = SESSION_ROUNDS): Round[] {
+export function planSession(level: LevelId, seed: number, due: readonly DueItem[] = [], rounds = SESSION_ROUNDS, onlyKeys?: readonly string[]): Round[] {
   const rng = seededRng(seed);
-  const keys = LEVELS[level - 1].keys;
+  const keys = onlyKeys?.length ? onlyKeys : LEVELS[level - 1].keys;
   const out: Round[] = [];
   const roundSeed = () => Math.floor(rng() * 2 ** 31);
 

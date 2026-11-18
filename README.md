@@ -31,6 +31,7 @@ Load a tune (it opens on *Co-op Blues*, an original 12-bar bebop blues in F writ
 2. **Explains why each move works**: function, voice leading, melody compatibility and a one-line rule you can carry to any tune.
 3. **Maps the right hand**: the scales that fit every chord, original or reharmonized, with the guide tones to land on.
 4. **Makes you play it**: a MIDI comping coach marks your voicings in red pen, an improv heatmap scores your lines, and a 12-key drill moves everything to a new key so you learn the function, not the finger shape.
+5. **Trains your sense of where a chord wants to go**: the **Changes** tab's game, *Make the Changes*, puts you on a chord and asks for the root it pulls toward, with the sound, the reason, and spaced reviews.
 
 The goal isn't a chord-substitution generator. It's a practice partner that teaches you to make these moves on the fly.
 
@@ -121,6 +122,32 @@ Every move goes through the same melody filter and voice-leading score, and come
 - **Teacher's red pen:** hand-drawn circles where a 3rd or 7th should be, crosses on wrong notes, a big checkmark for a clean, smooth strike, and written comments in the margin.
 - **12-key transfer drill:** jump to a random key, or move to a new one automatically after every clean run. The engine re-spells every chord and voicing; the hint can be hidden so you work from function.
 - **Self-check at an acoustic piano (no cable):** on a phone or iPad (and anywhere you pick ✋ *Self-check*) the Coach stops waiting for input. Play each chord from memory, tap **Show the voicing** to see the engine's voicing and how each voice moved, then grade yourself: **I played it perfectly** or **I missed it**. Self-checked runs go through the same SM-2 grading and review queue, and are stored as `graded_by = self`, since nobody heard the notes and voice-leading leaps can't be measured. Plugging in MIDI switches back to listening. The drill only deals in per-chord verdicts, so microphone pitch detection can be added later as another way of listening.
+
+### 🧭 Changes: "Make the Changes", a harmony game with sound
+A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), and you say where it wants to go next: play the root on any keyboard, in any octave, or tap a card. Then you hear the move and read why it works. It's harmony and function training with sound; hearing-only rounds come later.
+- **What it teaches** (v1, major keys), each with a mental model and a one-line reason:
+  - **the landing**: V7 → I, the 3rd and 7th resolving by half steps;
+  - **the setup**: ii → V, the 7th of ii sliding down to the 3rd of V;
+  - **the fourths staircase**: down a fifth through every chord in the key, *"down a fifth, but stay in the key"*. The one wider step, IV → vii, is drawn as a hop;
+  - **the turnaround door**: I → vi, to start the loop back home.
+- **Three levels:** *The Landing* (V → I), *The Setup* (ii → V → I) and *The Staircase* (the whole walk home, and the turnaround). The first level not yet mastered is marked "next up".
+- **Keys:** each level deals its own keys by default ("Mixed": C and F; then B♭; then E♭ and G too), or pick **any one of the 12** to drill it on its own, on any level. Every key is spelled as its key signature says (C♭ in G♭ major, E♯°7 in E). Reviews are always dealt in their own key.
+- **Three stages of help, per level:**
+  - **Guided:** up to three cards, the likeliest first, each saying what it is, with ghosts on the keyboard.
+  - **Choices:** names only.
+  - **Open:** play the root yourself; from Level 2 you then name its job with the function chips (ii, V, I…).
+  - Eight right in a row moves you up a stage (with Undo); it never moves you down.
+- **Three verdicts:**
+  - **Right.**
+  - **Also works:** a real jazz move that isn't this round's path, like the tritone sub from ii or V, the backdoor from IV (also the "fifth down that leaves the key" at the staircase's wider step), a passing diminished from I, or the staircase when a turnaround steps out the door. Half credit, and the streak holds.
+  - **Not quite:** an explanation, then you play the right root to go on.
+  - Each verdict has its own shape, colour and word, never colour alone.
+- **The road:** the round drawn as hand-inked chord stations, from where you started to home (a dashed ghost from the start). A fifths step is a little stair, the wider step an arc, the turnaround a door; in Choices and Open the next step's shape isn't drawn ahead.
+- **Sound:** every prompt chord is voice-led from the last by the engine's voicing code; each answer replays the move (theirs, then the expected one); landing home replays the whole trip.
+- **Scoring:** 3/1/0 in Guided, 6/3/0 in Choices, 10/5/0 at Open, +4 for naming the function right. No timers.
+- **Remembered:** each session is saved in your browser. Its **Open** answers go to the same spaced-repetition scheduler as the Coach, as `ear:<motion>` concepts per key. They get their own **Changes** section in the passport, *Practise →* opens them in the game, and due reviews come first in the next session (they stay out of the Coach's list). The session summary shows accuracy per move, CLEAN stamps for keys played clean at Open, your "also works" discoveries, and what to try next.
+- **Inputs:** MIDI, on-screen keys and the computer keyboard (`M`), all on the note bus; a MIDI chord answers once. Shortcuts: `1`–`3` pick a card, `1`–`7` name the job, Space hears it again or skips, Enter goes on, Esc asks before ending. On phones the keys dock at the bottom as one short octave.
+- **The game is theory-core:** the harmony (`ears/motions.ts`), seeded rounds and option cards (`ears/rounds.ts`), the judge and scoring (`ears/judge.ts`) and the whole game as a pure reducer (`ears/machine.ts`) are deterministic and tested like the rest of the engine; React only adds time, sound and input.
 
 ### 📱 Phones and tablets
 - **Phone layout:** the lead sheet draws two bars a line instead of scrolling sideways, and the heatmap pages four bars at a time. Transport, band and key controls fold behind one toggle. In the Coach, the drill comes before the move list, with a voicing keyboard zoomed to the octaves the move uses.
@@ -269,6 +296,14 @@ Music theory has invariants, so the engine is tested against them rather than ag
 - Line evaluation never mislabels a chord tone, and every note gets a readable role.
 - The walking bass plays every beat in range, lands each chord's root on its downbeat and approaches the next root by a half step; the two-feel is always root on 1, fifth on 3; the ride, hi-hat and brush patterns stay in time and inside the form.
 
+**The Changes game**, over every level, key and seed:
+- Every round is a connected chain that lands home on I, and every step moves the way its motion says (down a fifth; the one wider step at IV → vii; the door up a sixth). A golden test pins the E♭ walk: E♭ A♭ D G C F B♭ E♭.
+- Every chord is spelled as its key spells it (B♭ in F, F♯ only in G) with the engine's own Roman numeral; the walk has exactly one wider step in all 12 keys.
+- The right root is right in any octave; every alternative is judged one; any other root is wrong. Alternatives never collide with each other or the expected answer.
+- Option cards: at most three, distinct, the answer always among them (first in Guided), at most one valid alternative.
+- The same seed deals the same round and session; due reviews come first, then keys that never repeat back to back.
+- The game's reducer: worked transitions for every rule (debounce, the fix after a miss, promotion with Undo, the function chip, what the scheduler hears), plus random event sequences that must never throw, mutate state, lower the points or leave the round's range.
+
 Two **golden tests** pin the engine to real tunes:
 - **Co-op Blues**, the reference tune. Its head was written so the dial tells a story: nothing at L0, one move at L1, then 3, 4 and 12. Six different rules are accepted, and the head's own notes reject other moves for reasons you can hear (a plain A over D7 rules out the ♭13 upper structure; the D in bar 4 is the ♯9 of the tritone sub).
 - **Someday My Prince Will Come** (bars 1–8), the engine's original design simulation, so its moves, melody-based rejections, pathways and scale map stay exact. It lives only in the test suite and is no longer shipped in the app.
@@ -286,7 +321,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 141 tests (engine + API), several thousand generated cases
+npm test          # 207 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -348,6 +383,8 @@ It uses the explanation cache, so re-runs only pay for new moves. Add `-- --temp
 
 Endpoints are under `/api/practice`: `sessions`, `coach-attempts`, `improv-runs`, `progress`, `due`.
 
+The **Changes** game files its Open answers through the same `coach-attempts` path, as `ear:<motion>` concepts under the chart id `changes` (not a tune, so their place is empty and the passport sends them to the Changes tab). Its sessions themselves (every answer, points, stamps) live in the browser in every build: IndexedDB `reharm-practice` v2, store `changesSessions`.
+
 A MIDI keyboard is optional: every practice tool also takes clicks on the on-screen keys and the computer keyboard (press `M`). Web MIDI works in Chromium-based browsers (Chrome, Edge); Safari has none, and Firefox asks for a site permission.
 
 ---
@@ -369,10 +406,13 @@ packages/theory-core/   deterministic engine
   src/transpose.ts        12-key transfer
   src/import/ireal.ts     iReal Pro link parser
   src/analysis.ts         Roman-numeral analysis
+  src/srs.ts              spaced repetition (SM-2) + the passport summary, shared by the API and the browser
+  src/ears/               the Changes game: harmony and copy, seeded rounds, judge + scoring, the pure game reducer
   test/                   property-based + golden tests
 apps/web/               React app
   src/design/             Rough.js primitives, tokens, SVG filters
   src/components/         lead sheet, move cards, transport, practice tools
+  src/components/changes/ the Changes tab: the game page, its hook (time, sound, input, saving), the road, controls
   src/audio/              Tone.js arranger and player
   src/midi/               Web MIDI hook, note bus, chord-strike detection
 apps/api/               Hono server: library, iReal import, moves, Claude Deep Dive

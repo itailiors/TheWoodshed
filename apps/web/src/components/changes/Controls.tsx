@@ -1,4 +1,4 @@
-import { LEVELS, type LevelId, type Stage } from "@reharm/theory-core";
+import { KEYS, LEVELS, prettyNote, type LevelId, type Stage } from "@reharm/theory-core";
 import { wash } from "../../design/tokens";
 
 /*
@@ -18,9 +18,9 @@ const pill = (on: boolean) =>
 
 export function StageSelector({ value, onChange }: { value: Stage; onChange: (s: Stage) => void }) {
   return (
-    <div role="radiogroup" aria-label="How much help" className="flex flex-wrap gap-1.5 text-sm">
+    <div role="group" aria-label="How much help" className="flex flex-wrap gap-1.5 text-sm">
       {(Object.keys(STAGE_LABEL) as Stage[]).map((st) => (
-        <button key={st} type="button" role="radio" aria-checked={value === st} title={STAGE_LABEL[st].title} onClick={() => onChange(st)} className={pill(value === st)}>
+        <button key={st} type="button" aria-pressed={value === st} title={STAGE_LABEL[st].title} onClick={() => onChange(st)} className={pill(value === st)}>
           {STAGE_LABEL[st].label}
         </button>
       ))}
@@ -30,13 +30,12 @@ export function StageSelector({ value, onChange }: { value: Stage; onChange: (s:
 
 export function LevelPicker({ value, onChange, nextUp, mastered = [] }: { value: LevelId; onChange: (l: LevelId) => void; nextUp: LevelId | null; mastered?: LevelId[] }) {
   return (
-    <div role="radiogroup" aria-label="Level" className="grid gap-2 sm:grid-cols-3">
+    <div role="group" aria-label="Level" className="grid gap-2 sm:grid-cols-3">
       {LEVELS.map((l) => (
         <button
           key={l.id}
           type="button"
-          role="radio"
-          aria-checked={value === l.id}
+          aria-pressed={value === l.id}
           onClick={() => onChange(l.id)}
           className={`tap-lg relative cursor-pointer rounded-lg border-2 px-3 py-2 text-left ${value === l.id ? "border-ink bg-paper-light" : "border-dashed border-ink-soft hover:bg-paper-shade"}`}
         >
@@ -57,8 +56,8 @@ export function LevelPicker({ value, onChange, nextUp, mastered = [] }: { value:
 }
 
 const LEVEL_BLURB: Record<LevelId, string> = {
-  1: "V → I in C and F",
-  2: "ii → V → I in C, F, B♭",
+  1: "V → I, the landing",
+  2: "ii → V → I, the setup",
   3: "the whole staircase, and the turnaround",
 };
 
@@ -83,5 +82,30 @@ export function FunctionChips({ chips, root, onPick }: { chips: readonly string[
         ))}
       </div>
     </div>
+  );
+}
+
+/**
+ * Which keys a session is dealt in: "Mixed" (the level's own keys, at random) or any one of the
+ * 12, to drill a key on its own. A native select (13 choices are too many pills), styled as one.
+ */
+export function KeySelect({ value, level, onChange }: { value: string; level: LevelId; onChange: (key: string) => void }) {
+  const own = LEVELS[level - 1].keys.map(prettyNote).join(", ");
+  return (
+    <label className="flex items-center gap-2 font-marker text-sm">
+      Keys
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-3 py-0.5 font-marker hover:bg-paper-shade"
+      >
+        <option value="mixed">Mixed: {own}</option>
+        {KEYS.map((k) => (
+          <option key={k} value={k}>
+            Only {prettyNote(k)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

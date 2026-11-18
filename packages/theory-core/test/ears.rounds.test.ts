@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { romanFor } from "../src/analysis";
 import {
   altsFrom,
+  diatonicChords,
   chipOf,
   FUNCTION_CHIPS,
   judge,
@@ -23,6 +24,7 @@ import {
   type RoundKind,
 } from "../src/ears";
 import { chroma, mod } from "../src/pitch";
+import { KEYS } from "../src/transpose";
 
 /*
  * Make the Changes, step 2: rounds, option cards, judging and scoring. The ten properties the
@@ -283,5 +285,38 @@ describe("mastery", () => {
     expect(masteryProgress(3, [...walkC, ...round("C", "walkHome", 3, 4), ...turn], []).mastered).toBe(false); // one key twice
     expect(masteryProgress(3, [...walkC, ...walkG, ...round("F", "turnaround", 1, 4, false)], []).mastered).toBe(false); // a chip missed
     expect(masteryProgress(3, [...walkC, ...round("G", "walkHome", 5, 1), ...turn], []).mastered).toBe(false); // from V doesn't count
+  });
+});
+
+describe("the key picker", () => {
+  it("a session can be narrowed to one key, or opened to any of the 12, on any level", () => {
+    fc.assert(
+      fc.property(fc.constantFrom<LevelId>(1, 2, 3), fc.constantFrom(...KEYS), fc.nat(), (level, key, seed) => {
+        const s = planSession(level, seed, [], 10, [key]);
+        expect(s.every((r) => r.key === key)).toBe(true); // one key: every round in it (repeats allowed)
+        for (const r of s) for (const st of r.steps) expect(judge(st, key, st.expected.pc)).toEqual({ kind: "right" });
+      }),
+    );
+    const all = planSession(1, 3, [], 40, KEYS);
+    expect(new Set(all.map((r) => r.key)).size).toBeGreaterThan(5);
+    for (let i = 1; i < all.length; i++) expect(all[i].key).not.toBe(all[i - 1].key);
+  });
+
+  it("due reviews in a key outside the chosen ones wait for another session", () => {
+    const s = planSession(1, 1, [{ ruleId: "ear:landing", keyTonic: "D" }, { ruleId: "ear:landing", keyTonic: "A" }], 10, ["A"]);
+    expect(s.map((r) => r.key).every((k) => k === "A")).toBe(true);
+    // with D allowed too, its review comes first
+    expect(planSession(1, 1, [{ ruleId: "ear:landing", keyTonic: "D" }], 10, ["A", "D"])[0].key).toBe("D");
+  });
+
+  it("every one of the 12 keys spells its chords on seven letters, with the engine's numerals (C♭ in G♭, E♯°7 in E)", () => {
+    for (const k of KEYS) {
+      const chords = diatonicChords(k);
+      expect(new Set(chords.map((c) => c.root[0])).size).toBe(7);
+      expect(chords.map((c) => c.numeral)).toEqual(["Imaj7", "ii7", "iii7", "IVmaj7", "V7", "vi7", "viiø7"]);
+    }
+    expect(spellInKey("Gb", 4).root).toBe("Cb");
+    expect(altsFrom("E", spellInKey("E", 1))[0].chord.symbol).toBe("E#dim7");
+    expect(altsFrom("B", spellInKey("B", 1))[0].chord.symbol).toBe("B#dim7");
   });
 });

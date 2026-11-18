@@ -58,9 +58,13 @@ export interface SpelledChord {
   symbol: string;
 }
 
-/** Spell a chord with this root and quality in a key. */
-export function spellChord(root: string, quality: Quality, tonic: string, degree: Degree | null): SpelledChord {
-  const r = simplifyNote(root);
+/**
+ * Spell a chord with this root and quality in a key. Roots are simplified the way charts write
+ * them (a tritone sub in D♭ is D7, not E𝄫7) unless `exact`: a key's own notes and the raised
+ * tonic of ♯i°7 keep their letter (C♭ in G♭ major, E♯°7 in E), since the key says so.
+ */
+export function spellChord(root: string, quality: Quality, tonic: string, degree: Degree | null, exact = false): SpelledChord {
+  const r = exact ? root : simplifyNote(root);
   return {
     degree,
     quality,
@@ -74,7 +78,7 @@ export function spellChord(root: string, quality: Quality, tonic: string, degree
 /** The diatonic chord on a degree of a major key, spelled for that key. */
 export function spellInKey(tonic: string, degree: Degree): SpelledChord {
   const { quality } = DIATONIC_MAJOR[degree - 1];
-  return spellChord(transpose(tonic, MAJOR_INTERVALS[degree - 1]), quality, tonic, degree);
+  return spellChord(transpose(tonic, MAJOR_INTERVALS[degree - 1]), quality, tonic, degree, true);
 }
 
 /** All seven diatonic chords of a major key, I to vii. */
@@ -210,7 +214,7 @@ export interface AltRule {
 /** The note a half step above the tonic, spelled as a raised tonic (C♯ in C, B in B♭), as in ♯i°7. */
 const raisedTonic = (tonic: string) => {
   const t = parseNote(tonic);
-  return simplifyNote(noteName({ letter: t.letter, alter: t.alter + 1 }));
+  return noteName({ letter: t.letter, alter: t.alter + 1 });
 };
 
 export const ALTS: Record<AltMotionId, AltRule> = {
@@ -236,7 +240,7 @@ export const ALTS: Record<AltMotionId, AltRule> = {
     id: "passingDim",
     // from home, a diminished chord a half step up climbs chromatically to ii
     from: [1],
-    spell: (tonic) => spellChord(raisedTonic(tonic), "dim7", tonic, null),
+    spell: (tonic) => spellChord(raisedTonic(tonic), "dim7", tonic, null, true),
     line: (_, p) => `A real jazz move: ${ps(p)} is a passing diminished, a stepping stone up to the ii.`,
   },
 };

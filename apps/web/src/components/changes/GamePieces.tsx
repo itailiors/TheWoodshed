@@ -86,7 +86,7 @@ export function OptionCards({
             disabled={!enabled}
             onClick={() => onPick(c.pc)}
             aria-keyshortcuts={String(i + 1)}
-            className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-lg border-2 border-ink bg-paper-light px-3 py-2 text-left hover:-rotate-[0.5deg] hover:bg-paper-shade disabled:cursor-default disabled:opacity-60 disabled:hover:rotate-0"
+            className="flex min-h-14 w-full cursor-pointer items-center gap-3 rounded-lg border-2 border-ink bg-paper-light px-3 py-2 text-left hover:-rotate-[0.5deg] hover:bg-paper-shade disabled:cursor-default disabled:opacity-60 disabled:hover:rotate-0 motion-reduce:hover:rotate-0"
           >
             <span className="w-5 shrink-0 font-hand text-xs text-ink-faint">{i + 1}</span>
             <span className="min-w-0 flex-1">

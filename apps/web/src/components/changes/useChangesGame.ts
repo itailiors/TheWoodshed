@@ -53,11 +53,11 @@ export function useChangesGame() {
   const lastVoicing = useRef<Voicing | undefined>(undefined);
   const startedAt = useRef(new Date());
 
-  const start = useCallback((level: LevelId, stage: Stage, due: readonly DueItem[] = []) => {
+  const start = useCallback((level: LevelId, stage: Stage, due: readonly DueItem[] = [], keys?: readonly string[]) => {
     void player.init(); // a user gesture: wakes the audio (phones need this tap)
     lastVoicing.current = undefined;
     startedAt.current = new Date();
-    dispatch({ type: "START", level, stage, seed: Math.floor(Math.random() * 2 ** 31), due });
+    dispatch({ type: "START", level, stage, seed: Math.floor(Math.random() * 2 ** 31), due, keys });
   }, []);
 
   // ── saving: each session once, when it ends (or, if you leave mid-way, what you played of it) ──

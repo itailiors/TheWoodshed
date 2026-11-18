@@ -1,5 +1,5 @@
-import { currentOptions, EAR_MOTION_NAME, FUNCTION_CHIPS, LEVELS, motionOfRuleId, prettyNote, prettySymbol, summarise, type LevelId, type Stage } from "@reharm/theory-core";
-import { useEffect, useState } from "react";
+import { currentOptions, EAR_MOTION_NAME, FUNCTION_CHIPS, KEYS, LEVELS, motionOfRuleId, prettyNote, prettySymbol, summarise, type LevelId, type Stage } from "@reharm/theory-core";
+import { useEffect, useRef, useState } from "react";
 import { player } from "../../audio/player";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { paper, pen, seedOf } from "../../design/tokens";
@@ -11,7 +11,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { PenKeyboard, type PenKeyboardProps } from "../practice/PenKeyboard";
 import { QwertyToggle } from "../QwertyToggle";
-import { FunctionChips, LevelPicker, StageSelector } from "./Controls";
+import { FunctionChips, KeySelect, LevelPicker, StageSelector } from "./Controls";
 import { FeedbackLine, OptionCards, PromptChord } from "./GamePieces";
 import { RoadTrail } from "./RoadTrail";
 import { roadOf } from "./roadModel";
@@ -37,18 +37,22 @@ interface Props {
 
 /** The level and stage you last played, remembered per browser. */
 const SETTINGS_KEY = "reharm.changes";
-function loadSettings(): { level: LevelId; stage: Stage } {
+/** `key`: "mixed" (the level's own keys, dealt at random) or one of the 12 keys to drill on its own. */
+function loadSettings(): Settings {
   try {
     const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
     return {
       level: [1, 2, 3].includes(v.level) ? v.level : 1,
       stage: ["guided", "choices", "open"].includes(v.stage) ? v.stage : "guided",
+      key: (KEYS as readonly string[]).includes(v.key) ? v.key : "mixed",
     };
   } catch {
-    return { level: 1, stage: "guided" };
+    return { level: 1, stage: "guided", key: "mixed" };
   }
 }
-function saveSettings(v: { level: LevelId; stage: Stage }) {
+/** The keys a session is dealt in: one picked key, or (undefined) the level's own. */
+const sessionKeys = (key: Settings["key"]) => (key === "mixed" ? undefined : [key]);
+function saveSettings(v: Settings) {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(v));
   } catch {
@@ -78,11 +82,13 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
   }, [playing, s.stage]);
   const progress = useChangesProgress();
   // due reviews of this level come first in any session (planSession skips other levels' ones)
-  const startSession = () => game.start(settings.level, settings.stage, progress?.due ?? []);
+  const startSession = () => game.start(settings.level, settings.stage, progress?.due ?? [], sessionKeys(settings.key));
   // "Review them": the level that covers them, at Open (only Open answers count for the scheduler)
   const startReview = (level: LevelId, due: readonly ReviewItem[]) => {
     updateSettings({ level, stage: "open" });
-    game.start(level, "open", due);
+    // reviews are dealt in their own keys, whatever the picker says (with the level's keys for the rest)
+    const keys = [...new Set([...LEVELS[level - 1].keys, ...due.map((d) => d.keyTonic)])];
+    game.start(level, "open", due, keys);
   };
   // a review picked in the passport: open on its level at Open, with a button to play it
   // (audio needs a tap to start, so the session waits for that button rather than starting itself)
@@ -126,13 +132,18 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
         else if (s.phase === "awaiting") game.playPrompt();
         else return;
       } else if (e.key === "Enter" && s.phase === "feedback") dispatch({ type: "ADVANCE" });
-      else if (e.key === "Escape") dispatch({ type: "END" });
+      // Esc asks first: a stray Esc shouldn't throw a session away (a second Esc says "keep playing")
+      else if (e.key === "Escape") setConfirmEnd((c) => !c);
       else return;
       e.preventDefault();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [playing, s.phase, options, chips, dispatch, game]);
+  const [confirmEnd, setConfirmEnd] = useState(false);
+  useEffect(() => {
+    if (!playing) setConfirmEnd(false);
+  }, [playing]);
 
   return (
     <div className="min-h-dvh p-3 text-ink md:p-5">
@@ -209,7 +220,13 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
 
               <div aria-live="polite" className="min-h-[1.5rem]">
                 {s.phase === "awaiting" && (
-                  <p className="font-marker text-lg">{s.stage === "open" ? "Where does it want to go? Play the root." : "Where does it want to go?"}</p>
+                  <p className="font-marker text-lg">
+                    {/* the chord is shown big above; a screen reader hears it here, with the question */}
+                    <span className="sr-only">
+                      {prettySymbol(step.from.symbol)} in {prettyNote(round.key)} major.{" "}
+                    </span>
+                    {s.stage === "open" ? "Where does it want to go? Play the root." : "Where does it want to go?"}
+                  </p>
                 )}
                 {s.phase === "roundEnd" && <p className="font-marker text-lg">Home. Hear the whole trip…</p>}
               </div>
@@ -249,10 +266,27 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
                 marks={keyboardMarks(s, options.map((o) => o.pc))}
               />
 
-              <div className="flex justify-end">
-                <button type="button" onClick={() => dispatch({ type: "END" })} className="cursor-pointer font-marker text-sm text-ink-soft underline">
-                  End session
-                </button>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {!touchFirst && (
+                  <p className="font-hand text-xs text-ink-faint">
+                    Keys: {s.stage === "open" ? "1–7 name the job" : "1–3 pick a card"} · Space hear it again / skip · Enter next · Esc end · M computer keys
+                  </p>
+                )}
+                {confirmEnd ? (
+                  <span className="ml-auto flex items-center gap-2 font-marker text-sm" role="alertdialog" aria-label="End the session?">
+                    End the session?
+                    <button type="button" onClick={() => dispatch({ type: "END" })} className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 hover:bg-paper-shade">
+                      Yes, end
+                    </button>
+                    <button type="button" onClick={() => setConfirmEnd(false)} className="cursor-pointer underline">
+                      Keep playing
+                    </button>
+                  </span>
+                ) : (
+                  <button type="button" onClick={() => dispatch({ type: "END" })} className="ml-auto cursor-pointer font-marker text-sm text-ink-soft underline">
+                    End session
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -264,7 +298,7 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
   );
 }
 
-type Settings = { level: LevelId; stage: Stage };
+type Settings = { level: LevelId; stage: Stage; key: "mixed" | string };
 /** A review to play: an `ear:<motion>` concept in a key (a due review, or one picked in the passport). */
 type ReviewItem = { ruleId: string; keyTonic: string };
 type SetupProps = {
@@ -310,6 +344,7 @@ function SessionSetup({ settings, onSettings, onStart, startLabel, progress, onR
       </p>
       <div className="flex flex-wrap items-center gap-3">
         <StageSelector value={settings.stage} onChange={(stage) => onSettings({ stage })} />
+        <KeySelect value={settings.key} level={settings.level} onChange={(key) => onSettings({ key })} />
         <button type="button" onClick={onStart} className="tap-lg ml-auto cursor-pointer rounded-full border-2 border-ink bg-ink px-5 font-marker text-lg text-paper-light">
           {startLabel}
         </button>
@@ -336,6 +371,9 @@ const ALT_NAME: Record<string, string> = { tritoneSub: "the tritone sub", backdo
 /** The end of a session: how it went, what you found, and where to go next. */
 function Summary({ s, ...setup }: SetupProps & { s: Parameters<typeof summarise>[0] }) {
   const sum = summarise(s);
+  // the summary is a deliberate change of screen: take focus there, so keyboard and screen-reader players land on it
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => heading.current?.focus(), []);
   const level = LEVELS[s.level - 1];
   const mastery = setup.progress?.mastery[s.level];
   const next = LEVELS[s.level]; // undefined after the last level
@@ -349,7 +387,7 @@ function Summary({ s, ...setup }: SetupProps & { s: Parameters<typeof summarise>
   return (
     <div className="space-y-4" aria-live="polite">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-marker text-2xl uppercase">
+        <h2 ref={heading} tabIndex={-1} className="font-marker text-2xl uppercase outline-none">
           Session · Level {s.level}, {level.name}
         </h2>
         <span className="font-marker text-2xl">{sum.points} pts</span>
@@ -437,7 +475,7 @@ function AnswerKeyboard({ narrow, listening, marks }: { narrow: boolean; listeni
           : ""
       }
     >
-      <div className={`space-y-1 transition-opacity ${listening ? "" : "opacity-60"}`} aria-label={listening ? "Keyboard: play the next root" : "Keyboard: listening…"}>
+      <div className={`space-y-1 transition-opacity motion-reduce:transition-none ${listening ? "" : "opacity-60"}`} aria-label={listening ? "Keyboard: play the next root" : "Keyboard: listening…"}>
         {rows.map((r) => (
           <PenKeyboard key={r.low} {...r} {...marks} showSplit={false} slim={narrow} short={narrow} onKey={pressKey} />
         ))}
