@@ -87,11 +87,11 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
   - Every Control Change travels on a `controlBus`, the twin of the note bus, so later controller features (MIDI learn, a foot switch) plug in the same way.
 
 ### 🧠 The rule library
-Eleven deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
+Fourteen deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
 
 | Level | Rules |
 |---|---|
-| L1–L2 | Secondary / related ii–V · tritone substitution · upper-structure triad · passing diminished (♯I°7 as a rootless V7♭9; chromatic ♭iii°7) |
+| L1–L2 | Secondary / related ii–V · tritone substitution · upper-structure triads (♭VI over V7; II over V7 for a Lydian-dominant 13♯11) · rootless ii–V–I (Type A → B → A grips) · passing diminished (♯I°7 as a rootless V7♭9; chromatic ♭iii°7) · minor line cliché (im → im(maj7) → im7 → im6) |
 | L3 | Gospel half-step turnaround · backdoor ii–V (iv–♭VII7) · ♭VI–♭VII–I · borrowed iv (minor plagal) · common-tone diminished |
 | L4 | Coltrane substitution (three key centres a major 3rd apart) · constant structure (the target's shape planed down by half steps) |
 
@@ -251,7 +251,7 @@ Music theory has invariants, so the engine is tested against them rather than ag
 - Accepted moves never put an avoid note under the melody, and every rejected move gives a reason.
 - Tritone subs share the original dominant's 3rd/♭7 tritone and resolve by a half step in the bass.
 - Secondary ii–Vs sit a perfect 5th above their target, twice.
-- Upper-structure triads sit on the ♭13 and contain only chord tones.
+- ♭VI upper-structure triads sit on the ♭13 and contain only chord tones.
 - In the gospel turnaround, no voice moves more than a half step into the tonic.
 - Pathways never overlap and respect the dial level.
 
@@ -282,7 +282,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 133 tests (engine + API), several thousand generated cases
+npm test          # 135 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -354,7 +354,8 @@ A MIDI keyboard is optional: every practice tool also takes clicks on the on-scr
 packages/theory-core/   deterministic engine
   src/pitch.ts            spelled pitches, intervals, MIDI
   src/chords.ts           chord tones, guide tones, symbols
-  src/rules.ts            the reharm rules (ii–V, tritone sub, upper structure, gospel turnaround)
+  src/rules.ts            core reharm rules (ii–V, tritone sub, upper structures, gospel turnaround, rootless ii–V–I)
+  src/rulesAdvanced.ts    advanced rules (backdoor, ♭VI–♭VII–I, borrowed iv, diminished, Coltrane, constant structure, line cliché)
   src/engine.ts           generate → melody filter → score
   src/pathway.ts          dial levels, non-overlapping pathways, realization
   src/scales.ts           right-hand scale mapping

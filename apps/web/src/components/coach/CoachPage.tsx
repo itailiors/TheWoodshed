@@ -1,4 +1,4 @@
-import { chroma, conceptDrillSteps, KEYS, prettyNote, RULES, type ReharmMove, type Tune } from "@reharm/theory-core";
+import { chroma, conceptDrillSteps, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { CATEGORY_WASH, paper, pen, seedOf, wash } from "../../design/tokens";
@@ -11,6 +11,43 @@ import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill, nextCircleKey, type KeyFlow } from "./CoachDrill";
 import { useTouchFirst } from "../../device/media";
+import { ChordName } from "../ChordName";
+
+/**
+ * What a move does, in chords: the struck-out original, the new chords and where they resolve
+ * (e.g. ~~D7~~ A♭7 → Gm7). Two moves from the same rule share a title, so this is what tells
+ * them apart in the move list.
+ */
+function MoveRoute({ move }: { move: ReharmMove }) {
+  return (
+    <span className="block truncate text-sm leading-tight">
+      <span className="sr-only">{moveRouteLabel(move)}</span>
+      <span aria-hidden="true">
+      {move.original.map((c) => (
+        <ChordName key={c.id} symbol={symbol(c)} className="mr-1 text-ink-soft line-through decoration-pen decoration-2" />
+      ))}
+      {move.chords.map((c, i) => (
+        <span key={c.id}>
+          {i > 0 && <span className="text-ink-faint"> · </span>}
+          <ChordName symbol={symbol(c)} className="text-ink" />
+        </span>
+      ))}
+      {move.targetSymbol && (
+        <>
+          <span className="font-marker text-ink-soft"> → </span>
+          <ChordName symbol={move.targetSymbol} className="text-ink-soft" />
+        </>
+      )}
+      </span>
+    </span>
+  );
+}
+
+function moveRouteLabel(move: ReharmMove): string {
+  const replaced = move.original.map((c) => prettySymbol(symbol(c))).join(", ");
+  const added = move.chords.map((c) => prettySymbol(symbol(c))).join(", ");
+  return `${added} in place of ${replaced}${move.targetSymbol ? `, resolving to ${prettySymbol(move.targetSymbol)}` : ""}`;
+}
 
 export type CoachScope = "concept" | "tune";
 
@@ -269,6 +306,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                           <span className="h-3 w-3 shrink-0 -rotate-6 rounded-sm" style={{ background: CATEGORY_WASH[m.category] }} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-marker text-[15px]">{m.title}</span>
+                            <MoveRoute move={m} />
                             <span className="text-xs text-ink-soft">
                               bar {m.span.from.bar} · L{m.level}
                               {clean > 0 && <span style={{ color: pen.red }}> · {clean}/12 clean</span>}
