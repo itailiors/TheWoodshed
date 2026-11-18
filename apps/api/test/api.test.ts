@@ -205,6 +205,7 @@ describe("library mode: import + practice history", () => {
     expect(rows.filter((r) => r.ruleId === "dominant.tritoneSub").every((r) => r.gradedBy === "engine")).toBe(true);
   });
 
+
   it("records improv runs and returns them per tune", async () => {
     const { body } = await call(app, "/api/practice/sessions", json("POST", { tuneId: referenceTune.id, mode: "improv" }));
     const run = {
@@ -290,5 +291,25 @@ describe("the static demo's browser store schedules exactly like the API", () =>
     expect(browser.places).toEqual(server.places);
     const tallies = (cs: any[]) => cs.map((c) => [c.ruleId, c.keyTonic, c.reps, c.ease, c.intervalDays, c.attempts, c.cleanRuns, c.lastGrade]);
     expect(tallies(browser.concepts)).toEqual(tallies(server.concepts));
+  });
+});
+
+describe("the Changes game", () => {
+  it("the Changes game's reviews (ear:<motion>) are scheduled like any concept, with no tune for a place", async () => {
+    // its own database, so the row counts in the tests below stay as they were
+    const { app } = await createApp({ demo: false, dbFile: path.join(tmp(), "changes.sqlite") });
+    // the game files its runs under the chart id "changes", which isn't a tune in the library
+    const { body: session } = await call(app, "/api/practice/sessions", json("POST", { tuneId: "changes", mode: "coach" }));
+    expect(session.id).toBeTruthy();
+    const run = { sessionId: session.id, tuneId: "changes", moveId: "ear:setup", ruleId: "ear:setup", misses: 0, leaps: 0, maxLeap: 0, gradedBy: "engine" };
+    const a = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "Bb" }));
+    expect(a.status).toBe(201);
+    expect(a.body).toMatchObject({ grade: 5, clean: true, review: { ruleId: "ear:setup", keyTonic: "Bb", reps: 1 } });
+    const alt = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "F", leaps: 1 })); // a valid alternative: half credit
+    expect(alt.body).toMatchObject({ grade: 4, clean: false });
+
+    const progress = (await call(app, "/api/practice/progress")).body;
+    expect(progress.cleanKeys["ear:setup"]).toEqual(["Bb"]);
+    expect(progress.places["ear:setup"]).toBeNull(); // no tune: the passport sends it to the Changes tab instead
   });
 });

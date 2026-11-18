@@ -1,4 +1,4 @@
-import { prettyNote, RULES } from "@reharm/theory-core";
+import { EAR_MOTION_NAME, isEarRuleId, motionOfRuleId, prettyNote, RULES } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
@@ -15,7 +15,11 @@ interface Props {
 }
 
 const RULE_NAME = new Map(RULES.map((r) => [r.id, r.name]));
-const ruleName = (id: string) => RULE_NAME.get(id) ?? id;
+/** A concept's name: a reharm rule's, or (for the Changes game's `ear:*` reviews) the motion's. */
+const ruleName = (id: string) => {
+  const motion = motionOfRuleId(id);
+  return RULE_NAME.get(id) ?? (motion ? EAR_MOTION_NAME[motion] : id);
+};
 const ms = (t: string | number) => new Date(t).getTime();
 
 function when(dueAt: string | number, now: number) {
@@ -136,23 +140,36 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                     </p>
                   ) : (
                     <>
-                      <div role="tablist" aria-label="Concepts" className="flex flex-wrap gap-2 font-marker">
-                        {concepts.map((c) => {
-                          const clean = (data.cleanKeys[c.id] ?? []).length;
-                          return (
-                            <button
-                              key={c.id}
-                              type="button"
-                              role="tab"
-                              aria-selected={shown?.id === c.id}
-                              onClick={() => setRule(c.id)}
-                              className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm ${shown?.id === c.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
-                            >
-                              {ruleName(c.id)} <span className="opacity-70">{clean}/12</span>
-                            </button>
-                          );
-                        })}
-                      </div>
+                      {/* reharm moves (the Coach) and the Changes game's motions are kept apart */}
+                      {(
+                        [
+                          { title: "Reharm moves", items: concepts.filter((c) => !isEarRuleId(c.id)) },
+                          { title: "Changes · the harmony game", items: concepts.filter((c) => isEarRuleId(c.id)) },
+                        ] as const
+                      )
+                        .filter((group) => group.items.length > 0)
+                        .map((group) => (
+                          <div key={group.title} className="space-y-1.5">
+                            <p className="font-hand text-sm uppercase tracking-wider text-ink-soft">{group.title}</p>
+                            <div role="tablist" aria-label={group.title} className="flex flex-wrap gap-2 font-marker">
+                              {group.items.map((c) => {
+                                const clean = (data.cleanKeys[c.id] ?? []).length;
+                                return (
+                                  <button
+                                    key={c.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={shown?.id === c.id}
+                                    onClick={() => setRule(c.id)}
+                                    className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm ${shown?.id === c.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
+                                  >
+                                    {ruleName(c.id)} <span className="opacity-70">{clean}/12</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ))}
                       {shown && (
                         <KeyMatrix
                           ruleId={shown.id}

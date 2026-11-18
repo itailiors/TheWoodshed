@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { player } from "../../audio/player";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { paper, pen, seedOf } from "../../design/tokens";
-import type { DueItem } from "../../library/practice";
 import { useNarrow, useTouchFirst } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
 import { noteBus } from "../../midi/noteBus";
@@ -32,6 +31,8 @@ import { levelFor, useChangesProgress, type ChangesProgress } from "./useChanges
 interface Props {
   midi: { status: MidiStatus; connect: () => void };
   onMode: (m: AppMode) => void;
+  /** A review picked in the passport ("Practise →"): the game opens ready to play it, at Open. */
+  review?: { ruleId: string; keyTonic: string } | null;
 }
 
 /** The level and stage you last played, remembered per browser. */
@@ -55,7 +56,7 @@ function saveSettings(v: { level: LevelId; stage: Stage }) {
   }
 }
 
-export function ChangesPage({ midi, onMode }: Props) {
+export function ChangesPage({ midi, onMode, review = null }: Props) {
   const game = useChangesGame();
   const { s, dispatch, step, round, listening } = game;
   const touchFirst = useTouchFirst();
@@ -79,9 +80,22 @@ export function ChangesPage({ midi, onMode }: Props) {
   // due reviews of this level come first in any session (planSession skips other levels' ones)
   const startSession = () => game.start(settings.level, settings.stage, progress?.due ?? []);
   // "Review them": the level that covers them, at Open (only Open answers count for the scheduler)
-  const startReview = (level: LevelId, due: DueItem[]) => {
+  const startReview = (level: LevelId, due: readonly ReviewItem[]) => {
     updateSettings({ level, stage: "open" });
     game.start(level, "open", due);
+  };
+  // a review picked in the passport: open on its level at Open, with a button to play it
+  // (audio needs a tap to start, so the session waits for that button rather than starting itself)
+  const passportMotion = review ? motionOfRuleId(review.ruleId) : null;
+  const [offer, setOffer] = useState(passportMotion ? review : null);
+  useEffect(() => {
+    if (passportMotion) updateSettings({ level: levelFor(passportMotion), stage: "open" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const playOffer = () => {
+    if (!offer || !passportMotion) return;
+    setOffer(null);
+    startReview(levelFor(passportMotion), [offer]);
   };
   const setup = { settings, onSettings: updateSettings, progress, onReview: startReview };
 
@@ -147,6 +161,17 @@ export function ChangesPage({ midi, onMode }: Props) {
 
       <SketchBox seed={seedOf("changes-stage")} fill={paper.light} strokeWidth={2} className="mx-auto max-w-2xl">
         <div className="space-y-4 p-4 md:p-6">
+          {s.phase === "idle" && offer && passportMotion && (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border-2 border-ink px-3 py-2" role="status">
+              <span className="font-hand">
+                From your passport: <span className="font-marker">{EAR_MOTION_NAME[passportMotion]}</span> in{" "}
+                <span className="font-marker">{prettyNote(offer.keyTonic)}</span>, at Open.
+              </span>
+              <button type="button" onClick={playOffer} className="tap-lg ml-auto cursor-pointer rounded-full border-2 border-ink bg-ink px-4 font-marker text-paper-light">
+                Review it →
+              </button>
+            </div>
+          )}
           {s.phase === "idle" && <Intro {...setup} onStart={startSession} />}
 
           {playing && step && round && (
@@ -240,16 +265,18 @@ export function ChangesPage({ midi, onMode }: Props) {
 }
 
 type Settings = { level: LevelId; stage: Stage };
+/** A review to play: an `ear:<motion>` concept in a key (a due review, or one picked in the passport). */
+type ReviewItem = { ruleId: string; keyTonic: string };
 type SetupProps = {
   settings: Settings;
   onSettings: (v: Partial<Settings>) => void;
   onStart: () => void;
   progress: ChangesProgress | null;
-  onReview: (level: LevelId, due: DueItem[]) => void;
+  onReview: (level: LevelId, due: readonly ReviewItem[]) => void;
 };
 
 /** "2 reviews due: the setup in B♭ · the landing in F", and a button to play them (at Open, where reviews count). */
-function DueReviewsNote({ due, onReview }: { due: DueItem[]; onReview: (level: LevelId, due: DueItem[]) => void }) {
+function DueReviewsNote({ due, onReview }: { due: readonly ReviewItem[]; onReview: (level: LevelId, due: readonly ReviewItem[]) => void }) {
   if (!due.length) return null;
   const motions = due.map((d) => motionOfRuleId(d.ruleId)!);
   const level = Math.max(...motions.map(levelFor)) as LevelId;

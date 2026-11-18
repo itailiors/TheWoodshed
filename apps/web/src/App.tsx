@@ -1,5 +1,6 @@
 import {
   buildPathway,
+  isEarRuleId,
   chroma,
   transposeTune,
   densityLabel,
@@ -269,6 +270,8 @@ export function App() {
       vt.skipTransition();
     }, 400);
   }, []);
+  /** A Changes review picked in the passport: the game opens ready to play it. */
+  const [changesReview, setChangesReview] = useState<{ ruleId: string; keyTonic: string } | null>(null);
   const [xrayOpen, setXrayOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   // The Coach page opens on a specific tune move or directly on a 12-key concept drill.
@@ -296,6 +299,12 @@ export function App() {
    */
   const practiseConcept = (r: PractiseRequest) => {
     setPassportOpen(false);
+    // the Changes game's reviews are played in the Changes tab, at Open, starting in that key
+    if (isEarRuleId(r.ruleId)) {
+      setChangesReview({ ruleId: r.ruleId, keyTonic: r.keyTonic });
+      void setMode("changes");
+      return;
+    }
     const matchingMove =
       (r.lastPlace?.tuneId === baseTune.id && accepted.find((m) => m.id === r.lastPlace?.moveId)) ||
       accepted.find((m) => m.ruleId === r.ruleId) ||
@@ -356,7 +365,7 @@ export function App() {
       <Suspense fallback={<Inking label="Opening the changes" />}>
         <Toaster />
         <PanelBoundary onClose={() => void setMode("study")}>
-          <ChangesPage midi={midi} onMode={setMode} />
+          <ChangesPage key={changesReview ? `${changesReview.ruleId}@${changesReview.keyTonic}` : "changes"} midi={midi} onMode={setMode} review={changesReview} />
         </PanelBoundary>
       </Suspense>
     );
