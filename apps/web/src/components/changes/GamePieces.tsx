@@ -13,6 +13,7 @@ import {
 } from "@reharm/theory-core";
 import { pen } from "../../design/tokens";
 import { ChordName } from "../ChordName";
+import { OUTCOME_COLOR, OUTCOME_WORD, OutcomeGlyph } from "./OutcomeGlyph";
 
 /*
  * The game's presentational pieces: the chord you're on, the option cards (Guided / Choices),
@@ -104,12 +105,6 @@ export function OptionCards({
 
 // ── feedback ──
 
-const OUTCOME: Record<AnswerVerdict["kind"], { glyph: string; word: string; color: string }> = {
-  right: { glyph: "✓", word: "Right.", color: "var(--color-sage-ink, #4a6a3a)" },
-  alt: { glyph: "⑂", word: "Also works.", color: "var(--color-ink)" },
-  wrong: { glyph: "✗", word: "Not quite.", color: pen.red },
-};
-
 export function FeedbackLine({
   verdict,
   step,
@@ -129,21 +124,14 @@ export function FeedbackLine({
   onWhy: () => void;
   onNext: () => void;
 }) {
-  const o = OUTCOME[verdict.kind];
   const ctx = { tonic: keyTonic, from: step.from, to: step.expected };
   return (
     <div className="space-y-2">
       <p className="flex items-start gap-2 text-lg leading-snug" role="status" aria-live="assertive">
-        <span
-          aria-hidden
-          className={`mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full font-marker text-lg ${verdict.kind === "alt" ? "bg-wash-mustard/40" : ""}`}
-          style={{ color: o.color, border: `2px solid ${o.color}` }}
-        >
-          {o.glyph}
-        </span>
+        <OutcomeGlyph outcome={verdict.kind} />
         <span>
-          <span className="font-marker" style={{ color: verdict.kind === "alt" ? undefined : o.color }}>
-            {o.word}
+          <span className="font-marker" style={{ color: OUTCOME_COLOR[verdict.kind] }}>
+            {OUTCOME_WORD[verdict.kind]}
           </span>{" "}
           <span className="font-hand">{verdictLine(step, keyTonic, verdict)}</span>
         </span>

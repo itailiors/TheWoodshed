@@ -18,6 +18,8 @@
   --color-wash-brick: #b9532f;
   --color-wash-sage: #7e9c6b;
   --color-pen: #c2311f;
+  /* a darkened sage for "right" marks and text: plain sage is too light to read on paper (~2.6:1) */
+  --color-sage-ink: #4a6a3a;
 
   --font-hand: "Architects Daughter", "Noto Music", cursive;
   --font-marker: "Kalam", "Noto Music", cursive;

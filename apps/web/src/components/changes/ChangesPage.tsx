@@ -12,6 +12,8 @@ import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { PenKeyboard, type PenKeyboardProps } from "../practice/PenKeyboard";
 import { QwertyToggle } from "../QwertyToggle";
 import { FeedbackLine, OptionCards, PromptChord } from "./GamePieces";
+import { RoadTrail } from "./RoadTrail";
+import { roadOf } from "./roadModel";
 import { useChangesGame } from "./useChangesGame";
 
 /*
@@ -41,6 +43,7 @@ export function ChangesPage({ midi, onMode }: Props) {
   useWakeLock(playing);
 
   const options = currentOptions(s);
+  const road = roadOf(s);
   const cardStage = s.stage === "open" ? null : s.stage;
 
   // keyboard shortcuts: 1–3 pick a card, Space plays it again / skips ahead, Enter goes on, Esc ends
@@ -102,6 +105,8 @@ export function ChangesPage({ midi, onMode }: Props) {
                   {s.points} pts · streak {s.streak}
                 </span>
               </div>
+
+              {road && <RoadTrail {...road} seed={round.seed} scale={narrow ? 1 : 1.4} />}
 
               {/* at the round's end, the chord shown is where you landed: home */}
               <PromptChord
@@ -207,8 +212,8 @@ function keyboardMarks(s: ReturnType<typeof useChangesGame>["s"], optionPcs: num
   if (s.phase === "fixing") return { target: [at(step.expected.pc)], labels: [{ midi: at(step.expected.pc), label: prettyNote(step.expected.root) }] };
   if (s.phase === "feedback" && s.verdict) {
     const expected = { midi: at(step.expected.pc), label: prettyNote(step.expected.root) };
-    if (s.verdict.kind === "right") return { played: [expected.midi], labels: [expected] };
-    if (s.verdict.kind === "alt") return { played: [at(s.verdict.played.pc)], target: [expected.midi], labels: [expected] };
+    if (s.verdict.kind === "right") return { played: [expected.midi], ticks: [expected.midi], labels: [expected] };
+    if (s.verdict.kind === "alt") return { played: [at(s.verdict.played.pc)], rings: [at(s.verdict.played.pc)], target: [expected.midi], labels: [expected] };
     return { wrong: [{ midi: at(s.verdict.played.pc), label: prettyNote(s.verdict.played.root) }], target: [expected.midi], labels: [expected] };
   }
   return {};

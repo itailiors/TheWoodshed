@@ -6,6 +6,8 @@ export const paper = { base: "#f6e9c9", light: "#fbf3df", shade: "#ead7aa" } as 
 export const wash = { blue: "#5b85c2", mustard: "#e3b23c", brick: "#b9532f", sage: "#7e9c6b" } as const;
 /** The teacher's red pen: corrections and checkmarks in the practice tools. */
 export const pen = { red: "#c2311f" } as const;
+/** "Right" in the Changes game: a darkened sage that reads on paper (the sage wash fills, this draws). */
+export const sageInk = "#4a6a3a";
 
 /** Improv heatmap verdict colours. */
 export const VERDICT_COLOR = {

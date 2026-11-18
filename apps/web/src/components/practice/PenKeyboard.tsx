@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useRough } from "../../design/rough";
-import { ink, paper, pen, seedOf, wash } from "../../design/tokens";
+import { ink, paper, pen, sageInk, seedOf, wash } from "../../design/tokens";
 
 const WW = 22;
 const WH = 112;
@@ -40,6 +40,10 @@ export interface PenKeyboardProps {
   slim?: boolean;
   /** Ink note names written above keys (study mode: which notes to press). */
   labels?: PenMark[];
+  /** A small sage-ink tick on these keys (a right answer). */
+  ticks?: number[];
+  /** A mustard ring around these keys (a valid alternative). */
+  rings?: number[];
 }
 
 function layout(low: number, high: number) {
@@ -68,6 +72,8 @@ export function PenKeyboard({
   className = "",
   slim = false,
   labels = [],
+  ticks = [],
+  rings = [],
 }: PenKeyboardProps) {
   const here = (mk: PenMark) => mk.midi >= low && mk.midi <= high; // a split keyboard gets the whole chord's marks
   const TOP = slim && !missing.some(here) && !wrong.some(here) && !labels.some(here) && !check ? SLIM_ROOM : LABEL_ROOM;
@@ -90,7 +96,7 @@ export function PenKeyboard({
   const playedSet = new Set(played);
   const visibleTarget = target.filter((m) => !playedSet.has(m));
   const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP]);
-  const markState = JSON.stringify([missing, wrong, check, TOP]);
+  const markState = JSON.stringify([missing, wrong, check, TOP, ticks, rings]);
 
   useRough(
     g,
@@ -153,6 +159,16 @@ export function PenKeyboard({
         if (!c) return;
         add(rc.line(c.x - 9, c.y - 9, c.x + 9, c.y + 9, { ...red, seed: seedOf("w1" + i) }));
         add(rc.line(c.x + 9, c.y - 9, c.x - 9, c.y + 9, { ...red, seed: seedOf("w2" + i) }));
+      });
+      ticks.forEach((m) => {
+        const c = center(m);
+        if (!c) return;
+        const y = c.y - 20;
+        add(rc.linearPath([[c.x - 6, y], [c.x - 1.5, y + 5], [c.x + 7, y - 6]], { stroke: sageInk, strokeWidth: 2.6, roughness: 0.9, seed: seedOf("tick" + m) }));
+      });
+      rings.forEach((m) => {
+        const c = center(m);
+        if (c) add(rc.ellipse(c.x, c.y, 24, 22, { stroke: wash.mustard, strokeWidth: 3, roughness: 1.2, seed: seedOf("ring" + m) }));
       });
       if (check) {
         const x = width - 70;
