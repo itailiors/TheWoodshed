@@ -32,3 +32,4 @@ import { iGotRhythm, sunnySide } from "./fixtures/standards";
 export const BUNDLED_TUNES = [coopBlues, sunnySide, iGotRhythm];
 export * from "./control";
 export * from "./srs";
+export * from "./ears";
