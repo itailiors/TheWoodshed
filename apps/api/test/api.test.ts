@@ -247,3 +247,48 @@ describe("library mode: import + practice history", () => {
     expect((await call(app, "/api/practice/progress")).body.concepts.length).toBe(5);
   });
 });
+
+describe("the static demo's browser store schedules exactly like the API", () => {
+  it("the same Coach runs give the same grades, schedules, tallies, clean keys and places", async () => {
+    const { applyCoachRun, normaliseKey, summariseProgress } = await import("@reharm/theory-core");
+    const { app } = await createApp({ demo: false, dbFile: path.join(tmp(), "parity.sqlite") });
+    const session = await call(app, "/api/practice/sessions", json("POST", { tuneId: referenceTune.id, mode: "coach" }));
+    const runs = [
+      ["dominant.tritoneSub", "Bb", 0, 0],
+      ["dominant.tritoneSub", "A#", 0, 0],
+      ["dominant.tritoneSub", "Bb", 0, 1],
+      ["dominant.tritoneSub", "Bb", 1, 0],
+      ["dominant.tritoneSub", "D", 3, 0],
+      ["modal.backdoorTwoFive", "F", 0, 0],
+      ["modal.backdoorTwoFive", "F", 5, 2],
+      ["modal.backdoorTwoFive", "Gb", 0, 0],
+      ["dominant.tritoneSub", "D", 0, 0],
+    ] as const;
+
+    // the browser path: theory-core only
+    const reviews = new Map<string, any>();
+    const attempts: any[] = [];
+    for (const [ruleId, keyTonic, misses, leaps] of runs) {
+      const moveId = `${ruleId}@1.1`;
+      const api = await call(
+        app,
+        "/api/practice/coach-attempts",
+        json("POST", { sessionId: session.body.id, tuneId: referenceTune.id, moveId, ruleId, keyTonic, misses, leaps, maxLeap: leaps ? 7 : 2 }),
+      );
+      const id = `${ruleId}|${normaliseKey(keyTonic)}`;
+      const local = applyCoachRun(reviews.get(id) ?? null, { ruleId, keyTonic, misses, leaps }, new Date());
+      reviews.set(id, local.review);
+      attempts.push({ ruleId, keyTonic: normaliseKey(keyTonic), misses, leaps, tuneId: referenceTune.id, moveId, clean: local.clean, createdAt: new Date() });
+
+      const pick = (r: any) => [r.ruleId, r.keyTonic, r.reps, r.ease, r.intervalDays, r.attempts, r.cleanRuns, r.lastGrade];
+      expect([api.body.grade, api.body.clean, ...pick(api.body.review)]).toEqual([local.grade, local.clean, ...pick(local.review)]);
+    }
+
+    const server = (await call(app, "/api/practice/progress")).body;
+    const browser = summariseProgress({ reviews: [...reviews.values()], attempts, improv: [] }, new Date());
+    expect(browser.cleanKeys).toEqual(server.cleanKeys);
+    expect(browser.places).toEqual(server.places);
+    const tallies = (cs: any[]) => cs.map((c) => [c.ruleId, c.keyTonic, c.reps, c.ease, c.intervalDays, c.attempts, c.cleanRuns, c.lastGrade]);
+    expect(tallies(browser.concepts)).toEqual(tallies(server.concepts));
+  });
+});

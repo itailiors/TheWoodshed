@@ -191,7 +191,11 @@ Every move goes through the same melody filter and voice-leading score, and come
   - **Passport pages:** one per concept, the 12 keys round the circle of fifths. Keys you've played clean get an ink wash and a red CLEAN stamp, keys you've tried show your last grade, untouched keys stay faint outlines. Click any key to practise it there.
   - **Recent solos:** an ink sparkline of chord-tone accuracy per pass, with guide-tone landings as dots.
 - History belongs to the chart: a transposed tune (`coop-blues@Db`) is recorded against the chart itself. Sessions open on your first saved run and close when you leave the page. If the API is down, a single note says runs aren't being saved, and practice carries on.
-- **In the read-only demo** nothing is saved, so the passport opens on a clearly labelled **sample notebook**: three weeks of a made-up player's practice (33 key reviews scheduled by the same SM-2 rules as the API, 5 of them due, and 20 solo passes improving from 45% to 75% chord tones). Times are stored relative to page load, so the demo never drifts into "everything overdue". Your own runs stamp on top of it until you reload.
+- **In the public demo** there's no server, so your history is saved **in your browser** (IndexedDB): no account, and nothing leaves your device.
+  - Runs are graded, scheduled and summarised by the same `theory-core` functions the API uses (`applyCoachRun`, `summariseProgress`), and an API test replays the same runs through both paths and checks they agree.
+  - Until you finish your first run, the passport shows a clearly labelled **sample notebook**: three weeks of a made-up player's practice (33 key reviews scheduled by the same SM-2 rules, 5 of them due, and 20 solo passes improving from 45% to 75% chord tones). Times are stored relative to page load, so it never drifts into "everything overdue". Your own notebook replaces it as soon as you have one; the two are never mixed.
+  - **Start over…** in the passport erases your runs (it asks once more first).
+  - If the browser refuses storage (some private windows), practice still stamps and schedules, and a note says it lasts only until you close the tab.
 
 ### 🔬 Engine X-ray: watch it decide, then watch it prove itself
 - **How it decided:** pick a bar (or let it follow the playhead) and read the engine's reasoning as a four-stage pipeline:
@@ -282,7 +286,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 135 tests (engine + API), several thousand generated cases
+npm test          # 141 tests (engine + API), several thousand generated cases
 npm run typecheck # all three workspaces
 ```
 
@@ -314,7 +318,7 @@ npm run dev                              # web on :5173, API on :8787
 
 Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm test`, `npm run typecheck`.
 
-### Read-only demo (for the portfolio)
+### Public demo (for the portfolio)
 
 | Command | What it gives you |
 |---|---|
@@ -324,7 +328,7 @@ Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm t
 
 In both forms, the demo:
 - opens on *Co-op Blues* and has a small **demo library** in the Setlist drawer: Co-op Blues plus two public-domain standards, *On the Sunny Side of the Street* and *I Got Rhythm* (both published 1930), as chord changes only. There's no import or delete in the demo;
-- opens the Concept Passport on a labelled sample notebook (`apps/web/src/library/demoHistory.json`, regenerated with `npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json`, which refuses to write if any passport entry points at a move the engine doesn't accept on the reference tune);
+- opens the Concept Passport on a labelled sample notebook (`apps/web/src/library/demoHistory.json`, regenerated with `npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json`, which refuses to write if any passport entry points at a move the engine doesn't accept on the reference tune) until the visitor saves a run; the static build then keeps their own history in the browser (the API's `--demo` mode still saves nothing);
 - serves Deep Dives from `apps/api/demo/explanations.json`, so visitors never trigger an Anthropic call.
 
 The shipped file holds the engine's own text. To replace it with Claude-written Deep Dives, run this once with your key:

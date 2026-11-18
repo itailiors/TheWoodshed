@@ -4,7 +4,7 @@ import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { KeyMatrix } from "./KeyMatrix";
-import { fetchProgress, onPracticeSaved, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
+import { fetchProgress, forgetLocalPractice, onPracticeSaved, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
 
 import type { PractiseRequest } from "./KeyMatrix";
 export type { PractiseRequest } from "./KeyMatrix";
@@ -23,6 +23,34 @@ function when(dueAt: string | number, now: number) {
   const abs = Math.abs(d);
   const unit = abs < 3_600_000 ? `${Math.max(1, Math.round(abs / 60_000))} min` : abs < 86_400_000 ? `${Math.round(abs / 3_600_000)} h` : ((n) => `${n} day${n === 1 ? "" : "s"}`)(Math.round(abs / 86_400_000));
   return d <= 0 ? (abs < 60_000 ? "due now" : `overdue ${unit}`) : `in ${unit}`;
+}
+
+/** In the demo, where the visitor's notebook lives, and a way to erase it (two clicks, no dialog). */
+function LocalNotice({ storedIn }: { storedIn?: Progress["storedIn"] }) {
+  const [confirming, setConfirming] = useState(false);
+  return (
+    <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm text-ink-soft">
+      <span>
+        {storedIn === "tab"
+          ? "Your notebook. This browser isn't letting the app store data, so it lasts until you close this tab."
+          : "Your notebook, saved in this browser only: no account, nothing leaves your device."}
+      </span>
+      {confirming ? (
+        <span className="flex gap-2 font-marker">
+          <button type="button" className="cursor-pointer underline" style={{ color: pen.red }} onClick={() => void forgetLocalPractice()}>
+            Erase every run
+          </button>
+          <button type="button" className="cursor-pointer text-ink underline" onClick={() => setConfirming(false)}>
+            Keep it
+          </button>
+        </span>
+      ) : (
+        <button type="button" className="cursor-pointer font-marker text-ink underline" onClick={() => setConfirming(true)}>
+          Start over…
+        </button>
+      )}
+    </p>
+  );
 }
 
 /**
@@ -74,11 +102,13 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                   📒 Concept passport
                 </h2>
                 <p className="text-sm text-ink-soft">Every Coach run and every solo pass, kept like a teacher's notebook.</p>
-                {DEMO && (
+                {data?.sample && (
                   <p className="mt-1 inline-block -rotate-1 rounded border-2 border-dashed px-2 text-sm" style={{ borderColor: pen.red, color: pen.red }}>
-                    Sample notebook: three weeks of a made-up player's practice, so you can see the loop working. Your own runs aren't saved in this demo.
+                    Sample notebook: three weeks of a made-up player's practice, so you can see the loop working. Finish a Coach run or a solo pass and
+                    your own notebook replaces it.
                   </p>
                 )}
+                {DEMO && data && !data.sample && <LocalNotice storedIn={data.storedIn} />}
               </div>
               <button type="button" onClick={onClose} aria-label="Close the passport" className="cursor-pointer font-marker text-2xl leading-none hover:-rotate-6">
                 ×

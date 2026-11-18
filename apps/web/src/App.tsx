@@ -446,8 +446,12 @@ export function App() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
             {DEMO && (
-              <span className="-rotate-2 rounded border-2 border-dashed px-2 font-marker text-sm" style={{ borderColor: pen.red, color: pen.red }}>
-                Read-only demo
+              <span
+                className="-rotate-2 rounded border-2 border-dashed px-2 font-marker text-sm"
+                style={{ borderColor: pen.red, color: pen.red }}
+                title="No account and no server: your practice is saved in this browser, and the setlist is a fixed demo library."
+              >
+                Demo · saves in this browser
               </span>
             )}
             <button

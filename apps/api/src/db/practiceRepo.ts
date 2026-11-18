@@ -1,11 +1,9 @@
-import { chroma, KEYS } from "@reharm/theory-core";
+import { applyCoachRun, chroma, normaliseKey } from "@reharm/theory-core";
 import { and, asc, desc, eq, isNotNull, lte } from "drizzle-orm";
-import { gradeAttempt, scheduleReview } from "../practice/srs";
 import { getDb, persist } from "./client";
 import { coachAttempts, conceptReviews, improvRuns, practiceSessions, tunes } from "./schema";
 
-/** One spelling per key, so "C#" and "Db" are the same concept. */
-export const normaliseKey = (k: string) => KEYS[chroma(k)];
+export { normaliseKey };
 
 const tuneOrNull = (id?: string | null) =>
   id && getDb().select({ id: tunes.id }).from(tunes).where(eq(tunes.id, id)).get() ? id : null;
@@ -45,28 +43,20 @@ export interface CoachAttemptInput {
 export function recordCoachAttempt(input: CoachAttemptInput, now = new Date()) {
   const db = getDb();
   const keyTonic = normaliseKey(input.keyTonic);
-  const grade = gradeAttempt(input);
-  const clean = input.misses === 0 && input.leaps === 0;
+  const where = and(eq(conceptReviews.ruleId, input.ruleId), eq(conceptReviews.keyTonic, keyTonic));
+  const prev = db.select().from(conceptReviews).where(where).get();
+  // the shared SM-2 path (theory-core): the static demo grades its browser-saved runs with the same function
+  const { grade, clean, review } = applyCoachRun(prev ?? null, input, now);
   const attempt = db
     .insert(coachAttempts)
     .values({ ...input, tuneId: tuneOrNull(input.tuneId), keyTonic, clean, grade, createdAt: now })
     .returning({ id: coachAttempts.id })
     .get();
 
-  const where = and(eq(conceptReviews.ruleId, input.ruleId), eq(conceptReviews.keyTonic, keyTonic));
-  const prev = db.select().from(conceptReviews).where(where).get();
-  const next = scheduleReview(prev ?? null, grade, now);
-  const values = {
-    ...next,
-    attempts: (prev?.attempts ?? 0) + 1,
-    cleanRuns: (prev?.cleanRuns ?? 0) + (clean ? 1 : 0),
-    lastGrade: grade,
-    lastReviewedAt: now,
-  };
-  if (prev) db.update(conceptReviews).set(values).where(where).run();
-  else db.insert(conceptReviews).values({ ruleId: input.ruleId, keyTonic, ...values }).run();
+  if (prev) db.update(conceptReviews).set(review).where(where).run();
+  else db.insert(conceptReviews).values(review).run();
   persist();
-  return { attemptId: attempt.id, grade, clean, review: { ruleId: input.ruleId, keyTonic, ...values } };
+  return { attemptId: attempt.id, grade, clean, review };
 }
 
 export interface ImprovRunInput {

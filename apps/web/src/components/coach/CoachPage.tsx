@@ -450,7 +450,13 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               />
               <p className="text-xs text-ink-soft">
                 {touchFirst ? "Tap" : "Click"} a key to drill it there.{" "}
-                {DEMO ? "Stamps here come from a sample notebook plus your runs this visit; nothing is saved in the demo." : "Every run is saved and scheduled for review."}
+                {!DEMO
+                  ? "Every run is saved and scheduled for review."
+                  : progress?.sample
+                    ? "Stamps here come from a sample notebook until you finish your first run."
+                    : progress?.storedIn === "tab"
+                      ? "Runs are scheduled for review, but kept only until you close this tab."
+                      : "Every run is saved in this browser and scheduled for review."}
               </p>
             </div>
           </SketchBox>

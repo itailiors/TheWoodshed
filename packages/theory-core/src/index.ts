@@ -31,3 +31,4 @@ import { iGotRhythm, sunnySide } from "./fixtures/standards";
 /** Tunes bundled with the app: the reference tune first, then public-domain standards (chord changes only). */
 export const BUNDLED_TUNES = [coopBlues, sunnySide, iGotRhythm];
 export * from "./control";
+export * from "./srs";

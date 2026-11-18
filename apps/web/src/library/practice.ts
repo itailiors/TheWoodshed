@@ -1,11 +1,16 @@
 import { DEMO } from "../demo";
 import { reportApiUnreachable } from "./apiStatus";
 import { toast } from "../components/Toaster";
+import { localProgress, localStore } from "./localPractice";
 
 /*
  * The practice-history client: the Coach and the heatmap report here, the dashboard reads
  * from here. Sessions are opened lazily (the first saved run of a kind opens one) and
- * closed when the page goes away. In the read-only demo every call is a quiet no-op.
+ * closed when the page goes away.
+ *
+ * The static demo has no API, so it keeps history in this browser instead (localPractice.ts),
+ * graded and scheduled by the same theory-core functions. Until a visitor saves their first run,
+ * the passport shows a clearly labelled sample notebook.
  */
 
 export interface Review {
@@ -48,6 +53,10 @@ export interface Progress {
   cleanKeys: Record<string, string[]>;
   due: DueItem[];
   recentImprov: ImprovRun[];
+  /** True when this is the demo's made-up sample notebook, not anyone's real practice. */
+  sample?: boolean;
+  /** Where the demo keeps the visitor's own runs: this browser, or only this tab when storage is blocked. */
+  storedIn?: "browser" | "tab";
 }
 
 export interface CoachRunResult {
@@ -120,6 +129,21 @@ function couldntSave() {
   setTimeout(() => (warnedOffline = false), 60_000);
 }
 
+let warnedTabOnly = false;
+/** A run saved in the demo's browser store: tell listeners, and say once if it only lasts this tab. */
+function savedLocally(persistent: boolean) {
+  saved();
+  if (persistent || warnedTabOnly) return;
+  warnedTabOnly = true;
+  toast("This browser isn't letting the app store data, so your runs are kept only until you close this tab.", { tone: "warn" });
+}
+
+/** Erase every run this browser has saved (demo only). The passport goes back to the sample notebook. */
+export async function forgetLocalPractice(): Promise<void> {
+  await (await localStore()).clear();
+  saved();
+}
+
 // ── writes ──
 
 /**
@@ -138,7 +162,15 @@ export async function saveCoachRun(run: {
   /** "self" when the player checked their own acoustic-piano voicing (no notes were heard). */
   gradedBy?: "engine" | "self";
 }): Promise<CoachRunResult | null> {
-  if (DEMO) return null;
+  if (DEMO) {
+    const store = await localStore();
+    const { grade, clean, review } = await store.recordCoachRun(
+      { tuneId: chartId(run.tuneId), moveId: run.moveId, ruleId: run.ruleId, keyTonic: run.keyTonic, misses: run.misses, leaps: run.leaps },
+      new Date(),
+    );
+    savedLocally(store.persistent);
+    return { grade, clean, review: { ...review, dueAt: review.dueAt.toISOString(), lastReviewedAt: review.lastReviewedAt?.toISOString() ?? null } };
+  }
   const tuneId = chartId(run.tuneId);
   const sessionId = await sessionFor("coach", tuneId, run.tempo);
   if (!sessionId) return couldntSave(), null;
@@ -176,7 +208,12 @@ export interface ImprovRunInput {
 
 /** One pass of soloing over the loop, summarised. */
 export async function saveImprovRun(run: ImprovRunInput, tempo?: number): Promise<boolean> {
-  if (DEMO) return false;
+  if (DEMO) {
+    const store = await localStore();
+    await store.recordImprovRun({ ...run, tuneId: chartId(run.tuneId) }, new Date());
+    savedLocally(store.persistent);
+    return true;
+  }
   const tuneId = chartId(run.tuneId);
   const sessionId = await sessionFor("improv", tuneId, tempo);
   if (!sessionId) return couldntSave(), false;
@@ -187,9 +224,18 @@ export async function saveImprovRun(run: ImprovRunInput, tempo?: number): Promis
 }
 
 // ── reads ──
-// The demo reads a seeded history instead (lazy-loaded, so normal builds don't carry it).
+
+/**
+ * The demo reads the visitor's own history from this browser. Before their first saved run it
+ * shows the seeded sample notebook instead (lazy-loaded, so normal builds don't carry it),
+ * marked `sample` so the UI can label it. The two are never mixed.
+ */
+async function demoReadProgress(tuneId?: string): Promise<Progress> {
+  const local = await localProgress(tuneId ? chartId(tuneId) : undefined);
+  if (local.empty) return { ...(await import("./demoHistory").then((m) => m.demoProgress())), sample: true };
+  return { ...local.summary, storedIn: local.persistent ? "browser" : "tab" };
+}
+
 export const fetchProgress = (tuneId?: string): Promise<Progress | null> =>
-  DEMO
-    ? import("./demoHistory").then((m) => m.demoProgress())
-    : call<Progress>(`/progress${tuneId ? `?tuneId=${encodeURIComponent(chartId(tuneId))}` : ""}`);
+  DEMO ? demoReadProgress(tuneId) : call<Progress>(`/progress${tuneId ? `?tuneId=${encodeURIComponent(chartId(tuneId))}` : ""}`);
 export const fetchDue = (): Promise<DueItem[] | null> => (DEMO ? fetchProgress().then((p) => p?.due ?? null) : call<DueItem[]>("/due"));
