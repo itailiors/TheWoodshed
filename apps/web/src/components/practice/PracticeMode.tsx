@@ -32,8 +32,10 @@ import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
 import { VolumeMixer } from "../VolumeMixer";
 import { available, Kbd, notForUs, PRACTICE_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
+import { PanelBoundary } from "../PanelBoundary";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
+import { ImprovMode } from "./ImprovMode";
 
 interface Props {
   tune: Tune;
@@ -73,6 +75,9 @@ export function PracticeMode(p: Props) {
   const touchFirst = useTouchFirst();
   const [more, setMore] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [improv, setImprov] = useState(false);
+  const improvRef = useRef(improv);
+  improvRef.current = improv;
   const [tradeBars, setTradeBars] = useState<TradeSpan>(0);
   const [ghostPersonality, setGhostPersonality] = useState<GhostPersonality>("side-slipper");
   const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("sax");
@@ -147,8 +152,14 @@ export function PracticeMode(p: Props) {
             onChange(KEYS.find((k) => chroma(k) === (chroma(tonic) + (e.key === "." ? 1 : 11)) % 12)!);
             return true;
           }
+          case "f":
+          case "F":
+            setImprov((on) => !on);
+            return true;
           case "Escape":
-            s.onMode("study");
+            // Esc leaves Improv mode first, and only then Practice
+            if (improvRef.current) setImprov(false);
+            else s.onMode("study");
             return true;
           case "1":
           case "2":
@@ -192,6 +203,14 @@ export function PracticeMode(p: Props) {
           {playing ? "■ Stop" : playback.status === "loading" ? "… Loading" : "▶ Play"}
         </button>
         <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
+        <button
+          type="button"
+          onClick={() => setImprov(true)}
+          title="Improv mode: just the chord and the piano, full screen (shortcut: F)"
+          className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker text-sm hover:bg-paper-shade"
+        >
+          ⛶ Improv
+        </button>
         {playback.status === "loading" && <LoadingLine />}
         <span className="font-marker">♩ = {p.tempo}</span>
         <VolumeMixer compact beatsPerBar={bpb} />
@@ -274,7 +293,7 @@ export function PracticeMode(p: Props) {
           {p.view === "reharm" ? "Reharm" : "Original"}
           {p.loopSelection && " · looping the move"}
         </span>
-        <span className="font-marker text-sm text-ink-soft">
+        <span className="relative font-marker text-sm text-ink-soft">
           🎹 {p.midi.status === "connected" ? p.midi.devices[0] : p.midi.status === "requesting" ? "connecting…" : p.midi.status === "unsupported" && touchFirst ? "play along on your own piano" : "no MIDI"}
           <HeldNotes />
         </span>
@@ -365,13 +384,38 @@ export function PracticeMode(p: Props) {
         />
       </div>
 
+      {improv && (
+        <PanelBoundary onClose={() => setImprov(false)}>
+          <ImprovMode
+            tune={tune}
+            chords={chords}
+            entries={entries}
+            loop={loop}
+            now={now}
+            next={next}
+            beatsToNext={beatsToNext}
+            playback={playback}
+            keyTonic={p.keyControl.tonic}
+            onClose={() => setImprov(false)}
+          />
+        </PanelBoundary>
+      )}
+
       {playback.source === "synth" && <p className="sr-only">Piano samples unreachable; using a synth.</p>}
     </div>
   );
 }
 
-/** Held MIDI keys, subscribed on their own so a key press doesn't re-render Practice Mode. */
+/**
+ * Held MIDI keys, subscribed on their own so a key press doesn't re-render Practice Mode.
+ * Written under the MIDI label, out of the flow: inline, every chord changed the header's
+ * width and wrapped the shortcut legend onto another line, resizing the whole page.
+ */
 function HeldNotes() {
   const held = useMidiHeld();
-  return held.length > 0 ? <>{` · ${held.map(midiName).join(" ")}`}</> : null;
+  return held.length > 0 ? (
+    <span className="pointer-events-none absolute left-0 top-full whitespace-nowrap text-xs text-ink" aria-hidden>
+      {held.map(midiName).join(" ")}
+    </span>
+  ) : null;
 }

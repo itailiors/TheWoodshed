@@ -22,6 +22,7 @@ export const PRACTICE_SHORTCUTS: Shortcut[] = [
   ["A", "A/B"],
   ["L", "loop move"],
   ["T", "trade 2s/4s"],
+  ["F", "improv mode (V: what's shown)"],
   ["[ ]", "tempo"],
   [", .", "key ½ step"],
   ["1–4", "pno/bass/dr/click"],
@@ -31,7 +32,7 @@ export const PRACTICE_SHORTCUTS: Shortcut[] = [
 ];
 
 /** Shortcuts the letter keys can't serve while QWERTY mode is playing notes with them. */
-const QWERTY_TAKES = new Set(["A", "L", "T"]);
+const QWERTY_TAKES = new Set(["A", "L", "T", "F"]);
 export const available = (list: Shortcut[], qwertyOn: boolean) => list.filter(([k]) => !(qwertyOn && QWERTY_TAKES.has(k)));
 
 /** Keys a page shortcut must leave alone: typing in a field, or a browser/OS chord. */
