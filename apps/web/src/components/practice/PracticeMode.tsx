@@ -31,6 +31,7 @@ import { QwertyToggle } from "../QwertyToggle";
 import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
 import { VolumeMixer } from "../VolumeMixer";
+import { available, Kbd, notForUs, PRACTICE_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
 
@@ -56,20 +57,6 @@ interface Props {
 
 const PAGE = 8;
 
-const SHORTCUTS: [string, string][] = [
-  ["Space", "play / stop"],
-  ["← →", "spice"],
-  ["A", "A/B"],
-  ["L", "loop move"],
-  ["T", "trade 2s/4s"],
-  ["[ ]", "tempo"],
-  [", .", "key ½ step"],
-  ["1–4", "pno/bass/dr/click"],
-  ["M", "QWERTY keys"],
-  ["Esc", "study"],
-];
-/** Shortcuts the letter keys can't serve while they're playing notes. */
-const QWERTY_TAKES = new Set(["A", "L", "T"]);
 
 /**
  * Practice Mode: both hands on the piano. A fixed 100dvh layout (sheet + Current
@@ -85,6 +72,7 @@ export function PracticeMode(p: Props) {
   const cramped = useMediaQuery(`${NARROW}, (max-height: 520px)`);
   const touchFirst = useTouchFirst();
   const [more, setMore] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const [tradeBars, setTradeBars] = useState<TradeSpan>(0);
   const [ghostPersonality, setGhostPersonality] = useState<GhostPersonality>("side-slipper");
   const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("sax");
@@ -119,10 +107,13 @@ export function PracticeMode(p: Props) {
   latest.current = p;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (notForUs(e)) return;
       const s = latest.current;
       const handled = (() => {
         switch (e.key) {
+          case "?":
+            setHelpOpen(true);
+            return true;
           case " ":
             s.playback.toggle();
             return true;
@@ -291,12 +282,24 @@ export function PracticeMode(p: Props) {
           </>
         )}
         <span className="ml-auto hidden gap-3 text-xs text-ink-faint xl:flex" aria-label="Keyboard shortcuts">
-          {SHORTCUTS.filter(([k]) => !(keys.enabled && QWERTY_TAKES.has(k))).map(([k, v]) => (
+          {available(PRACTICE_SHORTCUTS, keys.enabled).map(([k, v]) => (
             <span key={k}>
-              <kbd className="rounded border border-ink-faint px-1 font-hand">{k}</kbd> {v}
+              <Kbd k={k} /> {v}
             </span>
           ))}
         </span>
+        {/* below xl the legend doesn't fit in the header: it's one key (or click) away */}
+        {!touchFirst && (
+          <button
+            type="button"
+            onClick={() => setHelpOpen(true)}
+            className="ml-auto cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink xl:hidden"
+            title="Keyboard shortcuts (?)"
+          >
+            ⌨ Shortcuts
+          </button>
+        )}
+        {helpOpen && <ShortcutsHelp title="Practice shortcuts" shortcuts={PRACTICE_SHORTCUTS} qwertyOn={keys.enabled} onClose={() => setHelpOpen(false)} />}
       </header>
 
       {/* ── sheet + HUD: top two thirds ── */}

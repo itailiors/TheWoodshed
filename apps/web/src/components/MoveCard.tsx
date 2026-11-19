@@ -42,7 +42,7 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
   const bar = move.span.from.bar;
   return (
     <SketchBox seed={seedOf(move.id)} fill={selected ? paper.light : undefined} className="text-ink" roughness={selected ? 1.6 : 1.2}>
-      <article className="p-4">
+      <article className="p-4" data-move-id={move.id}>
         <button type="button" onClick={onSelect} className="w-full cursor-pointer text-left" aria-expanded={selected}>
           <header className="flex items-start gap-3">
             <span aria-hidden className="mt-1 inline-block h-4 w-4 shrink-0 rotate-3 rounded-[3px] opacity-80" style={{ background: color }} />

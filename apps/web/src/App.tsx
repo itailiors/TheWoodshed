@@ -6,6 +6,7 @@ import {
   densityLabel,
   formBars,
   generateMoves,
+  KEYS,
   improvMap,
   overlaps,
   prettyNote,
@@ -49,6 +50,10 @@ import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
 import { readDeepLink, writeDeepLink, type DeepLink } from "./deepLink";
 import { PlayPrompt } from "./components/PlayPrompt";
+import { Kbd, ShortcutsHelp, STUDY_SHORTCUTS } from "./components/Shortcuts";
+import { useStudyKeys } from "./studyKeys";
+import { useQwerty } from "./midi/qwerty";
+import { useTouchFirst } from "./device/media";
 
 // Split out of the main bundle: each is only needed after a click (or on a return visit
 // straight into Practice Mode), and all three are prefetched once the page is idle.
@@ -427,6 +432,32 @@ export function App() {
     setPlayPrompt(false);
     void playback.play();
   };
+  // ── Study shortcuts (Practice Mode has its own) ──
+  const [helpOpen, setHelpOpen] = useState(false);
+  const qwertyKeys = useQwerty();
+  const touchFirst = useTouchFirst();
+  const byPosition = useMemo(
+    () => [...pathway].sort((a, b) => a.span.from.bar - b.span.from.bar || a.span.from.beat - b.span.from.beat),
+    [pathway],
+  );
+  useStudyKeys(mode === "study" && !libraryOpen && !passportOpen && !xrayOpen && !playPrompt && !helpOpen, {
+    toggle: () => void playback.toggle(),
+    step: (dir) => {
+      if (byPosition.length === 0) return;
+      const i = selected ? byPosition.findIndex((m) => m.id === selected.id) : -1;
+      const next = byPosition[Math.min(byPosition.length - 1, Math.max(0, i + dir))];
+      setSelectedId(next.id);
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      document.querySelector(`[data-move-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    },
+    dial: (dir) => changeLevel(Math.min(4, Math.max(0, level + dir))),
+    flipView: () => setView((v) => (v === "reharm" ? "original" : "reharm")),
+    loop: () => selected && setLoopSelection((l) => !l),
+    tempo: (dir) => setTempo((t) => Math.min(260, Math.max(60, t + dir * 4))),
+    key: (dir) => changeKey(KEYS.find((k) => chroma(k) === (chroma(tune.key.tonic) + (dir === 1 ? 1 : 11)) % 12)!),
+    help: () => setHelpOpen(true),
+  });
+
   const playPromptView = playPrompt && (
     <PlayPrompt
       title={tune.title}
@@ -514,6 +545,7 @@ export function App() {
       <SketchFilters />
       <Toaster />
       {playPromptView}
+      {helpOpen && <ShortcutsHelp title="Study shortcuts" shortcuts={STUDY_SHORTCUTS} qwertyOn={qwertyKeys.enabled} onClose={() => setHelpOpen(false)} />}
       <SideRail
         playing={playback.status === "playing"}
         onPlay={playback.toggle}
@@ -622,6 +654,17 @@ export function App() {
             >
               🔗 Share
             </button>
+            {!touchFirst && (
+              <button
+                type="button"
+                onClick={() => setHelpOpen(true)}
+                className="cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
+                title="Keyboard shortcuts"
+                aria-label="Keyboard shortcuts"
+              >
+                ⌨ <Kbd k="?" />
+              </button>
+            )}
             <KeyPicker {...keyControl} />
             <LevelDial level={level} onChange={changeLevel} />
           </div>
