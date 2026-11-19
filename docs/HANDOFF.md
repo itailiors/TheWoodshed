@@ -1,48 +1,47 @@
-# Handoff (2026-11-19, session 10)
+# Handoff (2026-11-20, session 11)
 
 ## Goal
-Work through the architecture-review candidates from session 9, one deepening per commit. Done this session: 04, 03 and 06. Left: 02, 05 and 07 (speculative), or the Voicings v2 items (spec `docs/research/voicings-tab.md` §6).
+Work through the architecture-review candidates from session 9, one deepening per commit. Done this session: 05 and 02. Left: 07 (speculative), or the Voicings v2 items (spec `docs/research/voicings-tab.md` §6).
 
-## Done (all pushed to `main`; CI green for every push)
-- `8400c8b` (candidate 04): `GET /practice/progress` and `/due` call `progressSummary()` in `apps/api/src/db/practiceRepo.ts`.
-  - It only loads rows; theory-core's `summariseProgress` applies the rules.
-  - The demo's sample notebook (`apps/web/src/library/demoHistory.ts`) also goes through `summariseProgress`, with one stand-in run per concept. New test: `demoHistory.test.ts`.
-  - Also committed the session-9 handoff.
-- `3a8341b` (candidate 03): `isPassingTone` and `isOnBeat` live in theory-core `lineEval.ts`.
-  - `ImprovHeatmap.tsx` closes every note through `closeNote`.
-  - Bug fixed: notes cut off at the Ghost's call→response barline, or by re-striking a held pitch, skipped the passing check and counted as held avoid notes.
-- `3fe6a6c` (candidate 06): theory-core `headScore(tune, path, swing)` (`voiceTheTune.ts`) builds "Hear the head".
-  - It swings with `swingTime` at the player's swing ratio, like the band: waltz swings too, and note lengths are swung.
-  - Tempo is capped at `HEAD_MAX_TEMPO` (112). The melody note isn't doubled in the voicing.
-- Checks at `3fe6a6c`: typecheck clean; tests 281 theory-core + 21 API + 36 web.
+## Done (both pushed to `main`)
+- `640d594` (candidate 05): practice history now goes through one `PracticeHistory` interface (`apps/web/src/library/practice.ts`).
+  - Two adapters: `historyApi.ts` (sessions, `sendBeacon` on pagehide) and `historyBrowser.ts` (IndexedDB plus the sample notebook). The adapter is picked once from `DEMO`; the public functions are unchanged.
+  - Rule 11 fix: the browser adapter's `due()` never returns the sample notebook's reviews. The old `fetchDue` returned them without the `sample` flag.
+  - New test: `historyBrowser.test.ts`. `localProgress` is gone; `memoryBackend` and `Backend` are exported for tests.
+  - Also committed the session-10 handoff.
+- `49a75d6` (candidate 02): theory-core `pathwayEditor.ts` holds `editPathway(state, event, candidates)`.
+  - Events: dial, pedal, pick, keep, release, select, newTune, link. `editorPathway` and `editorPicks` derive the pathway.
+  - `apps/web/src/usePathwayEditor.ts` gives a stable `edit`. `App.tsx` no longer holds level, forced, kept or selectedId state.
+  - Bug fixed: a stale pick id (old link) crashed the next pick through `accepted.find(...)!`.
+  - Test: `packages/theory-core/test/pathwayEditor.test.ts` (9 tests).
+- Checks at `49a75d6`: typecheck clean; tests 290 theory-core + 21 API + 40 web. CI not checked after the push.
 
 ## In progress
 Nothing. The working tree is clean apart from this file.
 
 ## Next 3 steps
 1. Ask Itai to try at the keyboard:
-   - Voicings → Voice the tune → Hear the head: does the new swing feel right at a few slider settings?
-   - Also session 9's items: Coach transfer "Advancing to X", Voicings ii–V–I stepping and the 12-key drill.
-2. Candidate 05: practice history as two adapters (API vs browser/demo) instead of `if (DEMO)` in ~9 files.
-   - `fetchDue`/`fetchEarDue` in `apps/web/src/library/practice.ts` drop the `sample` flag; rule 11 is latent risk there.
-   - Start with `mattpocock-skills:grilling` on the adapter interface; `useDrillSession` already owns "a sample never orders a drill".
-3. Candidate 02: the pathway editor out of `App.tsx` (pedal vs click level rules near `:184–229`; line numbers may have moved).
+   - "Hear the head" swing at a few slider settings.
+   - Session 9's Coach transfer, ii–V–I stepping and the 12-key drill.
+   - A quick pass on pathway editing: pick, keep and the linked pedal. It was verified in the dev app, but not by ear.
+2. Check that GitHub CI went green for `640d594` and `49a75d6`.
+3. Choose between candidate 07 and Voicings v2 (`docs/research/voicings-tab.md` §6). Ask Itai; 07 was marked speculative.
 
 ## Decisions + why
-- **`progressSummary` filters improv runs in SQL** (tune and limit) but loads all Coach attempts. That's fine at personal-library scale. Attempts load newest id first, so a `createdAt` tie resolves to the later run, as the old SQL did.
-- **The demo keeps per-concept totals in its JSON** rather than individual runs. It feeds `summariseProgress` one stand-in run per concept instead of changing the fixture format.
-- **The head follows the band's swing slider** (`getBandFeel().swing`), so the head and the band never disagree.
+- **05 was smaller than the handoff said.** Only `practice.ts` branched on `DEMO` for history. The other `DEMO` uses (library, Deep Dive, UI labels) were left alone on purpose.
+- **Change-game sessions stay in `localStore` in every build.** They're outside the adapter because the API has no tables for them.
+- **The editor reducer lives in theory-core,** like `drillSession`. That keeps it pure and testable without React.
+- **A new tune keeps the dial level;** a link without a level keeps the current one. Both match the old behaviour.
 
 ## Gotchas
-- On the Practice page, the fake `requestMIDIAccess` input never got `onmidimessage` hooked. Use QWERTY (click "⌨ Keys (M)", dispatch keydown/keyup on window and document) in the demo build.
-- Heatmap note explanations are SVG `<title>`s. The tape clears on every loop wrap, so read them during the pass.
-- The Voicings stage marks the current chord with `aria-current`. Use that to check that "Hear the head" follows along.
-- The `api` preview is running from this session (read-only checks only; the database checksum was unchanged).
-- A third edge case seen while testing: "A = 5 over D7(♯9,♭13)" grades as Avoid (D altered has no natural 5). That's musically defensible; not changed.
+- **Chord selector options** are `li[role=option]` wrapping a `button`. Click the inner button, or nothing happens.
+- **Live pedal module:** import it from its `performance` resource URL, then call `pedal.setLinked(true)` and `pedal.input(1, 127)`. Restore the previous linked state afterwards.
+- **Console logs** keep stale HMR errors from halfway through edits (same `?t=` timestamp). Compare timestamps before calling something broken.
+- **Previews still running:** `api` and `web`. Only reads were sent; the database checksum was unchanged. I cleared the test run from the demo build's IndexedDB.
+- **Only chords some move targets have a selector,** so `keep=c3` on Co-op Blues shows nothing.
 
 ## Suggested skills
-- `mattpocock-skills:grilling` before 05 or 02 (interface design).
-- `mattpocock-skills:codebase-design` for the adapter seam in 05.
-- `mattpocock-skills:tdd` for any theory-core change.
-- `mattpocock-skills:domain-modeling` if terms change (`GLOSSARY.md`).
+- `mattpocock-skills:grilling` before picking 07 or scoping Voicings v2.
+- `mattpocock-skills:tdd` for theory-core work.
+- `mattpocock-skills:codebase-design` if 07 is a deepening.
 - `ship` when Itai says "commit and push".
