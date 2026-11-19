@@ -105,7 +105,7 @@ Every move goes through the same melody filter and voice-leading score, and come
 - Keys are matched by physical position (`KeyboardEvent.code`), so the shape is the same on AZERTY and QWERTZ.
 - Notes go out on the same note bus as MIDI, so the heatmap, the Coach and every other tool treat them exactly like a real keyboard, and they sound through the app's piano.
 - Held keys are released if the window loses focus or the tab is hidden, and a key released after an octave shift still lets go of the pitch it started.
-- While it's on, the letter keys belong to the piano: Practice Mode's `A` and `L` shortcuts pause, and its shortcut legend hides them.
+- While it's on, the letter keys belong to the piano: the `A` and `L` shortcuts (and Practice Mode's `T`) pause, and the shortcut legend and `?` card show them as taken.
 - Laptop keyboards register only a few keys at once, so this suits single-note lines best; for full Coach voicings, click the on-screen keys.
 
 ### 🔊 Hear your MIDI keyboard
@@ -202,6 +202,12 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
 - **`play=1`** opens on a big ▶. Browsers only start audio from a click, so the ▶ is that click; "Just look" (or Escape) leaves the page silent. Share links include it.
 - **Forgiving:** anything malformed is dropped rather than refusing the link, and a tune that isn't in the library falls back to *Co-op Blues* with a note saying so. Opening a link doesn't overwrite the key a tune remembers.
 - Works in the static demo at its `/TheWoodshed/` subpath, still with zero `/api` requests.
+
+### 🎛️ Hands off the mouse: keyboard shortcuts
+- **Study:** `Space` play / stop · `← →` previous / next move (in bar order; its card scrolls into view) · `↑ ↓` dial up / down · `A` original / reharm · `L` loop the move · `[ ]` tempo · `, .` key a half step · `?` the shortcut card.
+- **Practice Mode:** `Space` · `← →` spice (the dial) · `A` A/B · `L` loop · `T` trade 2s/4s · `[ ]` · `, .` · `1`–`4` mute piano / bass / drums / click · `Esc` back to Study · `?`. The legend sits in the header on wide screens; below that, **⌨ Shortcuts** opens the same card.
+- **The `?` card** is modal: while it's open no key reaches the page, so a stray Space can't start the band behind it. `Esc` or `?` closes it.
+- Shortcuts stay out of the way: they're off while you type in a field, while a drawer, the X-ray (which has its own `← →`) or the ▶ prompt is open, and for browser chords (Ctrl/⌘/Alt). Space plays the band even when a button has focus.
 
 ### ✍️ Claude-powered Deep Dive
 - One click turns a move into a short lesson: a summary, a 150–260-word deep dive (function, voice leading, how to hear and play it) and a key-independent rule.
@@ -425,6 +431,7 @@ apps/web/               React app
   src/audio/              Tone.js arranger and player
   src/midi/               Web MIDI hook, note bus, chord-strike detection
   src/deepLink.ts         shareable reharm URLs: read/write, round-trip tested (npm test -w @reharm/web)
+  src/studyKeys.ts        Study mode's keyboard shortcuts (the lists and the ? card: components/Shortcuts.tsx)
 apps/api/               Hono server: library, iReal import, moves, Claude Deep Dive
   src/db/                 Drizzle schema, sql.js client, repository
   drizzle/                SQL migrations (npm run db:generate -w @reharm/api)
@@ -437,7 +444,7 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 **Next up**
 - A short GIF of the dial under the pedal, in place of the card at the top.
 
-**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial; the static demo is deployed with a CI badge and link-preview (OG) tags; deep-link URLs open the demo mid-groove and share a reharm.
+**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial; the static demo is deployed with a CI badge and link-preview (OG) tags; deep-link URLs open the demo mid-groove and share a reharm; Study has keyboard shortcuts and a `?` card.
 
 **Later**
 - Drag across bars to loop them (A–B loop).

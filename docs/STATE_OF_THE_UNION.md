@@ -264,7 +264,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - Verified: the build loads at a `/TheWoodshed/` subpath with every request 200, including the proofs worker and lazy chunks.
 - **Still to do:** record the 20-second GIF (the dial turning, chords moving, proofs going green). Many recruiters never click through.
 - ~~**Deep-link URLs**~~ **Done 2026-11-19:** `apps/web/src/deepLink.ts` (`tune key level move pick keep tempo play`), a ▶ `PlayPrompt` for `play=1`, the address bar kept in sync (debounced `replaceState`) and a 🔗 Share button. Verified in the demo build; see the README section "Shareable reharms".
-- **Study-mode shortcuts** (Space, ← →, a `?` overlay) and showing the Practice legend below `xl`.
+- ~~**Study-mode shortcuts**~~ **Done 2026-11-19 (`062c0eb`):** `studyKeys.ts` (Space, ← → moves, ↑ ↓ dial, A, L, `[ ]`, `, .`, `?`) and a shared modal `?` card (`components/Shortcuts.tsx`); Practice opens it from "⌨ Shortcuts" below `xl`. Still open: previous/next *chord* (Itai's Notion list), which needs a chord-selection idea in Study.
 - **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
 - Smaller items:
   - a sustain-pedal policy;
