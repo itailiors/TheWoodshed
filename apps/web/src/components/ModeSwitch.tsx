@@ -1,3 +1,5 @@
+import { ThemeSwitch } from "./ThemeSwitch";
+
 export type AppMode = "study" | "practice" | "coach" | "changes";
 
 export const APP_MODES: readonly AppMode[] = ["study", "practice", "coach", "changes"];
@@ -9,8 +11,20 @@ const MODES: { id: AppMode; label: string; title: string }[] = [
   { id: "changes", label: "Changes", title: "Make the Changes: where does this chord want to go? Harmony training with sound" },
 ];
 
-/** Study (Reharm Engine) ↔ Practice (hands on the keys) ↔ Coach (voicing drills) ↔ Changes (the harmony game). */
+/**
+ * Study (Reharm Engine) ↔ Practice (hands on the keys) ↔ Coach (voicing drills) ↔ Changes (the harmony game).
+ * The colour-scheme slider rides along, so every page that can switch modes can switch themes.
+ */
 export function ModeSwitch({ mode, onMode }: { mode: AppMode; onMode: (m: AppMode) => void }) {
+  return (
+    <>
+      <ModeTabs mode={mode} onMode={onMode} />
+      <ThemeSwitch />
+    </>
+  );
+}
+
+function ModeTabs({ mode, onMode }: { mode: AppMode; onMode: (m: AppMode) => void }) {
   return (
     <div role="tablist" aria-label="Mode" className="flex rounded-full border-2 border-ink p-0.5 font-marker">
       {MODES.map((m) => (

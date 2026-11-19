@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useRough } from "../../design/rough";
-import { ink, paper, pen, sageInk, seedOf, wash } from "../../design/tokens";
+import { ink, keys as keyTone, pen, sageInk, seedOf, wash } from "../../design/tokens";
 
 const WW = 22;
 const WH_FULL = 112;
@@ -106,13 +106,13 @@ export function PenKeyboard({
   useRough(
     g,
     (rc, add) => {
-      const base = { stroke: ink.deep, strokeWidth: 1.1, roughness: 0.7 };
+      const base = { stroke: keyTone.line, strokeWidth: 1.1, roughness: 0.7 };
       const pend = new Set(pending);
       for (const k of keys.filter((k) => !k.black)) {
-        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : paper.light, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
+        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
       }
       for (const k of keys.filter((k) => k.black)) {
-        add(rc.rectangle(k.x, TOP, BW, BH, { ...base, seed: seedOf("pb" + k.midi), fill: pend.has(k.midi) ? wash.mustard : ink.deep, fillStyle: "solid" }));
+        add(rc.rectangle(k.x, TOP, BW, BH, { ...base, seed: seedOf("pb" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.black, fillStyle: "solid" }));
       }
       if (splitX !== null) {
         add(
@@ -132,7 +132,7 @@ export function PenKeyboard({
         add(
           rc.circle(c.x, c.y, 15, {
             seed: seedOf("t" + m),
-            stroke: c.black ? paper.light : isLh ? wash.blue : ink.soft,
+            stroke: c.black ? keyTone.white : isLh ? wash.blue : keyTone.soft,
             strokeWidth: 1.6,
             roughness: 1,
             strokeLineDash: [3, 3],
@@ -141,7 +141,7 @@ export function PenKeyboard({
       }
       for (const m of played) {
         const c = center(m);
-        if (c) add(rc.circle(c.x, c.y, 10, { seed: seedOf("p" + m), fill: c.black ? paper.light : ink.deep, fillStyle: "solid", stroke: c.black ? paper.light : ink.deep, roughness: 0.6 }));
+        if (c) add(rc.circle(c.x, c.y, 10, { seed: seedOf("p" + m), fill: c.black ? keyTone.white : keyTone.black, fillStyle: "solid", stroke: c.black ? keyTone.white : keyTone.line, roughness: 0.6 }));
       }
     },
     [keyState],

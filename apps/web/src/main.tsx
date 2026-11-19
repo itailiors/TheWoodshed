@@ -5,8 +5,10 @@ import { installAudioUnlock } from "./audio/unlock";
 import { installMidiMonitor } from "./midi/monitor";
 import { installPedal } from "./midi/pedal";
 import { installQwertyKeys } from "./midi/qwerty";
+import { installTheme } from "./design/themes";
 import "./index.css";
 
+installTheme();
 installAudioUnlock();
 installQwertyKeys();
 installPedal();

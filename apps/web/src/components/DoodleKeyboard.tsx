@@ -1,7 +1,7 @@
 import { chroma, mod, pitchClass, prettyNote } from "@reharm/theory-core";
 import { useRef } from "react";
 import { useRough } from "../design/rough";
-import { ink, paper, seedOf, wash } from "../design/tokens";
+import { keys, seedOf, wash } from "../design/tokens";
 
 const WW = 20;
 const WH = 84;
@@ -58,7 +58,7 @@ export function DoodleKeyboard({ notes, accent = [], color = wash.mustard, octav
   useRough(
     g,
     (rc, add) => {
-      const base = { stroke: ink.deep, strokeWidth: 1.2, roughness: 0.9 };
+      const base = { stroke: keys.line, strokeWidth: 1.2, roughness: 0.9 };
       const lit = new Map(placed.map((p) => [p.semi, p]));
       for (let i = 0; i < octaves * 7; i++) {
         const semi = Math.floor(i / 7) * 12 + [0, 2, 4, 5, 7, 9, 11][i % 7];
@@ -67,7 +67,7 @@ export function DoodleKeyboard({ notes, accent = [], color = wash.mustard, octav
           rc.rectangle(PAD + i * WW, PAD, WW, WH, {
             ...base,
             seed: seedOf("w" + i),
-            fill: on ? color : paper.light,
+            fill: on ? color : keys.white,
             fillStyle: on ? "hachure" : "solid",
             hachureGap: 3.2,
             fillWeight: 1.3,
@@ -80,16 +80,16 @@ export function DoodleKeyboard({ notes, accent = [], color = wash.mustard, octav
           const semi = o * 12 + c;
           const { x } = keyX(semi);
           const on = lit.has(semi);
-          add(rc.rectangle(x, PAD, BW, BH, { ...base, seed: seedOf("b" + semi), fill: on ? color : ink.deep, fillStyle: "solid" }));
+          add(rc.rectangle(x, PAD, BW, BH, { ...base, seed: seedOf("b" + semi), fill: on ? color : keys.black, fillStyle: "solid" }));
         }
       }
       for (const p of placed) {
         const { x, black } = keyX(p.semi);
         const cx = x + (black ? BW : WW) / 2;
         const cy = black ? BH - 9 : WH - 12;
-        add(rc.circle(cx, cy, 8, { seed: seedOf("d" + p.semi), fill: black ? paper.light : ink.deep, fillStyle: "solid", stroke: ink.deep, roughness: 0.6 }));
+        add(rc.circle(cx, cy, 8, { seed: seedOf("d" + p.semi), fill: black ? keys.white : keys.black, fillStyle: "solid", stroke: keys.line, roughness: 0.6 }));
         if (accentSet.has(chroma(pitchClass(p.note)))) {
-          add(rc.circle(cx, cy, 17, { seed: seedOf("a" + p.semi), stroke: ink.deep, strokeWidth: 1.4, roughness: 1.2 }));
+          add(rc.circle(cx, cy, 17, { seed: seedOf("a" + p.semi), stroke: keys.line, strokeWidth: 1.4, roughness: 1.2 }));
         }
       }
     },

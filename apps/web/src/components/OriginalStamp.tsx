@@ -31,7 +31,7 @@ export function OriginalStamp({ rights, compact = false, className = "" }: { rig
       role="img"
       aria-label={label}
       viewBox="0 0 300 110"
-      className={`pointer-events-none -rotate-[4deg] select-none overflow-visible opacity-90 mix-blend-multiply ${compact ? "w-44" : "w-60 md:w-64"} ${className}`}
+      className={`pointer-events-none -rotate-[4deg] select-none overflow-visible opacity-90 wash ${compact ? "w-44" : "w-60 md:w-64"} ${className}`}
     >
       <title>{label}</title>
       <g ref={g} />

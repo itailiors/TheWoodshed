@@ -1,5 +1,5 @@
 import { KEYS, LEVELS, prettyNote, type LevelId, type Stage } from "@reharm/theory-core";
-import { wash } from "../../design/tokens";
+import { tint, wash } from "../../design/tokens";
 
 /*
  * The game's controls: which level, how much help (the stage), and the function chips the
@@ -45,7 +45,7 @@ export function LevelPicker({ value, onChange, nextUp, mastered = [] }: { value:
           </span>
           <span className="block font-hand text-xs text-ink-soft">{LEVEL_BLURB[l.id]}</span>
           {nextUp === l.id && (
-            <span className="absolute -right-1 -top-2 -rotate-3 rounded px-1.5 font-marker text-xs" style={{ background: `${wash.mustard}66` }}>
+            <span className="absolute -right-1 -top-2 -rotate-3 rounded px-1.5 font-marker text-xs" style={{ background: tint(wash.mustard, 40) }}>
               next up
             </span>
           )}

@@ -1,4 +1,4 @@
-import { pen, sageInk } from "../../design/tokens";
+import { ink, pen, sageInk } from "../../design/tokens";
 import type { Outcome } from "./RoadTrail";
 
 /*
@@ -7,7 +7,7 @@ import type { Outcome } from "./RoadTrail";
  * a tick for right, a fork for "also works" (another road from here), a cross for not quite.
  */
 
-export const OUTCOME_COLOR: Record<Outcome, string> = { right: sageInk, alt: "#1e2a78", wrong: pen.red };
+export const OUTCOME_COLOR: Record<Outcome, string> = { right: sageInk, alt: ink.deep, wrong: pen.red };
 export const OUTCOME_WORD: Record<Outcome, string> = { right: "Right.", alt: "Also works.", wrong: "Not quite." };
 
 export function OutcomeGlyph({ outcome, size = 28 }: { outcome: Outcome; size?: number }) {

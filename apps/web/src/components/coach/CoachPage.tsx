@@ -1,7 +1,7 @@
 import { chroma, conceptDrillSteps, isEarRuleId, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
-import { CATEGORY_WASH, paper, pen, seedOf, wash } from "../../design/tokens";
+import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { fetchProgress, onPracticeSaved, type Progress } from "../../library/practice";
 import type { MidiStatus } from "../../midi/useMidi";
@@ -415,7 +415,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                           isHere
                             ? { borderColor: pen.red, boxShadow: `0 0 0 1.5px ${pen.red}` }
                             : isClean
-                              ? { background: `${wash.blue}33` }
+                              ? { background: tint(wash.blue, 20) }
                               : undefined
                         }
                         className={`relative flex w-full cursor-pointer items-center justify-center rounded border-2 py-1 font-marker text-sm transition-transform hover:-translate-y-0.5 ${

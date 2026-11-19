@@ -1,10 +1,12 @@
 @import "tailwindcss";
 
 /*
- * Ink & Parchment design tokens.
- * Mirror any change here in src/design/tokens.ts (Rough.js needs raw hex values).
+ * Ink & Parchment design tokens (the default theme).
+ * src/design/tokens.ts exposes these to inline styles and Rough.js as var() references.
+ * `static` emits every variable even when no utility class uses it, because tokens.ts does.
+ * A new colour token must also be set in every theme block below (themes.test.ts checks).
  */
-@theme {
+@theme static {
   --color-paper: #f6e9c9;
   --color-paper-light: #fbf3df;
   --color-paper-shade: #ead7aa;
@@ -37,6 +39,76 @@
       transform: none;
     }
   }
+}
+
+/* Piano keys and the watercolour blend: theme values that aren't Tailwind utilities. */
+:root {
+  --color-key-white: #fbf3df;
+  --color-key-black: #1e2a78;
+  --color-key-line: #1e2a78;
+  --color-key-soft: #3e4c9e;
+  /* washes darken paper (multiply); on a dark ground they must lighten it instead (screen) */
+  --wash-blend: multiply;
+}
+
+/*
+ * Colour schemes (src/design/themes.ts). Each block overrides colours only, never sizes or
+ * fonts, so a layout change can't come from a theme. Every block sets the same variables.
+ */
+
+/*
+ * Comfort rules both schemes follow (themes.test.ts enforces the numbers):
+ * - body text sits at 7–13:1 on the page. Below that it strains; above it, light text on a
+ *   dark ground glows at the edges (halation), so the dark scheme uses parchment, not white,
+ *   on warm charcoal, not black;
+ * - no saturated colour as a large field: a red or black page tires the eye in minutes, so
+ *   the strong colour goes into the ink, the pen and the washes;
+ * - the pen is a different hue from the ink, so a correction never reads as plain text.
+ */
+
+/* Northgate: the club at night. Parchment type on warm charcoal, a softened poster red for
+   the pen, washes from the painting: the sax player's blue suit, brass, the orange guitar, the olive wall */
+:root[data-theme="northgate"] {
+  color-scheme: dark;
+  --color-paper: #1c1916;
+  --color-paper-light: #25211d;
+  --color-paper-shade: #352f29;
+  --color-ink: #e2d5bb;
+  --color-ink-soft: #bcab8e;
+  --color-ink-faint: #857967;
+  --color-wash-blue: #7f9ac0;
+  --color-wash-mustard: #d2a24e;
+  --color-wash-brick: #cf7040;
+  --color-wash-sage: #8e9a62;
+  --color-pen: #e0604f;
+  --color-sage-ink: #a5bd7c;
+  --color-key-white: #e2d5bb;
+  --color-key-black: #1c1916;
+  --color-key-line: #1c1916;
+  --color-key-soft: #5a4f44;
+  --wash-blend: screen;
+}
+
+/* Panam: the cover's red as ink on the cover's cream. Deep red type, a slate-blue pen for
+   corrections (red would read as text here), and the shards as washes: teal, gold, coral, olive */
+:root[data-theme="panam"] {
+  --color-paper: #f5e6d3;
+  --color-paper-light: #fbf1e4;
+  --color-paper-shade: #ecd2bc;
+  --color-ink: #6b1016;
+  --color-ink-soft: #9b2a2a;
+  --color-ink-faint: #c08178;
+  --color-wash-blue: #5ea9a1;
+  --color-wash-mustard: #e2a93a;
+  --color-wash-brick: #e2654f;
+  --color-wash-sage: #a3a14a;
+  --color-pen: #23577a;
+  --color-sage-ink: #4a6a2a;
+  --color-key-white: #fbf1e4;
+  --color-key-black: #4a0c11;
+  --color-key-line: #4a0c11;
+  --color-key-soft: #9b2a2a;
+  --wash-blend: multiply;
 }
 
 /*
@@ -142,7 +214,7 @@
     filter: url(#ink-wobble);
   }
   .wash {
-    mix-blend-mode: multiply;
+    mix-blend-mode: var(--wash-blend);
   }
 }
 

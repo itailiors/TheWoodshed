@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { useRough, type RoughCanvas } from "../design/rough";
-import { ink, paper, seedOf } from "../design/tokens";
+import { ink, paper, pen, seedOf } from "../design/tokens";
 
 type Draw = (rc: RoughCanvas, add: (n: SVGElement) => void, seed: number) => void;
 const o = (seed: number, extra: Record<string, unknown> = {}) => ({ seed, stroke: ink.deep, strokeWidth: 2, roughness: 1, ...extra });
@@ -27,7 +27,7 @@ const ICONS: Record<string, Draw> = {
   passport: (rc, add, s) => {
     add(rc.rectangle(10, 6, 20, 28, o(s)));
     add(rc.line(13, 6, 13, 34, o(s + 1, { strokeWidth: 1.2 })));
-    add(rc.circle(22, 18, 9, o(s + 2, { stroke: "#c2311f", strokeWidth: 1.6 })));
+    add(rc.circle(22, 18, 9, o(s + 2, { stroke: pen.red, strokeWidth: 1.6 })));
     add(rc.line(17, 27, 27, 27, o(s + 3, { strokeWidth: 1.2 })));
   },
   notes: (rc, add, s) => {

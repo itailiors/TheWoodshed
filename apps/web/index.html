@@ -10,6 +10,13 @@
     />
     <meta name="author" content="Itai Lior · Software & Jazz Co-op" />
     <meta name="theme-color" content="#f6e9c9" />
+    <!-- colour scheme before first paint (src/design/themes.ts: THEME_KEY and the theme ids) -->
+    <script>
+      try {
+        var t = localStorage.getItem("reharm.theme");
+        if (t === "northgate" || t === "panam") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="canonical" href="https://itailiors.github.io/TheWoodshed/" />
 
