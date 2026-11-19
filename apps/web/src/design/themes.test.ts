@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME, THEME_KEY, THEMES } from "./themes";
 
@@ -108,6 +108,8 @@ describe("colour themes", () => {
           expect(contrast(v.get("--color-heading")!, v.get(ground)!), `heading on ${ground}`).toBeGreaterThanOrEqual(3);
           expect(contrast(v.get("--color-focus")!, v.get(ground)!), `focus on ${ground}`).toBeGreaterThanOrEqual(3);
         }
+        // shaded cards and hovered pills sit behind the ring too
+        expect(contrast(v.get("--color-focus")!, v.get("--color-paper-shade")!), "focus on --color-paper-shade").toBeGreaterThanOrEqual(3);
       });
 
       it("only uses filters and textures that exist", () => {
@@ -134,4 +136,23 @@ describe("colour themes", () => {
       }
     });
   }
+});
+
+describe("focus ring", () => {
+  it("is drawn once, in index.css, on :focus-visible (so a mouse click shows none)", () => {
+    const rule = css.slice(css.indexOf(":focus-visible {"));
+    expect(rule.slice(0, rule.indexOf("}"))).toMatch(/outline:\s*2px solid var\(--color-focus\)/);
+  });
+
+  it("is never removed: only a programmatic focus target (tabIndex -1) may drop its outline", () => {
+    const files = readdirSync(new URL("..", import.meta.url), { recursive: true, encoding: "utf8" }).filter((f) => /\.(tsx|css)$/.test(f));
+    const offenders: string[] = [];
+    for (const f of files) {
+      const src = readFileSync(new URL(`../${f.split("\\").join("/")}`, import.meta.url), "utf8");
+      for (const line of src.split("\n")) {
+        if (/outline-none|outline:\s*(none|0)\b/.test(line) && !line.includes("tabIndex={-1}")) offenders.push(`${f}: ${line.trim()}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
 });

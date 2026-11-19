@@ -134,7 +134,7 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                 rows={3}
                 spellCheck={false}
                 placeholder="Paste an irealb:// link: a song, or a whole playlist"
-                className="w-full resize-y rounded-md border-2 border-dashed border-ink-soft bg-paper-light p-2 font-mono text-xs text-ink placeholder:font-hand placeholder:text-sm placeholder:text-ink-faint focus:border-solid focus:border-ink focus:outline-none"
+                className="w-full resize-y rounded-md border-2 border-dashed border-ink-soft bg-paper-light p-2 font-mono text-xs text-ink placeholder:font-hand placeholder:text-sm placeholder:text-ink-faint focus:border-solid focus:border-ink"
               />
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -182,7 +182,7 @@ export function LibraryDrawer({ currentId, onLoad, onClose, onDeleted }: Props) 
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search title, composer, style"
-                  className="min-w-0 flex-1 rounded-full border-2 border-ink-soft bg-paper-light px-3 py-1 font-hand text-sm focus:border-ink focus:outline-none"
+                  className="min-w-0 flex-1 rounded-full border-2 border-ink-soft bg-paper-light px-3 py-1 font-hand text-sm focus:border-ink"
                 />
               </div>
               {lists.length > 0 && (

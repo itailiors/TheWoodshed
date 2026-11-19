@@ -265,9 +265,16 @@ html {
   h2 {
     color: var(--color-heading);
   }
+  /*
+   * The keyboard focus ring, for everything focusable (keyboard only: `:focus-visible` skips
+   * mouse clicks). An ink ring 2px out, with the gap filled in light paper, so it stays a
+   * separate line on an ink-filled pill, a wash or a shaded card, never merging into the fill.
+   * Components don't restyle it; one with its own `shadow-*` keeps that shadow and the ring.
+   */
   :focus-visible {
     outline: 2px solid var(--color-focus);
     outline-offset: 2px;
+    box-shadow: 0 0 0 2px var(--color-paper-light);
   }
   ::selection {
     background: var(--selection);
