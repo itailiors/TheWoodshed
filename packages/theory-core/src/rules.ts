@@ -10,6 +10,7 @@ import {
 } from "./chords";
 import { chroma, prettySymbol, simplifyNote, transpose } from "./pitch";
 import { chain, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type { Quality } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
 export type { NewChord, Proposal, Rule, RuleContext } from "./ruleKit";
@@ -86,6 +87,77 @@ export const secondaryTwoFive: Rule = {
           `You give up the colour of ${ps(chord)} and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.`,
         recreateRule:
           "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
+      },
+    };
+  },
+};
+
+// ── Rule 1b: secondary dominant (make the chord the V of its target) ──
+const SECONDARY_SOURCES = new Set<Quality>(["maj", "maj7", "6", "m", "m7", "m6", "m7b5"]);
+
+export const secondaryDominant: Rule = {
+  id: "functional.secondaryDominant",
+  name: "Secondary dominant",
+  pedagogy: {
+    formula: "vi7 → VI7(♭9) → ii",
+    whenToUse: "Any chord whose root falls a 5th into the next chord, as long as it isn't already a dominant.",
+    whyItWorks:
+      "Keep the root and make the chord a dominant: its 3rd becomes the leading tone of the next chord's root, so a diatonic step turns into a resolution.",
+    bandstandCue: "Same bass note, raise the minor 3rd a half step (or flatten the major 7th): you're now playing the V of the next chord.",
+  },
+  propose({ chord, next, afterNext }) {
+    if (!next || chord.display || chord.bass || !SECONDARY_SOURCES.has(chord.quality)) return null;
+    if (!resolvesDownFifth(chord, next)) return null;
+    // The ii of a written ii–V already points at its target: turning Dm7 → G7 → C into D9 → G7 → C
+    // just trades the ii's colour for nothing, in every tune. Save the move for chords that don't point yet.
+    const isMinorish = isMinorQ(chord.quality) || chord.quality === "m7b5";
+    if (isMinorish && next.quality === "7" && afterNext && resolvesDownFifth(next, afterNext)) return null;
+    const tMinor = isMinorQ(next.quality) || next.quality === "m7b5";
+    if (!tMinor && !isMajorQ(next.quality) && next.quality !== "7") return null;
+
+    // ♭9 (Phrygian dominant) into a minor target, the natural 9 into a major or dominant one
+    const dom = tMinor ? mk(chord.root, "7", chord.beats, [], ["b9"]) : mk(chord.root, "7", chord.beats, ["9"]);
+    const [oldThird, oldSeventh] = guideTones(chord);
+    const [third, seventh] = guideTones(dom);
+    const raised = oldThird && chroma(oldThird.note) !== chroma(third.note) ? [oldThird.note, third.note] : undefined;
+    const lowered = oldSeventh && oldSeventh.degree === "7" ? [oldSeventh.note, seventh.note] : undefined;
+    const gtChain = chain([third.note, seventh.note], [next]);
+    const r = romanName(next);
+    const facts = {
+      original: symbol(chord),
+      dominant: symbol(dom),
+      target: symbol(next),
+      leadingTone: third.note,
+      ...(raised ? { raised } : {}),
+      ...(lowered ? { lowered } : {}),
+      guideToneChain: gtChain,
+    };
+    const change = [
+      raised && `its ${pn(raised[0])} rises to ${pn(raised[1])}`,
+      lowered && `its ${pn(lowered[0])} drops to ${pn(lowered[1])}`,
+    ]
+      .filter(Boolean)
+      .join(" and ");
+
+    return {
+      title: r ? `Make it the V of ${r}` : `Make it the V of ${ps(next)}`,
+      level: 1,
+      category: "functional",
+      styleTags: ["standard", "bebop", "gospel"],
+      chords: [dom],
+      facts,
+      text: {
+        summary: `Play ${ps(chord)} as ${ps(dom)}, the dominant of ${ps(next)}.`,
+        theory:
+          `${ps(chord)} already sits a 5th above ${ps(next)}, so one change is enough: ${change || `add the ♭7 (${pn(seventh.note)})`}, and it becomes ${ps(next)}'s own dominant. ` +
+          `${pn(third.note)}, the new 3rd, is a half step below ${pn(next.root)}: the leading tone of the chord you're about to land on. ` +
+          `Guide tones: ${gtChain}.` +
+          (tMinor ? ` The target is minor, so the dominant takes the ♭9 (${pn(transpose(chord.root, "b9"))}) from ${pn(next.root)} harmonic minor.` : ""),
+        recreateRule:
+          "If a chord's root falls a 5th into the next chord, you can keep the root and make it a dominant 7: raise a minor 3rd, flatten a major 7th. Add the ♭9 when the target is minor.",
+        insight: tMinor
+          ? `Over ${ps(dom)}, play ${pn(chord.root)} Phrygian dominant: the 5th mode of ${pn(next.root)} harmonic minor.`
+          : `This is the first step of backing up the circle: give the ${ps(dom)} its own related ii and you have the full secondary ii–V.`,
       },
     };
   },
@@ -328,4 +400,4 @@ export const upperStructureII: Rule = {
   },
 };
 
-export const CORE_RULES: Rule[] = [secondaryTwoFive, tritoneSub, upperStructure, gospelTurnaround, rootlessTwoFiveOne, upperStructureII];
+export const CORE_RULES: Rule[] = [secondaryTwoFive, secondaryDominant, tritoneSub, upperStructure, gospelTurnaround, rootlessTwoFiveOne, upperStructureII];

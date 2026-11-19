@@ -1,6 +1,7 @@
 # Open Studio material: what Reharm Lab could take from it (2026-11-19)
 
 Sources read: Adam Maness, *The Harmony Games* workbook (9 games) and *Lead Sheet Breakdown*; the "Sugar Chords" sheet; Peter Martin's *All the Things You Are* lead sheet and "ATTYA MVP" (guide-tone) sheet.
+A per-PDF digest of all 15 PDFs in the openstudio Drive folder, including 8 not covered here, is in `open-studio-digest.md`. Its "New leads" section lists what this file doesn't have yet.
 All of it is © Open Studio. This file records **concepts** in our own words. No exercises, voicings or melodies are copied, and nothing from these PDFs may go into the repo as content.
 
 ## What the engine already covers
@@ -78,8 +79,37 @@ Interval-relative and melody-filtered, like the existing rules.
   
   **Rights:** it was published in 1939, so it's US public domain only from 2035. Kern died in 1945, so it's free under life + 70 outside the US since 2016. Hammerstein's lyrics stay protected until 2031 under life + 70. So it would have to be **chord changes only**, and `Tune.rights` has no kind that fits ("public-domain" isn't true in the US). That's a decision for Itai.
 
+## F. From the full digest, checked against the code (2026-11-19)
+Every "New leads" item in `open-studio-digest.md` was grepped against theory-core and the web app. §N refers to that file's sections.
+
+**Already covered, so dropped:**
+- *Dominant scale colours* (§10, §12): `scales.ts` already has Mixolydian, Lydian dominant, altered, Phrygian dominant, H/W and W/H diminished, whole tone and Locrian ♮2, and `suggestScales` picks among them.
+- *Avoid-tone table* (§8): `melody.ts` `classifyNote` already applies a general rule (a ♭9 above a chord tone, plus naturals an alteration replaces), which covers the book's table.
+- *Minor line cliché mover* (§6): this is `chromatic.minorLineCliche`.
+- *Static top over a moving bass, non-functional cycles* (§11): covered by `melody.oneNoteOnTop` and `chromatic.constantStructure`.
+- *Guide-tone view* (§13): Improv's `guide` lens shows it. The graded *line* drill is still D.
+- *12-key weak-key scheduling* (§9): SRS per `(ruleId, keyTonic)` plus `KeyMatrix`.
+- *Swing slider and Charleston comping* (§13): built (d505bfe, `engine.ts` comping).
+
+**Real gaps, best first:**
+1. ~~**`functional.secondaryDominant` (L1).**~~ **Built 2026-11-19** in `rules.ts`. It skips the ii of a written ii–V. When proposed, there was no rule that turns a diatonic chord into its own dominant: vi7 → VI7(♭9) into ii, iii7 → III7 into vi, I → I7 into IV. `secondaryTwoFive` always writes the full ii–V. This is step 2 of "Backing up the circle" (§1) and of "The Mountain" (§7), and the Phrygian-dominant VI7 → ii from §12. It's the most basic move missing from the engine, and small.
+2. **A3, extended with "mu" chords (§7).** Put the secondary dominant over its 3rd (V7/3) so the bass climbs chromatically. Optionally go first through an add2 chord in first inversion, a half step below. Best built as an inversion/approach flag on items 1 and `secondaryTwoFive`, not as a separate rule. L2.
+3. **Two more voicing styles (§6, §7):**
+   - `quartal`: 3–4 note stacks of 4ths taken from the chord's scale, planing on long chords (So What / modal comping);
+   - `spread`: a LH 10th (1–3 or 1–♭7) under a RH triad or upper structure, the solo-ballad texture.
+
+   Both are pure functions in `voicing.ts` next to drop2/drop3, and both show up in the mixer's "Piano voicings" select. Clusters (§6) can wait.
+4. **Inner-voice movers in the comping (§6).** On chords of 4+ beats, the band piano walks one guide tone: 7–6 on major, 3–4–3 on dominants. This is a band-side option, not a rule; the minor case already exists as a rule.
+5. **"The Mountain" practice mode (§7).** Loop I–V7–I, and each clean Coach pass prepends one more back-cycled dominant (V/V, V/ii…) until the loop reaches the whole cycle. It reuses the Coach grading plus items 1 and 2.
+6. **LH rhythm ladder (§4, Worksheet 14).** Hold the RH chord while the LH plays half notes, then Charleston, then dotted quarters (3 against 4), then 2 & 4. The Coach grades pitches only (no rhythm or onset logic in `coach.ts`), so this needs onset grading first. It's the biggest item here.
+7. **Ear rounds** (as in C): Family, then Going home, then sus vs alt.
+8. **Small extras:** the 7-note blues scale (add the major 3rd to `bluesScale`) for Improv's blues lens (§13); major and minor-6 pentatonics in `SCALES`, which give upper structures like the m6 pentatonic from the 3rd over maj7♯11 (§10); glossary tooltips on the rule cards (§10).
+
+**Out of scope:** the Major Scale Course technique drills (§9), "listening with purpose" with recordings (§13), and Keezer's odd-meter feel changes (§11). Reharm Lab is about harmony, and none of these fit it.
+
 ## Suggested order
 1. ~~A7 (`oneNoteOnTop`) plus B1/B2 (voicing styles and melody-on-top).~~ **Built 2026-11-19:** `rulesOneNote.ts`, `VoicingStyle` with `top`/`topVoice` in `voicing.ts`, and the mixer's "Piano voicings" select. Rootless A/B wasn't added as its own style: "close" already is a rootless 4-voice grip.
-2. A1 plus the dominant-colour axis (plain/sus/alt). Small and well-defined.
+2. ~~F1 (`secondaryDominant`)~~ (built 2026-11-19), then A1 plus the dominant-colour axis (plain/sus/alt). Small and well-defined. A3/F2 and the Mountain can now build on F1.
 3. A2, A4, A5. Each is a small, self-contained rule with a property test.
-4. Changes "Family" round, after Level 4.
+4. F3 (quartal and spread voicing styles) and F4 (comping movers). These are the most audible gains for the least code.
+5. Changes "Family" round, after Level 4.

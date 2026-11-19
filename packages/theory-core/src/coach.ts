@@ -66,6 +66,19 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
         role: `Secondary V7 (${sym})`,
         whyHere: `The 7th of ${prettySymbol(symbol(chords[0]))} drops a half step to become the 3rd of ${sym} (${gts}), pulling into ${nextSym ?? "the target"}.`,
       };
+    case "functional.secondaryDominant": {
+      const raised = move.facts.raised as string[] | undefined;
+      const lowered = move.facts.lowered as string[] | undefined;
+      const change = raised
+        ? `raise ${prettyNote(raised[0])} to ${prettyNote(raised[1])}`
+        : lowered
+          ? `drop ${prettyNote(lowered[0])} to ${prettyNote(lowered[1])}`
+          : "play it as a dominant";
+      return {
+        role: `Secondary V7 (${sym})`,
+        whyHere: `Same root as ${orig0 ?? "before"}: ${change}. That ${prettyNote(String(move.facts.leadingTone))} is the leading tone into ${nextSym ?? (move.targetSymbol ? prettySymbol(move.targetSymbol) : "the target")}.`,
+      };
+    }
     case "voicing.rootlessTwoFiveOne": {
       const h = move.voicingHints?.[i];
       if (i === 0) {
@@ -244,6 +257,9 @@ export function conceptDrillSteps(ruleId: string, targetKey: string): ConceptDri
     case "voicing.upperStructureBVI":
       mode = "minor";
       harmony = [ev("c1", 1, V, "7", "V7", "D", ["b13"]), ev("c2", 2, T, "m6", "im6", "T")];
+      break;
+    case "functional.secondaryDominant":
+      harmony = [ev("c1", 1, simplifyNote(transpose(T, "6")), "m7", "vim7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
       break;
     case "chromatic.minorLineCliche":
       mode = "minor";

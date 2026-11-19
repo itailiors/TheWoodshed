@@ -281,6 +281,11 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - `VoicingStyle` in `voicing.ts`: close (default, unchanged), drop2, drop3, shell, threeZone, plus a `top` option.
   - The mixer's Band section has a "Piano voicings" select (`reharm.voicingStyle`).
   - Verified on the demo build: Sunny Side at L4, bar 1 holds E5 over C6 → F♯m9 → Fmaj9 → E7 in drop 2. Zero `/api` requests, clean console.
+- **Full digest + F1 (2026-11-19, later):** `docs/research/open-studio-digest.md` digests all 15 openstudio PDFs (via Antigravity). Its leads were checked against the code; the ranked gaps are §F of `open-studio-ideas.md`.
+  - `functional.secondaryDominant` (L1, `rules.ts`), built. It keeps the root and makes a chord the V7 of the chord a 5th below: vi7 → VI7(♭9) into a minor target, I → I9 into IV. It skips the ii of a written ii–V, which already points at its target; otherwise it would turn every ii–V into II7–V7.
+  - Firings: Sunny Side Am7 → A9 → D7 in bars 5, 13, 21 and 29 (L1 picks bars 5 and 21). It never fires on I Got Rhythm, and on Co-op Blues the head rejects it (the ♭3 blue note is the ♯9 of F9), so the golden tests and the demo Deep Dives are unchanged.
+  - The Coach has a concept drill: vi7 → ii7.
+  - Also fixed: D♭m7♭5 in drop 3 put its dropped root on the bass's own D♭. That was a 1-in-104 flake in the voicing property test, now covered by an exhaustive test.
 - **Toned down (Itai's call):** on charts with no melody it walks only into a ii→V or V→I. In a chain of fifths, only the first link walks (repeats like G7 | G7 count as one link). At L4 that's 1 bar each in Sunny Side (bar 21, Am7→D7) and I Got Rhythm (bar 18, D7→G7), down from 7 each. Tunes with a melody are unchanged: there, the held melody note decides.
 
 The **Musician's Wishlist** in the README holds the full set of ideas: Expression Pedal, Reactive Rhythm Section, Inner Voice Singing, Gig Mode and Harmony Catcher.

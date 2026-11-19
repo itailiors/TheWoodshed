@@ -1,6 +1,7 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { chordTones, guideTones, resolvesDownFifth } from "../src/chords";
+import { chordTones, guideTones, resolvesDownFifth, symbol } from "../src/chords";
+import { conceptDrillSteps } from "../src/coach";
 import { generateMoves } from "../src/engine";
 import { chroma, mod, simplifyNote, transpose } from "../src/pitch";
 import { sortedHarmony } from "../src/time";
@@ -257,6 +258,78 @@ describe("rule: one note on top", () => {
 
     const moving = { ...held, melody: [{ at: { bar: 1, beat: 1 }, beats: 2, pitch: "E5" }, { at: { bar: 1, beat: 3 }, beats: 2, pitch: "D5" }] };
     expect(movesOf(moving, RULE)).toHaveLength(0);
+  });
+});
+
+describe("rule: secondary dominant", () => {
+  const RULE = "functional.secondaryDominant";
+
+  it("keeps the root and the beats, turns the chord into a dominant a 5th above its target, and its 3rd leads up to the target's root", () => {
+    fc.assert(
+      fc.property(diatonicArb, (t) => {
+        for (const m of movesOf(t, RULE)) {
+          const T = target(t, m);
+          const [orig] = m.original;
+          expect(m.chords).toHaveLength(1);
+          const [d] = m.chords;
+          expect(m.level).toBe(1);
+          expect(m.category).toBe("functional");
+          expect(orig.quality).not.toBe("7");
+          expect(chroma(d.root)).toBe(chroma(orig.root));
+          expect(d.beats).toBe(orig.beats);
+          expect(d.quality).toBe("7");
+          expect(semis(T.root, d.root)).toBe(7);
+          // the dominant's 3rd is the leading tone of the target's root
+          const third = guideTones(d)[0];
+          expect(third.degree).toBe("3");
+          expect(semis(third.note, T.root)).toBe(1);
+          // a minor target gets the ♭9 (Phrygian dominant), a major one the natural 9
+          if (T.quality === "m7") expect(d.alterations).toContain("b9");
+          else expect(d.alterations).not.toContain("b9");
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  it("iii–vi–ii–V–I in C: E7(♭9) into Am7, A7(♭9) into Dm7, and the ii of the ii–V stays a ii", () => {
+    const t = buildTune("C", 4, [["iii", "vi", "ii", "V", "I"]]);
+    const moves = movesOf(t, RULE);
+    expect(moves.map((m) => m.id)).toEqual([`${RULE}@1.1`, `${RULE}@2.1`]);
+    expect(moves.map((m) => symbol(m.chords[0]))).toEqual(["E7(b9)", "A7(b9)"]);
+    expect(moves[1].facts).toMatchObject({ original: "Am7", dominant: "A7(b9)", target: "Dm7", leadingTone: "C#", raised: ["C", "C#"] });
+  });
+
+  it("I → IV: the tonic becomes I7 (its 7th lowered, not its 3rd raised)", () => {
+    const t = buildTune("C", 4, [["I"], ["IV", "I"]]);
+    const [m] = movesOf(t, RULE);
+    expect(symbol(m.chords[0])).toBe("C9");
+    expect(m.facts).toMatchObject({ leadingTone: "E", lowered: ["B", "Bb"] });
+    expect(m.facts.raised).toBeUndefined();
+  });
+
+  it("stays quiet on a chord that's already a dominant, or that doesn't fall a 5th", () => {
+    // V → I is already a dominant; I → ii and IV → I don't fall a 5th
+    expect(movesOf(buildTune("C", 4, [["V", "I"]]), RULE)).toHaveLength(0);
+    expect(movesOf(buildTune("C", 4, [["I", "ii"]]), RULE)).toHaveLength(0);
+    expect(movesOf(buildTune("C", 4, [["IV", "I"]]), RULE)).toHaveLength(0);
+    // the ii of a written ii–V already points at its target
+    expect(movesOf(buildTune("C", 4, [["ii", "V", "I"]]), RULE)).toHaveLength(0);
+  });
+
+  it("the melody decides: a major 7th in the tune keeps I from becoming I7", () => {
+    const base = buildTune("C", 4, [["I"], ["IV", "I"]]);
+    const onB = { ...base, melody: [{ at: { bar: 1, beat: 1 }, beats: 4, pitch: "B4" }], melodyCoverage: "full" as const };
+    expect(movesOf(onB, RULE)).toHaveLength(0);
+    const r = generateMoves(onB).rejected.find((x) => x.move.ruleId === RULE)!;
+    expect(r.reasons[0]).toMatch(/B/);
+  });
+
+  it("has a 12-key concept drill: vi7 → ii7 becomes VI7(♭9) → ii7", () => {
+    const d = conceptDrillSteps(RULE, "Eb");
+    expect(d.move.ruleId).toBe(RULE);
+    expect(d.move.chords.map(symbol)).toEqual(["C7(b9)"]);
+    expect(d.move.targetSymbol).toBe("Fm7");
   });
 });
 

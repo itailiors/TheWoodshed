@@ -89,6 +89,21 @@ describe("voicing engine", () => {
       );
     });
 
+    it("every root, quality and style keeps all voices above the bass (exhaustive, not sampled)", () => {
+      // D♭m7♭5 in drop 3 used to drop its root onto the bass's own D♭; sampling only caught it now and then
+      for (const root of ROOTS)
+        for (const quality of ["maj7", "7", "m7", "m7b5", "6", "m6", "7sus4", "mMaj7"] as Quality[])
+          for (const { id: style } of VOICING_STYLES) {
+            const v = voiceChord({ root, quality, extensions: [], alterations: [] }, undefined, { style });
+            expect(Math.min(...v.upper), `${root}${quality} ${style}`).toBeGreaterThan(v.bass);
+          }
+      const v = voiceChord({ root: "Db", quality: "m7b5", extensions: [], alterations: [] }, undefined, { style: "drop3" }).upper;
+      expect(v).toHaveLength(4);
+      const closed = sorted([v[0] + 12, ...v.slice(1)]);
+      expect(closed[3] - closed[0]).toBeLessThan(12);
+      expect(closed.indexOf(v[0] + 12)).toBe(1);
+    });
+
     it("shells are the 3rd and 7th only, low in the left hand", () => {
       fc.assert(
         fc.property(chordArb, (c) => {

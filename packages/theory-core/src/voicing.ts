@@ -153,7 +153,7 @@ function closeUnder(top: number, pcs: number[]): number[] {
 }
 
 /** Candidate right-hand layouts for a style, before voice leading picks one. */
-function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefined): number[][] {
+function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefined, bass: number): number[][] {
   if (style === "shell" || style === "threeZone") {
     const shell = shellPcs(chord);
     const placed = shellPlacements(shell);
@@ -179,7 +179,8 @@ function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefin
   const n = style === "drop2" ? 2 : 3;
   return [...inversions(four), ...inversions(four).map((v) => v.map((m) => m + 12))]
     .map((v) => drop(v, n))
-    .filter((v) => v[0] >= 48 && v[v.length - 1] <= 81);
+    // the dropped voice must clear the bass: D♭m7♭5's drop-3 once landed on the bass's own D♭
+    .filter((v) => v[0] >= 48 && v[0] > bass && v[v.length - 1] <= 81);
 }
 
 /** Where each style's centre of gravity sits: shells low, drop voicings a little higher. */
@@ -196,8 +197,8 @@ export function voiceChord(chord: ChordLike, prev?: Voicing, opts: VoiceOptions 
   const top = opts.top ?? (chord.topVoice ? midiOf(chord.topVoice) : undefined);
   const bassPc = chroma(chord.bass ?? chord.root);
   const bass = BASS_LOW + mod(bassPc - BASS_LOW, 12);
-  let options = candidates(chord, style, top);
-  if (!options.length) options = candidates(chord, "close", top);
+  let options = candidates(chord, style, top, bass);
+  if (!options.length) options = candidates(chord, "close", top, bass);
   const score = (v: number[]) => {
     const center = v.reduce((s, n) => s + n, 0) / v.length;
     const drift = Math.abs(center - CENTER[style]) * 0.6;
