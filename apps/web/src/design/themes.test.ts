@@ -15,9 +15,14 @@ function vars(selector: string): Map<string, string> {
   return new Map([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2].trim()]));
 }
 
-const base = new Map([...vars("@theme static"), ...vars(":root {")]);
-/** What a theme must set: every colour token, and the wash blend. */
-const required = [...base.keys()].filter((k) => k.startsWith("--color-") || k === "--wash-blend");
+const rootVars = vars(":root {");
+const base = new Map([...vars("@theme static"), ...rootVars]);
+/** What a theme must set: every colour token, and every theme value in the plain `:root` block. */
+const required = [...base.keys()].filter((k) => k.startsWith("--color-") || rootVars.has(k));
+/** Textures a theme may pick from (the `html { … }` library block). */
+const library = vars("html {");
+/** SVG filter ids the app renders (SketchFilters). */
+const filterIds = [...readFileSync(new URL("./rough.tsx", import.meta.url), "utf8").matchAll(/<filter id="([\w-]+)"/g)].map((m) => m[1]);
 
 function themeVars(id: string): Map<string, string> {
   return id === DEFAULT_THEME ? base : vars(`:root[data-theme="${id}"]`);
@@ -96,6 +101,24 @@ describe("colour themes", () => {
         const ink = v.get("--color-ink")!;
         if (saturation(ink) >= 0.4) expect(hueGap(v.get("--color-pen")!, ink)).toBeGreaterThanOrEqual(60);
         else expect(saturation(v.get("--color-pen")!)).toBeGreaterThanOrEqual(0.5);
+      });
+
+      it("keeps headings and the focus ring visible", () => {
+        for (const ground of ["--color-paper", "--color-paper-light"]) {
+          expect(contrast(v.get("--color-heading")!, v.get(ground)!), `heading on ${ground}`).toBeGreaterThanOrEqual(3);
+          expect(contrast(v.get("--color-focus")!, v.get(ground)!), `focus on ${ground}`).toBeGreaterThanOrEqual(3);
+        }
+      });
+
+      it("only uses filters and textures that exist", () => {
+        for (const k of ["--wash-filter", "--wobble-filter"]) {
+          const f = v.get(k)!;
+          if (f !== "none") expect(filterIds, `${k}: ${f}`).toContain(f.match(/^url\(#([\w-]+)\)$/)?.[1]);
+        }
+        for (const k of ["--page-texture", "--page-art"]) {
+          const ref = v.get(k)!.match(/^var\((--[\w-]+)\)$/)?.[1];
+          if (v.get(k) !== "none") expect(library.has(ref ?? ""), `${k}: ${v.get(k)}`).toBe(true);
+        }
       });
 
       it("draws a keyboard whose white and black keys stand apart", () => {

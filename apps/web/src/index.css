@@ -41,14 +41,44 @@
   }
 }
 
-/* Piano keys and the watercolour blend: theme values that aren't Tailwind utilities. */
+/*
+ * Theme values that aren't Tailwind utilities. Every theme block below sets each of these
+ * (themes.test.ts checks), so a theme's look is always a deliberate choice, never a leftover.
+ */
 :root {
   --color-key-white: #fbf3df;
   --color-key-black: #1e2a78;
   --color-key-line: #1e2a78;
   --color-key-soft: #3e4c9e;
+  /* big headings (h1, h2); large text, so 3:1 is enough */
+  --color-heading: #1e2a78;
+  /* keyboard focus ring: 3:1 against the page at least */
+  --color-focus: #1e2a78;
+  --selection: color-mix(in srgb, var(--color-wash-mustard) 55%, transparent);
   /* washes darken paper (multiply); on a dark ground they must lighten it instead (screen) */
   --wash-blend: multiply;
+  /* the filter on lead-sheet washes, and on `.ink-wobble` headings (ids from SketchFilters) */
+  --wash-filter: url(#watercolor);
+  --wobble-filter: url(#ink-wobble);
+  /* the page's own grain (tiled), and one piece of art fixed behind everything (or none) */
+  --page-texture: var(--texture-paper);
+  --page-art: none;
+}
+
+/*
+ * Textures the themes choose from. Kept apart from the theme values above: they're a
+ * library, not settings. Each is a tiny SVG noise or drawing, low alpha, behind the cards.
+ */
+html {
+  /* paper grain: fractal noise tinted warm brown at very low alpha */
+  --texture-paper: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.30  0 0 0 0 0.12  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  /* oil-on-canvas: noise stretched sideways into short brush drags, in a lamp-lit cream */
+  --texture-brush: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='0.006 0.32' numOctaves='3' seed='4' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.92  0 0 0 0 0.80  0 0 0 0 0.60  0 0 0 0.055 0'/></filter><rect width='100%' height='100%' filter='url(%23b)'/></svg>");
+  /* the room's lamp: a warm glow from the top-left corner of the window */
+  --art-lamp: radial-gradient(ellipse 70% 55% at 6% 0%, rgb(226 180 110 / 0.1), transparent 70%);
+  /* diagonal shards, solid and hatched, anchored to the bottom-right corner of the window */
+  --art-shards: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 600'><defs><pattern id='c' width='7' height='7' patternUnits='userSpaceOnUse' patternTransform='rotate(-40)'><rect width='1.2' height='7' fill='%23e2654f'/></pattern><pattern id='t' width='5' height='5' patternUnits='userSpaceOnUse' patternTransform='rotate(-40)'><rect width='1' height='5' fill='%235ea9a1'/></pattern></defs><g opacity='0.16'><polygon points='120,560 430,150 540,215 230,620' fill='%235ea9a1'/><polygon points='330,600 590,260 620,300 360,640' fill='%23e2a93a'/></g><g opacity='0.22'><polygon points='40,470 340,80 400,125 100,515' fill='url(%23c)'/><polygon points='230,420 520,40 600,95 310,470' fill='url(%23t)'/></g><polygon points='180,600 470,215 482,224 192,609' fill='%2323577a' opacity='0.12'/></svg>")
+    no-repeat right -60px bottom -60px / min(78vw, 680px);
 }
 
 /*
@@ -86,7 +116,16 @@
   --color-key-black: #1c1916;
   --color-key-line: #1c1916;
   --color-key-soft: #5a4f44;
+  /* poster-red headings, like the "17 ANNIVERSARY" type; body text stays parchment */
+  --color-heading: #e0604f;
+  --color-focus: #d2a24e;
+  --selection: color-mix(in srgb, #d2a24e 35%, transparent);
   --wash-blend: screen;
+  --wash-filter: url(#watercolor);
+  /* painted lettering: a slower, sideways drag instead of the pen's jitter */
+  --wobble-filter: url(#ink-brush);
+  --page-texture: var(--texture-brush);
+  --page-art: var(--art-lamp);
 }
 
 /* Panam: the cover's red as ink on the cover's cream. Deep red type, a slate-blue pen for
@@ -108,7 +147,15 @@
   --color-key-black: #4a0c11;
   --color-key-line: #4a0c11;
   --color-key-soft: #9b2a2a;
+  --color-heading: #6b1016;
+  --color-focus: #23577a;
+  --selection: color-mix(in srgb, #5ea9a1 35%, transparent);
   --wash-blend: multiply;
+  /* the cover is crisp geometry: hard-edged wash panels, unwobbled type */
+  --wash-filter: none;
+  --wobble-filter: none;
+  --page-texture: var(--texture-paper);
+  --page-art: var(--art-shards);
 }
 
 /*
@@ -200,21 +247,44 @@
     color: var(--color-ink);
     font-family: var(--font-hand);
     background-color: var(--color-paper);
-    /* paper grain: fractal noise tinted warm brown at very low alpha */
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.42  0 0 0 0 0.30  0 0 0 0 0.12  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    background-image: var(--page-texture);
+  }
+  /*
+   * The theme's art: fixed to the window, behind all content (z-index -1 under the root
+   * stacking context, above the page colour) and never in the way of a click.
+   */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--page-art);
+  }
+  h1,
+  h2 {
+    color: var(--color-heading);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 2px;
   }
   ::selection {
-    background: color-mix(in srgb, var(--color-wash-mustard) 55%, transparent);
+    background: var(--selection);
   }
 }
 
 @layer components {
   /* Wobbly ink: SVG displacement applied to hand-drawn headings. */
   .ink-wobble {
-    filter: url(#ink-wobble);
+    filter: var(--wobble-filter);
   }
   .wash {
     mix-blend-mode: var(--wash-blend);
+  }
+  /* the lead sheet's move washes: watercolour bleed, or hard-edged panels (Panam) */
+  .wash-shapes {
+    filter: var(--wash-filter);
   }
 }
 

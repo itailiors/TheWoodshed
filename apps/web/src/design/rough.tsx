@@ -165,6 +165,11 @@ export function SketchFilters() {
           <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="3" />
           <feDisplacementMap in="SourceGraphic" scale="2.4" />
         </filter>
+        {/* painted lettering (Northgate headings): low-frequency noise stretched sideways, a brush drag */}
+        <filter id="ink-brush">
+          <feTurbulence type="fractalNoise" baseFrequency="0.015 0.06" numOctaves="2" seed="5" />
+          <feDisplacementMap in="SourceGraphic" scale="2.6" />
+        </filter>
         <filter id="watercolor" x="-15%" y="-15%" width="130%" height="130%">
           <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="8" result="noise" />
           <feDisplacementMap in="SourceGraphic" in2="noise" scale="16" result="bleed" />

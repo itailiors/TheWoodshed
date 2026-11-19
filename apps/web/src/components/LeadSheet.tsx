@@ -250,7 +250,7 @@ export function LeadSheet({
       role="img"
       aria-label={`Lead sheet for ${tune.title}`}
     >
-      <g ref={washRef} className="wash" opacity={0.55} filter="url(#watercolor)" />
+      <g ref={washRef} className="wash wash-shapes" opacity={0.55} />
 
       {/* clefs, key and time signatures, bar numbers */}
       {Array.from({ length: systems }, (_, sys) => {
