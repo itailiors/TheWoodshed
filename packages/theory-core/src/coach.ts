@@ -79,6 +79,13 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
         whyHere: `Same root as ${orig0 ?? "before"}: ${change}. That ${prettyNote(String(move.facts.leadingTone))} is the leading tone into ${nextSym ?? (move.targetSymbol ? prettySymbol(move.targetSymbol) : "the target")}.`,
       };
     }
+    case "dominant.mediantDominant": {
+      const dim = (move.facts.sharedDiminished as string[] | undefined) ?? [];
+      return {
+        role: `Mediant dominant (III7 · ${sym})`,
+        whyHere: `Hands on the ${dim.map(prettyNote).join("–")} diminished 7th, the same shape as ${orig0 ? `${orig0}(♭9)` : "the V7(♭9)"}; only the bass moves to ${prettyNote(c.root)}. Its 3rd then falls a half step${nextSym ? ` into ${nextSym}` : ""}.`,
+      };
+    }
     case "voicing.rootlessTwoFiveOne": {
       const h = move.voicingHints?.[i];
       if (i === 0) {

@@ -333,6 +333,72 @@ describe("rule: secondary dominant", () => {
   });
 });
 
+describe("rule: mediant dominant (the Family)", () => {
+  const RULE = "dominant.mediantDominant";
+  /** The chord's tones without its root, as pitch classes. */
+  const upper = (c: Parameters<typeof chordTones>[0]) => new Set(chordTones(c).filter((t) => t.degree !== "1").map((t) => chroma(t.note)));
+
+  it("replaces a V7 into a major chord with III7(♭9): same diminished 7th on top, bass a major 3rd above the target", () => {
+    fc.assert(
+      fc.property(diatonicArb, (t) => {
+        for (const m of movesOf(t, RULE)) {
+          const T = target(t, m);
+          const [orig] = m.original;
+          expect(m.level).toBe(3);
+          expect(m.category).toBe("dominant-sub");
+          expect(orig.quality).toBe("7");
+          expect(resolvesDownFifth(orig, T)).toBe(true);
+          expect(m.chords).toHaveLength(1);
+          const [d] = m.chords;
+          expect(d.quality).toBe("7");
+          expect(d.alterations).toEqual(["b9"]);
+          expect(d.beats).toBe(orig.beats);
+          expect(semis(T.root, d.root)).toBe(4);
+          // the Family: III7(♭9) and V7(♭9) share one diminished 7th, only the bass differs
+          const dim = upper(d);
+          expect(dim).toEqual(upper({ ...orig, alterations: ["b9"], extensions: [] }));
+          expect(dim).toEqual(new Set([11, 2, 5, 8].map((s) => mod(chroma(T.root) + s, 12))));
+          // III7's 3rd falls a half step to the target's 5th, its ♭7 a whole step to the root
+          const [third, seventh] = guideTones(d).map((g) => chroma(g.note));
+          expect(mod(third - chroma(transpose(T.root, "5")), 12)).toBe(1);
+          expect(mod(seventh - chroma(T.root), 12)).toBe(2);
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  it("ii–V–I in C: G7 becomes E7(♭9), and the facts name the whole Family", () => {
+    const t = buildTune("C", 4, [["ii", "V", "I"]]);
+    const [m] = movesOf(t, RULE);
+    expect(m.id).toBe(`${RULE}@2.1`);
+    expect(symbol(m.chords[0])).toBe("E7(b9)");
+    expect(m.facts).toMatchObject({
+      original: "G7",
+      sub: "E7(b9)",
+      target: "Cmaj7",
+      sharedDiminished: ["B", "D", "F", "Ab"],
+      family: ["G7(b9)", "Bb7(b9)", "Db7(b9)", "E7(b9)"],
+    });
+  });
+
+  it("only resolves into a major chord, and only replaces a dominant", () => {
+    const minor = buildTune("C", 4, [["ii", "V", "I"]]);
+    minor.harmony[2] = { ...minor.harmony[2], quality: "m7" };
+    expect(movesOf(minor, RULE)).toHaveLength(0);
+    // ii → V: the ii isn't a dominant, and V → I is where it fires
+    expect(movesOf(buildTune("C", 4, [["ii", "V", "I"]]), RULE).map((m) => m.original[0].root)).toEqual(["G"]);
+  });
+
+  it("the melody decides: an A over the dominant is G7's 9th but E7(♭9)'s natural 11", () => {
+    const base = buildTune("C", 4, [["V", "I"]]);
+    const onA = { ...base, melody: [{ at: { bar: 1, beat: 1 }, beats: 4, pitch: "A4" }], melodyCoverage: "full" as const };
+    expect(movesOf(onA, RULE)).toHaveLength(0);
+    const r = generateMoves(onA).rejected.find((x) => x.move.ruleId === RULE)!;
+    expect(r.reasons[0]).toMatch(/A/);
+  });
+});
+
 describe("advanced rule pack: coverage", () => {
   it("every new rule fires on a showcase progression in C (and its levels are right)", () => {
     const t = buildTune("C", 4, [["I"], ["ii", "V", "I"], ["IV", "I"], ["iii", "ii", "V", "I"]]);
@@ -346,6 +412,7 @@ describe("advanced rule pack: coverage", () => {
       "symmetric.coltraneSubstitution": 4,
       "chromatic.constantStructure": 4,
       "melody.oneNoteOnTop": 4,
+      "dominant.mediantDominant": 3,
     });
   });
 

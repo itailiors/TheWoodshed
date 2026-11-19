@@ -130,8 +130,8 @@ describe("comping coach diff", () => {
     expect(jumpy.smooth).toBe(false);
   });
 
-  it("conceptDrillSteps generates tune-independent cadences for all 16 rules across all 12 keys with pedagogy and stepCue", () => {
-    expect(RULES.length).toBe(16);
+  it("conceptDrillSteps generates tune-independent cadences for all 17 rules across all 12 keys with pedagogy and stepCue", () => {
+    expect(RULES.length).toBe(17);
     for (const r of RULES) {
       expect(r.pedagogy).toBeDefined();
       expect(r.pedagogy!.formula.length).toBeGreaterThan(0);

@@ -4,7 +4,7 @@
  * Every rule reasons in intervals relative to its local target, so it works in all keys
  * and on tonicized chords, not just the home key.
  */
-import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth } from "./chords";
+import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
 import { chain, distribute, mk, pn, ps, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
@@ -65,6 +65,56 @@ export const backdoorTwoFive: Rule = {
           `its 3rd (${pn(b7third)}) moves a step into the tonic chord, and the root rises a whole step home. ` +
           `It's a darker, bluesier cadence than ${ps(chord)} → ${ps(next)}, with no tritone resolving.`,
         recreateRule: "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
+      },
+    };
+  },
+};
+
+// ── Mediant dominant: III7(♭9) → I, the last member of "the Family" ─────────
+export const mediantDominant: Rule = {
+  id: "dominant.mediantDominant",
+  name: "Mediant dominant (the Family)",
+  pedagogy: {
+    formula: "V7 → III7(♭9) → I",
+    whenToUse: "Replacing a V7 that resolves to a major chord.",
+    whyItWorks:
+      "The °7 a half step below the target sits on top of four dominants: V7, ♭VII7, ♭II7 and III7 (all ♭9). Swap the bass and keep the °7: III7's 3rd falls a half step to the tonic's 5th, its ♭7 a whole step to the root, and its root and 5th are already in the tonic chord.",
+    bandstandCue: "Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
+  },
+  propose({ chord, next }) {
+    if (!isMajorTarget(next) || chord.quality !== "7" || chord.display || chord.bass || !resolvesDownFifth(chord, next)) return null;
+    const T = next.root;
+    const sub = mk(tidy(transpose(T, "3")), "7", chord.beats, [], ["b9"]);
+    const dim = (["7", "2", "4", "b6"] as const).map((d) => tidy(transpose(T, d)));
+    const familyChords = (["5", "b7", "b2", "3"] as const).map((d) => mk(tidy(transpose(T, d)), "7", 1, [], ["b9"]));
+    const [third, seventh] = guideTones(sub).map((g) => g.note);
+    const fifthOfT = transpose(T, "5");
+    return {
+      title: "Mediant dominant (III7)",
+      level: 3,
+      category: "dominant-sub",
+      styleTags: ["gospel", "modern", "standard"],
+      chords: [sub],
+      facts: {
+        original: symbol(chord),
+        sub: symbol(sub),
+        target: symbol(next),
+        sharedDiminished: dim,
+        family: familyChords.map(symbol),
+        guideToneChain: chain([third, seventh], [next]),
+      },
+      text: {
+        summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a major 3rd above ${ps(next)}.`,
+        theory:
+          `${ps(familyChords[0])} is ${pn(chord.root)} under ${/^[AEF]/.test(dim[0]) ? "an" : "a"} ${dim.map(pn).join("–")} diminished 7th. ${ps(sub)} is the same four notes over ${pn(sub.root)}, ` +
+          `so your right hand doesn't move: only the bass does. ` +
+          `Into ${ps(next)}, ${pn(third)} (the 3rd) falls a half step to ${pn(fifthOfT)}, ${pn(seventh)} (the ♭7) falls a whole step to ${pn(T)}, ` +
+          `and ${pn(sub.root)} is already the 3rd of ${pn(T)}. ` +
+          `III7 normally resolves to vi, so the ear expects ${pn(transpose(T, "6"))} minor and gets the major tonic instead: a bright, gospel-tinged arrival.`,
+        recreateRule:
+          "Any V7 → I can become III7(♭9) → I: keep the °7 a half step below I in your hands and put the bass a major 3rd above I.",
+        insight:
+          `The whole Family over the same ${pn(dim[0])}°7: ${familyChords.map(ps).join(", ")}. The tritone sub and the backdoor ♭VII7 are two of its members; this is the fourth.`,
       },
     };
   },
@@ -352,6 +402,7 @@ export const minorLineCliche: Rule = {
 export const ADVANCED_RULES: Rule[] = [
   passingDiminished,
   backdoorTwoFive,
+  mediantDominant,
   flatSixFlatSeven,
   borrowedIv,
   commonToneDiminished,

@@ -16,7 +16,7 @@ Before the gaps, here's what's already in the repo (13 rules in `ruleset.ts`):
 ## A. New reharm rules (theory-core, through `ruleKit.ts`, one property test each)
 Interval-relative and melody-filtered, like the existing rules.
 
-1. **`dominant.mediantDominant` (III7 → I), the last member of the Family.** Take the °7 a half step below the target (B°7 → C). Each of its four notes, read as a ♭9, gives a dominant: G7, B♭7, D♭7, E7. We have three; E7 → C is missing. Here the dominant's 3rd (G♯) resolves down by half step to G and its 7th (D) moves down a whole step to C, while the B and E carry over as common tones. L3–4, and the melody filter decides where it's legal.
+1. ~~**`dominant.mediantDominant` (III7 → I), the last member of the Family.**~~ **Built 2026-11-19** in `rulesAdvanced.ts` (L3, always III7(♭9), major targets only). The colour axis below is still open. Take the °7 a half step below the target (B°7 → C). Each of its four notes, read as a ♭9, gives a dominant: G7, B♭7, D♭7, E7. We have three; E7 → C is missing. Here the dominant's 3rd (G♯) resolves down by half step to G and its 7th (D) moves down a whole step to C, while the B and E carry over as common tones. L3–4, and the melody filter decides where it's legal.
    - *Shared colour axis:* the sheets play each Family member three ways: plain 7, 7sus4 and 7alt. A dominant-colour variant (plain/sus/alt) on every dominant-producing rule beats writing three rules each. The sus version suits a melody that sits on the 4th; the alt version goes wherever the melody isn't the natural 9 or 13.
 2. **`pedal.upperTriadOverTonic` ("heart melter").** On a long tonic, keep the bass on 1 and move the hands to IV/1, iv/1, V/1 or v/1, then back. It's a neighbour-chord motion over a pedal, Peace Piece / gospel-plagal territory. It differs from `borrowedIv` because the bass never moves. L2 for IV/1 and iv/1, L3 for v/1 (it adds the ♭7 colour).
 3. **`chromatic.slashConnector` ("chord connectors").** Put a secondary dominant in first inversion so the bass climbs chromatically: I – V7/ii over its 3rd (D7/F♯ in C) – ii, or IV – add2 over ♯IV (the B(2)/D♯ type) into iii. It works like `secondaryTwoFive`, but the point is the bass line. It could be a variant of that rule with an inversion flag rather than a new rule. L2.
@@ -109,7 +109,7 @@ Every "New leads" item in `open-studio-digest.md` was grepped against theory-cor
 
 ## Suggested order
 1. ~~A7 (`oneNoteOnTop`) plus B1/B2 (voicing styles and melody-on-top).~~ **Built 2026-11-19:** `rulesOneNote.ts`, `VoicingStyle` with `top`/`topVoice` in `voicing.ts`, and the mixer's "Piano voicings" select. Rootless A/B wasn't added as its own style: "close" already is a rootless 4-voice grip.
-2. ~~F1 (`secondaryDominant`)~~ (built 2026-11-19), then A1 plus the dominant-colour axis (plain/sus/alt). Small and well-defined. A3/F2 and the Mountain can now build on F1.
+2. ~~F1 (`secondaryDominant`)~~ and ~~A1 (`mediantDominant`)~~, both built 2026-11-19. Next is the dominant-colour axis (plain/sus/alt) across the dominant-writing rules. A3/F2 and the Mountain can now build on F1.
 3. A2, A4, A5. Each is a small, self-contained rule with a property test.
 4. F3 (quartal and spread voicing styles) and F4 (comping movers). These are the most audible gains for the least code.
 5. Changes "Family" round, after Level 4.

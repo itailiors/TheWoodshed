@@ -9,7 +9,7 @@ import { absBeat, formBars } from "../src/time";
 /*
  * Pins the engine to "Co-op Blues", the reference and public-demo tune. The tune was
  * written so the dial tells a story: nothing at L0, one move at L1, then more colour at
- * every level, six different rules accepted, and the head's own notes rejecting other
+ * every level, seven different rules accepted, and the head's own notes rejecting other
  * moves for audible reasons (which is what the Engine X-ray's red pen shows).
  */
 const { accepted, rejected } = generateMoves(coopBlues);
@@ -44,7 +44,7 @@ describe("Co-op Blues (reference tune)", () => {
     expect(ids(4).length).toBe(12);
   });
 
-  it("accepts six different rules", () => {
+  it("accepts seven different rules", () => {
     expect(new Set(accepted.map((m) => m.ruleId))).toEqual(
       new Set([
         "functional.secondaryTwoFive",
@@ -52,6 +52,7 @@ describe("Co-op Blues (reference tune)", () => {
         "voicing.upperStructureBVI",
         "gospel.halfStepTurnaround",
         "modal.backdoorTwoFive",
+        "dominant.mediantDominant",
         "chromatic.constantStructure",
       ]),
     );
@@ -60,6 +61,8 @@ describe("Co-op Blues (reference tune)", () => {
   it("the turnaround moves into bar 11's F6", () => {
     expect(accepted.find((m) => m.id === "dominant.tritoneSub@10.1")!.chords.map(symbol)).toEqual(["Gb9"]);
     expect(accepted.find((m) => m.id === "modal.backdoorTwoFive@10.1")!.chords.map(symbol)).toEqual(["Bbm7", "Eb9"]);
+    // the Family's fourth member: same B°7 on top as C7(♭9), bass on A
+    expect(accepted.find((m) => m.id === "dominant.mediantDominant@10.1")!.chords.map(symbol)).toEqual(["A7(b9)"]);
     expect(accepted.find((m) => m.id === "gospel.halfStepTurnaround@10.1")!.chords.map(symbol)).toEqual(["Bb/C", "Gb13(#11)"]);
   });
 

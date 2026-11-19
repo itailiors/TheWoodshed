@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-11T21:17:22.362Z",
+  "generatedAt": "2026-11-19T06:33:55.348Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -74,6 +74,12 @@
       "summary": "Come in through the back door: B♭m7 → E♭9 → F6, instead of C7 → F6.",
       "deepDive": "B♭m7 and E♭9 are borrowed from F minor (iv and ♭VII7). E♭9 has no leading tone. Its ♭7 (D♭) falls a half step to C, the 5th of F, its 3rd (G) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than C7 → F6, with no tritone resolving.",
       "recreateRule": "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
+      "model": "Reharm Lab engine"
+    },
+    "dominant.mediantDominant@10.1": {
+      "summary": "Swap C7 for A7(♭9), the dominant a major 3rd above F6.",
+      "deepDive": "C7(♭9) is C under an E–G–B♭–D♭ diminished 7th. A7(♭9) is the same four notes over A, so your right hand doesn't move: only the bass does. Into F6, C♯ (the 3rd) falls a half step to C, G (the ♭7) falls a whole step to F, and A is already the 3rd of F. III7 normally resolves to vi, so the ear expects D minor and gets the major tonic instead: a bright, gospel-tinged arrival.\n\nThe whole Family over the same E°7: C7(♭9), E♭7(♭9), G♭7(♭9), A7(♭9). The tritone sub and the backdoor ♭VII7 are two of its members; this is the fourth.",
+      "recreateRule": "Any V7 → I can become III7(♭9) → I: keep the °7 a half step below I in your hands and put the bass a major 3rd above I.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@10.1": {
