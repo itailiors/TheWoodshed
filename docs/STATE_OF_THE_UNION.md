@@ -72,7 +72,7 @@ apps/api/                         Hono on Node (tsx), SQLite via Drizzle on sql.
   src/db/client.ts                openDb/persist (writes ONLY to the opened file; temp file + rename)
   src/db/schema.ts                tunes, setlists, setlist_tunes, practice_sessions, coach_attempts, improv_runs, concept_reviews
   src/db/repo.ts                  library queries
-  src/db/practiceRepo.ts          sessions, recordCoachAttempt (grade + SM-2 upsert), recordImprovRun, cleanKeys, dueConcepts (+lastPlace), lastPlaceFor
+  src/db/practiceRepo.ts          sessions, recordCoachAttempt (grade + SM-2 upsert), recordImprovRun, progressSummary (loads rows → theory-core summariseProgress)
   src/practice/srs.ts             gradeAttempt (0–5); scheduleReview: miss → 10 min, reps 1 → 1 day, reps 2 → 3 days, then interval × ease (min 1.3)
   src/practice/routes.ts          zod-validated /api/practice/* (404 in demo)
   test/setup.ts                   REHARM_DB → a sentinel path that must never be created

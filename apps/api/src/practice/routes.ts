@@ -90,21 +90,10 @@ export function practiceRoutes({ enabled }: { enabled: boolean }) {
   });
 
   /** Everything the practice UI needs: per-concept SRS state, clean keys, due queue, recent improv runs. */
-  r.get("/progress", async (c) => {
-    const p = await repo();
-    const now = new Date();
-    const concepts = p.allConcepts();
-    return c.json({
-      concepts,
-      /** Where each concept was last practised, so any passport key can open the Coach there. */
-      places: Object.fromEntries([...new Set(concepts.map((x) => x.ruleId))].map((id) => [id, p.lastPlaceFor(id)])),
-      cleanKeys: p.cleanKeys(),
-      due: p.dueConcepts(now),
-      recentImprov: p.recentImprovRuns(c.req.query("tuneId")),
-    });
-  });
+  r.get("/progress", async (c) => c.json((await repo()).progressSummary(new Date(), c.req.query("tuneId"))));
 
-  r.get("/due", async (c) => c.json((await repo()).dueConcepts(new Date())));
+  /** The due queue alone, oldest first, each with where it was last practised. */
+  r.get("/due", async (c) => c.json((await repo()).progressSummary(new Date()).due));
 
   return r;
 }

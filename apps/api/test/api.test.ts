@@ -178,9 +178,9 @@ describe("library mode: import + practice history", () => {
   });
 
   it("the review queue says where each concept was last practised, so the app can open the Coach on it", async () => {
-    const { dueConcepts } = await import("../src/db/practiceRepo");
+    const { progressSummary } = await import("../src/db/practiceRepo");
     // two days on: D (missed, retry in 10 min) and Ab (not clean) are due; Bb (clean twice, 3-day gap) isn't yet
-    const due = dueConcepts(new Date(Date.now() + 2 * 86_400_000));
+    const { due } = progressSummary(new Date(Date.now() + 2 * 86_400_000));
     expect(due.map((d) => d.keyTonic).sort()).toEqual(["Ab", "D"]);
     for (const d of due) expect(d.lastPlace).toEqual({ tuneId: referenceTune.id, moveId: "dominant.tritoneSub@4.1" });
     // and right now nothing is due yet (the earliest retry is 10 minutes out)

@@ -1,5 +1,5 @@
-import { applyCoachRun, chroma, normaliseKey } from "@reharm/theory-core";
-import { and, asc, desc, eq, isNotNull, lte } from "drizzle-orm";
+import { applyCoachRun, normaliseKey, RECENT_IMPROV_LIMIT, summariseProgress } from "@reharm/theory-core";
+import { and, desc, eq } from "drizzle-orm";
 import { getDb, persist } from "./client";
 import { coachAttempts, conceptReviews, improvRuns, practiceSessions, tunes } from "./schema";
 
@@ -86,49 +86,34 @@ export function recordImprovRun(input: ImprovRunInput, now = new Date()) {
   return row.id;
 }
 
-/** Keys each concept has been played cleanly in: the coach's "Clean in" list, across sessions. */
-export function cleanKeys(): Record<string, string[]> {
-  const rows = getDb()
-    .selectDistinct({ ruleId: coachAttempts.ruleId, keyTonic: coachAttempts.keyTonic })
-    .from(coachAttempts)
-    .where(eq(coachAttempts.clean, true))
-    .all();
-  const out: Record<string, string[]> = {};
-  for (const r of rows) (out[r.ruleId] ??= []).push(r.keyTonic);
-  for (const k of Object.keys(out)) out[k].sort((a, b) => chroma(a) - chroma(b));
-  return out;
-}
-
 /**
- * Where a concept was last practised (any key): the tune and the move. Lets the review queue
- * say "open the Coach on this" rather than just naming a rule. Null if the only runs were on
- * tunes since deleted (their link is set to null).
+ * The passport's view of the whole history: clean keys, places, the due queue and recent improv
+ * runs. The rules live in theory-core's `summariseProgress` (the static demo's browser store
+ * uses it too); this only loads the rows.
  */
-export function lastPlaceFor(ruleId: string): { tuneId: string; moveId: string } | null {
-  const row = getDb()
-    .select({ tuneId: coachAttempts.tuneId, moveId: coachAttempts.moveId })
+export function progressSummary(now = new Date(), tuneId?: string) {
+  const db = getDb();
+  const reviews = db.select().from(conceptReviews).all();
+  // newest id first, so a createdAt tie resolves to the later run (summariseProgress sorts stably)
+  const attempts = db
+    .select({
+      ruleId: coachAttempts.ruleId,
+      keyTonic: coachAttempts.keyTonic,
+      misses: coachAttempts.misses,
+      leaps: coachAttempts.leaps,
+      tuneId: coachAttempts.tuneId,
+      moveId: coachAttempts.moveId,
+      clean: coachAttempts.clean,
+      createdAt: coachAttempts.createdAt,
+    })
     .from(coachAttempts)
-    .where(and(eq(coachAttempts.ruleId, ruleId), isNotNull(coachAttempts.tuneId)))
-    .orderBy(desc(coachAttempts.createdAt), desc(coachAttempts.id))
-    .get();
-  return row?.tuneId ? { tuneId: row.tuneId, moveId: row.moveId } : null;
-}
-
-/** Concepts whose review is due, oldest first, each with where it was last practised. */
-export function dueConcepts(now = new Date()) {
-  const rows = getDb().select().from(conceptReviews).where(lte(conceptReviews.dueAt, now)).orderBy(asc(conceptReviews.dueAt)).all();
-  const places = new Map<string, ReturnType<typeof lastPlaceFor>>();
-  return rows.map((r) => {
-    if (!places.has(r.ruleId)) places.set(r.ruleId, lastPlaceFor(r.ruleId));
-    return { ...r, lastPlace: places.get(r.ruleId) ?? null };
-  });
-}
-
-export function allConcepts() {
-  return getDb().select().from(conceptReviews).orderBy(asc(conceptReviews.ruleId), asc(conceptReviews.keyTonic)).all();
-}
-
-export function recentImprovRuns(tuneId?: string, limit = 20) {
-  const q = getDb().select().from(improvRuns);
-  return (tuneId ? q.where(eq(improvRuns.tuneId, tuneId)) : q).orderBy(desc(improvRuns.createdAt)).limit(limit).all();
+    .orderBy(desc(coachAttempts.id))
+    .all();
+  // only the newest runs can be shown, so the database does the filter and the limit
+  const q = db.select().from(improvRuns);
+  const improv = (tuneId ? q.where(eq(improvRuns.tuneId, tuneId)) : q)
+    .orderBy(desc(improvRuns.createdAt), desc(improvRuns.id))
+    .limit(RECENT_IMPROV_LIMIT)
+    .all();
+  return summariseProgress({ reviews, attempts, improv }, now, tuneId);
 }
