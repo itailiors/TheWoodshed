@@ -2,6 +2,8 @@ import { chroma, prettyNote, type LensKey, type LineNoteEval } from "@reharm/the
 import { useEffect, useRef } from "react";
 import { useRough } from "../../design/rough";
 import { ink, keys as keyTone, paper, pen, seedOf, VERDICT_COLOR, wash } from "../../design/tokens";
+import { VerdictMark } from "../../design/VerdictMark";
+import { VERDICT_MARK } from "../../design/verdictMarks";
 
 const WW = 40;
 const BW = 24;
@@ -154,7 +156,14 @@ export function ImprovKeyboard({ low, high, marks, aim, held, onKey, onKeyUp, ta
                 {prettyNote(mk.note)}
               </text>
             )}
-            {v && <circle cx={c.x} cy={k.black ? 18 : BH + 18} r={k.black ? 8 : 10} fill={VERDICT_COLOR[v]} stroke={ink.deep} strokeWidth={1.5} />}
+            {v && (
+              <g>
+                <title>{`Held: ${VERDICT_MARK[v].label}`}</title>
+                <circle cx={c.x} cy={k.black ? 18 : BH + 18} r={k.black ? 8 : 10} fill={VERDICT_COLOR[v]} stroke={ink.deep} strokeWidth={1.5} />
+                {/* the heatmap's shape for the verdict, so it reads without the colour */}
+                <VerdictMark verdict={v} cx={c.x} cy={k.black ? 18 : BH + 18} r={k.black ? 4.5 : 5.5} />
+              </g>
+            )}
             {!k.black && k.midi % 12 === 0 && (
               <text x={k.x + WW / 2} y={WH + 20} textAnchor="middle" fontSize={13} className="fill-ink-faint font-hand">
                 C{k.midi / 12 - 1}

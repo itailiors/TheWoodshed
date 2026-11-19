@@ -100,7 +100,7 @@ export function TrioMixer({ compact = false, className = "" }: Props) {
             aria-pressed={on}
             aria-label={`${d.label}: ${on ? "playing, click to mute" : "muted, click to bring in"}`}
             title={`${on ? "Mute" : "Unmute"} ${d.label.toLowerCase()}`}
-            className={`group flex cursor-pointer flex-col items-center rounded-lg px-1 transition-[transform,opacity] hover:-rotate-2 focus-visible:outline-2 focus-visible:outline-ink ${
+            className={`group flex cursor-pointer flex-col items-center rounded-lg px-1 transition-[transform,opacity] hover:-rotate-2 ${
               on ? "text-ink" : "text-ink-faint opacity-60"
             }`}
           >

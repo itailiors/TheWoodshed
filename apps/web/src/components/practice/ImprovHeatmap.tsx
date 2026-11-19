@@ -27,6 +27,8 @@ import { player } from "../../audio/player";
 import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
 import { ink, seedOf, VERDICT_COLOR, wash } from "../../design/tokens";
+import { VerdictMark, VerdictSwatch } from "../../design/VerdictMark";
+import { describeVerdicts, VERDICT_MARK, VERDICTS } from "../../design/verdictMarks";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { VolumeMixer } from "../VolumeMixer";
 import { PenKeyboard } from "./PenKeyboard";
@@ -88,7 +90,9 @@ const PAGE = 8;
 const PHONE_PAGE = 4;
 const CHORD_FONT = '700 14px Kalam, "Noto Music"';
 const CHORD_LANE_Y = [14, 29];
-const LABEL: Record<LineNoteEval["verdict"], string> = { "chord-tone": "Chord tone", tension: "Tension", avoid: "Avoid", outside: "Chromatic / outside" };
+/** Radius of the verdict shape drawn at the start of each note (bars are 10 units tall). */
+const MARK_R = 3.6;
+const markX = (x1: number, x2: number) => x1 + Math.min(5, Math.max(0, x2 - x1) / 2);
 
 /**
  * Improv heatmap: solo over the backing loop and every note lands on a "loop tape",
@@ -120,7 +124,7 @@ interface StoredGhostNote extends GhostNote {
 
 /** Why a note got its colour, in one line: "E = 3 over C7 · chord tone · guide-tone landing". */
 function explain(n: HeatNote) {
-  return `${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${LABEL[n.ev.verdict]}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`;
+  return `${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${VERDICT_MARK[n.ev.verdict].label}${n.passing ? " (passing)" : ""}${n.ev.scale ? ` · scale: ${n.ev.scale}` : ""}${n.landing ? " · guide-tone landing" : ""}`;
 }
 
 function explainGhost(n: StoredGhostNote) {
@@ -762,7 +766,7 @@ export function ImprovHeatmap({
         {!compact && (
           <p className="mt-1 text-sm text-ink-soft">
             Play single-note lines over the loop (bars {loop.startBar}–{loop.endBar}). Each note is judged against the chord sounding at that moment. Older passes fade.
-            {paged && ` Long loops show ${pageBars} bars at a time, turning with the music (or with ‹ › when stopped).`} Tap or hover a note to see why it got its colour.
+            {paged && ` Long loops show ${pageBars} bars at a time, turning with the music (or with ‹ › when stopped).`} Tap or hover a note to see why it got its colour and shape.
           </p>
         )}
 
@@ -772,7 +776,7 @@ export function ImprovHeatmap({
             preserveAspectRatio="xMidYMid meet"
             className={compact ? "block h-full w-full" : "block h-auto w-full sm:min-w-[560px]"}
             role="img"
-            aria-label="Improv heatmap loop tape"
+            aria-label={`Improv heatmap loop tape, bars ${winFirstBar}–${winLastBar}: ${describeVerdicts(stats.n, stats.pct)}`}
           >
             {/* bar grid + Call/Response phase tinting + chord labels */}
             {Array.from({ length: winLastBar - winFirstBar + 1 }, (_, i) => {
@@ -817,6 +821,17 @@ export function ImprovHeatmap({
               </text>
             ))}
             <g ref={g} />
+            {/* each note's verdict as a shape too, not only a colour (● chord tone, ◇ tension, ✕ avoid, △ outside) */}
+            <g>
+              {done.map((n) => {
+                const age = pass.current - n.pass;
+                return (
+                  <g key={`m${n.id}`} opacity={age === 0 ? 1 : age === 1 ? 0.45 : 0.2}>
+                    <VerdictMark verdict={n.ev.verdict} cx={markX(x(n.start), x(n.end!))} cy={y(n.midi)} r={MARK_R} />
+                  </g>
+                );
+              })}
+            </g>
             {/* notes still sounding (stretched imperatively in rAF via openNotesRef) */}
             <g ref={openNotesRef}>
               {notes
@@ -833,6 +848,14 @@ export function ImprovHeatmap({
                     fill={VERDICT_COLOR[n.ev.verdict]}
                     style={{ display: "none" }}
                   />
+                ))}
+            </g>
+            {/* their shapes stay put at the note's start (kept out of openNotesRef, whose children are all stretched rects) */}
+            <g>
+              {notes
+                .filter((n) => n.end === null && n.start >= winStart && n.start < winEnd)
+                .map((n) => (
+                  <VerdictMark key={`om${n.id}`} verdict={n.ev.verdict} cx={x(n.start) + 3} cy={y(n.midi)} r={MARK_R} />
                 ))}
             </g>
             {/* tooltips for user notes and Ghost Master notes */}
@@ -871,10 +894,10 @@ export function ImprovHeatmap({
         </div>
 
         <div className={`flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 ${compact ? "mt-1 text-xs" : "mt-3 text-sm"}`}>
-          {(Object.keys(LABEL) as LineNoteEval["verdict"][]).map((v) => (
+          {VERDICTS.map((v) => (
             <span key={v} className="flex items-center gap-2">
-              <span className="inline-block h-3 w-6 -rotate-2 rounded-sm" style={{ background: VERDICT_COLOR[v] }} />
-              {LABEL[v]} {stats.n > 0 && <span className="text-ink-faint">{stats.pct(v)}%</span>}
+              <VerdictSwatch verdict={v} color={VERDICT_COLOR[v]} />
+              {VERDICT_MARK[v].label} {stats.n > 0 && <span className="text-ink-faint">{stats.pct(v)}%</span>}
             </span>
           ))}
           <span className="flex items-center gap-2">
@@ -900,7 +923,7 @@ export function ImprovHeatmap({
         )}
         {pickedNote && (
           <p className={`shrink-0 font-hand ${compact ? "truncate text-sm" : "mt-2"}`} role="status">
-            <span className="inline-block h-3 w-3 -rotate-6 rounded-sm align-middle" style={{ background: VERDICT_COLOR[pickedNote.ev.verdict] }} /> {explain(pickedNote)}
+            <VerdictSwatch verdict={pickedNote.ev.verdict} color={VERDICT_COLOR[pickedNote.ev.verdict]} className="align-middle" /> {explain(pickedNote)}
           </p>
         )}
         {pickedGhost && (
