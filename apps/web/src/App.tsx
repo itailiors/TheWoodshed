@@ -47,6 +47,8 @@ import { useNarrow } from "./device/media";
 import { useWakeLock } from "./device/wakeLock";
 import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
+import { readDeepLink, writeDeepLink, type DeepLink } from "./deepLink";
+import { PlayPrompt } from "./components/PlayPrompt";
 
 // Split out of the main bundle: each is only needed after a click (or on a return visit
 // straight into Practice Mode), and all three are prefetched once the page is idle.
@@ -103,6 +105,12 @@ export function App() {
   // `baseTune` is the chart as written; `tune` is it in the key you've chosen. Everything
   // downstream (engine, moves, playback, heatmap, Deep Dive) only ever sees `tune`.
   const [baseTune, setTune] = useState<Tune>(referenceTune);
+  // ── a deep link (`?tune=…&key=Bb&level=3&play=1`) ──
+  // `initialLink` is what the page was opened with; `pendingLink` is that link until it has
+  // been applied to its tune (which may still be loading), then null. Until then the address
+  // bar is left alone, so a reload mid-load still has the link.
+  const [initialLink] = useState<DeepLink | null>(() => readDeepLink(window.location.search));
+  const [pendingLink, setPendingLink] = useState<DeepLink | null>(initialLink);
   const [keyTonic, setKeyTonic] = useState<string | null>(() => store.get(KEY_PREFIX + referenceTune.id));
   // Each tune remembers the key you last played it in.
   useEffect(() => setKeyTonic(store.get(KEY_PREFIX + baseTune.id)), [baseTune.id]);
@@ -133,10 +141,11 @@ export function App() {
     toast(note, { tone: "warn" });
   }, []);
 
-  // Reopen the tune that was on the stand last time.
+  // Open the tune a link names, or else reopen the one that was on the stand last time.
+  // (A link without `tune` means the reference tune.)
   useEffect(() => {
-    const last = store.get(LAST_TUNE);
-    const lastTitle = store.get(LAST_TITLE);
+    const last = initialLink ? (initialLink.tune ?? referenceTune.id) : store.get(LAST_TUNE);
+    const lastTitle = initialLink ? null : store.get(LAST_TITLE);
     if (!last || last === referenceTune.id) return;
     let live = true; // false once this effect is cleaned up (StrictMode runs it twice in dev)
     let cancelRetry = () => {};
@@ -144,7 +153,12 @@ export function App() {
       loadTune(last).catch(async (err) => {
         if (!live) return;
         if (err instanceof LibraryError && err.status === 404) {
-          backToReference(`${lastTitle ? `“${lastTitle}”` : "The tune you had open"} is no longer in your library, so here's ${referenceTune.title} instead.`);
+          setPendingLink(null);
+          backToReference(
+            initialLink
+              ? `That link is to a tune that isn't in ${DEMO ? "the demo library" : "your library"} (“${last}”), so here's ${referenceTune.title} instead.`
+              : `${lastTitle ? `“${lastTitle}”` : "The tune you had open"} is no longer in your library, so here's ${referenceTune.title} instead.`,
+          );
         } else if (err instanceof LibraryError && err.unreachable && (await checkApi()) !== "online" && live) {
           // The API is down (the banner says so). Keep the reference tune for now, and
           // put the remembered one back on the stand as soon as the API returns.
@@ -156,7 +170,7 @@ export function App() {
       live = false;
       cancelRetry();
     };
-  }, [loadTune, backToReference]);
+  }, [loadTune, backToReference, initialLink]);
   const bars = formBars(tune);
 
   const { accepted, rejected } = useMemo(() => generateMoves(tune), [tune]);
@@ -229,6 +243,8 @@ export function App() {
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem("reharm.mode");
+      // a link opens on the lead sheet (Practice, if that's where you were, shows it too)
+      if (initialLink && saved !== "practice") return "study";
       // anything unknown (an old build's value, a typo) falls back to Study
       return (APP_MODES as readonly string[]).includes(saved ?? "") ? (saved as AppMode) : "study";
     } catch {
@@ -351,6 +367,75 @@ export function App() {
     setLoopSelection(false);
   }, [baseTune]);
 
+  // Apply a link once its tune is on the stand. Declared after the resets above so its state
+  // lands last. Applying is idempotent (StrictMode re-runs it with the same link). The key
+  // isn't saved as "the key you last played this in": opening a link doesn't change that.
+  const [playPrompt, setPlayPrompt] = useState(false);
+  useEffect(() => {
+    const l = pendingLink;
+    if (!l || baseTune.id !== (l.tune ?? referenceTune.id)) return;
+    if (l.key) setKeyTonic(chroma(l.key) === chroma(baseTune.key.tonic) ? null : l.key);
+    if (l.level !== undefined) setLevel(l.level);
+    setForced(l.picks);
+    setKept(l.keep);
+    if (l.move) setSelectedId(l.move);
+    if (l.tempo) setTempo(l.tempo);
+    if (l.play) setPlayPrompt(true);
+    setPendingLink(null);
+  }, [baseTune, pendingLink]);
+
+  /** This reharm as a link: tune, key, dial, picks, the open move and a non-default tempo. */
+  const linkState = useMemo(
+    (): Partial<DeepLink> => ({
+      tune: baseTune.id,
+      key: keyTonic ?? undefined,
+      level,
+      move: selectedId ?? undefined,
+      picks: forced,
+      keep: kept,
+      tempo: tempo !== baseTune.tempo ? tempo : undefined,
+    }),
+    [baseTune, keyTonic, level, selectedId, forced, kept, tempo],
+  );
+  // The address bar always holds the reharm on the stand, so copying it shares it. Debounced:
+  // a tempo drag would otherwise hit the browser's replaceState rate limit (Safari throws).
+  useEffect(() => {
+    if (pendingLink) return;
+    const t = setTimeout(() => {
+      const { pathname, search, hash } = window.location;
+      const next = writeDeepLink(linkState);
+      if (next === search) return;
+      try {
+        window.history.replaceState(window.history.state, "", pathname + next + hash);
+      } catch {
+        /* rate-limited: the next change writes it */
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [linkState, pendingLink]);
+  const shareLink = async () => {
+    const { origin, pathname } = window.location;
+    const url = origin + pathname + writeDeepLink({ ...linkState, play: true });
+    try {
+      await navigator.clipboard.writeText(url);
+      toast(`Link copied: it opens ${tune.title} on level ${level}${keyTonic ? ` in ${prettyNote(tune.key.tonic)}` : ""}${forced.length || kept.length ? " with your picks" : ""}, ready to play.`);
+    } catch {
+      toast(`Couldn't reach the clipboard. The address bar has the same link.`, { tone: "warn" });
+    }
+  };
+  const playFromLink = () => {
+    setPlayPrompt(false);
+    void playback.play();
+  };
+  const playPromptView = playPrompt && (
+    <PlayPrompt
+      title={tune.title}
+      detail={[level === 0 ? "As written" : `Level ${level}`, `in ${prettyNote(tune.key.tonic)}${tune.key.mode === "minor" ? " minor" : ""}`, `${tempo} bpm`].join(" · ")}
+      onPlay={playFromLink}
+      onClose={() => setPlayPrompt(false)}
+    />
+  );
+
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
 
   // The Changes game plays its own chords: a band carrying on underneath would clash, so it stops
@@ -400,6 +485,7 @@ export function App() {
     return (
       <Suspense fallback={<Inking label="Setting up the practice room" />}>
         <Toaster />
+        {playPromptView}
         <PracticeMode
         tune={tune}
         chords={shownChords}
@@ -427,6 +513,7 @@ export function App() {
     <div className="flex min-h-screen text-ink">
       <SketchFilters />
       <Toaster />
+      {playPromptView}
       <SideRail
         playing={playback.status === "playing"}
         onPlay={playback.toggle}
@@ -526,6 +613,14 @@ export function App() {
               title="See how the engine decided, bar by bar, and run its proofs live"
             >
               🔬 Engine X-ray
+            </button>
+            <button
+              type="button"
+              onClick={() => void shareLink()}
+              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
+              title="Copy a link to this reharm: the tune, key, dial level and your picks. It opens ready to play."
+            >
+              🔗 Share
             </button>
             <KeyPicker {...keyControl} />
             <LevelDial level={level} onChange={changeLevel} />

@@ -263,7 +263,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - The README has the live link, the CI badge and a GIF slot (the card stands in until `docs/media/demo.gif` exists).
   - Verified: the build loads at a `/TheWoodshed/` subpath with every request 200, including the proofs worker and lazy chunks.
 - **Still to do:** record the 20-second GIF (the dial turning, chords moving, proofs going green). Many recruiters never click through.
-- **Deep-link URLs:** `?tune=…&level=3&key=Bb&play=1`, with a ▶ overlay. These double as onboarding and as shareable reharm links.
+- ~~**Deep-link URLs**~~ **Done 2026-11-19:** `apps/web/src/deepLink.ts` (`tune key level move pick keep tempo play`), a ▶ `PlayPrompt` for `play=1`, the address bar kept in sync (debounced `replaceState`) and a 🔗 Share button. Verified in the demo build; see the README section "Shareable reharms".
 - **Study-mode shortcuts** (Space, ← →, a `?` overlay) and showing the Practice legend below `xl`.
 - **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
 - Smaller items:

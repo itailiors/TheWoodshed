@@ -9,6 +9,8 @@
 
 No install, no account, no MIDI keyboard needed (press **M** to play with your computer keyboard). Press **Play**, then turn the dial from **L0** to **L4** while the band plays.
 
+Or start mid-groove: [*Co-op Blues* in B♭, dial at L4](https://itailiors.github.io/TheWoodshed/?tune=coop-blues&key=Bb&level=4&play=1). One tap on ▶ and the band is in.
+
 *A flagship project of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**.*
 
 <!--
@@ -193,6 +195,13 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
   - with the View Transitions API, the lead sheet and title glide from one layout to the other while the rest cross-fades (skipped under reduced motion, and never allowed to hold up the switch);
   - **Practice this move** jumps straight into Practice Mode looping that move, counting in if the band wasn't already playing. If it was, the playhead jumps into the new loop at once;
   - **Drill the voicing** opens the Comping Coach page on that move.
+
+### 🔗 Shareable reharms: deep links
+- **The address bar is the reharm.** It always holds what's on the stand: `?tune=sunny-side&key=F%23&level=2&pick=chromatic.constantStructure@2.1`. Copy it, or press **🔗 Share**, and whoever opens it gets the same tune, key, dial level, swapped-in moves, chords kept as written, open move and tempo.
+- **Parameters** (all optional): `tune`, `key` (`Bb`, `bb`, `B♭`, `F%23`), `level` (0–4), `move`, `pick` and `keep` (comma-separated ids), `tempo` (40–320) and `play`. Move and chord ids are positional, so a shared reharm means the same thing in any key.
+- **`play=1`** opens on a big ▶. Browsers only start audio from a click, so the ▶ is that click; "Just look" (or Escape) leaves the page silent. Share links include it.
+- **Forgiving:** anything malformed is dropped rather than refusing the link, and a tune that isn't in the library falls back to *Co-op Blues* with a note saying so. Opening a link doesn't overwrite the key a tune remembers.
+- Works in the static demo at its `/TheWoodshed/` subpath, still with zero `/api` requests.
 
 ### ✍️ Claude-powered Deep Dive
 - One click turns a move into a short lesson: a summary, a 150–260-word deep dive (function, voice leading, how to hear and play it) and a key-independent rule.
@@ -415,6 +424,7 @@ apps/web/               React app
   src/components/changes/ the Changes tab: the game page, its hook (time, sound, input, saving), the road, controls
   src/audio/              Tone.js arranger and player
   src/midi/               Web MIDI hook, note bus, chord-strike detection
+  src/deepLink.ts         shareable reharm URLs: read/write, round-trip tested (npm test -w @reharm/web)
 apps/api/               Hono server: library, iReal import, moves, Claude Deep Dive
   src/db/                 Drizzle schema, sql.js client, repository
   drizzle/                SQL migrations (npm run db:generate -w @reharm/api)
@@ -425,10 +435,9 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 ## Roadmap
 
 **Next up**
-- Deploy the static demo, with a CI badge here, link-preview (OG) tags and a short GIF of the dial under the pedal.
-- Deep-link URLs (`?level=3&key=Bb&play=1`) that open the demo mid-groove.
+- A short GIF of the dial under the pedal, in place of the card at the top.
 
-**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial.
+**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial; the static demo is deployed with a CI badge and link-preview (OG) tags; deep-link URLs open the demo mid-groove and share a reharm.
 
 **Later**
 - Drag across bars to loop them (A–B loop).
