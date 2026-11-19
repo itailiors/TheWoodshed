@@ -9,10 +9,13 @@ import {
   subscribeMasterVolume,
   type ChannelId,
 } from "../audio/band";
+import { BandFeelControls, useBandFeelChanged } from "./BandFeelControls";
 
 interface Props {
   compact?: boolean;
   className?: string;
+  /** The tune's meter, so the band styles offered fit it (a waltz has no bossa). */
+  beatsPerBar?: number;
 }
 
 const CHANNEL_META: ReadonlyArray<{
@@ -37,7 +40,7 @@ const CHANNEL_META: ReadonlyArray<{
     id: "bass",
     icon: "🎻",
     label: "Upright Bass",
-    sublabel: "Walking bass line",
+    sublabel: "Walking or in 2",
   },
   {
     id: "drums",
@@ -57,9 +60,10 @@ const formatDb = (db: number) => `${db > 0 ? `+${db}` : db} dB`;
  * - Upright Bass
  * - Drums
  */
-export function VolumeMixer({ compact = false, className = "" }: Props) {
+export function VolumeMixer({ compact = false, className = "", beatsPerBar = 4 }: Props) {
   const db = useSyncExternalStore(subscribeMasterVolume, getMasterVolume);
   const channels = useSyncExternalStore(subscribeChannelVolumes, getChannelVolumes);
+  const feelChanged = useBandFeelChanged();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +71,7 @@ export function VolumeMixer({ compact = false, className = "" }: Props) {
   const icon = db <= -20 ? "🔈" : db > 3 ? "🔊" : "🔉";
   const hasCustomChannels =
     channels.playerPiano !== 0 || channels.bgPiano !== 0 || channels.bass !== 0 || channels.drums !== 0;
+  const customised = hasCustomChannels || feelChanged;
 
   useEffect(() => {
     if (!open) return;
@@ -123,11 +128,11 @@ export function VolumeMixer({ compact = false, className = "" }: Props) {
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-haspopup="dialog"
-          title="Open Advanced Instrument Mixer (Player Piano, Background Piano, Bass, Drums)"
+          title="Open the mixer: channel faders, swing and band style"
           className={`cursor-pointer rounded-full px-1.5 py-0.5 font-marker text-[10px] tracking-wide transition-colors ${
             open
               ? "bg-ink text-paper"
-              : hasCustomChannels
+              : customised
                 ? "bg-mustard/25 text-ink hover:bg-mustard/40"
                 : "text-ink-soft hover:bg-ink/10 hover:text-ink"
           }`}
@@ -200,6 +205,8 @@ export function VolumeMixer({ compact = false, className = "" }: Props) {
               );
             })}
           </div>
+
+          <BandFeelControls beatsPerBar={beatsPerBar} />
         </div>
       )}
     </div>

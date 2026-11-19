@@ -194,7 +194,7 @@ export function PracticeMode(p: Props) {
         <BeatPulse position={playback.position} beatTick={playback.beatTick} count={playback.count} beatsPerBar={bpb} />
         {playback.status === "loading" && <LoadingLine />}
         <span className="font-marker">♩ = {p.tempo}</span>
-        <VolumeMixer compact />
+        <VolumeMixer compact beatsPerBar={bpb} />
         <button
           type="button"
           onClick={cycleTrade}

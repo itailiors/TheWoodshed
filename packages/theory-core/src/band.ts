@@ -240,9 +240,10 @@ export function humanizeWalk(line: BassNote[], beatsPerBar: number, feel: WalkFe
   return out;
 }
 
-export function bassLine(tune: Pick<Tune, "feel" | "meter"> & { id?: string }, chords: BassChord[]): BassNote[] {
+/** `style` overrides the feel's default (see `bandFeel`): a swing tune can be played in 2. */
+export function bassLine(tune: Pick<Tune, "feel" | "meter"> & { id?: string }, chords: BassChord[], style: BassStyle = bassStyleFor(tune.feel)): BassNote[] {
   const bpb = tune.meter[0];
-  if (bassStyleFor(tune.feel) === "two-feel") return twoFeelBass(chords, bpb);
+  if (style === "two-feel") return twoFeelBass(chords, bpb);
   return humanizeWalk(walkingBass(chords, bpb), bpb, { seed: `${tune.id ?? "tune"}:${chords.length}` });
 }
 
@@ -265,6 +266,79 @@ export interface DrumHit {
 /** The swung "a" of "ding-a": two-thirds of the way through the beat. */
 export const SWING_SKIP = 2 / 3;
 
+// ── swing ratio ──────────────────────────────────────────────────────────
+
+/**
+ * Where the swung offbeat eighth falls, as a fraction of the beat. 0.5 is straight, 2/3 the
+ * triplet 2:1 (the default, SWING_SKIP), 0.75 a hard dotted-eighth/sixteenth lilt. Fast
+ * tempos flatten toward straight; shuffles and slow grooves push toward 0.75.
+ */
+export const SWING_STRAIGHT = 0.5;
+export const SWING_HARD = 0.75;
+export const DEFAULT_SWING = SWING_SKIP;
+
+export function clampSwing(ratio: number): number {
+  return Number.isFinite(ratio) ? Math.min(SWING_HARD, Math.max(SWING_STRAIGHT, ratio)) : DEFAULT_SWING;
+}
+
+/**
+ * Swing a time written in straight eighths. Each beat is warped piecewise-linearly: its
+ * first half [0, ½] stretches to [0, r] and its second half [½, 1] squeezes into [r, 1].
+ * So "2.5" (the "and" of 2) lands on 2 + r, downbeats stay put, and a note's start and end
+ * both move, so an on-beat eighth grows into the long note of the pair and the offbeat shrinks.
+ */
+export function swingTime(beat: number, ratio: number): number {
+  const r = clampSwing(ratio);
+  const whole = Math.floor(beat + 1e-9);
+  const f = Math.max(0, beat - whole);
+  return whole + (f <= 0.5 ? f * 2 * r : r + (f - 0.5) * 2 * (1 - r));
+}
+
+// ── band styles ──────────────────────────────────────────────────────────
+
+/**
+ * How the rhythm section plays the tune, independent of the feel it was written in.
+ * "as-written" follows `Tune.feel`; the rest override it for the band only (the chart,
+ * the moves and the melody filter never look at this).
+ */
+export type BandStyle = "as-written" | "walking" | "in-two" | "ballad" | "bossa" | "straight8";
+
+export const BAND_STYLES: readonly { id: BandStyle; label: string; hint: string }[] = [
+  { id: "as-written", label: "As written", hint: "The tune's own feel" },
+  { id: "walking", label: "Walking", hint: "Quarter-note walk, ride in swing" },
+  { id: "in-two", label: "Bass in 2", hint: "Roots and 5ths on 1 and 3, ride still swinging (the head-in-2 sound)" },
+  { id: "ballad", label: "Ballad", hint: "Brushes, half-note bass, pads on 1 and 3" },
+  { id: "bossa", label: "Bossa", hint: "Straight eighths, bass in 2, clave-ish comping" },
+  { id: "straight8", label: "Straight 8ths", hint: "Even eighths on the ride, bass in 2" },
+];
+
+/** The styles that make sense in a meter: a waltz walks, goes in 1, or plays as a ballad. */
+export function bandStylesFor(beatsPerBar: number): readonly BandStyle[] {
+  const all = BAND_STYLES.map((s) => s.id);
+  return beatsPerBar === 3 ? all.filter((s) => s !== "bossa" && s !== "straight8") : all;
+}
+
+/** The feel the band plays and the bass style it plays it with. Styles a meter doesn't offer fall back to the tune's feel. */
+export function bandFeel(tune: Pick<Tune, "feel" | "meter">, style: BandStyle): { feel: Tune["feel"]; bass: BassStyle } {
+  const swingFeel: Tune["feel"] = tune.meter[0] === 3 ? "waltz" : "swing";
+  if (!bandStylesFor(tune.meter[0]).includes(style)) style = "as-written";
+  switch (style) {
+    case "walking":
+      return { feel: swingFeel, bass: "walking" };
+    case "in-two":
+      return { feel: swingFeel, bass: "two-feel" };
+    case "ballad":
+    case "bossa":
+    case "straight8":
+      return { feel: style, bass: "two-feel" };
+    default:
+      return { feel: tune.feel, bass: bassStyleFor(tune.feel) };
+  }
+}
+
+/** Swung feels are the ones the swing ratio applies to. */
+export const isSwungFeel = (feel: Tune["feel"]) => feel === "swing" || feel === "waltz";
+
 /**
  * Which beats (0-based) get the hi-hat "chick". In 4/4 that is 2 and 4. A jazz waltz
  * has no beat 4, so the foot plays 2 and 3; other meters use the even beats.
@@ -276,7 +350,8 @@ export function hatBeats(beatsPerBar: number): number[] {
 }
 
 /** The ride pattern for one bar, as beat offsets: "ding, ding-a-ding" in swing. */
-export function rideOffsets(feel: Tune["feel"], beatsPerBar: number): { at: number; vel: number }[] {
+export function rideOffsets(feel: Tune["feel"], beatsPerBar: number, swing = DEFAULT_SWING): { at: number; vel: number }[] {
+  const skip = clampSwing(swing);
   const beats = Array.from({ length: beatsPerBar }, (_, i) => i);
   if (feel === "bossa" || feel === "straight8") {
     return beats.flatMap((b) => [
@@ -291,7 +366,7 @@ export function rideOffsets(feel: Tune["feel"], beatsPerBar: number): { at: numb
   const skips = beatsPerBar === 3 ? [1] : beats.filter((b) => b % 2 === 1);
   return beats.flatMap((b) => {
     const hit = { at: b, vel: hats.has(b) ? RIDE_BACKBEAT : RIDE_BEAT };
-    return skips.includes(b) ? [hit, { at: b + SWING_SKIP, vel: RIDE_SKIP }] : [hit];
+    return skips.includes(b) ? [hit, { at: b + skip, vel: RIDE_SKIP }] : [hit];
   });
 }
 
@@ -304,21 +379,24 @@ export const HAT_ACCENT = 0.9;
 
 /**
  * A whole drum part for `bars` bars. `seed` places the drummer's ghosted snare comping
- * (a soft note on a swung triplet partial every few bars), so it repeats per tune.
+ * (a soft note on the swung offbeat every few bars), so it repeats per tune. `swing` is the
+ * swing ratio (see `swingTime`); the seeded choices don't depend on it, so moving the slider
+ * only shifts the skip notes, it never reshuffles the part.
  */
-export function drumPattern(feel: Tune["feel"], beatsPerBar: number, bars: number, seed: string | number = "drums"): DrumHit[] {
+export function drumPattern(feel: Tune["feel"], beatsPerBar: number, bars: number, seed: string | number = "drums", swing = DEFAULT_SWING): DrumHit[] {
   const out: DrumHit[] = [];
-  const ride = rideOffsets(feel, beatsPerBar);
+  const ride = rideOffsets(feel, beatsPerBar, swing);
   const hats = hatBeats(beatsPerBar);
   const rnd = seededRandom(seed);
-  const swung = feel === "swing" || feel === "waltz";
+  const swung = isSwungFeel(feel);
+  const skip = clampSwing(swing);
   for (let bar = 0; bar < bars; bar++) {
     const top = bar * beatsPerBar;
     for (const r of ride) out.push({ beat: top + r.at, voice: "ride", vel: r.vel, dur: 0.5 });
     for (const h of hats) out.push({ beat: top + h, voice: "hat", vel: HAT_ACCENT, dur: 0.1 });
     if (swung && rnd() < 0.3) {
       // Snare chatter: the "a" of the last beat (a pickup into the next bar) or of beat 2.
-      const at = rnd() < 0.6 ? beatsPerBar - 1 + SWING_SKIP : 1 + SWING_SKIP;
+      const at = rnd() < 0.6 ? beatsPerBar - 1 + skip : 1 + skip;
       out.push({ beat: top + at, voice: "snare", vel: 0.16 + rnd() * 0.1, dur: 0.2 });
     }
     for (let b = 0; b < beatsPerBar; b++) {

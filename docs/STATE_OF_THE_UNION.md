@@ -176,6 +176,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 - **Engine:** 11 rules (L1–L4), melody filter with reasons, voice-leading scores, density-capped pathways, scale map, voicings, Roman analysis.
 - **Study, Practice and Coach modes** with continuity, which is unchanged from before.
   - **Shared across modes:** global key change, trio mixer, count-in, click and beat dot.
+  - **Mixer popover** (master fader → "Advanced"/"Mix"): per-channel faders, plus a Band section with a swing slider (50% even → 67% triplet 2:1 default → 75% hard; moves the ride skip, snare chatter, comping offbeats and the head's straight-written eighths via `swingTime`) and band styles (As written, Walking, Bass in 2, Ballad, Bossa, Straight 8ths; a waltz offers only the first four). `bandFeel()` in theory-core resolves a style; changes re-lay the parts mid-tune.
   - **Study:** the lead sheet, move cards, Deep Dive and "Practice this move".
   - **Practice:** HUD, heatmap and shortcuts.
   - **Coach:** strike and voice-leading diffs, the 12-key drill, and "hear the move" with chords moving.
@@ -280,8 +281,6 @@ The **Musician's Wishlist** in the README holds the full set of ideas: Expressio
 - drag a bar range to loop it;
 - Coach wait mode;
 - tempo trainer;
-- a swing slider and volume faders;
-- band styles;
 - MIDI melody capture;
 - recording takes;
 - a dark theme;
@@ -312,7 +311,7 @@ npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.js
   - `POST /api/import/ireal {url}`
   - `POST /api/explain {tuneId (may be base@Key), moveId, fresh?}`
   - `/api/practice`: `POST sessions`, `POST sessions/:id/end`, `POST coach-attempts`, `POST improv-runs`, `GET progress` (concepts, places, cleanKeys, due, recentImprov), `GET due` (with `lastPlace`)
-- **localStorage keys:** `reharm.tune`, `reharm.tune.title`, `reharm.mode`, `reharm.key:<tuneId>`, `reharm.mixer`, `reharm.countIn`, `reharm.qwerty` (`{enabled, base}`), `reharm.pedal` (`{linked}`).
+- **localStorage keys:** `reharm.tune`, `reharm.tune.title`, `reharm.mode`, `reharm.key:<tuneId>`, `reharm.mixer`, `reharm.countIn`, `reharm.qwerty` (`{enabled, base}`), `reharm.pedal` (`{linked}`), `reharm.masterVolume`, `reharm.channelVolumes`, `reharm.swing`, `reharm.bandStyle`.
 - **Keyboard:**
   - Global: `M` toggles QWERTY. While it's on: `A`–`'` play notes, `W E T Y U O P` play black keys, `Z` / `X` change octave.
   - Practice: Space, ← →, A, L, `[ ]`, `, .`, 1–4, Esc.

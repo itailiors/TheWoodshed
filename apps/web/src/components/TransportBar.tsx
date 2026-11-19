@@ -76,7 +76,7 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
         />
       </label>
 
-      <VolumeMixer />
+      <VolumeMixer beatsPerBar={pulse.beatsPerBar} />
 
       {narrow && (
         <button

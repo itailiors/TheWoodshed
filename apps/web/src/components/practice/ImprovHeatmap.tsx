@@ -746,7 +746,7 @@ export function ImprovHeatmap({
                 </select>
               </>
             )}
-            {!compact && <VolumeMixer compact />}
+            {!compact && <VolumeMixer compact beatsPerBar={bpb} />}
             <button
               type="button"
               onClick={() => {

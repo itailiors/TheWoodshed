@@ -1,5 +1,22 @@
-import { absBeat, bassLine, drumPattern, formBars, midiOf, voiceProgression, type ChordEvent, type DrumVoice, type TimePos, type Tune } from "@reharm/theory-core";
+import {
+  DEFAULT_SWING,
+  absBeat,
+  bandFeel,
+  bassLine,
+  clampSwing,
+  drumPattern,
+  formBars,
+  isSwungFeel,
+  midiOf,
+  swingTime,
+  voiceProgression,
+  type ChordEvent,
+  type DrumVoice,
+  type TimePos,
+  type Tune,
+} from "@reharm/theory-core";
 import * as Tone from "tone";
+import { getBandFeel, subscribeBandFeel } from "./bandFeel";
 import {
   getBgPianoVolume,
   getPlayerPianoVolume,
@@ -26,8 +43,6 @@ const SALAMANDER_URL = "https://tonejs.github.io/audio/salamander/";
 const SAMPLED = ["A1", "C2", "D#2", "F#2", "A2", "C3", "D#3", "F#3", "A3", "C4", "D#4", "F#4", "A4", "C5", "D#5", "F#5", "A5", "C6"];
 const LOAD_TIMEOUT_MS = 12000;
 
-/** Swung eighth-note offbeat ("2&", "4&"): 2/3 of a beat, matching the drummer's SWING_SKIP. */
-const SWING_OFFBEAT = 2 / 3;
 /** Straight eighth-note offbeat for bossa, ballad, and straight-8th feels. */
 const STRAIGHT_OFFBEAT = 0.5;
 
@@ -47,10 +62,14 @@ interface NoteEvent {
  *   alternating on multi-bar chords with a syncopated "1&", "3", "4&" groove so beats 3–4 stay alive.
  * - 4/4 bossa / straight8: straight-eighth syncopated clave ("1", "2&", "3&", "4&") locking with the drums.
  * - 4/4 ballad: warm half-note pads on 1 and 3 with a gentle pickup on "4&".
+ * `tune.feel` is the feel the band plays (the band style may override the chart's), and
+ * `swing` is the swing ratio: swung offbeats sit at `beat + swing`, and the head melody,
+ * written in straight eighths, is swung by the same ratio so it sits in the band's pocket.
  */
-export function arrange(tune: Tune, chords: ChordEvent[]): NoteEvent[] {
+export function arrange(tune: Tune, chords: ChordEvent[], swing = DEFAULT_SWING): NoteEvent[] {
   const bpb = tune.meter[0];
-  const swung = tune.feel === "swing" || tune.feel === "waltz";
+  const swung = isSwungFeel(tune.feel);
+  const SWING_OFFBEAT = clampSwing(swing);
   const offbeat = swung ? SWING_OFFBEAT : STRAIGHT_OFFBEAT;
   const voicings = voiceProgression(chords);
   const events: NoteEvent[] = [];
@@ -117,7 +136,9 @@ export function arrange(tune: Tune, chords: ChordEvent[]): NoteEvent[] {
     }
   });
   for (const n of tune.melody) {
-    events.push({ beat: absBeat(n.at, bpb), notes: [midiOf(n.pitch)], dur: n.beats * 0.95, vel: 0.78 });
+    const start = absBeat(n.at, bpb);
+    const [from, to] = swung ? [swingTime(start, swing), swingTime(start + n.beats, swing)] : [start, start + n.beats];
+    events.push({ beat: from, notes: [midiOf(n.pitch)], dur: (to - from) * 0.95, vel: 0.78 });
   }
   return events;
 }
@@ -166,10 +187,18 @@ export class AudioEngine {
   private countIn: CountIn | null = null;
   private clockId: number | null = null;
   private bpb = 3;
+  /** The last arrangement, re-laid when the swing or band style changes. */
+  private arrangement: Arrangement | null = null;
+  private unsubFeel: () => void;
   source: InstrumentSource | null = null;
   bandSource: { bass: BandSource; drums: BandSource } | null = null;
 
-  constructor(private host: EngineHost) {}
+  constructor(private host: EngineHost) {
+    // Parts live on the Transport, so rebuilding them mid-tune lands on the very next event.
+    this.unsubFeel = subscribeBandFeel(() => {
+      if (this.arrangement) this.update(this.arrangement, Tone.getTransport().bpm.value);
+    });
+  }
 
   /**
    * Builds the instruments. Asks the browser to start audio, but never waits for it:
@@ -247,7 +276,13 @@ export class AudioEngine {
   }
 
   /** Swap in a new arrangement (safe while playing). */
-  update({ tune, chords, loop }: Arrangement, tempo: number) {
+  update(arrangement: Arrangement, tempo: number) {
+    const { tune: chart, chords, loop } = arrangement;
+    this.arrangement = arrangement;
+    // The band plays the chosen style over the chart: same changes and melody, its own feel.
+    const { swing, style } = getBandFeel();
+    const band = bandFeel(chart, style);
+    const tune: Tune = { ...chart, feel: band.feel };
     const t = Tone.getTransport();
     const mix = () => this.host.mix();
     this.bpb = tune.meter[0];
@@ -261,7 +296,7 @@ export class AudioEngine {
     t.loopEnd = ticks(loop.endBar * this.bpb);
 
     // Piano: comping + melody.
-    const events = arrange(tune, chords).map((e) => ({ ...e, time: ticks(e.beat) }));
+    const events = arrange(tune, chords, swing).map((e) => ({ ...e, time: ticks(e.beat) }));
     this.part?.dispose();
     this.part = new Tone.Part<Timed<NoteEvent>>((time, e) => {
       const inst = this.instrument;
@@ -281,14 +316,14 @@ export class AudioEngine {
       const at = absBeat(c.at, this.bpb);
       return at >= loopFrom && at < loopTo;
     });
-    const bassEvents = bassLine(tune, looped.length ? looped : chords).map((n) => ({ midi: n.midi, dur: n.dur, vel: n.vel, time: ticks(n.beat) }));
+    const bassEvents = bassLine(tune, looped.length ? looped : chords, band.bass).map((n) => ({ midi: n.midi, dur: n.dur, vel: n.vel, time: ticks(n.beat) }));
     this.bassPart?.dispose();
     this.bassPart = new Tone.Part<Timed<BassEvent>>((time, n) => {
       if (!this.bass || !mix().bass) return;
       this.bass.play(n.midi, secs(n.dur), humanTime(time), humanVel(n.vel, 0.06));
     }, bassEvents).start(0);
 
-    const hits = drumPattern(tune.feel, this.bpb, formBars(tune), tune.id).map((h) => ({ voice: h.voice, dur: h.dur, vel: h.vel, time: ticks(h.beat) }));
+    const hits = drumPattern(tune.feel, this.bpb, formBars(tune), tune.id, swing).map((h) => ({ voice: h.voice, dur: h.dur, vel: h.vel, time: ticks(h.beat) }));
     this.drumPart?.dispose();
     this.drumPart = new Tone.Part<Timed<DrumEvent>>((time, h) => {
       if (!this.drums || !mix().drums) return;
@@ -402,6 +437,8 @@ export class AudioEngine {
   /** Remove everything this engine put on the shared Transport and audio graph. */
   dispose() {
     this.stop();
+    this.unsubFeel();
+    this.arrangement = null;
     this.unsubVolumes?.();
     this.unsubVolumes = null;
     if (this.clockId !== null) Tone.getTransport().clear(this.clockId);
