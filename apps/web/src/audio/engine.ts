@@ -14,6 +14,7 @@ import {
   type DrumVoice,
   type TimePos,
   type Tune,
+  type VoicingStyle,
 } from "@reharm/theory-core";
 import * as Tone from "tone";
 import { getBandFeel, subscribeBandFeel } from "./bandFeel";
@@ -66,12 +67,12 @@ interface NoteEvent {
  * `swing` is the swing ratio: swung offbeats sit at `beat + swing`, and the head melody,
  * written in straight eighths, is swung by the same ratio so it sits in the band's pocket.
  */
-export function arrange(tune: Tune, chords: ChordEvent[], swing = DEFAULT_SWING): NoteEvent[] {
+export function arrange(tune: Tune, chords: ChordEvent[], swing = DEFAULT_SWING, voicing: VoicingStyle = "close"): NoteEvent[] {
   const bpb = tune.meter[0];
   const swung = isSwungFeel(tune.feel);
   const SWING_OFFBEAT = clampSwing(swing);
   const offbeat = swung ? SWING_OFFBEAT : STRAIGHT_OFFBEAT;
-  const voicings = voiceProgression(chords);
+  const voicings = voiceProgression(chords, { style: voicing });
   const events: NoteEvent[] = [];
 
   chords.forEach((c, i) => {
@@ -280,7 +281,7 @@ export class AudioEngine {
     const { tune: chart, chords, loop } = arrangement;
     this.arrangement = arrangement;
     // The band plays the chosen style over the chart: same changes and melody, its own feel.
-    const { swing, style } = getBandFeel();
+    const { swing, style, voicing } = getBandFeel();
     const band = bandFeel(chart, style);
     const tune: Tune = { ...chart, feel: band.feel };
     const t = Tone.getTransport();
@@ -296,7 +297,7 @@ export class AudioEngine {
     t.loopEnd = ticks(loop.endBar * this.bpb);
 
     // Piano: comping + melody.
-    const events = arrange(tune, chords, swing).map((e) => ({ ...e, time: ticks(e.beat) }));
+    const events = arrange(tune, chords, swing, voicing).map((e) => ({ ...e, time: ticks(e.beat) }));
     this.part?.dispose();
     this.part = new Tone.Part<Timed<NoteEvent>>((time, e) => {
       const inst = this.instrument;

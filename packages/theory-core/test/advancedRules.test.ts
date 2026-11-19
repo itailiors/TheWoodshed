@@ -192,6 +192,74 @@ describe("advanced rule pack: invariants", () => {
   });
 });
 
+describe("rule: one note on top", () => {
+  const RULE = "melody.oneNoteOnTop";
+
+  it("holds one note on top of every walk chord, as a real chord tone, while the bass walks by half steps into the target", () => {
+    fc.assert(
+      fc.property(diatonicArb, (t) => {
+        for (const m of movesOf(t, RULE)) {
+          const T = target(t, m);
+          const held = m.facts.heldNote as string;
+          const [kept, ...walk] = m.chords;
+          expect(chroma(kept.root)).toBe(chroma(m.original[0].root));
+          expect(walk.length).toBeGreaterThanOrEqual(2);
+          for (const c of walk) {
+            expect(c.topVoice).toBeDefined();
+            expect(chroma(c.topVoice!)).toBe(chroma(held));
+            expect(chordTones(c).some((x) => chroma(x.note) === chroma(held))).toBe(true);
+          }
+          // every walk chord sits on a single top pitch (same octave too)
+          expect(new Set(walk.map((c) => c.topVoice)).size).toBe(1);
+          // the bass descends by half steps through the walk and lands on the target
+          const basses = [...walk.map((c) => c.root), T.bass ?? T.root];
+          for (let i = 1; i < basses.length; i++) expect(semis(basses[i - 1], basses[i])).toBe(11);
+          // on a changes-only chart the held note is shared by the chord and its target
+          expect(chordTones(m.original[0]).some((x) => chroma(x.note) === chroma(held))).toBe(true);
+          expect(chordTones(T).some((x) => chroma(x.note) === chroma(held))).toBe(true);
+        }
+      }),
+      RUNS,
+    );
+  });
+
+  it("V7 → I in C: holds G over D7sus4 and D♭7(♯11)", () => {
+    const t = buildTune("C", 4, [["V", "I"]]);
+    const [m] = movesOf(t, RULE);
+    expect(m.chords.map((c) => c.root + c.quality)).toEqual(["G7", "D7sus4", "Db7"]);
+    expect(m.chords.map((c) => c.beats)).toEqual([2, 1, 1]);
+    expect(m.chords[2].alterations).toEqual(["#11"]);
+    expect(m.facts.roles).toEqual(["sus 4th", "♯11"]);
+    expect(new Set(m.chords.map((c) => c.topVoice))).toEqual(new Set(["G4"]));
+  });
+
+  it("on a changes-only chart it walks only into a cadence, and only at the start of a chain of fifths", () => {
+    // iii vi ii V I: a chain of fifths from iii; I → IV isn't preceded by a fifth, so it may walk too
+    const chain = buildTune("C", 4, [["iii", "vi", "ii", "V", "I"]]);
+    expect(movesOf(chain, RULE).map((m) => m.original[0].root)).toEqual(["E"]);
+    // IV → I is plagal (down a 4th = up a 5th): no walk
+    expect(movesOf(buildTune("C", 4, [["IV", "I"]]), RULE)).toHaveLength(0);
+    // a dominant written out bar by bar (V | V | I) still counts as one link
+    const repeated = buildTune("C", 4, [["ii"], ["V"], ["V", "I"]]);
+    expect(movesOf(repeated, RULE).map((m) => m.original[0].root)).toEqual(["D"]);
+  });
+
+  it("with a melody, holds the melody's own sustained note, and stays quiet when the melody moves", () => {
+    const base = buildTune("C", 4, [["V", "I"]]);
+    const held = { ...base, melody: [{ at: { bar: 1, beat: 1 }, beats: 4, pitch: "E5" }], melodyCoverage: "full" as const };
+    const [m] = movesOf(held, RULE);
+    expect(m.facts.heldNote).toBe("E");
+    expect(m.chords.slice(1).every((c) => c.topVoice === "E5")).toBe(true);
+    // E over D is the 9th; over D♭ (the approach) it's the ♯9
+    expect(m.chords.map((c) => c.root + c.quality)).toEqual(["G7", "Dm7", "Db7"]);
+    expect(m.chords[2].alterations).toEqual(["#9"]);
+    expect(m.checks.melody.every((x) => x.verdict !== "avoid")).toBe(true);
+
+    const moving = { ...held, melody: [{ at: { bar: 1, beat: 1 }, beats: 2, pitch: "E5" }, { at: { bar: 1, beat: 3 }, beats: 2, pitch: "D5" }] };
+    expect(movesOf(moving, RULE)).toHaveLength(0);
+  });
+});
+
 describe("advanced rule pack: coverage", () => {
   it("every new rule fires on a showcase progression in C (and its levels are right)", () => {
     const t = buildTune("C", 4, [["I"], ["ii", "V", "I"], ["IV", "I"], ["iii", "ii", "V", "I"]]);
@@ -204,6 +272,7 @@ describe("advanced rule pack: coverage", () => {
       "chromatic.commonToneDiminished": 3,
       "symmetric.coltraneSubstitution": 4,
       "chromatic.constantStructure": 4,
+      "melody.oneNoteOnTop": 4,
     });
   });
 

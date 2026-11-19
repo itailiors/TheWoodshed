@@ -104,6 +104,20 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
         whyHere: `Keep the ${prettyNote(c.root)} minor triad anchored while the moving voice steps to ${degs[i] ?? "the next degree"}.`,
       };
     }
+    case "melody.oneNoteOnTop": {
+      const held = String(move.facts.heldNote ?? "");
+      if (i === 0) {
+        return {
+          role: `Pin the top (${sym})`,
+          whyHere: `Put ${prettyNote(held)} on top with your 5th finger and keep it there; only the bass and inner voices move from here.`,
+        };
+      }
+      const roles = (move.facts.roles as string[] | undefined) ?? [];
+      return {
+        role: `Bass walks: ${sym}`,
+        whyHere: `${prettyNote(held)} stays on top as the ${roles[i - 1] ?? "colour"} of ${sym}, while the bass steps down a half step${nextSym ? ` toward ${nextSym}` : ""}.`,
+      };
+    }
     case "gospel.halfStepTurnaround":
       if (i === 0) {
         return {

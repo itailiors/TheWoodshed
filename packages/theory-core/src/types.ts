@@ -38,6 +38,11 @@ export interface ChordEvent {
   /** Display override, e.g. "Eb/F" for a IV/V sus chord. */
   display?: string;
   analysis?: { roman: string; func: HarmonicFunction };
+  /**
+   * A note to voice on top of the chord, spelled with its octave ("G4"). Set by moves that
+   * hold one note over moving harmony (One Note on Top), so every voicing keeps it there.
+   */
+  topVoice?: string;
 }
 
 export interface NoteEvent {

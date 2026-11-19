@@ -275,6 +275,14 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - focus rings;
   - Playwright golden paths, using the fake-MIDI recipe.
 
+**Open Studio research (2026-11-19):** `docs/research/open-studio-ideas.md` maps Adam Maness's *Harmony Games* / *Lead Sheet Breakdown*, "Sugar Chords" and Peter Martin's ATTYA sheets against the engine. It lists 7 rule candidates (One Note on Top first), voicing styles (drop-2/3, shell, three-zone, melody-on-top, 6-dim), Changes rounds and practice tools. Mirrored in Notion under "OpenS reharm techniques".
+- **Built (uncommitted at the time of writing):**
+  - `melody.oneNoteOnTop` (L4, `rulesOneNote.ts`): holds the melody's sustained note, or on a changes-only chart the tone shared with the target, over a half-step bass walk into the next chord. Each walk chord contains the held note and carries `ChordEvent.topVoice`, so the band and the Coach voice it on top.
+  - `VoicingStyle` in `voicing.ts`: close (default, unchanged), drop2, drop3, shell, threeZone, plus a `top` option.
+  - The mixer's Band section has a "Piano voicings" select (`reharm.voicingStyle`).
+  - Verified on the demo build: Sunny Side at L4, bar 1 holds E5 over C6 → F♯m9 → Fmaj9 → E7 in drop 2. Zero `/api` requests, clean console.
+- **Toned down (Itai's call):** on charts with no melody it walks only into a ii→V or V→I. In a chain of fifths, only the first link walks (repeats like G7 | G7 count as one link). At L4 that's 1 bar each in Sunny Side (bar 21, Am7→D7) and I Got Rhythm (bar 18, D7→G7), down from 7 each. Tunes with a melody are unchanged: there, the held melody note decides.
+
 The **Musician's Wishlist** in the README holds the full set of ideas: Expression Pedal, Reactive Rhythm Section, Inner Voice Singing, Gig Mode and Harmony Catcher.
 
 **Still open from before:**
