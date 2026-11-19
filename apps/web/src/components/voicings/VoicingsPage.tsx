@@ -23,7 +23,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { player } from "../../audio/player";
 import { fetchProgress, saveShapeRun } from "../../library/practice";
 import { SketchBox, SketchFilters } from "../../design/rough";
-import { paper, seedOf } from "../../design/tokens";
+import { keys, paper, seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
 import { useChordStrikes } from "../../midi/noteBus";
 import type { MidiStatus } from "../../midi/useMidi";
@@ -257,8 +257,9 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
 
   // ── keyboard marks ──
   const target = current.notes.map((n) => n.midi);
-  const labels = current.notes.map((n) => ({ midi: n.midi, label: degreeLabel(n.degree) }));
-  const rings = current.notes.filter((n) => isGuide(n.degree)).map((n) => n.midi);
+  const labels = current.notes.map((n) => ({ midi: n.midi, label: degreeLabel(n.degree), strong: isGuide(n.degree) }));
+  const guides = current.notes.filter((n) => isGuide(n.degree)).map((n) => n.midi);
+  const hands = current.notes.map((n) => ({ midi: n.midi, hand: n.hand }));
   const pcOf = (m: number) => ((m % 12) + 12) % 12;
   const formPcs = new Set(current.notes.map((n) => pcOf(n.midi)));
   const marks = grade
@@ -270,8 +271,9 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
         wrong: played.filter((m) => !formPcs.has(pcOf(m))).map((m) => ({ midi: m, label: "✗" })),
         target: grade.valid ? [] : target,
         labels: grade.valid ? labels : [],
+        hands,
       }
-    : { target, labels, rings, pending };
+    : { target, labels, guides, hands, pending };
   // a phone gets just the keys in play (all of a ii–V–I's, so the rows don't jump between chords),
   // higher row on top like a grand staff, both rows at the same key size. The bass is left off:
   // grading treats it as optional, it's named in the LH/RH line, and a row just for it would push
@@ -499,9 +501,12 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
 
           {/* ── the keys ── */}
           {!narrow && keyboard}
-          <p className="font-hand text-sm">
-            <span className="font-marker">LH</span> {byHand(current, "L")} <span className="mx-2 text-ink-faint">|</span> <span className="font-marker">RH</span> {byHand(current, "R")}
-            <span className="ml-2 text-ink-soft">· ringed: the 3rd and 7th</span>
+          <p className="font-hand text-sm" aria-label="Voicing by hand, with the key legend">
+            <HandTag hand="L" /> <span className="font-marker">LH</span> {byHand(current, "L")} <span className="mx-2 text-ink-faint">|</span> <HandTag hand="R" />{" "}
+            <span className="font-marker">RH</span> {byHand(current, "R")}
+            <span className="ml-2 whitespace-nowrap text-ink-soft">
+              · <GuideTag /> guide tones ({current.notes.filter((n) => isGuide(n.degree)).map((n) => degreeLabel(n.degree)).join(", ")})
+            </span>
           </p>
 
           {!narrow && actions}
@@ -594,6 +599,26 @@ function DrillRibbon({ drill, chord, style, onAgain, onStop }: { drill: Drill; c
 }
 
 /** After a miss, if what was played is a known shape of this chord anyway, say which. */
+/** Legend swatch matching the keys: a washed key with the hand's shape tag (LH square, RH dot). */
+function HandTag({ hand }: { hand: "L" | "R" }) {
+  return (
+    <svg viewBox="0 0 12 16" className="inline-block h-4 w-3 align-[-3px]" aria-hidden="true">
+      <rect x="0.5" y="0.5" width="11" height="15" rx="1" fill={hand === "L" ? wash.brick : wash.blue} stroke={keys.line} />
+      {hand === "L" ? <rect x="3.5" y="9.5" width="5" height="5" fill={keys.black} /> : <circle cx="6" cy="12" r="2.6" fill={keys.black} />}
+    </svg>
+  );
+}
+
+/** Legend swatch for the guide-tone mark on the keys: an ink double ring. */
+function GuideTag() {
+  return (
+    <svg viewBox="0 0 16 16" className="inline-block h-4 w-4 align-[-3px]" aria-hidden="true">
+      <circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="8" cy="8" r="4.3" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  );
+}
+
 function IdentifyHint({ played, chord, grade }: { played: number[]; chord: Chord; grade: ShapeGrade | null }) {
   if (!grade || grade.valid || grade.playedForm || played.length < 3) return null;
   const k = classifyVoicing(played, chord)[0];

@@ -14,7 +14,11 @@ const IS_BLACK = [false, true, false, true, false, false, true, false, true, fal
 export interface PenMark {
   midi: number;
   label: string;
+  /** Write it heavier (a guide tone among colour tones); the others go lighter. */
+  strong?: boolean;
 }
+
+export type HandMark = { midi: number; hand: "L" | "R" };
 
 export interface PenKeyboardProps {
   low?: number;
@@ -46,6 +50,10 @@ export interface PenKeyboardProps {
   short?: boolean;
   /** A mustard ring around these keys (a valid alternative). */
   rings?: number[];
+  /** An ink double ring around these keys (the guide tones of a voicing). */
+  guides?: number[];
+  /** Wash these keys by hand: LH brick with a square tag, RH blue with a dot. */
+  hands?: HandMark[];
 }
 
 function layout(low: number, high: number) {
@@ -76,6 +84,8 @@ export function PenKeyboard({
   labels = [],
   ticks = [],
   rings = [],
+  guides = [],
+  hands = [],
   short = false,
 }: PenKeyboardProps) {
   const WH = short ? 60 : WH_FULL;
@@ -100,8 +110,10 @@ export function PenKeyboard({
   // if a strike was played on this step, only show unplayed target notes as dashed ghosts.
   const playedSet = new Set(played);
   const visibleTarget = target.filter((m) => !playedSet.has(m));
-  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP, WH]);
-  const markState = JSON.stringify([missing, wrong, check, TOP, ticks, rings, WH]);
+  const keyState = JSON.stringify([low, high, visibleTarget, played, pending, splitX, TOP, WH, hands]);
+  const markState = JSON.stringify([missing, wrong, check, TOP, ticks, rings, guides, WH]);
+  const handOf = new Map(hands.map((h) => [h.midi, h.hand]));
+  const handWash = (m: number) => (handOf.get(m) === "L" ? wash.brick : handOf.get(m) === "R" ? wash.blue : null);
 
   useRough(
     g,
@@ -110,9 +122,23 @@ export function PenKeyboard({
       const pend = new Set(pending);
       for (const k of keys.filter((k) => !k.black)) {
         add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
+        // a watercolour wash on the visible part of the key (below the black keys)
+        const fill = pend.has(k.midi) ? null : handWash(k.midi);
+        if (fill) add(rc.rectangle(k.x + 2, TOP + BH + 2, WW - 4, WH - BH - 4, { stroke: "none", seed: seedOf("pwf" + k.midi), fill, fillStyle: "hachure", hachureGap: 3, fillWeight: 1.6, roughness: 0.9 }));
       }
       for (const k of keys.filter((k) => k.black)) {
-        add(rc.rectangle(k.x, TOP, BW, BH, { ...base, seed: seedOf("pb" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.black, fillStyle: "solid" }));
+        const fill = pend.has(k.midi) ? wash.mustard : handWash(k.midi) ?? keyTone.black;
+        add(rc.rectangle(k.x, TOP, BW, BH, { ...base, seed: seedOf("pb" + k.midi), fill, fillStyle: "solid" }));
+      }
+      // the hand's shape tag at the foot of the key, so the hands don't rely on colour alone
+      for (const [m, hand] of handOf) {
+        const k = pos.get(m);
+        if (!k) continue;
+        const cx = k.x + (k.black ? BW : WW) / 2;
+        const y = TOP + (k.black ? BH : WH) - 5;
+        const tone = k.black ? keyTone.white : keyTone.black;
+        const tag = { seed: seedOf("hand" + m), fill: tone, fillStyle: "solid", stroke: tone, strokeWidth: 1, roughness: 0.4 };
+        add(hand === "L" ? rc.rectangle(cx - 2.5, y - 2.5, 5, 5, tag) : rc.circle(cx, y, 5.5, tag));
       }
       if (splitX !== null) {
         add(
@@ -128,7 +154,8 @@ export function PenKeyboard({
       for (const m of visibleTarget) {
         const c = center(m);
         if (!c) continue;
-        const isLh = m < SPLIT_MIDI;
+        // Coach tints the LH ghost blue; with hand washes on, blue means RH, so the ghost stays neutral
+        const isLh = m < SPLIT_MIDI && hands.length === 0;
         add(
           rc.circle(c.x, c.y, 15, {
             seed: seedOf("t" + m),
@@ -175,6 +202,13 @@ export function PenKeyboard({
         const c = center(m);
         if (c) add(rc.ellipse(c.x, c.y, 24, 22, { stroke: wash.mustard, strokeWidth: 3, roughness: 1.2, seed: seedOf("ring" + m) }));
       });
+      guides.forEach((m) => {
+        const c = center(m);
+        if (!c) return;
+        const stroke = c.black ? keyTone.white : keyTone.line;
+        add(rc.ellipse(c.x, c.y, 22, 20, { stroke, strokeWidth: 1.6, roughness: 0.8, seed: seedOf("g1" + m) }));
+        add(rc.ellipse(c.x, c.y, 29, 27, { stroke, strokeWidth: 1.6, roughness: 0.8, seed: seedOf("g2" + m) }));
+      });
       if (check) {
         const x = width - 70;
         add(rc.path(`M ${x} 26 L ${x + 16} 44 L ${x + 52} 4`, { ...red, strokeWidth: 4, roughness: 1.2, seed: 77 }));
@@ -218,8 +252,19 @@ export function PenKeyboard({
         .map((mk, i) => {
           // neighbours a half step apart would collide: alternate two heights
           const c = center(mk.midi);
+          // with any strong mark, the rest are colour tones: lighter and smaller, so the shell reads first
+          const light = mk.strong === false || (!mk.strong && labels.some((l) => l.strong));
           return c ? (
-            <text key={`nl${mk.midi}`} x={c.x} y={TOP - 8 - (i % 2) * 17} textAnchor="middle" fontSize={14} fontWeight={700} className="fill-ink font-marker">
+            <text
+              key={`nl${mk.midi}`}
+              x={c.x}
+              y={TOP - 8 - (i % 2) * 17}
+              textAnchor="middle"
+              fontSize={light ? 12 : mk.strong ? 16 : 14}
+              fontWeight={light ? 400 : 700}
+              data-strong={mk.strong || undefined}
+              className={`font-marker ${light ? "fill-ink-soft" : "fill-ink"}`}
+            >
               {mk.label}
             </text>
           ) : null;
