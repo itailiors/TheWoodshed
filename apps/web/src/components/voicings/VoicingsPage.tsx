@@ -40,6 +40,7 @@ import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
 import { PenKeyboard } from "../practice/PenKeyboard";
 import { QwertyToggle } from "../QwertyToggle";
+import { notForUs } from "../Shortcuts";
 
 /*
  * The Voicings tab: a shape library. Pick a chord (or a ii–V–I), pick a voicing family, and see
@@ -246,11 +247,48 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
       vel: 0.42,
     }));
     const line = head.melody.map((n) => ({ midis: [midiOf(n.pitch)], at: at(absBeat(n.at, bpb)), seconds: n.beats * spb * 0.92, vel: 0.72 }));
+    setHeadPlaying(true);
     void player.playScore([...comp, ...line], comp.map((c) => c.at), (i) => {
       setSounding(i);
       if (i !== null) setStep(i);
+      else setHeadPlaying(false);
     });
   };
+  const [headPlaying, setHeadPlaying] = useState(false);
+  const headPlayingRef = useRef(headPlaying);
+  headPlayingRef.current = headPlaying;
+  const stopHead = () => {
+    player.stopScore();
+    setHeadPlaying(false);
+    setSounding(null);
+  };
+  /** ◀ ▶ and ← →: the previous / next chord of a progression (taking over from a playing head). */
+  const go = (d: 1 | -1) => {
+    if (!path) return;
+    if (headPlayingRef.current) stopHead();
+    setStep((s) => Math.max(0, Math.min(path.length - 1, s + d)));
+  };
+  const goRef = useRef(go);
+  goRef.current = go;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (notForUs(e) || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
+      e.preventDefault();
+      goRef.current(e.key === "ArrowRight" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+  // a different head, shape, or leaving the tab stops it (stopping when nothing plays would cut a "Hear it")
+  useEffect(
+    () => () => {
+      if (!headPlayingRef.current) return;
+      player.stopScore();
+      setHeadPlaying(false);
+      setSounding(null);
+    },
+    [head, settings.style],
+  );
 
   // ── playing: MIDI / computer keys strike; on-screen keys tap in, then check ──
   const [played, setPlayed] = useState<number[]>([]);
@@ -343,10 +381,33 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
       <button type="button" onClick={arpeggio} className={`${btn} hover:bg-paper-shade`}>
         {narrow ? "Notes" : "Note by note"}
       </button>
+      {path && (
+        <span className="flex items-center gap-1" role="group" aria-label="Step through the chords">
+          <button type="button" onClick={() => go(-1)} disabled={step === 0} aria-label="Previous chord (←)" title="Previous chord (←)" className={`${btn} hover:bg-paper-shade disabled:cursor-default disabled:opacity-40`}>
+            ◀
+          </button>
+          <button
+            type="button"
+            onClick={() => go(1)}
+            disabled={step === path.length - 1}
+            aria-label="Next chord (→)"
+            title="Next chord (→)"
+            className={`${btn} hover:bg-paper-shade disabled:cursor-default disabled:opacity-40`}
+          >
+            ▶
+          </button>
+        </span>
+      )}
       {head ? (
-        <button type="button" onClick={hearHead} className={`${btn} hover:bg-paper-shade`}>
-          ▶ {narrow ? "Head" : "Hear the head"}
-        </button>
+        headPlaying ? (
+          <button type="button" onClick={stopHead} className={`${btn} bg-ink text-paper-light`}>
+            ■ Stop
+          </button>
+        ) : (
+          <button type="button" onClick={hearHead} className={`${btn} hover:bg-paper-shade`}>
+            ▶ {narrow ? "Head" : "Hear the head"}
+          </button>
+        )
       ) : (
         path && (
           <button type="button" onClick={hearPath} className={`${btn} hover:bg-paper-shade`}>
@@ -512,34 +573,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
           {/* ── the chord(s) ── */}
           {head && path ? (
             <>
-              {/* the head as a lead sheet: four bars a line, each chord with the melody note it's voiced under */}
-              <ol className="grid grid-cols-4 gap-x-0 gap-y-1 border-l-2 border-ink" aria-label={`${head.title}, voiced with the melody on top`}>
-                {Array.from({ length: Math.max(...head.harmony.map((c) => c.at.bar)) }, (_, b) => (
-                  <li key={b} className="flex border-r-2 border-ink px-0.5">
-                    {head.harmony.map((c, i) =>
-                      c.at.bar !== b + 1 ? null : (
-                        <button
-                          key={c.id}
-                          type="button"
-                          onClick={() => setStep(i)}
-                          aria-current={i === step}
-                          aria-label={`Bar ${b + 1}: ${pretty(c)}, ${prettyNote(path[i].notes[path[i].notes.length - 1].name)} on top${path[i].fellBack ? ", close" : ""}`}
-                          className={`min-w-0 flex-1 cursor-pointer rounded px-1 py-0.5 text-left ${i === step ? "bg-paper-shade outline-2 outline-ink" : "hover:bg-paper-shade"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
-                        >
-                          {/* a phone's two-chord bar is ~40px a chord: smaller symbol, and just "♪F" */}
-                          <span className={`block font-marker leading-tight ${narrow ? (head.harmony.filter((x) => x.at.bar === c.at.bar).length > 1 ? "text-[0.7rem]" : "text-sm") : "text-lg"}`}>{pretty(c)}</span>
-                          <span className="block truncate font-hand text-xs text-ink-soft">
-                            {narrow ? "♪" : ""}
-                            {prettyNote(path[i].notes[path[i].notes.length - 1].name)}
-                            {narrow ? "" : " on top"}
-                            {path[i].fellBack ? (narrow ? "*" : " · close") : ""}
-                          </span>
-                        </button>
-                      ),
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), setStep(i)) : setStep(i))} />
               <p className="font-hand text-sm text-ink-soft">
                 Bar {head.harmony[step]?.at.bar}: {current.label}
                 {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path[step - 1], current)}`}
@@ -714,6 +748,67 @@ function DrillRibbon({ drill, chord, style, onAgain, onStop }: { drill: Drill; c
 }
 
 /** After a miss, if what was played is a known shape of this chord anyway, say which. */
+/**
+ * The head as a lead sheet: lines of four numbered bars, read left to right like music, each line
+ * on its own rule so the rows read as systems (not columns), a double bar at the end. Each chord
+ * shows the melody note it's voiced under.
+ */
+function LeadSheet({
+  head,
+  path,
+  step,
+  sounding,
+  narrow,
+  onPick,
+}: {
+  head: Tune;
+  path: VoicingForm[];
+  step: number;
+  sounding: number | null;
+  narrow: boolean;
+  onPick: (i: number) => void;
+}) {
+  const bars = Math.max(...head.harmony.map((c) => c.at.bar));
+  const lines = Array.from({ length: Math.ceil(bars / 4) }, (_, l) => [0, 1, 2, 3].map((j) => l * 4 + j + 1));
+  const topName = (i: number) => prettyNote(path[i].notes[path[i].notes.length - 1].name);
+  return (
+    <div className="space-y-3" role="group" aria-label={`${head.title}, voiced with the melody on top`}>
+      {lines.map((line) => (
+        <ol key={line[0]} start={line[0]} className="grid grid-cols-4 border-b-2 border-ink">
+          {line.map((bar, j) => {
+            if (bar > bars) return <li key={bar} aria-hidden="true" />;
+            const inBar = head.harmony.map((c, i) => ({ c, i })).filter(({ c }) => c.at.bar === bar);
+            return (
+              <li key={bar} className={`relative flex border-ink px-0.5 pt-5 ${j === 0 ? "border-l-2" : ""} ${bar === bars ? "border-r-4 border-double" : "border-r-2"}`}>
+                <span aria-hidden="true" className="absolute top-0.5 left-1 font-marker text-sm leading-none text-ink-soft">
+                  {bar}
+                </span>
+                {inBar.map(({ c, i }) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => onPick(i)}
+                    aria-current={i === step}
+                    aria-label={`Bar ${bar}: ${prettySymbol(symbol(c))}, ${topName(i)} on top${path[i].fellBack ? ", close" : ""}`}
+                    className={`min-w-0 flex-1 cursor-pointer rounded px-1 py-0.5 text-left ${i === step ? "bg-paper-shade outline-2 outline-ink" : "hover:bg-paper-shade"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
+                  >
+                    {/* a phone's two-chord bar is ~40px a chord: smaller symbol, and just "♪F" */}
+                    <span className={`block font-marker leading-tight ${narrow ? (inBar.length > 1 ? "text-[0.7rem]" : "text-sm") : "text-lg"}`}>{prettySymbol(symbol(c))}</span>
+                    <span className="block truncate font-hand text-xs text-ink-soft">
+                      {narrow ? `♪${topName(i)}` : `${topName(i)} on top`}
+                      {path[i].fellBack ? (narrow ? "*" : " · close") : ""}
+                    </span>
+                  </button>
+                ))}
+              </li>
+            );
+          })}
+        </ol>
+      ))}
+    </div>
+  );
+}
+
 /** Legend swatch matching the keys: a washed key with the hand's shape tag (LH square, RH dot). */
 function HandTag({ hand }: { hand: "L" | "R" }) {
   return (

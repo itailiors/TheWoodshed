@@ -491,6 +491,16 @@ export class AudioEngine {
     Tone.getDraw().schedule(cb, Tone.now() + 0.03 + delay);
   }
 
+  /** The clock `playNotes` and `atAudioTime` delays count from (less their 30 ms). */
+  clock(): number {
+    return Tone.now();
+  }
+
+  /** Let go of every audition note that's sounding (a stopped "Hear the head"). */
+  releaseAuditions() {
+    (this.playerInstrument ?? this.instrument)?.releaseAll();
+  }
+
   // Live notes use Tone.immediate() (the raw audio clock), not Tone.now(): now() adds the
   // context's lookAhead (0.1 s), which is right for the scheduled band and far too late for a
   // key you just pressed. Per-pitch timestamps stay strictly monotonic so re-striking a

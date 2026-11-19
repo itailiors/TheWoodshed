@@ -27,6 +27,8 @@ export const DEFAULT_MIX: Mix = { piano: true, bass: true, drums: true, click: f
 const MIX_KEY = "reharm.mixer";
 /** Generous: the sample loaders time out on their own (and fall back to synths) well before this. */
 const INIT_TIMEOUT_MS = 20_000;
+/** How far ahead (seconds) `playScore` hands notes to the engine: short, so a stop is near-instant. */
+const LOOKAHEAD = 0.35;
 
 function loadMix(): Mix {
   try {
@@ -288,20 +290,58 @@ class Player {
     if (onStep) this.engine?.atAudioTime(step(null), voicings.length * secondsEach + 0.15);
   }
 
+  private scoreTimer: ReturnType<typeof setInterval> | null = null;
+
   /**
    * Play a little score: each event's notes at its own offset (seconds from now) and length.
    * `onStep(i)` fires as `steps[i]` (an offset) is heard, `onStep(null)` once everything has
    * rung. Voicings' "Hear the head": the comping under the melody, in time.
+   * Notes are handed to the engine a fraction of a second ahead, not all at once, so
+   * `stopScore` can cut it off: a sampler can't take back an attack it has already been given.
    */
   async playScore(events: { midis: number[]; at: number; seconds: number; vel?: number }[], steps: number[] = [], onStep?: (i: number | null) => void) {
     await this.init();
+    this.stopScore();
+    const eng = this.engine;
+    if (!eng) return;
     const token = ++this.auditionToken;
     const step = (i: number | null) => () => token === this.auditionToken && onStep?.(i);
-    for (const e of events) this.engine?.playNotes(e.midis, e.seconds, e.at, e.vel);
-    if (!onStep) return;
-    steps.forEach((t, i) => this.engine?.atAudioTime(step(i), t));
+    const start = eng.clock() + 0.1;
+    const delay = (at: number) => Math.max(0, start + at - eng.clock() - 0.03);
+    const notes = [...events].sort((a, b) => a.at - b.at);
+    const marks = steps.map((t, i) => ({ t, i })).sort((a, b) => a.t - b.t);
     const end = Math.max(0, ...events.map((e) => e.at + e.seconds));
-    this.engine?.atAudioTime(step(null), end + 0.15);
+    let ni = 0;
+    let mi = 0;
+    const pump = () => {
+      const horizon = eng.clock() - start + LOOKAHEAD;
+      while (ni < notes.length && notes[ni].at < horizon) {
+        const e = notes[ni++];
+        eng.playNotes(e.midis, e.seconds, delay(e.at), e.vel);
+      }
+      while (mi < marks.length && marks[mi].t < horizon) {
+        const m = marks[mi++];
+        if (onStep) eng.atAudioTime(step(m.i), delay(m.t));
+      }
+      if (ni >= notes.length && mi >= marks.length) {
+        if (onStep) eng.atAudioTime(step(null), delay(end + 0.15));
+        if (this.scoreTimer) clearInterval(this.scoreTimer);
+        this.scoreTimer = null;
+      }
+    };
+    pump();
+    if (ni < notes.length || mi < marks.length) this.scoreTimer = setInterval(pump, 100);
+  }
+
+  /** Stop a `playScore`: nothing more is scheduled, what's ringing is let go, and its steps stop reporting. */
+  stopScore() {
+    if (this.scoreTimer) clearInterval(this.scoreTimer);
+    this.scoreTimer = null;
+    const token = ++this.auditionToken;
+    this.engine?.releaseAuditions();
+    // an attack handed over just before the stop lands within the look-ahead: let that go too
+    // (unless something new has started playing since)
+    setTimeout(() => token === this.auditionToken && this.engine?.releaseAuditions(), LOOKAHEAD * 1000 + 50);
   }
 
   /** Stop reporting steps for the audition in progress (its notes still ring out). */
@@ -337,6 +377,7 @@ class Player {
   /** Tear everything down (used when a dev hot reload replaces this module). */
   dispose() {
     this.disposed = true;
+    if (this.scoreTimer) clearInterval(this.scoreTimer);
     this.engine?.dispose();
     this.engine = null;
     this.listeners.clear();
