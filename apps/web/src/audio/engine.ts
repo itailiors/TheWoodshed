@@ -80,6 +80,10 @@ export function arrange(tune: Tune, chords: ChordEvent[], swing = DEFAULT_SWING,
     const start = absBeat(c.at, bpb);
     const L = c.beats;
     const fifth = v.bass + 7 <= 52 ? v.bass + 7 : v.bass - 5;
+    // Quartal planing: on a chord held 4+ beats, every other hit moves the stack a scale step
+    // and the next one comes home (So What / McCoy comping). Other styles always play `upper`.
+    let hit = 0;
+    const rh = () => (v.plane && L >= 4 && hit++ % 2 === 1 ? v.plane : v.upper);
 
     // Slice multi-bar chords into bar-sized segments so the groove continues across every bar.
     for (let off = 0, barIdx = 0; off < L; off += bpb, barIdx++) {
@@ -96,41 +100,41 @@ export function arrange(tune: Tune, chords: ChordEvent[], swing = DEFAULT_SWING,
 
       // Right-hand comping
       if (bpb === 3 || tune.feel === "waltz") {
-        events.push({ beat: segStart, notes: v.upper, dur: Math.min(0.9, segLen * 0.9), vel: 0.5 });
-        if (segLen >= 2) events.push({ beat: segStart + 1 + offbeat, notes: v.upper, dur: 0.3, vel: 0.36 });
+        events.push({ beat: segStart, notes: rh(), dur: Math.min(0.9, segLen * 0.9), vel: 0.5 });
+        if (segLen >= 2) events.push({ beat: segStart + 1 + offbeat, notes: rh(), dur: 0.3, vel: 0.36 });
       } else if (segLen < 2) {
-        events.push({ beat: segStart, notes: v.upper, dur: segLen * 0.85, vel: 0.5 });
+        events.push({ beat: segStart, notes: rh(), dur: segLen * 0.85, vel: 0.5 });
       } else if (segLen < 3) {
         // 2-beat harmonic rhythm (e.g. two chords per 4/4 bar): Charleston stab on 1 and "&" of 2
-        events.push({ beat: segStart, notes: v.upper, dur: 0.85, vel: 0.5 });
-        events.push({ beat: segStart + 1 + offbeat, notes: v.upper, dur: 0.3, vel: 0.38 });
+        events.push({ beat: segStart, notes: rh(), dur: 0.85, vel: 0.5 });
+        events.push({ beat: segStart + 1 + offbeat, notes: rh(), dur: 0.3, vel: 0.38 });
       } else if (tune.feel === "bossa" || tune.feel === "straight8") {
         // Straight-8th bossa / partido-alto comping locked to 0.5 subdivisions
-        events.push({ beat: segStart, notes: v.upper, dur: 0.9, vel: 0.48 });
-        events.push({ beat: segStart + 1 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.75, vel: 0.42 });
+        events.push({ beat: segStart, notes: rh(), dur: 0.9, vel: 0.48 });
+        events.push({ beat: segStart + 1 + STRAIGHT_OFFBEAT, notes: rh(), dur: 0.75, vel: 0.42 });
         if (segLen >= 4) {
-          events.push({ beat: segStart + 2 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.45, vel: 0.36 });
-          events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.35, vel: 0.38 });
+          events.push({ beat: segStart + 2 + STRAIGHT_OFFBEAT, notes: rh(), dur: 0.45, vel: 0.36 });
+          events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: rh(), dur: 0.35, vel: 0.38 });
         }
       } else if (tune.feel === "ballad") {
         // Ballad: warm half-note pads on 1 and 3
-        events.push({ beat: segStart, notes: v.upper, dur: 1.8, vel: 0.46 });
-        events.push({ beat: segStart + 2, notes: v.upper, dur: Math.min(1.8, (segLen - 2) * 0.9), vel: 0.4 });
-        if (segLen >= 4) events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: v.upper, dur: 0.4, vel: 0.32 });
+        events.push({ beat: segStart, notes: rh(), dur: 1.8, vel: 0.46 });
+        events.push({ beat: segStart + 2, notes: rh(), dur: Math.min(1.8, (segLen - 2) * 0.9), vel: 0.4 });
+        if (segLen >= 4) events.push({ beat: segStart + 3 + STRAIGHT_OFFBEAT, notes: rh(), dur: 0.4, vel: 0.32 });
       } else {
         // 4/4 swing: Charleston (1, 2&) + Red Garland / Sonny Clark 4& anticipation;
         // on continuation bars of a held chord, vary with 1&, 3, 4& so comping breathes.
         if (barIdx % 2 === 0) {
-          events.push({ beat: segStart, notes: v.upper, dur: 0.85, vel: 0.5 });
-          events.push({ beat: segStart + 1 + SWING_OFFBEAT, notes: v.upper, dur: 0.45, vel: 0.42 });
+          events.push({ beat: segStart, notes: rh(), dur: 0.85, vel: 0.5 });
+          events.push({ beat: segStart + 1 + SWING_OFFBEAT, notes: rh(), dur: 0.45, vel: 0.42 });
           if (segLen >= 4) {
-            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: v.upper, dur: 0.32, vel: 0.38 });
+            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: rh(), dur: 0.32, vel: 0.38 });
           }
         } else {
-          events.push({ beat: segStart + SWING_OFFBEAT, notes: v.upper, dur: 0.42, vel: 0.4 });
-          events.push({ beat: segStart + 2, notes: v.upper, dur: 0.8, vel: 0.45 });
+          events.push({ beat: segStart + SWING_OFFBEAT, notes: rh(), dur: 0.42, vel: 0.4 });
+          events.push({ beat: segStart + 2, notes: rh(), dur: 0.8, vel: 0.45 });
           if (segLen >= 4) {
-            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: v.upper, dur: 0.32, vel: 0.38 });
+            events.push({ beat: segStart + 3 + SWING_OFFBEAT, notes: rh(), dur: 0.32, vel: 0.38 });
           }
         }
       }

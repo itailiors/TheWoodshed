@@ -1,41 +1,43 @@
-# Handoff (2026-11-19, session 2)
+# Handoff (2026-11-19, session 5)
 
 ## Goal
-Launch polish for the public demo (itailiors.github.io/TheWoodshed), working down `docs/STATE_OF_THE_UNION.md` §5 and Itai's Notion idea list. This session: the "Red Northgate theme" idea, as a colour-scheme slider.
+Turn Itai's Open Studio PDFs into engine features, one ranked gap at a time. This session digested all 15 PDFs, checked the leads against the code, and built two rules.
 
-## Done this session (pushed to origin/main)
-- `b97392c` feat(web): colour schemes (Northgate, Panam) with a theme slider. Read the commit message for the design; key files `apps/web/src/design/themes.ts`, `components/ThemeSwitch.tsx`, `design/tokens.ts`, `index.css`.
-- `948444d` feat(web): theme textures, heading styles and focus rings ("Tier 1": CSS variables only).
-- Checks at last run: typecheck clean; tests 188 theory-core + 20 API + 33 web, all passing. CI and the Pages deploy for the push were not checked.
+## Done (pushed to origin/main)
+- `b813094` feat: `functional.secondaryDominant` (L1, `rules.ts`) plus a drop-3 bass-clash fix in `voicing.ts`. Also adds `docs/research/open-studio-digest.md` and section F of the ideas file.
+- `7febda9` feat: `dominant.mediantDominant` (A1, L3, `rulesAdvanced.ts`), the Family's fourth member. Includes a Co-op Blues golden update and regenerated demo Deep Dives.
+- Read both commit messages and the "Full digest + F1" entry in `docs/STATE_OF_THE_UNION.md` §5 for details.
+- Checks: typecheck clean; tests 229 theory-core + 20 API + 34 web passing. Both rules were checked in the demo build (:4174): Sunny Side bars 5 and 24, and Co-op Blues bar 10. CI for these two commits was not checked.
+
+## Research sources
+- `docs/research/open-studio-digest.md`: one digest per PDF (§1–§13) plus an index. Made by Antigravity (Gemini 4 Hydrogen) and reviewed by Claude.
+- `docs/research/open-studio-ideas.md`: the build list. Items A–E are from session 4. Section F is the verified, ranked gap list: 7 leads were dropped as already built and 8 real gaps remain. F1 and A1 are marked built.
+- The source PDFs are in Itai's Drive folder "openstudio" (Google Drive connector now connected) and in `C:\Users\itail\Downloads`. Staging copies are in `C:\agy-scratch\openstudio`, which can be deleted.
 
 ## In progress
-Nothing. `docs/HANDOFF.md` is the only uncommitted file. The Notion "Red Northgate theme" idea is not ticked yet; Itai hasn't said yes or no (memory `notion-woodshed-page.md` has the page mapping).
+Nothing. `docs/HANDOFF.md` (this file) is the only uncommitted file.
 
 ## Next 3 steps (Itai picks)
-1. Tick the theme idea in Notion (ask first), and add a README/STATE_OF_THE_UNION line about themes.
-2. Theme Tier 2, only if Itai asks: per-theme sketch hand (roughness, bowing, hachure angle) applied centrally in `useRough` (`design/rough.tsx`), with the theme as a dependency and the ImprovHeatmap node cache cleared on switch. Itai chose Tier 1 only for now.
-3. From the earlier list: Changes Level 4 (minor ii–V, memory `changes-game-decisions.md`), silence Tone's banner, colour-blind heatmap shapes, or the Notion ideas (prev/next chord in Study, two-hand voicings, Standard of the Day).
+1. **Dominant-colour axis (plain/sus/alt)** across every rule that writes a dominant (secondaryDominant, mediantDominant, tritoneSub, backdoor…). Sus suits a melody on the 4th; alt suits anything except a natural 9 or 13. See A1's sub-bullet in the ideas file.
+2. **F2/A3, slash connectors:** V7 over its 3rd, and add2 "mu" chords, as an inversion flag on secondaryDominant and secondaryTwoFive, not a new rule. L2.
+3. **F3, voicing styles:** quartal and spread (a LH 10th under a RH triad) in `voicing.ts`. Then F4: inner-voice movers in the band piano. These are the most audible gains for the least code.
+- Also open: A2, A4 and A5 (heart melter, walk-up to I/5, going-home endings), the Changes "Family" round, and the CI check.
 
 ## Decisions + why
-- `tokens.ts` exports `var(--color-…)` strings, not hex: SVG attributes resolve `var()`, so Rough.js sketches and inline styles follow the theme with no re-render. Translucent colours use `tint()` (color-mix), never hex-alpha concatenation.
-- A theme is one `:root[data-theme=…]` block in `index.css`; the default (Ink & Parchment) has no attribute and is visually unchanged apart from a themed focus ring.
-- Keyboards use separate `keys.*` tokens, since dark themes swap paper and ink and the piano must still read as ivories and ebonies.
-- Comfort rules, enforced by `themes.test.ts`: body ink 7–13:1 on page and cards (strain below, halation above); pen a different hue from coloured ink; headings and focus ring at least 3:1; key contrast; every theme sets every value; named filters and textures exist.
-- Panam became red ink on the cover's cream (with a slate-blue pen), not a red page: Itai found the red ground hard on the eyes. Northgate is parchment on warm charcoal, not cream on black.
-- The slider lives inside `ModeSwitch`, so every page with mode tabs gets it. The choice persists in `reharm.theme` and is stamped before first paint by an inline script in `apps/web/index.html` (ids are listed there too; the test checks).
-- Fonts per theme (Tier 3) were rejected: the lead sheet, HUD and headings are sized for the current hand fonts.
+- **secondaryDominant skips the ii of a written ii–V.** Without the guard it turned nearly every Dm7 → G7 into D9 → G7 and took over L1. Now it fires where a chord doesn't point anywhere yet (Sunny Side Am7 → A9 → D7). Itai hasn't heard it yet; dropping the guard is a one-line change if he wants II7–V7.
+- **mediantDominant is always ♭9, major targets only, L3.** The ♭9 makes it literally the shared °7 (E7♭9 = E under B°7). The colour axis comes later, across all rules at once.
+- **Facts use plain `symbol()`; prose uses the pretty `ps()`.** Some older rules mix these.
+- **The digest records concepts only.** The PDFs are © Open Studio (Keezer for §11). No exercises or melodies go into the repo.
 
 ## Gotchas
-- Vitest returns CSS imports (even `?raw`) as an empty string; the theme test reads files with `node:fs`.
-- `@theme static` is required so every colour variable is emitted even when no utility uses it.
-- `.wash` (multiply/screen blend) is shared with the Original stamp; the lead-sheet wash filter lives on a separate `.wash-shapes` class so the stamp doesn't get watercoloured.
-- `.ink-wobble` takes `var(--wobble-filter)`, but many icons use `filter="url(#ink-wobble)"` attributes and stay unthemed on purpose.
-- Strong brush displacement garbles small headings ("THE I" read as "THE !"); keep `#ink-brush` gentle.
-- Panam's corner shards can sit behind unfilled move cards; keep their opacity low.
-- Verify in the static demo (`npm run build:demo`, launch config `web-demo-build` :4174); rebuild after each change. Old console errors from earlier bundles persist in the pane: check the bundle hash.
+- **Counting firings:** run `npx tsx` on a scratchpad script that imports theory-core by absolute path (`C:/Users/itail/.../src/index.ts`). Relative imports from the scratchpad don't resolve.
+- **Antigravity swarm:** with `sandbox: "read-only"` (plan mode), workers stop to ask for plan approval, and long answers come back truncated. What worked: no sandbox, a staging folder holding only the inputs, a shared INSTRUCTIONS.md, and each worker writing its own output file.
+- **Demo Deep Dives:** `apps/api/demo/explanations.json` is `source: template`, so `npm run demo:generate -w @reharm/api -- --template` is free and safe. If it's ever regenerated with Claude, ask Itai first (it costs budget).
+- **Deep links:** `move=` only opens a move the dial chose. Add `pick=<same id>` to force it in.
+- **Voicing tests:** the voicing-style property test is now backed by an exhaustive root × quality × style test, because sampling missed the D♭m7♭5 case.
+- **Adding a rule:** bump the rule count in `practice.test.ts`, add the rule to the coverage map in `advancedRules.test.ts` if it's in the advanced pack, and give it a `coach.ts` step cue and concept-drill case.
 
 ## Suggested skills
+- `mattpocock-skills:tdd` for the colour axis and each new rule (property test first).
 - `ship` when Itai says "commit and push".
-- `run` or the built-in browser to check theme work in the demo build.
-- `mattpocock-skills:grilling` before scoping Theme Tier 2 or the Notion ideas.
-- `mattpocock-skills:tdd` for Changes Level 4.
+- `run`, or the built-in browser on `web-demo-build` (:4174, run `npm run build:demo` first), to check moves; read the page with JavaScript.

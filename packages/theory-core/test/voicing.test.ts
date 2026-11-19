@@ -5,6 +5,7 @@ import { generateMoves } from "../src/engine";
 import { buildPathway, realize } from "../src/pathway";
 import { chroma, mod, spellChroma, transpose } from "../src/pitch";
 import { someday } from "../src/fixtures/someday";
+import { suggestScales } from "../src/scales";
 import type { Quality } from "../src/types";
 import { upperPitchClasses, VOICING_STYLES, voiceChord, voiceProgression, type VoicingStyle } from "../src/voicing";
 import { progressionArb, ROOTS } from "./arbitraries";
@@ -124,6 +125,112 @@ describe("voicing engine", () => {
           expect(v[2] - v[1]).toBeGreaterThanOrEqual(3);
         }),
       );
+    });
+
+    describe("quartal", () => {
+      const scaleOf = (c: Parameters<typeof voiceChord>[0]) => suggestScales(c)[0];
+      const fourths = (v: number[]) => v.slice(1).map((m, i) => m - v[i]);
+
+      it("stacks 3–4 fourths from the chord's scale, no avoid notes, no root, at most one tritone, guide tones kept", () => {
+        for (const root of ROOTS)
+          for (const quality of ["maj7", "7", "m7", "m7b5", "6", "7sus4"] as Quality[]) {
+            const c = { root, quality, extensions: [], alterations: [] };
+            const v = voiceChord(c, undefined, { style: "quartal" }).upper;
+            const s = scaleOf(c);
+            const label = `${root}${quality} ${v.join(" ")}`;
+            expect(v.length, label).toBeGreaterThanOrEqual(3);
+            expect(v.length, label).toBeLessThanOrEqual(4);
+            for (const step of fourths(v)) expect([5, 6], label).toContain(step);
+            expect(fourths(v).filter((s) => s === 6).length, label).toBeLessThanOrEqual(1);
+            const scalePcs = new Set(s.notes.map(chroma));
+            const avoid = new Set(s.avoid.map(chroma));
+            for (const m of v) {
+              expect(scalePcs.has(mod(m, 12)), label).toBe(true);
+              expect(avoid.has(mod(m, 12)), label).toBe(false);
+              expect(mod(m, 12), label).not.toBe(chroma(root));
+            }
+          }
+      });
+
+      it("the textbook grips: Cmaj7 B–E–A–D, C7 B♭–E–A–D, Cm7 F–B♭–E♭–A or B♭–E♭–A–D", () => {
+        const names = (q: Quality) => voiceChord({ root: "C", quality: q, extensions: [], alterations: [] }, undefined, { style: "quartal" }).upper.map((m) => mod(m, 12));
+        expect(names("maj7")).toEqual([11, 4, 9, 2]);
+        expect(names("7")).toEqual([10, 4, 9, 2]);
+        expect([[5, 10, 3, 9], [10, 3, 9, 2]]).toContainEqual(names("m7"));
+      });
+
+      it("planes: on a long chord the stack has a neighbour one scale step away, every voice moving the same way, still in the scale", () => {
+        for (const root of ROOTS)
+          for (const quality of ["maj7", "7", "m7", "7sus4"] as Quality[]) {
+            const c = { root, quality, extensions: [], alterations: [] };
+            const v = voiceChord(c, undefined, { style: "quartal" });
+            const label = `${root}${quality}`;
+            expect(v.plane, label).toBeDefined();
+            const s = scaleOf(c);
+            const scalePcs = new Set(s.notes.map(chroma));
+            const avoid = new Set(s.avoid.map(chroma));
+            const moves = v.plane!.map((m, i) => m - v.upper[i]);
+            expect(moves.every((d) => d >= 1 && d <= 2) || moves.every((d) => d <= -1 && d >= -2), label).toBe(true);
+            for (const m of v.plane!) {
+              expect(scalePcs.has(mod(m, 12)), label).toBe(true);
+              expect(avoid.has(mod(m, 12)), label).toBe(false);
+            }
+            expect(Math.max(...v.plane!)).toBeLessThanOrEqual(81);
+          }
+      });
+
+      it("only quartal planes", () => {
+        const c = { root: "D", quality: "m7" as Quality, extensions: [], alterations: [] };
+        for (const { id } of VOICING_STYLES) if (id !== "quartal") expect(voiceChord(c, undefined, { style: id }).plane).toBeUndefined();
+      });
+    });
+
+    describe("spread", () => {
+      const isTriad = (ms: number[]) => {
+        const p = [...new Set(ms.map((m) => mod(m, 12)))].sort((a, b) => a - b);
+        if (p.length !== 3) return false;
+        return [0, 1, 2].some((r) => {
+          const o = [...p.slice(r), ...p.slice(0, r)];
+          const a = mod(o[1] - o[0], 12);
+          const b = mod(o[2] - o[1], 12);
+          return (a === 3 || a === 4) && (b === 3 || b === 4);
+        });
+      };
+
+      it("the left hand plays a 10th (root–3rd), or root–♭7 on a sus chord, and the right hand a close 3-note grip above it", () => {
+        for (const root of ROOTS)
+          for (const quality of ["maj7", "7", "m7", "m7b5", "6", "m6", "7sus4", "mMaj7", "dim7"] as Quality[]) {
+            const c = { root, quality, extensions: [], alterations: [] };
+            const v = voiceChord(c, undefined, { style: "spread" });
+            const [lh, ...rh] = v.upper;
+            const label = `${root}${quality} ${v.bass} | ${v.upper.join(" ")}`;
+            const third = chordTones(c).find((t) => ["3", "b3"].includes(t.degree));
+            if (third) {
+              expect(mod(lh, 12), label).toBe(chroma(third.note));
+              expect(lh - v.bass, label).toBeGreaterThanOrEqual(15);
+              expect(lh - v.bass, label).toBeLessThanOrEqual(16);
+            } else expect(lh - v.bass, label).toBe(10);
+            expect(rh, label).toHaveLength(3);
+            expect(rh[0], label).toBeGreaterThan(lh);
+            expect(rh[2] - rh[0], label).toBeLessThan(12);
+          }
+      });
+
+      it("the right hand is a triad wherever one fits: Cmaj7 = G/C, C7 = Gm/C, Cm7 = Gm/C, C7sus = B♭/C, Cø = E♭m/C", () => {
+        const rh = (q: Quality) => new Set(voiceChord({ root: "C", quality: q, extensions: [], alterations: [] }, undefined, { style: "spread" }).upper.slice(1).map((m) => mod(m, 12)));
+        expect(rh("maj7")).toEqual(new Set([7, 11, 2]));
+        expect(rh("7")).toEqual(new Set([7, 10, 2]));
+        expect(rh("m7")).toEqual(new Set([7, 10, 2]));
+        expect(rh("7sus4")).toEqual(new Set([10, 2, 5]));
+        expect(rh("m7b5")).toEqual(new Set([3, 6, 10]));
+        for (const q of ["maj7", "7", "m7", "7sus4", "m7b5", "mMaj7", "dim7"] as Quality[])
+          expect(isTriad(voiceChord({ root: "F", quality: q, extensions: [], alterations: [] }, undefined, { style: "spread" }).upper.slice(1)), q).toBe(true);
+      });
+
+      it("an altered dominant keeps its alterations in the right hand", () => {
+        const v = voiceChord({ root: "G", quality: "7", extensions: [], alterations: ["b9"] }, undefined, { style: "spread" });
+        expect(pcs(v.upper.slice(1)).has(chroma("Ab"))).toBe(true);
+      });
     });
 
     it("a pinned top note (or the chord's topVoice) is always the highest voice, in every style", () => {

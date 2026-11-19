@@ -94,7 +94,7 @@ Every "New leads" item in `open-studio-digest.md` was grepped against theory-cor
 **Real gaps, best first:**
 1. ~~**`functional.secondaryDominant` (L1).**~~ **Built 2026-11-19** in `rules.ts`. It skips the ii of a written ii–V. When proposed, there was no rule that turns a diatonic chord into its own dominant: vi7 → VI7(♭9) into ii, iii7 → III7 into vi, I → I7 into IV. `secondaryTwoFive` always writes the full ii–V. This is step 2 of "Backing up the circle" (§1) and of "The Mountain" (§7), and the Phrygian-dominant VI7 → ii from §12. It's the most basic move missing from the engine, and small.
 2. **A3, extended with "mu" chords (§7).** Put the secondary dominant over its 3rd (V7/3) so the bass climbs chromatically. Optionally go first through an add2 chord in first inversion, a half step below. Best built as an inversion/approach flag on items 1 and `secondaryTwoFive`, not as a separate rule. L2.
-3. **Two more voicing styles (§6, §7):**
+3. ~~**Two more voicing styles (§6, §7):**~~ **Built 2026-11-19** in `voicing.ts`. Quartal carries a `plane` stack that the band piano alternates with on chords of 4+ beats. Both styles fall back to close when no grip holds both guide tones (mMaj7 quartal, for example).
    - `quartal`: 3–4 note stacks of 4ths taken from the chord's scale, planing on long chords (So What / modal comping);
    - `spread`: a LH 10th (1–3 or 1–♭7) under a RH triad or upper structure, the solo-ballad texture.
 
@@ -111,5 +111,5 @@ Every "New leads" item in `open-studio-digest.md` was grepped against theory-cor
 1. ~~A7 (`oneNoteOnTop`) plus B1/B2 (voicing styles and melody-on-top).~~ **Built 2026-11-19:** `rulesOneNote.ts`, `VoicingStyle` with `top`/`topVoice` in `voicing.ts`, and the mixer's "Piano voicings" select. Rootless A/B wasn't added as its own style: "close" already is a rootless 4-voice grip.
 2. ~~F1 (`secondaryDominant`)~~ and ~~A1 (`mediantDominant`)~~, both built 2026-11-19. Next is the dominant-colour axis (plain/sus/alt) across the dominant-writing rules. A3/F2 and the Mountain can now build on F1.
 3. A2, A4, A5. Each is a small, self-contained rule with a property test.
-4. F3 (quartal and spread voicing styles) and F4 (comping movers). These are the most audible gains for the least code.
+4. ~~F3 (quartal and spread voicing styles)~~ (built 2026-11-19) and F4 (comping movers). These are the most audible gains for the least code.
 5. Changes "Family" round, after Level 4.
