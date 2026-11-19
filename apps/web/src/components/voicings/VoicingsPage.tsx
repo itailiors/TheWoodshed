@@ -1,7 +1,14 @@
 import {
+  absBeat,
   chroma,
   classifyVoicing,
   drillKeyOrder,
+  hasMelody,
+  midiOf,
+  structuralTops,
+  transposeTune,
+  voiceTheTune,
+  type Tune,
   gradeShape,
   type DrillKeyWhy,
   parseShapeRuleId,
@@ -9,6 +16,7 @@ import {
   KEYS,
   prettyNote,
   prettySymbol,
+  referenceTune,
   symbol,
   transpose,
   VOICING_STYLES,
@@ -48,9 +56,13 @@ interface Props {
   onMode: (m: AppMode) => void;
   /** A shape review picked in the passport ("Practise →"): the tab opens on that chord, key and family. */
   review?: { ruleId: string; keyTonic: string } | null;
+  /** The tune on the stand: "Voice the tune" voices its head, when it has a melody. */
+  tune: Tune;
+  /** Put the reference tune (which has a melody) on the stand. */
+  onOpenReference?: () => void;
 }
 
-type Source = "chord" | "major251" | "minor251";
+type Source = "chord" | "major251" | "minor251" | "tune";
 interface ChordChoice {
   id: string;
   label: string;
@@ -88,7 +100,7 @@ function loadSettings(): Settings {
   try {
     const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
     return {
-      source: ["chord", "major251", "minor251"].includes(v.source) ? v.source : fallback.source,
+      source: ["chord", "major251", "minor251", "tune"].includes(v.source) ? v.source : fallback.source,
       chord: CHORDS.some((c) => c.id === v.chord) ? v.chord : fallback.chord,
       key: (KEYS as readonly string[]).includes(v.key) ? v.key : fallback.key,
       style: VOICING_STYLES.some((s) => s.id === v.style) ? v.style : fallback.style,
@@ -118,8 +130,9 @@ function saveSettings(v: Settings) {
 
 const mk = (root: string, quality: Quality, alterations: string[] = []): Chord => ({ root, quality, extensions: [], alterations });
 
-/** The chords on the stage: one, or a ii–V–I in the key. */
-function chordsFor(s: Settings): Chord[] {
+/** The chords on the stage: one, a ii–V–I in the key, or the tune's changes (already in the key). */
+function chordsFor(s: Settings, head: Tune | null = null): Chord[] {
+  if (s.source === "tune" && head) return head.harmony;
   if (s.source === "major251") return [mk(transpose(s.key, "2"), "m7"), mk(transpose(s.key, "5"), "7"), mk(s.key, "maj7")];
   if (s.source === "minor251") return [mk(transpose(s.key, "2"), "m7b5"), mk(transpose(s.key, "5"), "7", ["b9"]), mk(s.key, "m6")];
   const c = CHORDS.find((x) => x.id === s.chord) ?? CHORDS[0];
@@ -150,7 +163,7 @@ function motionLine(a: VoicingForm, b: VoicingForm): string {
   return `${held} held · ${parts.filter((p) => !p.endsWith("held")).join(" · ") || "nothing moves"}`;
 }
 
-export function VoicingsPage({ midi, onMode, review = null }: Props) {
+export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReference }: Props) {
   const touchFirst = useTouchFirst();
   const narrow = useNarrow();
   const [settings, setSettings] = useState(() => settingsFor(review));
@@ -168,7 +181,15 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
   /** A choice made by hand ends the drill; the drill moves the key itself through `update`. */
   const pick = (v: Partial<Settings>) => {
     setDrill(null);
+    setWhyNoTune(false);
     update(v);
+  };
+  /** "Voice the tune" picked on a chart with no melody: say why, inline, with a way to a tune that has one. */
+  const [whyNoTune, setWhyNoTune] = useState(false);
+  const homeKey = (t: Tune) => KEYS.find((k) => chroma(k) === chroma(t.key.tonic)) ?? settings.key;
+  const openReference = () => {
+    onOpenReference?.();
+    pick({ source: "tune", key: homeKey(referenceTune) });
   };
   const startDrill = async () => {
     const c = chordsFor(settings)[0];
@@ -181,18 +202,26 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
     setDrill({ keys, at: 0, done: {} });
   };
 
-  const chords = useMemo(() => chordsFor(settings), [settings]);
+  // "Voice the tune": the head on the stand, moved to the chosen key (a chart with no melody can't be voiced under one)
+  const melodyTune = hasMelody(tune);
+  const head = useMemo(() => (settings.source === "tune" && melodyTune ? transposeTune(tune, settings.key) : null), [settings.source, settings.key, tune, melodyTune]);
+  const source: Source = settings.source === "tune" && !head ? "chord" : settings.source;
+  const chords = useMemo(() => chordsFor({ ...settings, source }, head), [settings, source, head]);
   const progression = chords.length > 1;
-  // one chord: every form, and the one you're looking at; a ii–V–I: the voice-led path from a start form
+  // one chord: every form, and the one you're looking at; a ii–V–I: the voice-led path from a start form;
+  // the tune: voice-led too, each chord under its melody note
   const [formId, setFormId] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const forms = useMemo(() => voicingForms(chords[0], settings.style), [chords, settings.style]);
-  const startForms = progression ? forms : [];
-  const path = useMemo(() => (progression ? voiceLeadForms(chords, settings.style, formId ?? undefined) : null), [chords, settings.style, formId, progression]);
+  const startForms = progression && !head ? forms : [];
+  const path = useMemo(
+    () => (head ? voiceTheTune(head, settings.style) : progression ? voiceLeadForms(chords, settings.style, formId ?? undefined) : null),
+    [head, chords, settings.style, formId, progression],
+  );
   useEffect(() => {
     setFormId(null);
     setStep(0);
-  }, [settings.source, settings.chord, settings.key, settings.style]);
+  }, [source, settings.chord, settings.key, settings.style, tune.id]);
 
   const current: VoicingForm = path ? path[step] : (forms.find((f) => f.id === formId) ?? forms[0]);
   const chord = chords[progression ? step : 0];
@@ -202,6 +231,26 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
   const hear = () => void player.playNotes(current.notes.map((n) => n.midi), 1.8);
   const arpeggio = () => void player.playSequence([...current.notes.map((n) => [n.midi]), current.notes.map((n) => n.midi)], 0.32);
   const hearPath = () => path && void player.playSequence(path.map((f) => f.notes.map((n) => n.midi)), 1.4, setSounding);
+  /** The head in time: the melody over the voicings (their top note left to the melody), and the stage following along. */
+  const hearHead = () => {
+    if (!head || !path) return;
+    const bpb = head.meter[0];
+    const spb = 60 / Math.min(head.tempo, 112);
+    // swing the off-beat eighths (the "and" lands two-thirds through the beat)
+    const at = (b: number) => (Math.floor(b) + (head.feel === "swing" && b % 1 === 0.5 ? 2 / 3 : b % 1)) * spb;
+    const tops = structuralTops(head);
+    const comp = head.harmony.map((c, i) => ({
+      midis: path[i].notes.map((n) => n.midi).filter((m, j, all) => j < all.length - 1 || m !== tops[i]),
+      at: at(absBeat(c.at, bpb)),
+      seconds: c.beats * spb * 0.97,
+      vel: 0.42,
+    }));
+    const line = head.melody.map((n) => ({ midis: [midiOf(n.pitch)], at: at(absBeat(n.at, bpb)), seconds: n.beats * spb * 0.92, vel: 0.72 }));
+    void player.playScore([...comp, ...line], comp.map((c) => c.at), (i) => {
+      setSounding(i);
+      if (i !== null) setStep(i);
+    });
+  };
 
   // ── playing: MIDI / computer keys strike; on-screen keys tap in, then check ──
   const [played, setPlayed] = useState<number[]>([]);
@@ -278,7 +327,9 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
   // higher row on top like a grand staff, both rows at the same key size. The bass is left off:
   // grading treats it as optional, it's named in the LH/RH line, and a row just for it would push
   // everything else off the screen.
-  const inPlay = (path ?? [current]).flatMap((f) => f.notes.slice(1).map((n) => n.midi));
+  // (a whole head spans too much for that: there the keys cover this chord and its neighbours)
+  const near = head && path ? path.slice(Math.max(0, step - 1), step + 2) : path;
+  const inPlay = (near ?? [current]).flatMap((f) => f.notes.slice(1).map((n) => n.midi));
   const rows = narrow ? [...phoneKeyboardRows(inPlay)].reverse() : [{ low: 36, high: 84 }];
   const widest = Math.max(...rows.map((r) => whiteCount(r.low, r.high)));
   const playedShape = grade?.playedForm;
@@ -292,10 +343,16 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
       <button type="button" onClick={arpeggio} className={`${btn} hover:bg-paper-shade`}>
         {narrow ? "Notes" : "Note by note"}
       </button>
-      {path && (
-        <button type="button" onClick={hearPath} className={`${btn} hover:bg-paper-shade`}>
-          ▶ {narrow ? "All 3" : `Hear the ${settings.source === "minor251" ? "ii–V–i" : "ii–V–I"}`}
+      {head ? (
+        <button type="button" onClick={hearHead} className={`${btn} hover:bg-paper-shade`}>
+          ▶ {narrow ? "Head" : "Hear the head"}
         </button>
+      ) : (
+        path && (
+          <button type="button" onClick={hearPath} className={`${btn} hover:bg-paper-shade`}>
+            ▶ {narrow ? "All 3" : `Hear the ${source === "minor251" ? "ii–V–i" : "ii–V–I"}`}
+          </button>
+        )
       )}
       {pending.length > 0 && (
         <>
@@ -361,15 +418,20 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
           <div className="flex flex-wrap items-center gap-2 font-hand">
             <Pills
               label="Source"
-              value={settings.source}
+              value={source}
               options={[
                 { id: "chord", label: "One chord" },
                 { id: "major251", label: "ii–V–I major" },
                 { id: "minor251", label: "ii–V–i minor" },
+                { id: "tune", label: "Voice the tune", unavailable: !melodyTune },
               ]}
-              onChange={(source) => pick({ source })}
+              // the tune opens in the key it's on the stand in; a chart with no melody explains itself instead
+              onChange={(s) => {
+                if (s === "tune" && !melodyTune) return setWhyNoTune(true);
+                pick(s === "tune" && settings.source !== "tune" ? { source: s, key: homeKey(tune) } : { source: s });
+              }}
             />
-            {settings.source === "chord" && (
+            {source === "chord" && (
               <label className="flex items-center gap-1">
                 <span className="sr-only">Chord type</span>
                 <select value={settings.chord} onChange={(e) => pick({ chord: e.target.value })} className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2 py-0.5 font-marker">
@@ -391,7 +453,7 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
                 ))}
               </select>
             </label>
-            {settings.source === "chord" && !drill && (
+            {source === "chord" && !drill && (
               <button
                 type="button"
                 onClick={() => void startDrill()}
@@ -402,6 +464,22 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
               </button>
             )}
           </div>
+
+          {whyNoTune && !melodyTune && (
+            <p role="note" className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border-2 border-dashed border-ink-soft px-3 py-1.5 font-hand text-sm">
+              <span>
+                <span className="font-marker">{tune.title}</span> has chord changes only, so there's no melody to voice under.
+              </span>
+              {onOpenReference && hasMelody(referenceTune) && (
+                <button type="button" onClick={openReference} className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:bg-paper-shade">
+                  Open {referenceTune.title} →
+                </button>
+              )}
+              <button type="button" onClick={() => setWhyNoTune(false)} aria-label="Dismiss" className="ml-auto cursor-pointer font-marker text-ink-soft">
+                ✕
+              </button>
+            </p>
+          )}
 
           {drill && <DrillRibbon drill={drill} chord={pretty(chord)} style={styleName(settings.style)} onAgain={() => void startDrill()} onStop={() => setDrill(null)} />}
 
@@ -432,7 +510,42 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
           </div>
 
           {/* ── the chord(s) ── */}
-          {path ? (
+          {head && path ? (
+            <>
+              {/* the head as a lead sheet: four bars a line, each chord with the melody note it's voiced under */}
+              <ol className="grid grid-cols-4 gap-x-0 gap-y-1 border-l-2 border-ink" aria-label={`${head.title}, voiced with the melody on top`}>
+                {Array.from({ length: Math.max(...head.harmony.map((c) => c.at.bar)) }, (_, b) => (
+                  <li key={b} className="flex border-r-2 border-ink px-0.5">
+                    {head.harmony.map((c, i) =>
+                      c.at.bar !== b + 1 ? null : (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setStep(i)}
+                          aria-current={i === step}
+                          aria-label={`Bar ${b + 1}: ${pretty(c)}, ${prettyNote(path[i].notes[path[i].notes.length - 1].name)} on top${path[i].fellBack ? ", close" : ""}`}
+                          className={`min-w-0 flex-1 cursor-pointer rounded px-1 py-0.5 text-left ${i === step ? "bg-paper-shade outline-2 outline-ink" : "hover:bg-paper-shade"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
+                        >
+                          {/* a phone's two-chord bar is ~40px a chord: smaller symbol, and just "♪F" */}
+                          <span className={`block font-marker leading-tight ${narrow ? (head.harmony.filter((x) => x.at.bar === c.at.bar).length > 1 ? "text-[0.7rem]" : "text-sm") : "text-lg"}`}>{pretty(c)}</span>
+                          <span className="block truncate font-hand text-xs text-ink-soft">
+                            {narrow ? "♪" : ""}
+                            {prettyNote(path[i].notes[path[i].notes.length - 1].name)}
+                            {narrow ? "" : " on top"}
+                            {path[i].fellBack ? (narrow ? "*" : " · close") : ""}
+                          </span>
+                        </button>
+                      ),
+                    )}
+                  </li>
+                ))}
+              </ol>
+              <p className="font-hand text-sm text-ink-soft">
+                Bar {head.harmony[step]?.at.bar}: {current.label}
+                {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path[step - 1], current)}`}
+              </p>
+            </>
+          ) : path ? (
             <>
               {/* a phone gets a one-row strip (chord + A/B) and the current step's detail underneath,
                   so the keyboard stays in view; wider screens show the detail on every card */}
@@ -495,7 +608,9 @@ export function VoicingsPage({ midi, onMode, review = null }: Props) {
           )}
           {current.fellBack && (
             <p className="font-hand text-sm" role="note">
-              {styleName(settings.style)} can't voice {pretty(chord)} and keep both its 3rd and 7th, so this is the close voicing instead.
+              {head
+                ? `${styleName(settings.style)} can't fit ${pretty(chord)} under the melody's ${prettyNote(current.notes[current.notes.length - 1].name)}, so this chord is the close voicing instead.`
+                : `${styleName(settings.style)} can't voice ${pretty(chord)} and keep both its 3rd and 7th, so this is the close voicing instead.`}
             </p>
           )}
 
@@ -626,7 +741,18 @@ function IdentifyHint({ played, chord, grade }: { played: number[]; chord: Chord
   return <p className="font-hand text-sm text-ink-soft">What you played is the {styleName(k.style)} form “{k.form}” of this chord.</p>;
 }
 
-function Pills<T extends string>({ label, value, options, onChange }: { label: string; value: T; options: { id: T; label: string }[]; onChange: (v: T) => void }) {
+function Pills<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  /** `unavailable`: drawn dimmed but still clickable, so picking it can say why. */
+  options: { id: T; label: string; unavailable?: boolean }[];
+  onChange: (v: T) => void;
+}) {
   return (
     <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1">
       {options.map((o) => (
@@ -635,8 +761,9 @@ function Pills<T extends string>({ label, value, options, onChange }: { label: s
           type="button"
           role="radio"
           aria-checked={value === o.id}
+          aria-disabled={o.unavailable || undefined}
           onClick={() => onChange(o.id)}
-          className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm ${value === o.id ? "border-ink bg-ink text-paper-light" : "border-dashed border-ink-soft hover:bg-paper-shade"}`}
+          className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm aria-disabled:opacity-50 ${value === o.id ? "border-ink bg-ink text-paper-light" : "border-dashed border-ink-soft hover:bg-paper-shade"}`}
         >
           {o.label}
         </button>

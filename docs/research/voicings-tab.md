@@ -122,12 +122,12 @@ Source: seven role-play agents (Sonnet), run read-only. Roles: 2-month beginner 
 - A `shape:<style>:<quality>` SM-2 history behind a prefix registry, plus a Passport section. **Built 2026-11-19:** theory-core `concepts.ts` (`CONCEPT_FAMILIES`, `conceptKind`, `conceptName`, `shapeRuleId`/`parseShapeRuleId`; alterations join with `+`, e.g. `shape:shell:7+b9`). The first clean voicing of each chord on the stage is filed under the chord's root with the wrong strikes before it as misses (chart `voicings`); the passport's "Voicings · shapes" section opens the tab on that chord, key and family.
 - A 12-key drill weighted toward weak keys. **Built 2026-11-19:** theory-core `drillKeyOrder` (srs.ts) puts the 12 keys in the order due → weak (last grade < 4) → new → solid, with ties going round the circle of fifths from your key. "Drill 12 keys →" (one-chord source only) walks that order and files each key. A choice made by hand ends the drill, and the demo's sample notebook never sets the order.
 - "Voice this" from a lead-sheet chord.
-- "Voice the tune" in one style with the melody on top (INT's selling point).
+- "Voice the tune" in one style with the melody on top (INT's selling point). **Built 2026-11-19:** theory-core `voiceTheTune.ts` (`structuralTops`, `voiceTheTune`, `hasMelody`); `voiceLeadForms` takes per-chord `tops`. The tab's "Voice <tune>" source shows the head as a four-bars-a-line lead sheet, each chord with its top note; you step through it untimed, clean chords file and advance as in the ii–V–I. "▶ Hear the head" plays the melody over the voicings in time (swung, at most 112 bpm). Disabled, with the reason, on a chart with no melody. Pinning a low melody note once dropped drop-3's voice under the bass (the band's One Note on Top path too); it now falls back to close. Quartal rarely fits under a melody (14 of Co-op Blues' 16 chords fall back to close) and says so per chord. Grading is octave-free, so when the melody's pitch class is already in the shell, playing it on top isn't enforced.
 - Hear-then-hide-then-play.
 - Compare pins (up to 3).
 - "Use for band piano".
 
-**Visual polish (next):**
+**Visual polish (built 2026-11-19, `24bd1d9`):**
 - **Guide-tone mark.** The mustard ring on the 3rd/7th is the same mark Coach uses for "a valid alternative", and it's easy to miss.
   - Give guide tones their own mark, e.g. an ink double ring or a filled watercolour wash on the key, plus a small legend.
   - Keep mustard for Coach's alternatives.
@@ -157,3 +157,6 @@ Source: seven role-play agents (Sonnet), run read-only. Roles: 2-month beginner 
 3. **No practice history in the MVP.** Live grading only. The `shape:` prefix registry and Passport section come in v2.
 4. **Primary user: intermediate.** Beginners get the 3-pill on-ramp.
 5. **History counts the form, strictly.** Playing the right notes in another form of the same family (e.g. 3-♭7 when the stage shows ♭7-3) counts as a miss before the clean voicing. The live hint still names the shape you played.
+6. **Voice the tune: the structural melody note on top.** Per chord, the longest melody note starting in its span (an eighth-note anticipation belongs to the chord it anticipates), ties to the note nearest the attack. One voicing per chord, like comping a head; not block chords.
+7. **Voice the tune: melody tunes only.** Charts without a melody (public-domain changes, iReal imports) don't offer it, and say why.
+8. **Voice the tune: step through, untimed,** filing each clean chord, plus "Hear the head" in time.

@@ -14,6 +14,7 @@ export * from "./pathway";
 export * from "./improv";
 export * from "./voicing";
 export * from "./voicingForms";
+export * from "./voiceTheTune";
 export * from "./transpose";
 export * from "./coach";
 export * from "./lineEval";

@@ -288,6 +288,22 @@ class Player {
     if (onStep) this.engine?.atAudioTime(step(null), voicings.length * secondsEach + 0.15);
   }
 
+  /**
+   * Play a little score: each event's notes at its own offset (seconds from now) and length.
+   * `onStep(i)` fires as `steps[i]` (an offset) is heard, `onStep(null)` once everything has
+   * rung. Voicings' "Hear the head": the comping under the melody, in time.
+   */
+  async playScore(events: { midis: number[]; at: number; seconds: number; vel?: number }[], steps: number[] = [], onStep?: (i: number | null) => void) {
+    await this.init();
+    const token = ++this.auditionToken;
+    const step = (i: number | null) => () => token === this.auditionToken && onStep?.(i);
+    for (const e of events) this.engine?.playNotes(e.midis, e.seconds, e.at, e.vel);
+    if (!onStep) return;
+    steps.forEach((t, i) => this.engine?.atAudioTime(step(i), t));
+    const end = Math.max(0, ...events.map((e) => e.at + e.seconds));
+    this.engine?.atAudioTime(step(null), end + 0.15);
+  }
+
   /** Stop reporting steps for the audition in progress (its notes still ring out). */
   cancelAudition() {
     this.auditionToken++;

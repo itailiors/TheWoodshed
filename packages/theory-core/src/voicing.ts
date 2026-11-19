@@ -343,7 +343,9 @@ export function candidates(chord: ChordLike, style: VoicingStyle, top: number | 
   const four = upperPitchClasses(chord, 4).slice(0, 4).map((n) => chroma(n));
   if (top !== undefined) {
     const stack = closeUnder(top, four).slice(-4);
-    return [style === "close" || stack.length < 4 ? stack : drop(stack, style === "drop2" ? 2 : 3)];
+    const v = style === "close" || stack.length < 4 ? stack : drop(stack, style === "drop2" ? 2 : 3);
+    // under a low melody note the dropped voice can land below the bass (C6's A2 under its C3): then it's close
+    return v[0] > bass ? [v] : [];
   }
   if (style === "close") return inversions(upperPitchClasses(chord).map((n) => chroma(n))).filter((v) => v[v.length - 1] <= 81);
   if (four.length < 4) return inversions(four).filter((v) => v[v.length - 1] <= 81);

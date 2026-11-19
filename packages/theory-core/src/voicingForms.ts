@@ -111,14 +111,15 @@ interface Layout {
   fellBack: boolean;
 }
 
-/** Every layout (all octaves) a style offers for a chord, engine layouts first. */
-function layouts(chord: ChordLike, style: VoicingStyle): Layout[] {
+/** Every layout (all octaves) a style offers for a chord, engine layouts first. With `top`, only layouts with that note on top. */
+function layouts(chord: ChordLike, style: VoicingStyle, top?: number): Layout[] {
   const bass = bassOf(chord);
-  const { options, fellBack } = styleOptions(chord, style, undefined, bass);
+  const { options, fellBack } = styleOptions(chord, style, top, bass);
   const used: VoicingStyle = fellBack ? "close" : style;
   const out: Layout[] = options.map((upper) => ({ style: used, upper, textbook: false, fellBack }));
   if (!fellBack && (style === "drop2" || style === "drop3"))
-    for (const upper of textbookDrops(chord, style === "drop2" ? 2 : 3, bass)) out.push({ style, upper, textbook: true, fellBack });
+    for (const upper of textbookDrops(chord, style === "drop2" ? 2 : 3, bass))
+      if (top === undefined || upper[upper.length - 1] === top) out.push({ style, upper, textbook: true, fellBack });
   return out;
 }
 
@@ -252,14 +253,15 @@ function voiceByVoice(style: VoicingStyle, prev: number[] | undefined) {
 /**
  * Voice-lead a progression through one style's forms, each chord taking the form (and octave)
  * whose voices move least, voice by voice, from the last. Optionally start on a named form:
- * rootless ii–V–I from "A" alternates A, B, A.
+ * rootless ii–V–I from "A" alternates A, B, A. `tops[i]`, when set, pins chord i's top note
+ * (a melody note); the style falls back to close when it can't fit under it.
  */
-export function voiceLeadForms(chords: ChordLike[], style: VoicingStyle, startForm?: string): VoicingForm[] {
+export function voiceLeadForms(chords: ChordLike[], style: VoicingStyle, startForm?: string, tops: (number | undefined)[] = []): VoicingForm[] {
   const out: VoicingForm[] = [];
   let prev: number[] | undefined;
   chords.forEach((chord, i) => {
     const degrees = degreeMap(chord);
-    let pool = layouts(chord, style).map((l) => ({ l, f: toForm(chord, l, degrees) }));
+    let pool = layouts(chord, style, tops[i]).map((l) => ({ l, f: toForm(chord, l, degrees) }));
     if (i === 0 && startForm && pool.some((p) => p.f.id === startForm)) pool = pool.filter((p) => p.f.id === startForm);
     const score = voiceByVoice(style, prev);
     const best = pool.reduce((b, p) => (score(p.l.upper) < score(b.l.upper) ? p : b), pool[0]);

@@ -491,7 +491,7 @@ export function App() {
       <Suspense fallback={<Inking label="Laying out the shapes" />}>
         <Toaster />
         <PanelBoundary onClose={() => void setMode("study")}>
-          <VoicingsPage key={shapeReview ? `${shapeReview.ruleId}@${shapeReview.keyTonic}` : "voicings"} midi={midi} onMode={setMode} review={shapeReview} />
+          <VoicingsPage key={shapeReview ? `${shapeReview.ruleId}@${shapeReview.keyTonic}` : "voicings"} midi={midi} onMode={setMode} review={shapeReview} tune={tune} onOpenReference={() => void loadTune(referenceTune.id)} />
         </PanelBoundary>
       </Suspense>
     );
