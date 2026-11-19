@@ -1,6 +1,11 @@
 import {
   chroma,
   classifyVoicing,
+  earStep,
+  hiddenHint,
+  shapeDiff,
+  type EarEvent,
+  type EarPhase,
   hasMelody,
   headScore,
   transposeTune,
@@ -97,9 +102,11 @@ interface Settings {
   key: string;
   style: VoicingStyle;
   more: boolean;
+  /** Hear, hide, play: the voicing is played, then hidden, and you play it back from memory. */
+  ear: boolean;
 }
 function loadSettings(): Settings {
-  const fallback: Settings = { source: "chord", chord: "maj7", key: "C", style: "shell", more: false };
+  const fallback: Settings = { source: "chord", chord: "maj7", key: "C", style: "shell", more: false, ear: false };
   try {
     const v = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
     return {
@@ -108,6 +115,7 @@ function loadSettings(): Settings {
       key: (KEYS as readonly string[]).includes(v.key) ? v.key : fallback.key,
       style: VOICING_STYLES.some((s) => s.id === v.style) ? v.style : fallback.style,
       more: v.more === true,
+      ear: v.ear === true,
     };
   } catch {
     return fallback;
@@ -223,15 +231,36 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   const current: VoicingForm = path ? path[step] : single;
   const chord = chords[progression ? step : 0];
 
+  // ── hear, hide, play: where the chord on the stage is (theory-core's `earStep`); grading is unchanged ──
+  const [earPhase, setEarPhase] = useState<EarPhase>("hear");
+  const earEvent = (e: EarEvent) => setEarPhase((p) => earStep(p, e));
+  /** Set once you've heard something here (audio is unlocked): from then on each new chord plays itself when hidden. */
+  const earArmed = useRef(false);
+
   // ── hearing ──
   const [sounding, setSounding] = useState<number | null>(null);
-  const hear = () => void player.playNotes(current.notes.map((n) => n.midi), 1.8);
-  const arpeggio = () => void player.playSequence([...current.notes.map((n) => [n.midi]), current.notes.map((n) => n.midi)], 0.32);
-  const hearPath = () => path && void player.playSequence(path.map((f) => f.notes.map((n) => n.midi)), 1.4, setSounding);
+  const heard = () => {
+    earArmed.current = true;
+    earEvent("heard");
+  };
+  const hear = () => {
+    heard();
+    void player.playNotes(current.notes.map((n) => n.midi), 1.8);
+  };
+  const arpeggio = () => {
+    heard();
+    void player.playSequence([...current.notes.map((n) => [n.midi]), current.notes.map((n) => n.midi)], 0.32);
+  };
+  const hearPath = () => {
+    if (!path) return;
+    heard();
+    void player.playSequence(path.map((f) => f.notes.map((n) => n.midi)), 1.4, setSounding);
+  };
   /** The head in time: the melody over the voicings (theory-core's `headScore`), swung like the band, and the stage following along. */
   const hearHead = () => {
     if (!head || !path) return;
     const { comp, line, steps } = headScore(head, path, getBandFeel().swing);
+    heard();
     setHeadPlaying(true);
     void player.playScore([...comp, ...line], steps, (i) => {
       setSounding(i);
@@ -275,6 +304,19 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
     [head, settings.style],
   );
 
+  // a new chord on the stage (or the same one started over, or the mode switched) starts hidden and unheard;
+  // in ear mode, once audio is unlocked, it plays itself. The head playing through counts as hearing it.
+  const stageKey = `${session.view.epoch}|${settings.style}|${symbol(chord)}|${current.id}|${current.notes.map((n) => n.midi).join(",")}`;
+  const hearRef = useRef(hear);
+  hearRef.current = hear;
+  useEffect(() => {
+    const playing = headPlayingRef.current;
+    setEarPhase((p) => (playing ? "recall" : earStep(p, "next")));
+    if (playing || !settings.ear || !earArmed.current) return;
+    const t = setTimeout(() => hearRef.current(), 250);
+    return () => clearTimeout(t);
+  }, [stageKey, settings.ear]);
+
   // ── playing: MIDI / computer keys strike; on-screen keys tap in, then check ──
   const [pending, setPending] = useState<number[]>([]);
   // the session grades each strike; tapping a key hides the last grade until the next one
@@ -284,6 +326,19 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   const played = graded?.played ?? [];
   const grade: ShapeGrade | null = graded?.grade ?? null;
   const saved = session.saved && { clean: session.saved.clean, days: session.saved.review.intervalDays };
+  // each graded strike moves the ear phase: clean shows the voicing, a miss keeps it hidden
+  useEffect(() => {
+    if (latest && latest.by === "engine" && latest.kind === "shape") earEvent(latest.grade.valid ? "clean" : "miss");
+  }, [latest]);
+  /** Ear mode, before a clean answer or Reveal: no target, no degrees, no note names; the chord symbol stays. */
+  const concealed = settings.ear && earPhase !== "shown" && !grade?.valid;
+  const reveal = () => earEvent("reveal");
+  /** Shown again (after a clean answer or Reveal): hide it and hear it again. */
+  const hideAgain = () => {
+    setEarPhase("hear");
+    setHidden(session.view.lastAttempt);
+    hear();
+  };
   // a new chord (or the same one started over) starts with no tapped-in notes
   useEffect(() => setPending([]), [session.view.epoch]);
   const check = (notes: number[]) => {
@@ -304,20 +359,25 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   const labels = current.notes.map((n) => ({ midi: n.midi, label: degreeLabel(n.degree), strong: isGuide(n.degree) }));
   const guides = current.notes.filter((n) => isGuide(n.degree)).map((n) => n.midi);
   const hands = current.notes.map((n) => ({ midi: n.midi, hand: n.hand }));
-  const pcOf = (m: number) => ((m % 12) + 12) % 12;
-  const formPcs = new Set(current.notes.map((n) => pcOf(n.midi)));
-  const marks = grade
-    ? {
-        played,
-        ticks: grade.valid ? played : [],
-        check: grade.valid,
-        missing: grade.valid ? [] : current.notes.filter((n, i) => i > 0 && grade.missing.includes(n.degree)).map((n) => ({ midi: n.midi, label: degreeLabel(n.degree) })),
-        wrong: played.filter((m) => !formPcs.has(pcOf(m))).map((m) => ({ midi: m, label: "✗" })),
-        target: grade.valid ? [] : target,
-        labels: grade.valid ? labels : [],
-        hands,
-      }
-    : { target, labels, guides, hands, pending };
+  // what was missing / extra against the last strike (theory-core's `shapeDiff`, from the grade)
+  const diff = shapeDiff(current, played, grade);
+  const marks = concealed
+    ? // hidden: only your own notes, unjudged on the keys (the line under them counts what's off)
+      grade
+      ? { played }
+      : { pending }
+    : grade
+      ? {
+          played,
+          ticks: grade.valid ? played : [],
+          check: grade.valid,
+          missing: diff.missing.map((n) => ({ midi: n.midi, label: degreeLabel(n.degree) })),
+          wrong: diff.extra.map((m) => ({ midi: m, label: "✗" })),
+          target: grade.valid ? [] : target,
+          labels: grade.valid ? labels : [],
+          hands,
+        }
+      : { target, labels, guides, hands, pending };
   // a phone gets just the keys in play (all of a ii–V–I's, so the rows don't jump between chords),
   // higher row on top like a grand staff, both rows at the same key size. The bass is left off:
   // grading treats it as optional, it's named in the LH/RH line, and a row just for it would push
@@ -338,6 +398,17 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
       <button type="button" onClick={arpeggio} className={`${btn} hover:bg-paper-shade`}>
         {narrow ? "Notes" : "Note by note"}
       </button>
+      {concealed ? (
+        <button type="button" onClick={reveal} className={`${btn} border-dashed hover:bg-paper-shade`}>
+          {narrow ? "Reveal" : "Reveal the voicing"}
+        </button>
+      ) : (
+        settings.ear && (
+          <button type="button" onClick={hideAgain} className={`${btn} border-dashed hover:bg-paper-shade`}>
+            {narrow ? "Hide" : "Hide it, hear it again"}
+          </button>
+        )
+      )}
       {path && (
         <span className="flex items-center gap-1" role="group" aria-label="Step through the chords">
           <button type="button" onClick={() => go(-1)} disabled={step === 0} aria-label="Previous chord (←)" title="Previous chord (←)" className={`${btn} hover:bg-paper-shade disabled:cursor-default disabled:opacity-40`}>
@@ -481,6 +552,19 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                 Drill 12 keys →
               </button>
             )}
+            <button
+              type="button"
+              aria-pressed={settings.ear}
+              onClick={() => {
+                // switching it on is a click, so audio is unlocked: the chord on the stage plays, then hides
+                earArmed.current = true;
+                update({ ear: !settings.ear });
+              }}
+              title="Ear mode: the app plays the voicing, hides it from the keys, and you play it back from memory"
+              className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker ${settings.ear ? "border-ink bg-ink text-paper-light" : "border-dashed border-ink-soft hover:bg-paper-shade"}`}
+            >
+              👂 Hear, hide, play
+            </button>
           </div>
 
           {whyNoTune && !melodyTune && (
@@ -533,7 +617,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), session.goToRun(i)) : session.goToRun(i))} />
               <p className="font-hand text-sm text-ink-soft">
                 Bar {head.harmony[step]?.at.bar}: {current.label}
-                {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
+                {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
               </p>
             </>
           ) : path ? (
@@ -556,7 +640,12 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                       ) : (
                         <>
                           <span className="block font-hand text-sm text-ink-soft">{f.label}</span>
-                          {i > 0 && <span className="block font-hand text-xs text-ink-soft">from {pretty(chords[i - 1])}: {motionLine(path, chords, i)}</span>}
+                          {/* the motion names notes: hidden in ear mode until this chord is shown */}
+                          {i > 0 && !(settings.ear && (i > step || (i === step && concealed))) && (
+                            <span className="block font-hand text-xs text-ink-soft">
+                              from {pretty(chords[i - 1])}: {motionLine(path, chords, i)}
+                            </span>
+                          )}
                         </>
                       )}
                     </button>
@@ -566,7 +655,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               {narrow && (
                 <p className="font-hand text-sm text-ink-soft">
                   {current.label}
-                  {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
+                  {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
                 </p>
               )}
             </>
@@ -607,13 +696,19 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
 
           {/* ── the keys ── */}
           {!narrow && keyboard}
-          <p className="font-hand text-sm" aria-label="Voicing by hand, with the key legend">
-            <HandTag hand="L" /> <span className="font-marker">LH</span> {byHand(current, "L")} <span className="mx-2 text-ink-faint">|</span> <HandTag hand="R" />{" "}
-            <span className="font-marker">RH</span> {byHand(current, "R")}
-            <span className="ml-2 whitespace-nowrap text-ink-soft">
-              · <GuideTag /> guide tones ({current.notes.filter((n) => isGuide(n.degree)).map((n) => degreeLabel(n.degree)).join(", ")})
-            </span>
-          </p>
+          {concealed ? (
+            <p className="font-hand text-sm text-ink-soft" role="note">
+              👂 The voicing is hidden{earPhase === "hear" ? ": hear it first." : "."} Play it back from memory; a clean answer, or Reveal, shows it again with what was missing or extra.
+            </p>
+          ) : (
+            <p className="font-hand text-sm" aria-label="Voicing by hand, with the key legend">
+              <HandTag hand="L" /> <span className="font-marker">LH</span> {byHand(current, "L")} <span className="mx-2 text-ink-faint">|</span> <HandTag hand="R" />{" "}
+              <span className="font-marker">RH</span> {byHand(current, "R")}
+              <span className="ml-2 whitespace-nowrap text-ink-soft">
+                · <GuideTag /> guide tones ({current.notes.filter((n) => isGuide(n.degree)).map((n) => degreeLabel(n.degree)).join(", ")})
+              </span>
+            </p>
+          )}
 
           {!narrow && actions}
 
@@ -631,19 +726,24 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                 </p>
               ) : (
                 <p className="font-marker text-pen">
-                  {grade.hint}
-                  {playedShape && playedShape.style !== current.style && <span className="ml-1 font-hand text-ink-soft">(that's a {styleName(playedShape.style)} shape)</span>}
+                  {/* hidden, the pen only counts what's off (its usual hint names the notes) */}
+                  {concealed ? hiddenHint(grade) : grade.hint}
+                  {!concealed && playedShape && playedShape.style !== current.style && <span className="ml-1 font-hand text-ink-soft">(that's a {styleName(playedShape.style)} shape)</span>}
                 </p>
               )
             ) : (
               <p className="text-ink-soft">
-                {touchFirst || midi.status !== "connected"
+                {concealed
+                  ? earPhase === "hear"
+                    ? "Press ▶ Hear it, then play it back from memory."
+                    : "Now play it from memory. Any octave counts; the bass note is optional."
+                  : touchFirst || midi.status !== "connected"
                   ? "Play it: tap the keys, then Check. Or connect a MIDI keyboard, or press M to play with your computer keys. Any octave counts."
                   : "Play it on your keyboard. Any octave counts; the bass note is optional."}
               </p>
             )}
           </div>
-          <IdentifyHint played={played} chord={chord} grade={grade} />
+          {!concealed && <IdentifyHint played={played} chord={chord} grade={grade} />}
           {narrow && keyboard}
         </div>
       </SketchBox>
