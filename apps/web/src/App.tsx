@@ -1,6 +1,7 @@
 import {
-  buildPathway,
   conceptKind,
+  editorPathway,
+  editorPicks,
   chroma,
   transposeTune,
   densityLabel,
@@ -41,6 +42,7 @@ import { LeadSheet } from "./components/LeadSheet";
 import { LevelDial } from "./components/LevelDial";
 import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
+import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { SideRail } from "./components/SideRail";
@@ -181,15 +183,13 @@ export function App() {
 
   const { accepted, rejected } = useMemo(() => generateMoves(tune), [tune]);
 
-  const [level, setLevel] = useState(2);
-  const [forced, setForced] = useState<string[]>([]);
-  /** Chord ids you asked to keep as written (Chord by chord). Chord ids belong to a chart. */
-  const [kept, setKept] = useState<string[]>([]);
+  // The dial, your picks, the chords you keep and the open move; the rules are theory-core's `editPathway`.
+  const [editor, edit] = usePathwayEditor(accepted);
+  const { level, picks: forced, kept, selectedId } = editor;
   const [view, setView] = useState<"reharm" | "original">("reharm");
-  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const forcedMoves = useMemo(() => forced.map((id) => accepted.find((m) => m.id === id)).filter((m): m is ReharmMove => !!m), [accepted, forced]);
-  const pathway = useMemo(() => buildPathway(accepted, level, forcedMoves, kept), [accepted, level, forcedMoves, kept]);
+  const forcedMoves = useMemo(() => editorPicks(editor, accepted), [accepted, editor]);
+  const pathway = useMemo(() => editorPathway(editor, accepted), [accepted, editor]);
   const realized = useMemo(() => realize(tune, pathway), [tune, pathway]);
   const original = useMemo(() => sortedHarmony(tune), [tune]);
   const shownChords = view === "reharm" ? realized : original;
@@ -202,31 +202,15 @@ export function App() {
       )
     : improv.slice(0, 2);
 
-  const changeLevel = (l: number) => {
-    setLevel(l);
-    setForced([]);
-    setKept([]);
-    setSelectedId(null);
-  };
-  // A linked pedal or mod wheel moves only the dial. Unlike a click it keeps your picks and
-  // the selected move, so rocking the pedal through a chorus doesn't throw away your choices.
-  // The new pathway reaches the band on the next beat, like any other dial change.
-  usePedalLevel(setLevel);
-  const pick = (alt: ReharmMove) => {
-    setForced((f) => [...f.filter((id) => !overlaps(accepted.find((m) => m.id === id)!, alt)), alt.id]);
-    setKept((k) => k.filter((id) => !alt.replaces.includes(id))); // picking a move over a kept chord un-keeps it
-    setSelectedId(alt.id);
-  };
+  const changeLevel = (l: number) => edit({ type: "dial", level: l });
+  // A linked pedal or mod wheel moves only the dial and keeps your choices. The new pathway
+  // reaches the band on the next beat, like any other dial change.
+  usePedalLevel((l) => edit({ type: "pedal", level: l }));
+  const setSelectedId = (id: string | null) => edit({ type: "select", id });
+  const pick = (alt: ReharmMove) => edit({ type: "pick", id: alt.id });
   // Chord by chord: keep one chord as written, or hand it back to the dial
-  const dropPicksOn = (chordId: string) => setForced((f) => f.filter((id) => !accepted.find((m) => m.id === id)?.replaces.includes(chordId)));
-  const keepChord = (chordId: string) => {
-    dropPicksOn(chordId);
-    setKept((k) => (k.includes(chordId) ? k : [...k, chordId]));
-  };
-  const dialChord = (chordId: string) => {
-    dropPicksOn(chordId);
-    setKept((k) => k.filter((id) => id !== chordId));
-  };
+  const keepChord = (chordId: string) => edit({ type: "keep", chordId });
+  const dialChord = (chordId: string) => edit({ type: "release", chordId });
 
   const usedCategories = [...new Set(pathway.map((m) => m.category))];
 
@@ -375,12 +359,10 @@ export function App() {
   // A new tune resets everything that belonged to the old one. A key change doesn't: move
   // ids are positional, so your picks, the selected move and the loop all carry across keys.
   useEffect(() => {
-    setForced([]);
-    setKept([]);
-    setSelectedId(null);
+    edit({ type: "newTune" });
     setTempo(baseTune.tempo);
     setLoopSelection(false);
-  }, [baseTune]);
+  }, [baseTune, edit]);
 
   // Apply a link once its tune is on the stand. Declared after the resets above so its state
   // lands last. Applying is idempotent (StrictMode re-runs it with the same link). The key
@@ -390,14 +372,11 @@ export function App() {
     const l = pendingLink;
     if (!l || baseTune.id !== (l.tune ?? referenceTune.id)) return;
     if (l.key) setKeyTonic(chroma(l.key) === chroma(baseTune.key.tonic) ? null : l.key);
-    if (l.level !== undefined) setLevel(l.level);
-    setForced(l.picks);
-    setKept(l.keep);
-    if (l.move) setSelectedId(l.move);
+    edit({ type: "link", level: l.level, picks: l.picks, keep: l.keep, move: l.move });
     if (l.tempo) setTempo(l.tempo);
     if (l.play) setPlayPrompt(true);
     setPendingLink(null);
-  }, [baseTune, pendingLink]);
+  }, [baseTune, pendingLink, edit]);
 
   /** This reharm as a link: tune, key, dial, picks, the open move and a non-default tempo. */
   const linkState = useMemo(

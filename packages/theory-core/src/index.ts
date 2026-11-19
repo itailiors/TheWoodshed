@@ -11,6 +11,7 @@ export * from "./ruleset";
 export { distribute, splitBeats } from "./ruleKit";
 export * from "./engine";
 export * from "./pathway";
+export * from "./pathwayEditor";
 export * from "./improv";
 export * from "./voicing";
 export * from "./voicingForms";

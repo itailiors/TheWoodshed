@@ -43,6 +43,7 @@ packages/theory-core/             THE ENGINE: pure, deterministic TypeScript, no
   src/ruleset.ts                  RULES = [...CORE_RULES, ...ADVANCED_RULES]   (11 rules, L1–L4)
   src/engine.ts                   generateMovesTraced → generateMoves is a thin wrapper
   src/pathway.ts                  DENSITY caps; buildPathwayTraced → buildPathway wraps it; realize()
+  src/pathwayEditor.ts            editPathway: dial click vs pedal, picks, kept chords, open move, links; editorPathway
   src/band.ts                     walkingBass / twoFeelBass / humanizeWalk; drumPattern (ride/hat/snare/brush/kick)
   src/coach.ts  src/lineEval.ts   drillSteps, diffStrike, diffVoiceLeading; evaluateLineNote, chordAtBeat
   src/transpose.ts                KEYS (flat-side spellings: C Db D Eb E F Gb G Ab A Bb B), transposeTune (id → `${id}@${key}`)
@@ -84,8 +85,9 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
   scripts/gen-demo-history.ts   ★ generates src/library/demoHistory.json from referenceTune (seeded RNG, SM-2-consistent); throws if a
                                   passport place isn't an accepted move. Run: npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.json
   src/main.tsx                  ★ installs installAudioUnlock(), installQwertyKeys() and installPedal() before render
-  src/App.tsx                   ★ modes (study | practice | coach), tune + global key, dial (level state, changeLevel), pathway, drawers;
+  src/App.tsx                   ★ modes (study | practice | coach), tune + global key, pathway (via usePathwayEditor), drawers;
                                   the passport (📒 button, side rail, dashboard) is now open in the demo too
+  src/usePathwayEditor.ts         React state for theory-core editPathway; a stable `edit` for the pedal and shortcuts
   src/lazy.ts                     lazyWithPreload + whenIdle
   src/demo.ts                     DEMO flag; lazy demo explanations
   src/index.css                   @theme tokens, fonts, keyframes, view-transition rules, reduced-motion
