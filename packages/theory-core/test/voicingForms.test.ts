@@ -39,7 +39,8 @@ describe("voicing forms", () => {
             if (f.fellBack) expect(f.style, label).toBe("close");
           }
         }
-  });
+    // ~1–2.5 s alone, but over vitest's 5 s default when every workspace's tests run at once
+  }, 30_000);
 
   it("the engine's own pick is always one of the listed forms (one code path, no fork)", () => {
     for (const root of ROOTS)

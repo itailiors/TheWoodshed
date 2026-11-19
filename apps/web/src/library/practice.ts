@@ -1,3 +1,4 @@
+import { conceptFamily, conceptKind } from "@reharm/theory-core";
 import { DEMO } from "../demo";
 import { reportApiUnreachable } from "./apiStatus";
 import { toast } from "../components/Toaster";
@@ -147,7 +148,7 @@ export async function forgetLocalPractice(): Promise<void> {
 // ── the Changes game ──
 
 /** The chart id the game's reviews are filed under (no tune: "where it was practised" is the game). */
-export const CHANGES_CHART = "changes";
+export const CHANGES_CHART = conceptFamily("ear").chart!;
 
 /**
  * Save a session of Make the Changes. The session itself (answers, points, stamps) stays in this
@@ -167,7 +168,19 @@ export const fetchChangesSessions = async (): Promise<ChangesSessionRecord[]> =>
   (await (await localStore()).readChangesSessions()).sort((a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime());
 
 /** The game's due reviews (`ear:*`), most overdue first; reharm reviews are the Coach's business. */
-export const fetchEarDue = async (): Promise<DueItem[]> => ((await fetchDue()) ?? []).filter((d) => d.ruleId.startsWith("ear:"));
+export const fetchEarDue = async (): Promise<DueItem[]> => ((await fetchDue()) ?? []).filter((d) => conceptKind(d.ruleId) === "ear");
+
+// ── the Voicings tab ──
+
+/** The chart id shape reviews are filed under (no tune: they're practised in the Voicings tab). */
+export const VOICINGS_CHART = conceptFamily("shape").chart!;
+
+/**
+ * A chord voiced cleanly in the Voicings tab: one `shape:<style>:<quality>` concept in the chord's
+ * root, graded by the server from the wrong strikes before it (`misses`). Demo-aware like a Coach run.
+ */
+export const saveShapeRun = (run: { ruleId: string; keyTonic: string; misses: number }) =>
+  saveCoachRun({ tuneId: VOICINGS_CHART, moveId: run.ruleId, ...run, leaps: 0, maxLeap: 0, gradedBy: "engine" });
 
 // ── writes ──
 

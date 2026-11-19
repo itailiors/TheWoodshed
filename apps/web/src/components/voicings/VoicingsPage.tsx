@@ -1,6 +1,11 @@
 import {
+  chroma,
   classifyVoicing,
+  drillKeyOrder,
   gradeShape,
+  type DrillKeyWhy,
+  parseShapeRuleId,
+  shapeRuleId,
   KEYS,
   prettyNote,
   prettySymbol,
@@ -16,6 +21,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { player } from "../../audio/player";
+import { fetchProgress, saveShapeRun } from "../../library/practice";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { paper, seedOf } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
@@ -32,13 +38,16 @@ import { QwertyToggle } from "../QwertyToggle";
  * every form the engine offers, labelled by degree and hand. Hear it, then play it: MIDI and the
  * computer keys are graded as you strike the chord; on-screen keys are tapped in, then checked.
  * Every pitch comes from theory-core (`voicingForms`, `voiceLeadForms`, `gradeShape`); this page
- * only lays them out. Nothing is saved to the practice history yet (that's v2), so the demo build
- * and the real app behave the same here.
+ * only lays them out. The first clean voicing of each chord on the stage is filed in the practice
+ * history as a `shape:<style>:<quality>` concept in the chord's root (the wrong strikes before it
+ * are its misses), so it gets a passport page and comes back when due. The demo keeps it in the browser.
  */
 
 interface Props {
   midi: { status: MidiStatus; connect: () => void };
   onMode: (m: AppMode) => void;
+  /** A shape review picked in the passport ("Practise →"): the tab opens on that chord, key and family. */
+  review?: { ruleId: string; keyTonic: string } | null;
 }
 
 type Source = "chord" | "major251" | "minor251";
@@ -89,6 +98,16 @@ function loadSettings(): Settings {
     return fallback;
   }
 }
+/** The settings a passport review opens on: that one chord, in its key, in its family. */
+function settingsFor(review: Props["review"]): Settings {
+  const saved = loadSettings();
+  const s = review ? parseShapeRuleId(review.ruleId) : null;
+  if (!review || !s) return saved;
+  const c = CHORDS.find((x) => x.quality === s.quality && x.alterations.join("+") === s.alterations.join("+"));
+  const key = KEYS.find((k) => chroma(k) === chroma(review.keyTonic));
+  if (!c || !key) return saved;
+  return { ...saved, source: "chord", chord: c.id, key, style: s.style, more: saved.more || !FIRST_STYLES.includes(s.style) };
+}
 function saveSettings(v: Settings) {
   try {
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(v));
@@ -131,16 +150,36 @@ function motionLine(a: VoicingForm, b: VoicingForm): string {
   return `${held} held · ${parts.filter((p) => !p.endsWith("held")).join(" · ") || "nothing moves"}`;
 }
 
-export function VoicingsPage({ midi, onMode }: Props) {
+export function VoicingsPage({ midi, onMode, review = null }: Props) {
   const touchFirst = useTouchFirst();
   const narrow = useNarrow();
-  const [settings, setSettings] = useState(loadSettings);
+  const [settings, setSettings] = useState(() => settingsFor(review));
   const update = (v: Partial<Settings>) =>
     setSettings((cur) => {
       const next = { ...cur, ...v };
       saveSettings(next);
       return next;
     });
+
+  // ── the 12-key drill: one chord in one family, weakest keys first (theory-core's drillKeyOrder) ──
+  const [drill, setDrill] = useState<Drill | null>(null);
+  const drillRef = useRef(drill);
+  drillRef.current = drill;
+  /** A choice made by hand ends the drill; the drill moves the key itself through `update`. */
+  const pick = (v: Partial<Settings>) => {
+    setDrill(null);
+    update(v);
+  };
+  const startDrill = async () => {
+    const c = chordsFor(settings)[0];
+    const ruleId = shapeRuleId(settings.style, c.quality, c.alterations);
+    const p = await fetchProgress();
+    // the demo's sample notebook is someone else's practice: it never orders your drill
+    const reviews = p && !p.sample ? p.concepts.filter((r) => r.ruleId === ruleId) : [];
+    const keys = drillKeyOrder(reviews, settings.key, new Date());
+    update({ key: keys[0].key });
+    setDrill({ keys, at: 0, done: {} });
+  };
 
   const chords = useMemo(() => chordsFor(settings), [settings]);
   const progression = chords.length > 1;
@@ -168,16 +207,41 @@ export function VoicingsPage({ midi, onMode }: Props) {
   const [played, setPlayed] = useState<number[]>([]);
   const [pending, setPending] = useState<number[]>([]);
   const [grade, setGrade] = useState<ShapeGrade | null>(null);
+  // the practice history: wrong strikes on this chord so far, and whether its clean one is filed
+  const misses = useRef(0);
+  const filed = useRef(false);
+  const [saved, setSaved] = useState<{ clean: boolean; days: number } | null>(null);
   useEffect(() => {
     setPlayed([]);
     setPending([]);
     setGrade(null);
+    setSaved(null);
+    misses.current = 0;
+    filed.current = false;
   }, [current.id, chord.root, chord.quality, settings.style, step]);
   const check = (notes: number[]) => {
     setPlayed(notes);
     setPending([]);
     const g = gradeShape(notes, current, chord);
     setGrade(g);
+    if (!g.valid) misses.current++;
+    else if (!filed.current && /^[A-G][b#]?$/.test(chord.root)) {
+      filed.current = true;
+      // in a 12-key drill, this key is done: mark it (clean = no wrong strike first) and move on
+      if (drill && drill.at < 12 && chroma(drill.keys[drill.at].key) === chroma(chord.root)) {
+        const at = drill.at;
+        setDrill((d) => d && { ...d, done: { ...d.done, [d.keys[at].key]: misses.current === 0 } });
+        setTimeout(() => {
+          if (drillRef.current?.keys !== drill.keys) return; // stopped (or restarted) meanwhile
+          setDrill((d) => d && { ...d, at: at + 1 });
+          if (at < 11) update({ key: drill.keys[at + 1].key });
+        }, 900);
+      }
+      // filed under the family actually shown (a fallback form is close, and says so)
+      void saveShapeRun({ ruleId: shapeRuleId(current.style, chord.quality, chord.alterations), keyTonic: chord.root, misses: misses.current }).then(
+        (r) => r && setSaved({ clean: r.clean, days: r.review.intervalDays }),
+      );
+    }
     // in a ii–V–I, a clean chord moves you on to the next one
     if (g.valid && path && step < path.length - 1) setTimeout(() => setStep((i) => Math.min(i + 1, path.length - 1)), 900);
   };
@@ -301,12 +365,12 @@ export function VoicingsPage({ midi, onMode }: Props) {
                 { id: "major251", label: "ii–V–I major" },
                 { id: "minor251", label: "ii–V–i minor" },
               ]}
-              onChange={(source) => update({ source })}
+              onChange={(source) => pick({ source })}
             />
             {settings.source === "chord" && (
               <label className="flex items-center gap-1">
                 <span className="sr-only">Chord type</span>
-                <select value={settings.chord} onChange={(e) => update({ chord: e.target.value })} className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2 py-0.5 font-marker">
+                <select value={settings.chord} onChange={(e) => pick({ chord: e.target.value })} className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2 py-0.5 font-marker">
                   {CHORDS.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.label}
@@ -317,7 +381,7 @@ export function VoicingsPage({ midi, onMode }: Props) {
             )}
             <label className="flex items-center gap-1 font-marker">
               Key
-              <select value={settings.key} onChange={(e) => update({ key: e.target.value })} className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2 py-0.5">
+              <select value={settings.key} onChange={(e) => pick({ key: e.target.value })} className="cursor-pointer rounded-full border-2 border-ink bg-paper-light px-2 py-0.5">
                 {KEYS.map((k) => (
                   <option key={k} value={k}>
                     {prettyNote(k)}
@@ -325,7 +389,19 @@ export function VoicingsPage({ midi, onMode }: Props) {
                 ))}
               </select>
             </label>
+            {settings.source === "chord" && !drill && (
+              <button
+                type="button"
+                onClick={() => void startDrill()}
+                title="This chord and shape through all 12 keys: keys due for review and keys you've missed in come first"
+                className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:bg-paper-shade"
+              >
+                Drill 12 keys →
+              </button>
+            )}
           </div>
+
+          {drill && <DrillRibbon drill={drill} chord={pretty(chord)} style={styleName(settings.style)} onAgain={() => void startDrill()} onStop={() => setDrill(null)} />}
 
           {/* ── which family ── */}
           <div>
@@ -338,7 +414,7 @@ export function VoicingsPage({ midi, onMode }: Props) {
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    onClick={() => update({ style: id })}
+                    onClick={() => pick({ style: id })}
                     className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker ${on ? "border-ink bg-ink text-paper-light" : "border-dashed border-ink-soft hover:bg-paper-shade"}`}
                   >
                     {styleName(id)}
@@ -435,6 +511,12 @@ export function VoicingsPage({ midi, onMode }: Props) {
               grade.valid ? (
                 <p className="font-marker text-sage-ink">
                   ✓ {current.label}.{path && step < path.length - 1 ? ` On to the ${pretty(chords[step + 1])}…` : path ? " The whole progression, clean." : ""}
+                  {saved && (
+                    <span className="ml-2 font-hand text-base text-ink-soft">
+                      {saved.clean ? `Stamped ${prettyNote(chord.root)} in the passport` : "Filed in the passport"} · next review{" "}
+                      {saved.days <= 1 ? "tomorrow" : `in ${Math.round(saved.days)} days`}
+                    </span>
+                  )}
                 </p>
               ) : (
                 <p className="font-marker text-pen">
@@ -455,6 +537,59 @@ export function VoicingsPage({ midi, onMode }: Props) {
         </div>
       </SketchBox>
     </div>
+  );
+}
+
+interface Drill {
+  keys: { key: string; why: DrillKeyWhy }[];
+  /** The key being played (an index into `keys`); 12 when the drill is finished. */
+  at: number;
+  /** Keys finished so far: true when the first strike was clean. */
+  done: Record<string, boolean>;
+}
+
+const WHY_TAG: Record<DrillKeyWhy, string> = { due: "due", weak: "missed before", new: "new", solid: "" };
+
+/** The drill's 12 keys in order: ticked when done (✓✓ clean first time), the current one ringed, the rest tagged with why they're where they are. */
+function DrillRibbon({ drill, chord, style, onAgain, onStop }: { drill: Drill; chord: string; style: string; onAgain: () => void; onStop: () => void }) {
+  const finished = drill.at >= 12;
+  const clean = Object.values(drill.done).filter(Boolean).length;
+  return (
+    <section aria-label="12-key drill" className="space-y-2 rounded-lg border-2 border-dashed border-ink-soft p-2 font-hand">
+      <p className="flex flex-wrap items-baseline gap-x-3">
+        <span className="font-marker">
+          {finished ? `All 12 keys done: ${clean} clean first time.` : `12-key drill · ${style} · key ${drill.at + 1} of 12: ${chord}`}
+        </span>
+        <span className="text-sm text-ink-soft">{finished ? "Each key is filed in the passport." : "Due keys and keys you've missed in come first."}</span>
+        <span className="ml-auto flex gap-3 font-marker text-sm">
+          {finished && (
+            <button type="button" onClick={onAgain} className="cursor-pointer underline">
+              Drill again
+            </button>
+          )}
+          <button type="button" onClick={onStop} className="cursor-pointer text-ink-soft underline">
+            {finished ? "Done" : "Stop drill"}
+          </button>
+        </span>
+      </p>
+      <ol className="flex flex-wrap gap-1.5">
+        {drill.keys.map(({ key, why }, i) => {
+          const result = drill.done[key];
+          const here = i === drill.at;
+          return (
+            <li
+              key={key}
+              aria-current={here || undefined}
+              aria-label={`${prettyNote(key)}: ${result === undefined ? (here ? "playing now" : WHY_TAG[why] || "solid") : result ? "clean" : "done, with a miss"}`}
+              className={`rounded-full border-2 px-2 py-0.5 text-sm ${here ? "border-pen font-marker" : result !== undefined ? "border-ink bg-paper-shade" : "border-dashed border-ink-faint"}`}
+            >
+              <span className="font-marker">{prettyNote(key)}</span>
+              {result !== undefined ? <span className="ml-1">{result ? "✓✓" : "✓"}</span> : WHY_TAG[why] && <span className="ml-1 text-xs text-ink-soft">{WHY_TAG[why]}</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 

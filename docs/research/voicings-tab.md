@@ -119,13 +119,20 @@ Source: seven role-play agents (Sonnet), run read-only. Roles: 2-month beginner 
 5. `typecheck` and `test` pass.
 
 **v2:**
-- A `shape:<style>:<quality>` SM-2 history behind a prefix registry, plus a Passport section.
-- A 12-key drill weighted toward weak keys.
+- A `shape:<style>:<quality>` SM-2 history behind a prefix registry, plus a Passport section. **Built 2026-11-19:** theory-core `concepts.ts` (`CONCEPT_FAMILIES`, `conceptKind`, `conceptName`, `shapeRuleId`/`parseShapeRuleId`; alterations join with `+`, e.g. `shape:shell:7+b9`). The first clean voicing of each chord on the stage is filed under the chord's root with the wrong strikes before it as misses (chart `voicings`); the passport's "Voicings · shapes" section opens the tab on that chord, key and family.
+- A 12-key drill weighted toward weak keys. **Built 2026-11-19:** theory-core `drillKeyOrder` (srs.ts) puts the 12 keys in the order due → weak (last grade < 4) → new → solid, with ties going round the circle of fifths from your key. "Drill 12 keys →" (one-chord source only) walks that order and files each key. A choice made by hand ends the drill, and the demo's sample notebook never sets the order.
 - "Voice this" from a lead-sheet chord.
 - "Voice the tune" in one style with the melody on top (INT's selling point).
 - Hear-then-hide-then-play.
 - Compare pins (up to 3).
 - "Use for band piano".
+
+**Visual polish (next):**
+- **Guide-tone mark.** The mustard ring on the 3rd/7th is the same mark Coach uses for "a valid alternative", and it's easy to miss.
+  - Give guide tones their own mark, e.g. an ink double ring or a filled watercolour wash on the key, plus a small legend.
+  - Keep mustard for Coach's alternatives.
+- **Hand colour on the keys** (spec §2 item 4): wash the left hand's notes brick and the right hand's blue, with a shape cue too (LH square tag, RH dot), so it isn't colour-only. Today the hands are only named in text.
+- **Degree labels:** make the guide-tone labels (3, ♭7) bolder than the colour tones (9, 13), so the eye lands on the shell first.
 
 **Later:**
 - The voice-leading ghost (TCH's killer feature): replay your run against the minimal-motion path and show which change cost extra.
@@ -149,3 +156,4 @@ Source: seven role-play agents (Sonnet), run read-only. Roles: 2-month beginner 
 2. **Rootless A/B: forms of `close`,** not a new style. Close stays one mixer entry; the tab shows its A and B forms and an A/B-alternating ii–V–I.
 3. **No practice history in the MVP.** Live grading only. The `shape:` prefix registry and Passport section come in v2.
 4. **Primary user: intermediate.** Beginners get the 3-pill on-ramp.
+5. **History counts the form, strictly.** Playing the right notes in another form of the same family (e.g. 3-♭7 when the stage shows ♭7-3) counts as a miss before the clean voicing. The live hint still names the shape you played.

@@ -400,6 +400,8 @@ Endpoints are under `/api/practice`: `sessions`, `coach-attempts`, `improv-runs`
 
 The **Changes** game files its Open answers through the same `coach-attempts` path, as `ear:<motion>` concepts under the chart id `changes` (not a tune, so their place is empty and the passport sends them to the Changes tab). Its sessions themselves (every answer, points, stamps) live in the browser in every build: IndexedDB `reharm-practice` v2, store `changesSessions`.
 
+The **Voicings** tab files the first clean voicing of each chord the same way, as `shape:<style>:<quality>[+alt]` concepts (e.g. `shape:shell:7+b9`) per chord root, under the chart id `voicings`; the wrong strikes before it are the run's misses. Which tab owns a concept is decided in one place, theory-core's `concepts.ts` (`conceptKind`, `conceptName`), which the passport, the Coach's due list and "Practise →" routing all ask.
+
 A MIDI keyboard is optional: every practice tool also takes clicks on the on-screen keys and the computer keyboard (press `M`). Web MIDI works in Chromium-based browsers (Chrome, Edge); Safari has none, and Firefox asks for a site permission.
 
 ---

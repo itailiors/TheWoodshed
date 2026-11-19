@@ -1,4 +1,4 @@
-import { chroma, conceptDrillSteps, isEarRuleId, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
+import { chroma, conceptDrillSteps, conceptKind, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
@@ -148,8 +148,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const stepIdx = stepList.findIndex((s) => s.id === (scope === "concept" ? activeRuleId : move.id));
   const stepTo = (d: -1 | 1) => stepList[stepIdx + d]?.pick();
 
-  // the Changes game's reviews (ear:*) are played in the Changes tab, not drilled here
-  const due = (progress?.due ?? []).filter((d) => !isEarRuleId(d.ruleId)).slice(0, 5);
+  // the Changes game's and the Voicings tab's reviews are played in their own tabs, not drilled here
+  const due = (progress?.due ?? []).filter((d) => conceptKind(d.ruleId) === "reharm").slice(0, 5);
   const now = Date.now();
   const activeCleanKeys = cleanFor(activeRuleId);
   const activeCleanSet = new Set(activeCleanKeys.map(chroma));

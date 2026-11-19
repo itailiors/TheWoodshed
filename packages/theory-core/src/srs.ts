@@ -51,6 +51,45 @@ export function scheduleReview(prev: ReviewState | null, grade: Grade, now: Date
   return { reps, ease, intervalDays, dueAt: new Date(now.getTime() + intervalDays * DAY) };
 }
 
+// ── a 12-key drill, weakest keys first ──
+
+/** What the drill needs from a concept's review in one key (API rows, demo rows and Dates all fit). */
+export interface DrillKeyReview {
+  keyTonic: string;
+  lastGrade: number | null;
+  dueAt: string | number | Date;
+}
+
+/** Why a key sits where it does in the drill: due for review, played but shaky, never tried, or solid. */
+export type DrillKeyWhy = "due" | "weak" | "new" | "solid";
+
+const BUCKET: Record<DrillKeyWhy, number> = { due: 0, weak: 1, new: 2, solid: 3 };
+/** Below this last grade (a miss or worse), a key counts as weak. */
+const WEAK_BELOW = 4;
+
+/**
+ * All 12 keys for one concept, in the order to drill them: keys due for review first (most
+ * overdue first), then keys you've played but missed in (lowest last grade first), then keys
+ * never tried, then solid ones (soonest due first). Ties go round the circle of fifths from
+ * `start`, the order you'd take a shape through the keys anyway.
+ */
+export function drillKeyOrder(reviews: readonly DrillKeyReview[], start: string, now: Date): { key: string; why: DrillKeyWhy }[] {
+  const t = now.getTime();
+  const at = (r: DrillKeyReview) => new Date(r.dueAt).getTime();
+  return Array.from({ length: 12 }, (_, i) => {
+    const key = KEYS[(chroma(start) + 7 * i) % 12];
+    const rs = reviews.filter((r) => chroma(r.keyTonic) === chroma(key));
+    const due = Math.min(Infinity, ...rs.map(at));
+    const grade = Math.min(Infinity, ...rs.map((r) => r.lastGrade ?? 0));
+    const why: DrillKeyWhy = !rs.length ? "new" : due <= t ? "due" : grade < WEAK_BELOW ? "weak" : "solid";
+    // within a bucket: most overdue / lowest grade / soonest due; then the circle order
+    const within = why === "weak" ? grade : why === "new" ? 0 : due;
+    return { key, why, within, i };
+  })
+    .sort((a, b) => BUCKET[a.why] - BUCKET[b.why] || a.within - b.within || a.i - b.i)
+    .map(({ key, why }) => ({ key, why }));
+}
+
 // ── one Coach run → the concept's next review ──
 
 /** A concept's schedule and tallies: one per (rule, key). */

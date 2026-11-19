@@ -1,4 +1,4 @@
-import { EAR_MOTION_NAME, isEarRuleId, motionOfRuleId, prettyNote, RULES } from "@reharm/theory-core";
+import { CONCEPT_FAMILIES, conceptKind, conceptName as ruleName, prettyNote } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
@@ -14,12 +14,6 @@ interface Props {
   onClose: () => void;
 }
 
-const RULE_NAME = new Map(RULES.map((r) => [r.id, r.name]));
-/** A concept's name: a reharm rule's, or (for the Changes game's `ear:*` reviews) the motion's. */
-const ruleName = (id: string) => {
-  const motion = motionOfRuleId(id);
-  return RULE_NAME.get(id) ?? (motion ? EAR_MOTION_NAME[motion] : id);
-};
 const ms = (t: string | number) => new Date(t).getTime();
 
 function when(dueAt: string | number, now: number) {
@@ -105,7 +99,7 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                 <h2 id="passport-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
                   📒 Concept passport
                 </h2>
-                <p className="text-sm text-ink-soft">Every Coach run and every solo pass, kept like a teacher's notebook.</p>
+                <p className="text-sm text-ink-soft">Every Coach run, Changes answer, voiced shape and solo pass, kept like a teacher's notebook.</p>
                 {data?.sample && (
                   <p className="mt-1 inline-block -rotate-1 rounded border-2 border-dashed px-2 text-sm" style={{ borderColor: pen.red, color: pen.red }}>
                     Sample notebook: three weeks of a made-up player's practice, so you can see the loop working. Finish a Coach run or a solo pass and
@@ -140,13 +134,8 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                     </p>
                   ) : (
                     <>
-                      {/* reharm moves (the Coach) and the Changes game's motions are kept apart */}
-                      {(
-                        [
-                          { title: "Reharm moves", items: concepts.filter((c) => !isEarRuleId(c.id)) },
-                          { title: "Changes · the harmony game", items: concepts.filter((c) => isEarRuleId(c.id)) },
-                        ] as const
-                      )
+                      {/* reharm moves (the Coach), the Changes game's motions and the Voicings shapes are kept apart */}
+                      {CONCEPT_FAMILIES.map((f) => ({ title: f.heading, items: concepts.filter((c) => conceptKind(c.id) === f.kind) }))
                         .filter((group) => group.items.length > 0)
                         .map((group) => (
                           <div key={group.title} className="space-y-1.5">

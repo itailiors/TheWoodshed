@@ -313,3 +313,21 @@ describe("the Changes game", () => {
     expect(progress.places["ear:setup"]).toBeNull(); // no tune: the passport sends it to the Changes tab instead
   });
 });
+
+describe("the Voicings tab", () => {
+  it("files shapes (shape:<style>:<quality>[+alt]) per chord root, with no tune for a place", async () => {
+    const { app } = await createApp({ demo: false, dbFile: path.join(tmp(), "voicings.sqlite") });
+    const { body: session } = await call(app, "/api/practice/sessions", json("POST", { tuneId: "voicings", mode: "coach" }));
+    const id = "shape:shell:7+b9";
+    const run = { sessionId: session.id, tuneId: "voicings", moveId: id, ruleId: id, leaps: 0, maxLeap: 0, gradedBy: "engine" };
+    const clean = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "G", misses: 0 }));
+    expect(clean.status).toBe(201);
+    expect(clean.body).toMatchObject({ clean: true, review: { ruleId: id, keyTonic: "G" } });
+    const missed = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, keyTonic: "Db", misses: 2 }));
+    expect(missed.body).toMatchObject({ clean: false });
+
+    const progress = (await call(app, "/api/practice/progress")).body;
+    expect(progress.cleanKeys[id]).toEqual(["G"]);
+    expect(progress.places[id]).toBeNull(); // no tune: the passport sends it to the Voicings tab
+  });
+});

@@ -1,6 +1,6 @@
 import {
   buildPathway,
-  isEarRuleId,
+  conceptKind,
   chroma,
   transposeTune,
   densityLabel,
@@ -295,6 +295,7 @@ export function App() {
   }, []);
   /** A Changes review picked in the passport: the game opens ready to play it. */
   const [changesReview, setChangesReview] = useState<{ ruleId: string; keyTonic: string } | null>(null);
+  const [shapeReview, setShapeReview] = useState<{ ruleId: string; keyTonic: string } | null>(null);
   const [xrayOpen, setXrayOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
   // The Coach page opens on a specific tune move or directly on a 12-key concept drill.
@@ -323,9 +324,16 @@ export function App() {
   const practiseConcept = (r: PractiseRequest) => {
     setPassportOpen(false);
     // the Changes game's reviews are played in the Changes tab, at Open, starting in that key
-    if (isEarRuleId(r.ruleId)) {
+    const kind = conceptKind(r.ruleId);
+    if (kind === "ear") {
       setChangesReview({ ruleId: r.ruleId, keyTonic: r.keyTonic });
       void setMode("changes");
+      return;
+    }
+    // a voicing shape opens the Voicings tab on that chord, in that key, in that family
+    if (kind === "shape") {
+      setShapeReview({ ruleId: r.ruleId, keyTonic: r.keyTonic });
+      void setMode("voicings");
       return;
     }
     const matchingMove =
@@ -483,7 +491,7 @@ export function App() {
       <Suspense fallback={<Inking label="Laying out the shapes" />}>
         <Toaster />
         <PanelBoundary onClose={() => void setMode("study")}>
-          <VoicingsPage midi={midi} onMode={setMode} />
+          <VoicingsPage key={shapeReview ? `${shapeReview.ruleId}@${shapeReview.keyTonic}` : "voicings"} midi={midi} onMode={setMode} review={shapeReview} />
         </PanelBoundary>
       </Suspense>
     );
