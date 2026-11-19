@@ -14,9 +14,12 @@
     "build": "npm run build -w @reharm/web",
     "build:demo": "npm run build:demo -w @reharm/web",
     "dev:demo": "concurrently -k -n web,api -c blue,yellow \"npm run dev:demo -w @reharm/web\" \"npm run dev:demo -w @reharm/api\"",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p e2e",
+    "e2e": "npm run build:demo && playwright test",
+    "e2e:nobuild": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "~1.65.1",
     "concurrently": "^10.0.7",
     "typescript": "^5.8.3"
   }
