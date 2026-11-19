@@ -1,18 +1,19 @@
 import { ThemeSwitch } from "./ThemeSwitch";
 
-export type AppMode = "study" | "practice" | "coach" | "changes";
+export type AppMode = "study" | "practice" | "coach" | "changes" | "voicings";
 
-export const APP_MODES: readonly AppMode[] = ["study", "practice", "coach", "changes"];
+export const APP_MODES: readonly AppMode[] = ["study", "practice", "coach", "changes", "voicings"];
 
 const MODES: { id: AppMode; label: string; title: string }[] = [
   { id: "study", label: "Study", title: "The reharm engine: the lead sheet, the dial and the theory" },
   { id: "practice", label: "Practice", title: "Hands on the keys: the loop, the HUD and the improv heatmap" },
   { id: "coach", label: "Coach", title: "The Comping Coach: drill a move's voicings in all 12 keys" },
   { id: "changes", label: "Changes", title: "Make the Changes: where does this chord want to go? Harmony training with sound" },
+  { id: "voicings", label: "Voicings", title: "Voicings: every shape for a chord, how to get to the next one, and a check as you play it" },
 ];
 
 /**
- * Study (Reharm Engine) ↔ Practice (hands on the keys) ↔ Coach (voicing drills) ↔ Changes (the harmony game).
+ * Study (Reharm Engine) ↔ Practice (hands on the keys) ↔ Coach (voicing drills) ↔ Changes (the harmony game) ↔ Voicings (the shape library).
  * The colour-scheme slider rides along, so every page that can switch modes can switch themes.
  */
 export function ModeSwitch({ mode, onMode }: { mode: AppMode; onMode: (m: AppMode) => void }) {

@@ -13,6 +13,7 @@ export * from "./engine";
 export * from "./pathway";
 export * from "./improv";
 export * from "./voicing";
+export * from "./voicingForms";
 export * from "./transpose";
 export * from "./coach";
 export * from "./lineEval";

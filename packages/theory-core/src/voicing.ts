@@ -12,7 +12,7 @@ export interface Voicing {
   plane?: number[];
 }
 
-type ChordLike = Pick<ChordEvent, "root" | "quality" | "extensions" | "alterations" | "bass" | "display" | "topVoice">;
+export type ChordLike = Pick<ChordEvent, "root" | "quality" | "extensions" | "alterations" | "bass" | "display" | "topVoice">;
 
 const BASS_LOW = 38; // D2
 const UPPER_LOW = 52; // E3: lowest note of the right-hand voicing
@@ -59,7 +59,7 @@ export function upperPitchClasses(chord: ChordLike, max = 4): string[] {
 }
 
 /** Every close-position inversion of the pitch classes, starting at or above UPPER_LOW. */
-function inversions(unsorted: number[]): number[][] {
+export function inversions(unsorted: number[]): number[][] {
   const pcs = [...unsorted].sort((a, b) => a - b);
   const out: number[][] = [];
   for (let r = 0; r < pcs.length; r++) {
@@ -77,7 +77,8 @@ function inversions(unsorted: number[]): number[][] {
   return out;
 }
 
-const movement = (a: number[], b: number[]) =>
+/** Total voice movement between two layouts (each voice to its nearest partner, both ways). */
+export const movement = (a: number[], b: number[]) =>
   b.reduce((s, n) => s + Math.min(...a.map((m) => Math.abs(m - n))), 0) + a.reduce((s, n) => s + Math.min(...b.map((m) => Math.abs(m - n))), 0);
 
 /**
@@ -152,7 +153,7 @@ function shellPlacements(pcs: number[]): number[][] {
 }
 
 /** Drop the n-th voice from the top (2 or 3) of a close four-voice stack an octave. */
-function drop(v: number[], n: 2 | 3): number[] {
+export function drop(v: number[], n: 2 | 3): number[] {
   const i = v.length - n;
   return [v[i] - 12, ...v.slice(0, i), ...v.slice(i + 1)];
 }
@@ -279,8 +280,11 @@ function spreadSets(chord: ChordLike, lhPc: number, top: number | undefined): nu
   return sets.sort((x, y) => y.score - x.score).map((s) => s.pcs);
 }
 
-/** Candidate right-hand layouts for a style, before voice leading picks one. */
-function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefined, bass: number): number[][] {
+/**
+ * Candidate right-hand layouts for a style, before voice leading picks one.
+ * @internal shared with `voicingForms.ts`, so the Voicings tab lists exactly what the band can play.
+ */
+export function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefined, bass: number): number[][] {
   if (style === "quartal") {
     const scale = chordScale(chord);
     if (!scale) return [];
@@ -322,7 +326,8 @@ function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefin
   }
   if (style === "shell" || style === "threeZone") {
     const shell = shellPcs(chord);
-    const placed = shellPlacements(shell);
+    // the shell range starts at B2, which can sit under a C3 bass
+    const placed = shellPlacements(shell).filter((v) => v[0] > bass);
     if (top !== undefined) return placed.filter((v) => v[v.length - 1] < top).map((v) => [...v, top]);
     if (style === "shell") return placed;
     const pretty = prettyPc(chord, shell);
@@ -350,7 +355,7 @@ function candidates(chord: ChordLike, style: VoicingStyle, top: number | undefin
 }
 
 /** Where each style's centre of gravity sits: shells low, drop voicings a little higher. */
-const CENTER: Record<VoicingStyle, number> = { close: UPPER_CENTER, drop2: 62, drop3: 61, shell: 54, threeZone: 60, quartal: 63, spread: 64 };
+export const CENTER: Record<VoicingStyle, number> = { close: UPPER_CENTER, drop2: 62, drop3: 61, shell: 54, threeZone: 60, quartal: 63, spread: 64 };
 
 /**
  * Voice a chord for two-handed comping. With a previous voicing, picks the
@@ -361,8 +366,25 @@ const CENTER: Record<VoicingStyle, number> = { close: UPPER_CENTER, drop2: 62, d
 export function voiceChord(chord: ChordLike, prev?: Voicing, opts: VoiceOptions = {}): Voicing {
   const style = opts.style ?? "close";
   const top = opts.top ?? (chord.topVoice ? midiOf(chord.topVoice) : undefined);
-  const bassPc = chroma(chord.bass ?? chord.root);
-  const bass = BASS_LOW + mod(bassPc - BASS_LOW, 12);
+  const bass = bassOf(chord);
+  const { options, scale } = styleOptions(chord, style, top, bass);
+  const score = layoutScore(style, prev?.upper);
+  const upper = options.reduce((best, v) => (score(v) < score(best) ? v : best), options[0]);
+  const plane = scale && planeOf(upper, scale);
+  if (plane) return { bass, upper, plane };
+  return { bass, upper };
+}
+
+/** The left hand's bass note for a chord (its root, or its slash bass), between D2 and C♯3. */
+export function bassOf(chord: ChordLike): number {
+  return BASS_LOW + mod(chroma(chord.bass ?? chord.root) - BASS_LOW, 12);
+}
+
+/**
+ * Every layout a style offers for a chord, after the fallback to close and the quartal
+ * "room to plane" preference. @internal shared with `voicingForms.ts`.
+ */
+export function styleOptions(chord: ChordLike, style: VoicingStyle, top: number | undefined, bass: number) {
   let options = candidates(chord, style, top, bass);
   const fellBack = !options.length;
   if (fellBack) options = candidates(chord, "close", top, bass);
@@ -372,15 +394,16 @@ export function voiceChord(chord: ChordLike, prev?: Voicing, opts: VoiceOptions 
     const planing = options.filter((v) => planeOf(v, scale));
     if (planing.length) options = planing;
   }
-  const score = (v: number[]) => {
+  return { options, fellBack, scale };
+}
+
+/** How voice leading ranks a layout: movement from the previous one plus drift from the style's centre. Lower is better. */
+export function layoutScore(style: VoicingStyle, prev?: number[]) {
+  return (v: number[]) => {
     const center = v.reduce((s, n) => s + n, 0) / v.length;
     const drift = Math.abs(center - CENTER[style]) * 0.6;
-    return (prev ? movement(prev.upper, v) : 0) + drift;
+    return (prev ? movement(prev, v) : 0) + drift;
   };
-  const upper = options.reduce((best, v) => (score(v) < score(best) ? v : best), options[0]);
-  const plane = scale && planeOf(upper, scale);
-  if (plane) return { bass, upper, plane };
-  return { bass, upper };
 }
 
 /** Voice a whole progression with continuous voice leading, in one style. */

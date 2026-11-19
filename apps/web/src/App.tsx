@@ -60,6 +60,7 @@ import { useTouchFirst } from "./device/media";
 const LibraryDrawer = lazyWithPreload(() => import("./components/library/LibraryDrawer").then((m) => m.LibraryDrawer));
 const CoachPage = lazyWithPreload(() => import("./components/coach/CoachPage").then((m) => m.CoachPage));
 const ChangesPage = lazyWithPreload(() => import("./components/changes/ChangesPage").then((m) => m.ChangesPage));
+const VoicingsPage = lazyWithPreload(() => import("./components/voicings/VoicingsPage").then((m) => m.VoicingsPage));
 // The X-ray (and, inside it, the Proof tab's fast-check worker) only loads when opened.
 const PracticeDashboard = lazyWithPreload(() => import("./components/progress/PracticeDashboard").then((m) => m.PracticeDashboard));
 const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
@@ -273,6 +274,7 @@ export function App() {
     if (m === "practice") await PracticeMode.preload().catch(() => {});
     if (m === "coach") await CoachPage.preload().catch(() => {});
     if (m === "changes") await ChangesPage.preload().catch(() => {});
+    if (m === "voicings") await VoicingsPage.preload().catch(() => {});
     // The browser runs the update only after it has captured the old screen. If it can't
     // render a frame (a backgrounded or embedded tab), that never happens, so after a short
     // wait we switch anyway and drop the animation: the mode change must never hang on it.
@@ -469,12 +471,23 @@ export function App() {
 
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
 
-  // The Changes game plays its own chords: a band carrying on underneath would clash, so it stops
-  // on the way in (it doesn't restart on the way out; Play is one tap away).
+  // The Changes game and the Voicings tab play their own chords: a band carrying on underneath would
+  // clash, so it stops on the way in (it doesn't restart on the way out; Play is one tap away).
   const { status: bandStatus, toggle: toggleBand } = playback;
   useEffect(() => {
-    if (mode === "changes" && bandStatus === "playing") toggleBand();
+    if ((mode === "changes" || mode === "voicings") && bandStatus === "playing") toggleBand();
   }, [mode, bandStatus, toggleBand]);
+
+  if (mode === "voicings") {
+    return (
+      <Suspense fallback={<Inking label="Laying out the shapes" />}>
+        <Toaster />
+        <PanelBoundary onClose={() => void setMode("study")}>
+          <VoicingsPage midi={midi} onMode={setMode} />
+        </PanelBoundary>
+      </Suspense>
+    );
+  }
 
   if (mode === "changes") {
     return (
