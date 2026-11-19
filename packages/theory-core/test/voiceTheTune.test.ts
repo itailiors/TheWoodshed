@@ -4,7 +4,8 @@ import { midiOf } from "../src/pitch";
 import { absBeat } from "../src/time";
 import { KEYS, transposeTune } from "../src/transpose";
 import { VOICING_STYLES } from "../src/voicing";
-import { structuralTops, voiceTheTune } from "../src/voiceTheTune";
+import { HEAD_MAX_TEMPO, headScore, structuralTops, voiceTheTune } from "../src/voiceTheTune";
+import { SWING_HARD, SWING_SKIP, swingTime } from "../src/band";
 
 const STYLES = VOICING_STYLES.map((s) => s.id);
 const BPB = coopBlues.meter[0];
@@ -66,5 +67,43 @@ describe("voiceTheTune", () => {
   it("honours a start form on the first chord when it fits under the melody", () => {
     const first = voiceTheTune(coopBlues, "close")[0];
     expect(voiceTheTune(coopBlues, "close", first.id)[0].id).toBe(first.id);
+  });
+});
+
+describe("headScore", () => {
+  const path = voiceTheTune(coopBlues, "close");
+  const spb = 60 / Math.min(coopBlues.tempo, HEAD_MAX_TEMPO);
+
+  it("comps each chord at its attack under the melody, and the melody note isn't doubled in the voicing", () => {
+    const { comp, line, steps } = headScore(coopBlues, path, SWING_SKIP);
+    const tops = structuralTops(coopBlues);
+    expect(comp).toHaveLength(coopBlues.harmony.length);
+    expect(line).toHaveLength(coopBlues.melody.length);
+    expect(steps).toEqual(comp.map((c) => c.at));
+    comp.forEach((c, i) => {
+      expect(c.at).toBeCloseTo(swingTime(absBeat(coopBlues.harmony[i].at, BPB), SWING_SKIP) * spb);
+      const voiced = path[i].notes.map((n) => n.midi);
+      expect(c.midis).toEqual(tops[i] === undefined ? voiced : voiced.slice(0, -1)); // the top is the melody's
+    });
+    line.forEach((n, i) => expect(n.midis).toEqual([midiOf(coopBlues.melody[i].pitch)]));
+    // the line sits over the comp
+    expect(Math.min(...line.map((n) => n.vel))).toBeGreaterThan(Math.max(...comp.map((c) => c.vel)));
+  });
+
+  it("swings like the band: an 'and' lands at the swing ratio and its length shrinks to fit; straight feels stay straight", () => {
+    const and = coopBlues.melody.findIndex((n) => absBeat(n.at, BPB) % 1 === 0.5 && n.beats === 0.5);
+    expect(and).toBeGreaterThanOrEqual(0);
+    const b = absBeat(coopBlues.melody[and].at, BPB);
+    const hard = headScore(coopBlues, path, SWING_HARD).line[and];
+    expect(hard.at).toBeCloseTo((Math.floor(b) + SWING_HARD) * spb);
+    expect(hard.seconds).toBeLessThan(0.5 * spb); // the short note of the swung pair
+    const straight = headScore({ ...coopBlues, feel: "bossa" }, path, SWING_HARD).line[and];
+    expect(straight.at).toBeCloseTo(b * spb);
+  });
+
+  it("is played at a practice tempo: never faster than HEAD_MAX_TEMPO", () => {
+    const fast = headScore({ ...coopBlues, tempo: 300 }, path, SWING_SKIP);
+    const at = headScore({ ...coopBlues, tempo: HEAD_MAX_TEMPO }, path, SWING_SKIP);
+    expect(fast.comp.map((c) => c.at)).toEqual(at.comp.map((c) => c.at));
   });
 });

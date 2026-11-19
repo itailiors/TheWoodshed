@@ -1,10 +1,8 @@
 import {
-  absBeat,
   chroma,
   classifyVoicing,
   hasMelody,
-  midiOf,
-  structuralTops,
+  headScore,
   transposeTune,
   voiceTheTune,
   type Tune,
@@ -31,6 +29,7 @@ import {
   type VoicingStyle,
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getBandFeel } from "../../audio/bandFeel";
 import { player } from "../../audio/player";
 import { useDrillSession } from "../../practice/useDrillSession";
 import { SketchBox, SketchFilters } from "../../design/rough";
@@ -229,23 +228,12 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   const hear = () => void player.playNotes(current.notes.map((n) => n.midi), 1.8);
   const arpeggio = () => void player.playSequence([...current.notes.map((n) => [n.midi]), current.notes.map((n) => n.midi)], 0.32);
   const hearPath = () => path && void player.playSequence(path.map((f) => f.notes.map((n) => n.midi)), 1.4, setSounding);
-  /** The head in time: the melody over the voicings (their top note left to the melody), and the stage following along. */
+  /** The head in time: the melody over the voicings (theory-core's `headScore`), swung like the band, and the stage following along. */
   const hearHead = () => {
     if (!head || !path) return;
-    const bpb = head.meter[0];
-    const spb = 60 / Math.min(head.tempo, 112);
-    // swing the off-beat eighths (the "and" lands two-thirds through the beat)
-    const at = (b: number) => (Math.floor(b) + (head.feel === "swing" && b % 1 === 0.5 ? 2 / 3 : b % 1)) * spb;
-    const tops = structuralTops(head);
-    const comp = head.harmony.map((c, i) => ({
-      midis: path[i].notes.map((n) => n.midi).filter((m, j, all) => j < all.length - 1 || m !== tops[i]),
-      at: at(absBeat(c.at, bpb)),
-      seconds: c.beats * spb * 0.97,
-      vel: 0.42,
-    }));
-    const line = head.melody.map((n) => ({ midis: [midiOf(n.pitch)], at: at(absBeat(n.at, bpb)), seconds: n.beats * spb * 0.92, vel: 0.72 }));
+    const { comp, line, steps } = headScore(head, path, getBandFeel().swing);
     setHeadPlaying(true);
-    void player.playScore([...comp, ...line], comp.map((c) => c.at), (i) => {
+    void player.playScore([...comp, ...line], steps, (i) => {
       setSounding(i);
       if (i !== null) session.goToRun(i);
       else setHeadPlaying(false);
