@@ -3,6 +3,8 @@ import {
   chordAtBeat,
   chroma,
   evaluateLineNote,
+  isOnBeat,
+  isPassingTone,
   GHOST_PERSONALITIES,
   guideTones,
   melodyIn,
@@ -62,11 +64,14 @@ interface HeatNote {
   pass: number;
   chordSymbol: string;
   ev: LineNoteEval;
-  /** A short off-beat avoid note: a passing tone, not a mistake. */
+  /** A short off-beat avoid note: a passing tone, not a mistake. Set when the note ends (`closeNote`). */
   passing: boolean;
   /** Started within a quarter beat of a chord change, on a guide tone of the new chord. */
   landing: boolean;
 }
+
+/** End a held note at `end`; only now can it be judged a passing tone. Every way a note closes goes through here. */
+const closeNote = (n: HeatNote, end: number): HeatNote => ({ ...n, end, passing: isPassingTone(n.ev, n.start, end) });
 
 /** Tape width in viewBox units; a phone gets a narrower tape (4-bar pages) so the notes keep their height. */
 const TAPE_W = 1000;
@@ -94,7 +99,7 @@ function summarise(notes: HeatNote[]) {
   const total = notes.length || 1;
   const count = (v: LineNoteEval["verdict"]) => notes.filter((n) => n.ev.verdict === v).length;
   const pct = (v: LineNoteEval["verdict"]) => Math.round((count(v) / total) * 100);
-  const strong = notes.filter((n) => Math.abs(n.start - Math.round(n.start)) <= 0.15);
+  const strong = notes.filter((n) => isOnBeat(n.start));
   const strongCT = strong.filter((n) => n.ev.verdict === "chord-tone").length;
   return {
     n: notes.length,
@@ -314,10 +319,7 @@ export function ImprovHeatmap({
         open.current.clear();
         const capped = notesRef.current.map((n) => {
           if (n.end !== null) return n;
-          const end = stopBeat !== null && stopBeat > n.start ? stopBeat : Math.min(loopEnd, n.start + 0.25);
-          const dur = end - n.start;
-          const offbeat = Math.abs(n.start - Math.round(n.start)) > 0.15;
-          return { ...n, end, passing: n.ev.verdict === "avoid" && dur < 0.5 && offbeat };
+          return closeNote(n, stopBeat !== null && stopBeat > n.start ? stopBeat : Math.min(loopEnd, n.start + 0.25));
         });
         notesRef.current = capped;
         setNotes(capped);
@@ -398,7 +400,7 @@ export function ImprovHeatmap({
               if (open.current.size > 0) {
                 open.current.clear();
                 setNotes((ns) =>
-                  ns.map((n) => (n.end === null && n.pass === pass.current ? { ...n, end: respStartBeat } : n)),
+                  ns.map((n) => (n.end === null && n.pass === pass.current ? closeNote(n, respStartBeat) : n)),
                 );
               }
 
@@ -520,7 +522,7 @@ export function ImprovHeatmap({
       setNotes((ns) => {
         // Close any previously unclosed note on the same MIDI pitch before starting the new one
         const closedPrev = ns.map((n) =>
-          n.midi === m.note && n.end === null ? { ...n, end: Math.max(n.start + 0.08, beat) } : n,
+          n.midi === m.note && n.end === null ? closeNote(n, Math.max(n.start + 0.08, beat)) : n,
         );
         const next = [
           ...closedPrev,
@@ -535,10 +537,7 @@ export function ImprovHeatmap({
         if (!ns.some((n) => n.midi === m.note && n.end === null)) return ns;
         const next = ns.map((n) => {
           if (n.midi !== m.note || n.end !== null) return n;
-          const end = beat === null || beat < n.start ? Math.min(loopEnd, n.start + 0.25) : Math.max(n.start + 0.08, beat);
-          const dur = end - n.start;
-          const offbeat = Math.abs(n.start - Math.round(n.start)) > 0.15;
-          return { ...n, end, passing: n.ev.verdict === "avoid" && dur < 0.5 && offbeat };
+          return closeNote(n, beat === null || beat < n.start ? Math.min(loopEnd, n.start + 0.25) : Math.max(n.start + 0.08, beat));
         });
         notesRef.current = next;
         return next;

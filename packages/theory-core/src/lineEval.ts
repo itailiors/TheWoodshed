@@ -18,6 +18,22 @@ export interface LineNoteEval {
   inScale: boolean;
 }
 
+/** How far (in beats) a note may sit from a beat and still count as on it: a loose 16th, for human timing. */
+export const ON_BEAT_TOLERANCE = 0.15;
+/** An avoid note shorter than this (in beats) can pass through; held longer, it's heard against the chord. */
+export const PASSING_MAX_BEATS = 0.5;
+
+/** A note that starts on a beat (within `ON_BEAT_TOLERANCE`): where a chord tone is expected. */
+export const isOnBeat = (beat: number) => Math.abs(beat - Math.round(beat)) <= ON_BEAT_TOLERANCE;
+
+/**
+ * A passing tone, not a mistake: an avoid note that is short and off the beat, like the 4th
+ * over a major chord on the 'and' between 3 and 5. Only known once the note has ended.
+ */
+export function isPassingTone(ev: Pick<LineNoteEval, "verdict">, start: number, end: number): boolean {
+  return ev.verdict === "avoid" && end - start < PASSING_MAX_BEATS && !isOnBeat(start);
+}
+
 /** The chord sounding at an absolute beat. */
 export function chordAtBeat(chords: ChordEvent[], beat: number, beatsPerBar: number): { chord: ChordEvent; next?: ChordEvent } | null {
   for (let i = 0; i < chords.length; i++) {

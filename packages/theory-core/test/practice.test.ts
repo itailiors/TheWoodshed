@@ -4,7 +4,7 @@ import { chordTones, guideTones, symbol } from "../src/chords";
 import { conceptDrillSteps, diffStrike, diffVoiceLeading, drillSteps } from "../src/coach";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
-import { chordAtBeat, evaluateLineNote } from "../src/lineEval";
+import { chordAtBeat, evaluateLineNote, isOnBeat, isPassingTone } from "../src/lineEval";
 import { chroma, midiOf, mod, spellMidi } from "../src/pitch";
 import { RULES } from "../src/ruleset";
 import { suggestScales } from "../src/scales";
@@ -165,6 +165,26 @@ describe("comping coach diff", () => {
 
     const cliche = conceptDrillSteps("chromatic.minorLineCliche", "C");
     expect(cliche.map((s) => s.symbol)).toEqual(["Cm(add9)", "Cm(maj7)", "Cm9", "Cm6", "Fm7"]);
+  });
+});
+
+describe("passing tones in an improvised line", () => {
+  const avoid = { verdict: "avoid" as const };
+  it("a short off-beat avoid note is passing; held, on the beat, or not an avoid note, it isn't", () => {
+    expect(isPassingTone(avoid, 1.5, 1.75)).toBe(true); // the 'and' of 2, an eighth or less
+    expect(isPassingTone(avoid, 1.5, 2.0)).toBe(false); // held half a beat: it's heard
+    expect(isPassingTone(avoid, 2.1, 2.3)).toBe(false); // within the on-beat window
+    expect(isPassingTone({ verdict: "tension" }, 1.5, 1.75)).toBe(false);
+  });
+  it("the on-beat window is the same one the strong-beat stats use", () => {
+    expect(isOnBeat(3.15)).toBe(true);
+    expect(isOnBeat(2.85)).toBe(true);
+    expect(isOnBeat(3.2)).toBe(false);
+    fc.assert(
+      fc.property(fc.double({ min: 0, max: 64, noNaN: true }), fc.double({ min: 0, max: 0.49, noNaN: true }), (start, len) => {
+        expect(isPassingTone(avoid, start, start + len)).toBe(!isOnBeat(start));
+      }),
+    );
   });
 });
 
