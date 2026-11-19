@@ -17,6 +17,7 @@ export * from "./voicingForms";
 export * from "./voiceTheTune";
 export * from "./transpose";
 export * from "./coach";
+export * from "./drillSession";
 export * from "./lineEval";
 export * from "./analysis";
 export * from "./band";

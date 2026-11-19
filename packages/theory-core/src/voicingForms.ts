@@ -58,6 +58,38 @@ function degreeMap(chord: ChordLike): Map<number, { degree: string; name: string
   return map;
 }
 
+/** A chord and how it's voiced: a Coach `DrillStep` fits, and so does a form split into bass and upper voices. */
+export interface VoicedChord {
+  chord: ChordLike;
+  target: { bass: number; upper: readonly number[] };
+}
+
+/**
+ * Voice motion: what the voices did between two chords, as you'd say it at the piano:
+ * "2 held · A♭→G (−1) · E♭→D (−1) · bass B♭→E♭". Each note is spelled as its chord spells it
+ * (A♭ in Fm9, not G♯, colour tones included); upper voices are paired bottom to top.
+ */
+export function voiceMotion(prev: VoicedChord, cur: VoicedChord): string {
+  const spell = (v: VoicedChord, midi: number) => prettyNote(degreeMap(v.chord).get(mod(midi, 12))!.name);
+  const a = [...prev.target.upper].sort((x, y) => x - y);
+  const b = [...cur.target.upper].sort((x, y) => x - y);
+  let held = 0;
+  const moves: string[] = [];
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    const d = b[i] - a[i];
+    if (d === 0) held++;
+    else moves.push(`${spell(prev, a[i])}→${spell(cur, b[i])} (${d > 0 ? "+" : "−"}${Math.abs(d)})`);
+  }
+  const bass = prev.target.bass === cur.target.bass ? [] : [`bass ${spell(prev, prev.target.bass)}→${spell(cur, cur.target.bass)}`];
+  return [held ? `${held} held` : "", ...moves, ...bass].filter(Boolean).join(" · ");
+}
+
+/** A form as a `VoicedChord`: its first note is the bass, the rest are the upper voices. */
+export const voicedForm = (form: VoicingForm, chord: ChordLike): VoicedChord => ({
+  chord,
+  target: { bass: form.notes[0].midi, upper: form.notes.slice(1).map((n) => n.midi) },
+});
+
 const prettyDeg = (d: string) => prettyNote(d);
 const ORDINAL: Record<string, string> = { "1": "root", "3": "3rd", b3: "3rd", "4": "4th", "5": "5th", b5: "♭5", "#5": "♯5", "6": "6th", "7": "7th", b7: "7th", bb7: "7th", "9": "9th", "11": "11th", "13": "13th" };
 /** "the 3rd", "the ♭9": how hints name a degree. */
