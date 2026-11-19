@@ -2,15 +2,16 @@ import {
   absBeat,
   chroma,
   classifyVoicing,
-  drillKeyOrder,
   hasMelody,
   midiOf,
   structuralTops,
   transposeTune,
   voiceTheTune,
   type Tune,
-  gradeShape,
+  type DrillAttempt,
   type DrillKeyWhy,
+  type DrillRun,
+  type DrillView,
   parseShapeRuleId,
   shapeRuleId,
   KEYS,
@@ -20,7 +21,9 @@ import {
   symbol,
   transpose,
   VOICING_STYLES,
+  voicedForm,
   voiceLeadForms,
+  voiceMotion,
   voicingForms,
   type Quality,
   type ShapeGrade,
@@ -29,7 +32,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { player } from "../../audio/player";
-import { fetchProgress, saveShapeRun } from "../../library/practice";
+import { useDrillSession } from "../../practice/useDrillSession";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { keys, paper, seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
@@ -129,6 +132,9 @@ function saveSettings(v: Settings) {
   }
 }
 
+/** Voicings never moves the key after a clean chord (only the 12-key drill does). */
+const HOLD = { kind: "flow", flow: "hold" } as const;
+
 const mk = (root: string, quality: Quality, alterations: string[] = []): Chord => ({ root, quality, extensions: [], alterations });
 
 /** The chords on the stage: one, a ii–V–I in the key, or the tune's changes (already in the key). */
@@ -151,18 +157,8 @@ const byHand = (f: VoicingForm, hand: "L" | "R") =>
     .map((n) => `${prettyNote(n.name)} (${degreeLabel(n.degree)})`)
     .join("  ");
 
-/** How each voice gets from one form to the next, voice by voice ("C→B −1", "F held"). */
-function motionLine(a: VoicingForm, b: VoicingForm): string {
-  const ua = a.notes.slice(1);
-  const ub = b.notes.slice(1);
-  if (ua.length !== ub.length) return `${ua.length} voices → ${ub.length}`;
-  const parts = ua.map((n, i) => {
-    const d = ub[i].midi - n.midi;
-    return d === 0 ? `${prettyNote(n.name)} held` : `${prettyNote(n.name)}→${prettyNote(ub[i].name)} ${d > 0 ? "+" : "−"}${Math.abs(d)}`;
-  });
-  const held = ua.filter((n, i) => ub[i].midi === n.midi).length;
-  return `${held} held · ${parts.filter((p) => !p.endsWith("held")).join(" · ") || "nothing moves"}`;
-}
+/** Voice motion from the chord before (theory-core's `voiceMotion`, the Coach's wording). */
+const motionLine = (path: VoicingForm[], chords: Chord[], i: number) => voiceMotion(voicedForm(path[i - 1], chords[i - 1]), voicedForm(path[i], chords[i]));
 
 export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReference }: Props) {
   const touchFirst = useTouchFirst();
@@ -175,13 +171,10 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
       return next;
     });
 
-  // ── the 12-key drill: one chord in one family, weakest keys first (theory-core's drillKeyOrder) ──
-  const [drill, setDrill] = useState<Drill | null>(null);
-  const drillRef = useRef(drill);
-  drillRef.current = drill;
-  /** A choice made by hand ends the drill; the drill moves the key itself through `update`. */
+  /** A choice made by hand ends a 12-key drill; the drill moves the key itself through `update`. */
   const pick = (v: Partial<Settings>) => {
-    setDrill(null);
+    if (v.key !== undefined) session.changeKey(v.key, true);
+    else session.stop();
     setWhyNoTune(false);
     update(v);
   };
@@ -192,15 +185,10 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
     onOpenReference?.();
     pick({ source: "tune", key: homeKey(referenceTune) });
   };
-  const startDrill = async () => {
+  /** The 12-key drill: one chord in one family, weakest keys first. */
+  const startDrill = () => {
     const c = chordsFor(settings)[0];
-    const ruleId = shapeRuleId(settings.style, c.quality, c.alterations);
-    const p = await fetchProgress();
-    // the demo's sample notebook is someone else's practice: it never orders your drill
-    const reviews = p && !p.sample ? p.concepts.filter((r) => r.ruleId === ruleId) : [];
-    const keys = drillKeyOrder(reviews, settings.key, new Date());
-    update({ key: keys[0].key });
-    setDrill({ keys, at: 0, done: {} });
+    return session.startTwelveKey(shapeRuleId(settings.style, c.quality, c.alterations), settings.key);
   };
 
   // "Voice the tune": the head on the stand, moved to the chosen key (a chart with no melody can't be voiced under one)
@@ -212,7 +200,6 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   // one chord: every form, and the one you're looking at; a ii–V–I: the voice-led path from a start form;
   // the tune: voice-led too, each chord under its melody note
   const [formId, setFormId] = useState<string | null>(null);
-  const [step, setStep] = useState(0);
   const forms = useMemo(() => voicingForms(chords[0], settings.style), [chords, settings.style]);
   const startForms = progression && !head ? forms : [];
   const path = useMemo(
@@ -221,10 +208,20 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   );
   useEffect(() => {
     setFormId(null);
-    setStep(0);
   }, [source, settings.chord, settings.key, settings.style, tune.id]);
 
-  const current: VoicingForm = path ? path[step] : (forms.find((f) => f.id === formId) ?? forms[0]);
+  // ── the drill session: each chord on the stage is a run, filed once when first played clean
+  // (theory-core's drillSession); a ii–V–I or the head moves on after each clean chord ──
+  const single = forms.find((f) => f.id === formId) ?? forms[0];
+  const runs = useMemo<DrillRun[]>(
+    () => (path ? path.map((form, i) => ({ kind: "shape", form, chord: chords[i] })) : [{ kind: "shape", form: single, chord: chords[0] }]),
+    [path, single, chords],
+  );
+  const session = useDrillSession({ runs, keyTonic: settings.key, flow: HOLD, delayMs: 900, onSetKey: (key) => update({ key }) });
+  const step = session.view.run;
+  const drill = session.view.lap;
+
+  const current: VoicingForm = path ? path[step] : single;
   const chord = chords[progression ? step : 0];
 
   // ── hearing ──
@@ -250,7 +247,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
     setHeadPlaying(true);
     void player.playScore([...comp, ...line], comp.map((c) => c.at), (i) => {
       setSounding(i);
-      if (i !== null) setStep(i);
+      if (i !== null) session.goToRun(i);
       else setHeadPlaying(false);
     });
   };
@@ -266,7 +263,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   const go = (d: 1 | -1) => {
     if (!path) return;
     if (headPlayingRef.current) stopHead();
-    setStep((s) => Math.max(0, Math.min(path.length - 1, s + d)));
+    session.goToRun(Math.max(0, Math.min(path.length - 1, step + d)));
   };
   const goRef = useRef(go);
   goRef.current = go;
@@ -291,54 +288,26 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   );
 
   // ── playing: MIDI / computer keys strike; on-screen keys tap in, then check ──
-  const [played, setPlayed] = useState<number[]>([]);
   const [pending, setPending] = useState<number[]>([]);
-  const [grade, setGrade] = useState<ShapeGrade | null>(null);
-  // the practice history: wrong strikes on this chord so far, and whether its clean one is filed
-  const misses = useRef(0);
-  const filed = useRef(false);
-  const [saved, setSaved] = useState<{ clean: boolean; days: number } | null>(null);
-  useEffect(() => {
-    setPlayed([]);
-    setPending([]);
-    setGrade(null);
-    setSaved(null);
-    misses.current = 0;
-    filed.current = false;
-  }, [current.id, chord.root, chord.quality, settings.style, step]);
+  // the session grades each strike; tapping a key hides the last grade until the next one
+  const [hidden, setHidden] = useState<DrillAttempt | null>(null);
+  const latest = session.view.lastAttempt;
+  const graded = latest && latest !== hidden && latest.by === "engine" && latest.kind === "shape" ? latest : null;
+  const played = graded?.played ?? [];
+  const grade: ShapeGrade | null = graded?.grade ?? null;
+  const saved = session.saved && { clean: session.saved.clean, days: session.saved.review.intervalDays };
+  // a new chord (or the same one started over) starts with no tapped-in notes
+  useEffect(() => setPending([]), [session.view.epoch]);
   const check = (notes: number[]) => {
-    setPlayed(notes);
     setPending([]);
-    const g = gradeShape(notes, current, chord);
-    setGrade(g);
-    if (!g.valid) misses.current++;
-    else if (!filed.current && /^[A-G][b#]?$/.test(chord.root)) {
-      filed.current = true;
-      // in a 12-key drill, this key is done: mark it (clean = no wrong strike first) and move on
-      if (drill && drill.at < 12 && chroma(drill.keys[drill.at].key) === chroma(chord.root)) {
-        const at = drill.at;
-        setDrill((d) => d && { ...d, done: { ...d.done, [d.keys[at].key]: misses.current === 0 } });
-        setTimeout(() => {
-          if (drillRef.current?.keys !== drill.keys) return; // stopped (or restarted) meanwhile
-          setDrill((d) => d && { ...d, at: at + 1 });
-          if (at < 11) update({ key: drill.keys[at + 1].key });
-        }, 900);
-      }
-      // filed under the family actually shown (a fallback form is close, and says so)
-      void saveShapeRun({ ruleId: shapeRuleId(current.style, chord.quality, chord.alterations), keyTonic: chord.root, misses: misses.current }).then(
-        (r) => r && setSaved({ clean: r.clean, days: r.review.intervalDays }),
-      );
-    }
-    // in a ii–V–I, a clean chord moves you on to the next one
-    if (g.valid && path && step < path.length - 1) setTimeout(() => setStep((i) => Math.min(i + 1, path.length - 1)), 900);
+    session.strike(notes);
   };
   const checkRef = useRef(check);
   checkRef.current = check;
   useChordStrikes((notes) => checkRef.current(notes), true, 2);
   const tapKey = (m: number) => {
     void player.playNotes([m], 0.5);
-    setGrade(null);
-    setPlayed([]);
+    setHidden(session.view.lastAttempt);
     setPending((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m].sort((a, b) => a - b)));
   };
 
@@ -542,7 +511,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
             </p>
           )}
 
-          {drill && <DrillRibbon drill={drill} chord={pretty(chord)} style={styleName(settings.style)} onAgain={() => void startDrill()} onStop={() => setDrill(null)} />}
+          {drill && <DrillRibbon drill={drill} chord={pretty(chord)} style={styleName(settings.style)} onAgain={() => void startDrill()} onStop={session.stop} />}
 
           {/* ── which family ── */}
           <div>
@@ -573,10 +542,10 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
           {/* ── the chord(s) ── */}
           {head && path ? (
             <>
-              <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), setStep(i)) : setStep(i))} />
+              <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), session.goToRun(i)) : session.goToRun(i))} />
               <p className="font-hand text-sm text-ink-soft">
                 Bar {head.harmony[step]?.at.bar}: {current.label}
-                {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path[step - 1], current)}`}
+                {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
               </p>
             </>
           ) : path ? (
@@ -588,7 +557,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                   <li key={i}>
                     <button
                       type="button"
-                      onClick={() => setStep(i)}
+                      onClick={() => session.goToRun(i)}
                       aria-current={i === step}
                       aria-label={`${pretty(chords[i])}, ${f.label}`}
                       className={`w-full cursor-pointer rounded-lg border-2 text-left ${narrow ? "px-2 py-1" : "px-3 py-2"} ${i === step ? "border-ink bg-paper-shade" : "border-dashed border-ink-soft"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
@@ -599,7 +568,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                       ) : (
                         <>
                           <span className="block font-hand text-sm text-ink-soft">{f.label}</span>
-                          {i > 0 && <span className="block font-hand text-xs text-ink-soft">from {pretty(chords[i - 1])}: {motionLine(path[i - 1], f)}</span>}
+                          {i > 0 && <span className="block font-hand text-xs text-ink-soft">from {pretty(chords[i - 1])}: {motionLine(path, chords, i)}</span>}
                         </>
                       )}
                     </button>
@@ -609,7 +578,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               {narrow && (
                 <p className="font-hand text-sm text-ink-soft">
                   {current.label}
-                  {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path[step - 1], current)}`}
+                  {step > 0 && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
                 </p>
               )}
             </>
@@ -629,7 +598,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                     type="button"
                     onClick={() => {
                       setFormId(f.id);
-                      setStep(0);
+                      session.goToRun(0);
                     }}
                     aria-pressed={on}
                     className={`cursor-pointer rounded-full border px-2 py-0.5 ${on ? "border-ink bg-paper-shade font-marker" : "border-dashed border-ink-soft"}`}
@@ -694,13 +663,8 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   );
 }
 
-interface Drill {
-  keys: { key: string; why: DrillKeyWhy }[];
-  /** The key being played (an index into `keys`); 12 when the drill is finished. */
-  at: number;
-  /** Keys finished so far: true when the first strike was clean. */
-  done: Record<string, boolean>;
-}
+/** The 12-key drill's progress, from the session: `at` is 12 once it's finished; `done` is true for a key clean first time. */
+type Drill = NonNullable<DrillView["lap"]>;
 
 const WHY_TAG: Record<DrillKeyWhy, string> = { due: "due", weak: "missed before", new: "new", solid: "" };
 

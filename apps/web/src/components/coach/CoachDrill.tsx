@@ -4,29 +4,28 @@ import {
   chordTones,
   chroma,
   conceptDrillSteps,
-  diffStrike,
-  diffVoiceLeading,
   drillSteps,
   generateMoves,
   mod,
   prettyNote,
   prettySymbol,
   randomKey,
-  seededRandom,
   symbol,
   transposeTune,
+  voiceMotion,
+  type DrillAttempt,
+  type DrillRun,
   type DrillStep,
+  type KeyPlan,
   type ReharmMove,
   type RulePedagogy,
-  type StrikeDiff,
   type Tune,
-  type VoiceLeadingDiff,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { player } from "../../audio/player";
 import { pen } from "../../design/tokens";
-import { saveCoachRun, type CoachRunResult } from "../../library/practice";
 import { useChordStrikes } from "../../midi/noteBus";
+import { useDrillSession } from "../../practice/useDrillSession";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { ChordName } from "../ChordName";
 import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
@@ -54,10 +53,10 @@ interface Props {
   onConnectMidi: () => void;
 }
 
-/** One go at one chord: heard and judged by the engine, or self-checked at an acoustic piano. */
-type Attempt =
-  | { step: number; pass: boolean; by: "engine"; diff: StrikeDiff; vl: VoiceLeadingDiff | null }
-  | { step: number; pass: boolean; by: "self"; diff?: undefined; vl?: undefined };
+/** An attempt the engine heard, at a chord of the move. */
+type HeardAttempt = Extract<DrillAttempt, { kind: "move" }>;
+const heardAt = (attempts: readonly DrillAttempt[], chord: number, passed?: boolean) =>
+  [...attempts].reverse().find((a): a is HeardAttempt => a.chord === chord && a.by === "engine" && a.kind === "move" && (passed === undefined || a.pass === passed));
 
 const sameMidi = (played: number[], step: { target: { bass: number; upper: number[] } } | undefined) =>
   !!step && JSON.stringify([...played].sort((a, b) => a - b)) === JSON.stringify([step.target.bass, ...step.target.upper].sort((a, b) => a - b));
@@ -75,24 +74,6 @@ const voicing = (s: DrillStep) => [s.target.bass, ...s.target.upper];
 function spelled(step: DrillStep, midi: number) {
   const tone = chordTones(step.chord).find((t) => chroma(t.note) === midi % 12);
   return tone ? prettyNote(tone.note) : midiName(midi).replace(/-?\d+$/, "");
-}
-
-/**
- * What the voices did between two chords, as you'd say it at the piano:
- * "2 held · A♭→G (−1) · E♭→D (−1) · bass B♭→E♭". Upper voices are paired bottom to top.
- */
-export function voiceMotion(prev: DrillStep, cur: DrillStep): string {
-  const a = [...prev.target.upper].sort((x, y) => x - y);
-  const b = [...cur.target.upper].sort((x, y) => x - y);
-  let held = 0;
-  const moves: string[] = [];
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    const d = b[i] - a[i];
-    if (d === 0) held++;
-    else moves.push(`${spelled(prev, a[i])}→${spelled(cur, b[i])} (${d > 0 ? "+" : "−"}${Math.abs(d)})`);
-  }
-  const bass = prev.target.bass === cur.target.bass ? [] : [`bass ${spelled(prev, prev.target.bass)}→${spelled(cur, cur.target.bass)}`];
-  return [held ? `${held} held` : "", ...moves, ...bass].filter(Boolean).join(" · ");
 }
 
 const DEGREE_LABEL: Record<string, string> = { "3": "3rd?", b3: "♭3rd?", "4": "4th?", "7": "7th?", b7: "♭7th?", bb7: "°7?", "6": "6th?" };
@@ -121,16 +102,9 @@ export function CoachDrill({
 }: Props) {
   const [transfer, setTransfer] = useState(false);
   const [showHint, setShowHint] = useState(true);
-  const [stepIdx, setStepIdx] = useState(0);
-  const [attempts, setAttempts] = useState<Attempt[]>([]);
-  const [lastNotes, setLastNotes] = useState<number[] | null>(null);
   const [pending, setPending] = useState<number[]>([]);
-  /** What the scheduler made of the last finished run (null until saved, or in the demo). */
-  const [savedRun, setSavedRun] = useState<CoachRunResult | null>(null);
-  const runId = useRef(0);
   /** The step being heard right now ("Hear the move" / "Hear this chord"), or null. */
   const [heard, setHeard] = useState<number | null>(null);
-  const savedRunId = useRef(-1);
   const [mode, setMode] = useGradingMode(midiStatus);
   /** Self-check: has the current chord's voicing been revealed, and was it just marked missed? */
   const [revealed, setRevealed] = useState(false);
@@ -164,24 +138,41 @@ export function CoachDrill({
     };
   }, [conceptRuleId, tune, move, key]);
 
+  // the session: strike → grade → file once → next key (theory-core's drillSession; this page keeps
+  // the tap-in notes, the red pen and Study mode)
+  const runs = useMemo<DrillRun[]>(() => [{ kind: "move", steps, tuneId: tune.id, moveId: dmove.id, ruleId: dmove.ruleId }], [steps, tune.id, dmove]);
+  const flow = useMemo<KeyPlan & { kind: "flow" }>(() => ({ kind: "flow", flow: keyFlow !== "hold" ? keyFlow : transfer ? "random" : "hold" }), [keyFlow, transfer]);
+  const drill = useDrillSession({
+    runs,
+    keyTonic: key,
+    flow,
+    delayMs: 1400,
+    onSetKey: setKey,
+    // report each finished run straight away (the server grades and schedules it when it's saved)
+    onFiled: (r) => r.kind === "move" && onRun?.({ key: r.keyTonic, clean: r.misses === 0 && r.leaps === 0 }),
+  });
+  const { attempts, misses, leaps, finished, nextKey } = drill.view;
+  const stepIdx = drill.view.chord;
+  const savedRun = drill.saved;
+
   const drillIdentity = `${conceptRuleId ?? move.id}:${key}`;
   const [activeDrillIdentity, setActiveDrillIdentity] = useState(drillIdentity);
 
-  const reset = () => {
-    runId.current++;
-    setSavedRun(null);
-    setStepIdx(0);
-    setAttempts([]);
-    setLastNotes(null);
+  /** This page's own state: tap-in notes, the self-check reveal, the study cursor. */
+  const resetPage = () => {
     setPending([]);
     setRevealed(false);
     setRetrying(false);
     setStudyIdx(0);
   };
+  const reset = () => {
+    drill.restart();
+    resetPage();
+  };
 
   if (activeDrillIdentity !== drillIdentity) {
     setActiveDrillIdentity(drillIdentity);
-    reset();
+    resetPage();
   }
 
   useEffect(
@@ -193,22 +184,10 @@ export function CoachDrill({
   );
   useEffect(() => setShowHint(!transfer), [transfer]);
 
-  const finished = activeDrillIdentity === drillIdentity && stepIdx >= steps.length;
-  const passed = (a: Attempt) => a.pass;
-  const winning = attempts.filter(passed);
-  const misses = attempts.length - winning.length;
-  const leaps = winning.filter((a) => a.vl && !a.vl.smooth).length;
-  const cleanRun = finished && misses === 0 && leaps === 0;
-  const autoAdvance = transfer || keyFlow !== "hold";
-  // one seeded draw per run, so "Advancing to X" names the key the timer lands in
-  const nextK = useMemo(
-    () => (keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key, seededRandom(`${drillIdentity}:${runId.current}`))),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [finished, key, keyFlow, drillIdentity],
-  );
+  const cleanRun = drill.view.clean;
   const finishText = cleanRun
-    ? autoAdvance
-      ? `Clean run! Advancing to ${prettyNote(nextK)}…`
+    ? nextKey
+      ? `Clean run! Advancing to ${prettyNote(nextKey)}…`
       : "Clean run! Try it in another key."
     : [
         misses ? `Done, with ${misses} miss${misses === 1 ? "" : "es"}.` : "Done.",
@@ -218,53 +197,18 @@ export function CoachDrill({
         .filter(Boolean)
         .join(" ");
 
-  useEffect(() => {
-    if (!finished) return;
-    // Report and save each finished run exactly once. The server grades it and schedules the review.
-    if (savedRunId.current !== runId.current) {
-      savedRunId.current = runId.current;
-      const thisRun = runId.current;
-      onRun?.({ key, clean: cleanRun });
-      const maxLeap = Math.max(0, ...winning.map((a) => a.vl?.maxLeap ?? 0));
-      // a run is self-graded if any chord in it was (a mixed run can't vouch for its leaps)
-      const gradedBy = attempts.some((a) => a.by === "self") ? "self" : "engine";
-      void saveCoachRun({ tuneId: tune.id, moveId: dmove.id, ruleId: dmove.ruleId, keyTonic: key, misses, leaps, maxLeap, gradedBy }).then(
-        (r) => r && runId.current === thisRun && setSavedRun(r),
-      );
-    }
-    if (autoAdvance && cleanRun) {
-      const t = setTimeout(() => setKey(nextK), 1400);
-      return () => clearTimeout(t);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finished, cleanRun, autoAdvance, keyFlow, key]);
-
   const strike = (notes: number[]) => {
     if (finished) return;
-    const step = steps[stepIdx];
-    const diff = diffStrike(notes, step);
-    const prevWin = [...attempts].reverse().find((a) => a.step === stepIdx - 1 && passed(a));
-    const vl = prevWin?.diff ? diffVoiceLeading(prevWin.diff.played, notes, steps[stepIdx - 1], step) : null;
-    const pass = diff.verdict === "perfect" || diff.verdict === "correct";
-    setAttempts((a) => [...a, { step: stepIdx, pass, by: "engine", diff, vl }]);
+    drill.strike(notes);
     setPending([]);
-    if (pass) {
-      // Immediately clear lastNotes on step advance so the next chord starts on a clean slate
-      setLastNotes(null);
-      setStepIdx((i) => i + 1);
-    } else {
-      setLastNotes(notes);
-    }
   };
   useChordStrikes(strike, mode === "listen");
 
   /** The self-check's verdict on the current chord. A miss keeps it revealed for another go. */
   const selfGrade = (v: SelfVerdict) => {
     if (finished) return;
-    setAttempts((a) => [...a, { step: stepIdx, pass: v === "nailed", by: "self" }]);
-    setLastNotes(null);
+    drill.selfCheck(v === "nailed");
     if (v === "nailed") {
-      setStepIdx((i) => i + 1);
       setRevealed(false);
       setRetrying(false);
     } else setRetrying(true);
@@ -275,14 +219,8 @@ export function CoachDrill({
   };
 
   // Strictly scope the engine's red-pen markup to the active stepIdx so prior chords never bleed
-  const lastForStep = !finished
-    ? [...attempts].reverse().find((a) => a.step === stepIdx && a.by === "engine")
-    : undefined;
-  const last = lastForStep?.by === "engine" ? lastForStep : undefined;
-  const prevPassed =
-    stepIdx > 0
-      ? [...attempts].reverse().find((a) => a.step === stepIdx - 1 && a.pass && a.by === "engine")
-      : undefined;
+  const last = !finished ? heardAt(attempts, stepIdx) : undefined;
+  const prevPassed = stepIdx > 0 ? heardAt(attempts, stepIdx - 1, true) : undefined;
   const current = steps[Math.min(stepIdx, steps.length - 1)];
   const missing: PenMark[] = last ? last.diff.guideTones.filter((g) => !g.present).map((g) => ({ midi: g.targetMidi, label: DEGREE_LABEL[g.degree] ?? `${prettyNote(g.degree)}?` })) : [];
   const wrong: PenMark[] = last ? last.diff.wrongNotes.map((w) => ({ midi: w.midi, label: prettyNote(w.name) })) : [];
@@ -419,7 +357,7 @@ export function CoachDrill({
         </p>
         {!finished && prevPassed?.by === "engine" && !last && (
           <p className="mt-1 font-hand text-xs text-ink-soft" role="status">
-            ✓ {prettySymbol(steps[prevPassed.step].symbol)} nailed
+            ✓ {prettySymbol(steps[prevPassed.chord].symbol)} nailed
             {prevPassed.vl ? ` · ${prevPassed.vl.comment}` : ""}
           </p>
         )}
@@ -446,7 +384,7 @@ export function CoachDrill({
             keyboard({ target: revealed && !finished ? voicing(current) : [], played: [], check: finished && misses === 0 })
           : keyboard({
               target: showHint && !finished ? [current.target.bass, ...current.target.upper] : [],
-              played: !finished && last ? (lastNotes ?? []) : [],
+              played: !finished && last ? last.diff.played : [],
               pending,
               missing,
               wrong,
@@ -503,7 +441,7 @@ export function CoachDrill({
         <ul className="-rotate-[0.6deg] space-y-1 font-marker text-[17px] leading-snug" style={{ color: pen.red }}>
           {last.diff.verdict === "perfect" && (
             <li>
-              ✓ {sameMidi(last.diff.played, steps[last.step]) ? "Exactly the engine's voicing." : "Right voicing, with the notes in a different octave layout."}{" "}
+              ✓ {sameMidi(last.diff.played, steps[last.chord]) ? "Exactly the engine's voicing." : "Right voicing, with the notes in a different octave layout."}{" "}
               {last.vl?.smooth ? "And the voice leading is clean." : ""}
             </li>
           )}
