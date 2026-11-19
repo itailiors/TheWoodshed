@@ -1,7 +1,6 @@
 import {
   applyCoachRun,
   normaliseKey,
-  summariseProgress,
   type CoachAttemptRecord,
   type CoachRunInput,
   type ConceptReview,
@@ -9,7 +8,6 @@ import {
   type EarMotionId,
   type ImprovRunRecord,
   type LevelId,
-  type ProgressSummary,
   type Stage,
 } from "@reharm/theory-core";
 
@@ -54,7 +52,7 @@ export interface ChangesSessionRecord {
   discoveries: { move: string; symbol: string }[];
 }
 
-interface Backend {
+export interface Backend {
   readonly persistent: boolean;
   recordCoachRun(run: CoachRunInput & { tuneId: string | null; moveId: string }, now: Date): Promise<ReturnType<typeof applyCoachRun>>;
   recordImprovRun(run: ImprovRunData, now: Date): Promise<void>;
@@ -66,7 +64,7 @@ interface Backend {
 
 // ── in memory (fallback, and the shape the IndexedDB store mirrors) ──
 
-function memoryBackend(): Backend {
+export function memoryBackend(): Backend {
   const reviews = new Map<string, ConceptReview>();
   const attempts: CoachAttemptRecord[] = [];
   const improv: ImprovRunRecord[] = [];
@@ -210,15 +208,4 @@ export function localStore(): Promise<Backend> {
     }
   })();
   return backend;
-}
-
-/** The passport summary of everything saved in this browser, plus whether there's anything at all. */
-export async function localProgress(tuneId?: string): Promise<{ summary: ProgressSummary; empty: boolean; persistent: boolean }> {
-  const store = await localStore();
-  const all = await store.readAll();
-  return {
-    summary: summariseProgress(all, new Date(), tuneId),
-    empty: all.attempts.length === 0 && all.improv.length === 0,
-    persistent: store.persistent,
-  };
 }

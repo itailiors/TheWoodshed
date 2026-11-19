@@ -1,17 +1,18 @@
 import { conceptFamily, conceptKind } from "@reharm/theory-core";
 import { DEMO } from "../demo";
-import { reportApiUnreachable } from "./apiStatus";
 import { toast } from "../components/Toaster";
-import { localProgress, localStore, type ChangesSessionRecord } from "./localPractice";
+import { localStore, type ChangesSessionRecord } from "./localPractice";
+import { apiHistory } from "./historyApi";
+import { browserHistory } from "./historyBrowser";
 
 /*
- * The practice-history client: the Coach and the heatmap report here, the dashboard reads
- * from here. Sessions are opened lazily (the first saved run of a kind opens one) and
- * closed when the page goes away.
- *
- * The static demo has no API, so it keeps history in this browser instead (localPractice.ts),
- * graded and scheduled by the same theory-core functions. Until a visitor saves their first run,
- * the passport shows a clearly labelled sample notebook.
+ * The practice-history client: the Coach, the drills and the heatmap report here, the passport
+ * reads from here. Where history lives is one `PracticeHistory` adapter, picked once:
+ *   - historyApi.ts: the server (normal build), which grades and schedules;
+ *   - historyBrowser.ts: this browser (the static demo, which has no API), graded and scheduled by
+ *     the same theory-core functions. Until a visitor saves a run, its passport is a clearly
+ *     labelled sample notebook, and its due list is empty.
+ * Everything below this seam is build-agnostic.
  */
 
 export interface Review {
@@ -66,6 +67,31 @@ export interface CoachRunResult {
   review: Review;
 }
 
+/** A finished Coach or drill run, as filed. `tuneId` is already the chart id. */
+export interface CoachRunWrite {
+  tuneId: string;
+  moveId: string;
+  ruleId: string;
+  keyTonic: string;
+  misses: number;
+  leaps: number;
+  maxLeap: number;
+  tempo?: number;
+  /** "self" when the player checked their own acoustic-piano voicing (no notes were heard). */
+  gradedBy?: "engine" | "self";
+}
+
+/** Where practice history lives. Ids passed in are chart ids (`chartId`), never transposed ones. */
+export interface PracticeHistory {
+  /** File a run and reschedule its concept; null when it couldn't be saved (the adapter has said why). */
+  saveCoachRun(run: CoachRunWrite): Promise<CoachRunResult | null>;
+  saveImprovRun(run: ImprovRunInput, tempo?: number): Promise<boolean>;
+  /** The passport, for one chart or all. May be a sample notebook, marked `sample`. */
+  progress(chart?: string): Promise<Progress | null>;
+  /** The player's own due reviews, most overdue first. Never a sample's. */
+  due(): Promise<DueItem[] | null>;
+}
+
 /** A transposed tune's id is `base@Key`; history belongs to the chart itself. */
 export const chartId = (tuneId: string) => tuneId.split("@")[0];
 
@@ -79,49 +105,6 @@ export function onPracticeSaved(fn: () => void) {
 }
 const saved = () => listeners.forEach((l) => l());
 
-async function call<T>(path: string, init?: RequestInit): Promise<T | null> {
-  if (DEMO) return null;
-  let res: Response;
-  try {
-    res = await fetch(`/api/practice${path}`, init);
-  } catch {
-    reportApiUnreachable();
-    return null;
-  }
-  if (!res.ok) {
-    if (res.status >= 500) reportApiUnreachable();
-    console.warn(`[practice] ${path}: HTTP ${res.status}`, await res.text().catch(() => ""));
-    return null;
-  }
-  return (await res.json()) as T;
-}
-
-const post = <T>(path: string, body?: unknown) =>
-  call<T>(path, { method: "POST", headers: { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
-
-// ── sessions ──
-const sessions = new Map<string, Promise<number | null>>();
-
-function sessionFor(mode: "coach" | "improv", tuneId: string, tempo?: number): Promise<number | null> {
-  const k = `${mode}:${tuneId}`;
-  let s = sessions.get(k);
-  if (!s) {
-    s = post<{ id: number }>("/sessions", { mode, tuneId, tempo: tempo ? Math.round(tempo) : null }).then((r) => r?.id ?? null);
-    sessions.set(k, s);
-    // a failed open (API down) shouldn't stick: the next run tries again
-    void s.then((id) => id === null && sessions.delete(k));
-  }
-  return s;
-}
-
-/** Close every open session when the page goes away (sendBeacon survives the unload). */
-if (!DEMO && typeof window !== "undefined") {
-  window.addEventListener("pagehide", () => {
-    for (const s of sessions.values()) void s.then((id) => id && navigator.sendBeacon(`/api/practice/sessions/${id}/end`));
-    sessions.clear();
-  });
-}
-
 let warnedOffline = false;
 function couldntSave() {
   if (warnedOffline) return;
@@ -131,13 +114,15 @@ function couldntSave() {
 }
 
 let warnedTabOnly = false;
-/** A run saved in the demo's browser store: tell listeners, and say once if it only lasts this tab. */
-function savedLocally(persistent: boolean) {
-  saved();
-  if (persistent || warnedTabOnly) return;
+function tabOnly() {
+  if (warnedTabOnly) return;
   warnedTabOnly = true;
   toast("This browser isn't letting the app store data, so your runs are kept only until you close this tab.", { tone: "warn" });
 }
+
+const where: PracticeHistory = DEMO
+  ? browserHistory({ store: localStore, sample: () => import("./demoHistory").then((m) => m.demoProgress()), onTabOnly: tabOnly })
+  : apiHistory({ onOffline: couldntSave });
 
 /** Erase every run this browser has saved (demo only). The passport goes back to the sample notebook. */
 export async function forgetLocalPractice(): Promise<void> {
@@ -188,43 +173,9 @@ export const saveShapeRun = (run: { ruleId: string; keyTonic: string; misses: nu
  * A finished Coach run, heard by the engine or self-checked. The server grades it (0–5) from the
  * misses and leaps and reschedules the concept, the same SM-2 path either way.
  */
-export async function saveCoachRun(run: {
-  tuneId: string;
-  moveId: string;
-  ruleId: string;
-  keyTonic: string;
-  misses: number;
-  leaps: number;
-  maxLeap: number;
-  tempo?: number;
-  /** "self" when the player checked their own acoustic-piano voicing (no notes were heard). */
-  gradedBy?: "engine" | "self";
-}): Promise<CoachRunResult | null> {
-  if (DEMO) {
-    const store = await localStore();
-    const { grade, clean, review } = await store.recordCoachRun(
-      { tuneId: chartId(run.tuneId), moveId: run.moveId, ruleId: run.ruleId, keyTonic: run.keyTonic, misses: run.misses, leaps: run.leaps },
-      new Date(),
-    );
-    savedLocally(store.persistent);
-    return { grade, clean, review: { ...review, dueAt: review.dueAt.toISOString(), lastReviewedAt: review.lastReviewedAt?.toISOString() ?? null } };
-  }
-  const tuneId = chartId(run.tuneId);
-  const sessionId = await sessionFor("coach", tuneId, run.tempo);
-  if (!sessionId) return couldntSave(), null;
-  const res = await post<CoachRunResult>("/coach-attempts", {
-    sessionId,
-    tuneId,
-    moveId: run.moveId,
-    ruleId: run.ruleId,
-    keyTonic: run.keyTonic,
-    misses: run.misses,
-    leaps: run.leaps,
-    maxLeap: Math.min(127, run.maxLeap),
-    gradedBy: run.gradedBy ?? "engine",
-  });
-  if (!res) couldntSave();
-  else saved();
+export async function saveCoachRun(run: CoachRunWrite): Promise<CoachRunResult | null> {
+  const res = await where.saveCoachRun({ ...run, tuneId: chartId(run.tuneId) });
+  if (res) saved();
   return res;
 }
 
@@ -246,34 +197,14 @@ export interface ImprovRunInput {
 
 /** One pass of soloing over the loop, summarised. */
 export async function saveImprovRun(run: ImprovRunInput, tempo?: number): Promise<boolean> {
-  if (DEMO) {
-    const store = await localStore();
-    await store.recordImprovRun({ ...run, tuneId: chartId(run.tuneId) }, new Date());
-    savedLocally(store.persistent);
-    return true;
-  }
-  const tuneId = chartId(run.tuneId);
-  const sessionId = await sessionFor("improv", tuneId, tempo);
-  if (!sessionId) return couldntSave(), false;
-  const res = await post<{ id: number }>("/improv-runs", { ...run, tuneId, sessionId });
-  if (!res) couldntSave();
-  else saved();
-  return !!res;
+  const ok = await where.saveImprovRun({ ...run, tuneId: chartId(run.tuneId) }, tempo);
+  if (ok) saved();
+  return ok;
 }
 
 // ── reads ──
 
-/**
- * The demo reads the visitor's own history from this browser. Before their first saved run it
- * shows the seeded sample notebook instead (lazy-loaded, so normal builds don't carry it),
- * marked `sample` so the UI can label it. The two are never mixed.
- */
-async function demoReadProgress(tuneId?: string): Promise<Progress> {
-  const local = await localProgress(tuneId ? chartId(tuneId) : undefined);
-  if (local.empty) return { ...(await import("./demoHistory").then((m) => m.demoProgress())), sample: true };
-  return { ...local.summary, storedIn: local.persistent ? "browser" : "tab" };
-}
-
-export const fetchProgress = (tuneId?: string): Promise<Progress | null> =>
-  DEMO ? demoReadProgress(tuneId) : call<Progress>(`/progress${tuneId ? `?tuneId=${encodeURIComponent(chartId(tuneId))}` : ""}`);
-export const fetchDue = (): Promise<DueItem[] | null> => (DEMO ? fetchProgress().then((p) => p?.due ?? null) : call<DueItem[]>("/due"));
+/** The passport, for one tune's chart or all. In the demo it may be the sample notebook (`sample`). */
+export const fetchProgress = (tuneId?: string): Promise<Progress | null> => where.progress(tuneId ? chartId(tuneId) : undefined);
+/** The player's own due reviews (never the demo's sample). */
+export const fetchDue = (): Promise<DueItem[] | null> => where.due();

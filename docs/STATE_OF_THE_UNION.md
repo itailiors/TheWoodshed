@@ -105,7 +105,9 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
   src/midi/qwerty.ts            ★ computer keyboard → noteBus + player; e.code layout; Z/X octave; M toggle; capture-phase so it
                                   pre-empts page shortcuts while on; releaseAll on blur/hidden; state persisted in "reharm.qwerty"
   src/library/api.ts  src/library/apiStatus.ts
-  src/library/practice.ts       ★ practice-history client; in DEMO, fetchProgress/fetchDue read the seeded history (writes stay no-ops)
+  src/library/practice.ts       ★ practice-history client; picks one PracticeHistory adapter (DEMO → browser, else API)
+  src/library/historyApi.ts     ★ adapter: /api/practice (lazy sessions, closed on pagehide via sendBeacon)
+  src/library/historyBrowser.ts ★ adapter: IndexedDB via localPractice.ts; sample notebook until the first run, never in due()
   src/library/demoHistory.ts    ★ hydrates the fixture relative to now → Progress (same rules as the API: clean = cleanRuns > 0, due = dueAt ≤ now)
   src/library/demoHistory.json  ★ Co-op Blues: 31 reviews across 6 rules (5 due), 20 improv runs (45% → 75% chord tones), places → move ids
   src/components/
