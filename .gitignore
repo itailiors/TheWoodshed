@@ -1,6 +1,11 @@
 node_modules/
 dist/
 dist-demo/
+# Playwright output (e2e)
+e2e/.results/
+e2e/.report/
+playwright-report/
+test-results/
 *.log
 .DS_Store
 # secrets: every env file except the two committed templates

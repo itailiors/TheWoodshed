@@ -277,7 +277,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - silence Tone's console banner (`TONE_SILENCE_LOGGING`);
   - heatmap shapes for colour-blind users;
   - focus rings;
-  - Playwright golden paths, using the fake-MIDI recipe.
+  - ~~Playwright golden paths~~ **Done:** `e2e/` (`npm run e2e`) against the static demo build on :4175, with the fake-MIDI recipe. Not in `npm test`; CI runs it after the demo build.
 
 **Open Studio research (2026-11-19):** `docs/research/open-studio-ideas.md` maps Adam Maness's *Harmony Games* / *Lead Sheet Breakdown*, "Sugar Chords" and Peter Martin's ATTYA sheets against the engine. It lists 7 rule candidates (One Note on Top first), voicing styles (drop-2/3, shell, three-zone, melody-on-top, 6-dim), Changes rounds and practice tools. Mirrored in Notion under "OpenS reharm techniques".
 - **Built (uncommitted at the time of writing):**

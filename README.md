@@ -337,15 +337,18 @@ A setup file points the default database path at a sentinel, so tests can never 
 
 ```bash
 npm test          # 208 tests (engine + API), several thousand generated cases
-npm run typecheck # all three workspaces
+npm run typecheck # all three workspaces (and the e2e folder)
+npm run e2e       # Playwright golden paths in Chromium, against the static demo build
 ```
+
+The **end-to-end suite** ([`e2e/`](e2e/README.md)) drives the static demo build in headless Chromium: a clean console, zero `/api` requests, the Study dial, a fake MIDI keyboard (chord, release, unplug), a Changes round and deep links. It never talks to the API, so it can't touch your library. It isn't part of `npm test`.
 
 **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs on every push:
 1. typecheck;
 2. both test suites;
 3. a check that the SQL migrations match the Drizzle schema;
 4. the web build;
-5. the demo build, uploaded as an artifact;
+5. the demo build, uploaded as an artifact, and the Playwright golden paths run against it;
 6. on `main` only, once all of the above pass: the demo is published to **GitHub Pages** at [itailiors.github.io/TheWoodshed](https://itailiors.github.io/TheWoodshed/).
 
 ---
