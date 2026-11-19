@@ -1,54 +1,39 @@
-# Handoff (2026-11-19, session 6)
+# Handoff (2026-11-19, session 8)
 
 ## Goal
-Build a Voicings tab: a shape library where you see every form of a voicing family for a chord, hear it, and play it with grading. The MVP is done. Next is v2 from the spec.
+Voicings tab v2 (spec: `docs/research/voicings-tab.md` §6, decisions §8 items 6–8 are new this session). Visual polish and "Voice the tune" are done; next is the next v2 item.
 
-## Done
-- `bd9c5b4` (pushed): F3, the `quartal` (with `plane` planing on chords of 4+ beats) and `spread` (LH 10th + RH upper structure) styles. Both are in the mixer's Piano voicings select.
-- `9331581` (NOT pushed): the Voicings tab MVP. Read the commit body for the full list.
-  - theory-core `voicingForms.ts`: `voicingForms`, `classifyVoicing`, `gradeShape`, `voiceLeadForms`.
-  - web: `components/voicings/VoicingsPage.tsx`, mode `voicings` in `ModeSwitch.tsx` and `App.tsx`.
-  - Fix: a shell could sit below its own bass.
-  - `phoneKeyboardRows` moved to `components/practice/keyboardRows.ts`.
-- Spec: `docs/research/voicings-tab.md`. It merges seven role-play agents (beginner, intermediate, new user, teacher, UX, PM, engineer); Itai's decisions are in §8, and §6 has the scope slices.
-- Checks: typecheck clean; tests 251 theory-core + 20 API + 34 web passing.
-- Browser checks in the dev app (:5173), at desktop and 375 px:
-  - the ii–V–I path is A-B-A from A and B-A-B from B;
-  - all three grading outcomes work (missing 3rd, wrong shape, correct, which advances to the next chord).
-- Not checked: CI for both commits; real MIDI/QWERTY strikes on the tab (only on-screen tap-then-check was driven); Coach's phone keyboard after the helper move.
+## Done (all on `main`, NOT pushed: Itai pushes)
+- `24bd1d9` Visual polish: guide-tone ink double ring (PenKeyboard `guides`), LH brick + square / RH blue + dot key washes (`hands`), bold guide-tone labels (`PenMark.strong`), legend line. Coach unchanged (passes none of these).
+- `a5d43d6` Voice the tune. theory-core `voiceTheTune.ts` (`structuralTops`, `voiceTheTune`, `hasMelody`); `voiceLeadForms` takes per-chord `tops`. Engine fix in `voicing.ts`: a low pinned top no longer drops drop-3's voice under the bass (also the band's One Note on Top path). UI: "Voice the tune" source, lead sheet, step-through filing, "Hear the head" (`player.playScore`). On a melody-less chart the pill is dimmed; clicking it explains inline with "Open Co-op Blues →" (`onOpenReference`).
+- `70c03af` Itai's review fixes: Stop for Hear the head (playScore schedules 0.35 s ahead; `stopScore`, engine `clock()`/`releaseAuditions()`), ◀ ▶ buttons + ←/→ keys, `LeadSheet` component with numbered lines of four bars.
+- Checks at `70c03af`: typecheck clean; tests 267 theory-core + 21 API + 34 web. CI earlier commits (`d2483e1`) green; CI for these three not checked (unpushed).
+- Browser: demo build (:4174) at desktop and 375 px; fake-MIDI step-through, Hear the head following, Stop, arrows, B♭ transposition, disabled-pill flow; zero `/api`, clean console. Audio cut-off at Stop was not heard (pane can't listen).
 
 ## In progress
-Nothing. The tree is clean apart from this file.
+Nothing. Only `docs/HANDOFF.md` is uncommitted (this file).
 
 ## Next 3 steps
-1. **Push `9331581`** (Itai pushes), then check CI.
-2. **v2 history:** add a small rule-id prefix registry in theory-core, then route `shape:<style>:<quality>` ids. Today the `ear:` prefix is hard-coded in `App.tsx` `practiseConcept`, `CoachPage.tsx:152`, `PracticeDashboard.tsx:146-147` and `practice.ts` `fetchEarDue`. Then save graded runs (demo-aware) and add a Passport section. End-to-end checks must use the scratch-DB procedure in CLAUDE.md §0.
-3. **v2 features (spec §6):**
-   - a 12-key drill weighted toward weak keys;
-   - "Voice this" from a lead-sheet chord;
-   - "voice the tune" with the melody on top (`top` pinning);
-   - compare pins;
-   - "Use for band piano" (`setVoicingStyle`);
-   - hand colour on the keys.
+1. Push (Itai) and check CI for `24bd1d9`, `a5d43d6`, `70c03af`.
+2. Ask Itai to try Voice the tune with his keyboard: does Stop cut cleanly, and do the structural tops feel right on Co-op Blues?
+3. Pick the next v2 item (spec §6): "Voice this" from a lead-sheet chord; hear-then-hide-then-play; compare pins; "Use for band piano".
 
 ## Decisions + why
-- **Drop-2/3 offer both forms:** the rootless drop the band plays, plus the textbook R-3-5-7 forms (ids `rootless-top-*`, `root-on-*`).
-- **Rootless A/B are forms of `close`** (A = 3rd on the bottom, B = 7th on the bottom), not a new style. That keeps the mixer list as it is.
-- **No practice history in the MVP.** It would have needed the prefix registry first, and the tab writes nothing.
-- **The primary user is the intermediate player.** Beginners see Shells (marked "start here"), Close and Drop 2 first; the rest are behind "More shapes".
-- **Forms are built from `voicing.ts`'s `styleOptions`,** so `forms[0]` always equals `voiceChord`'s pick (a test enforces it). Don't fork the layout logic.
-- **`voiceLeadForms` scores movement voice by voice.** The engine's nearest-note `movement` picked 5-7-9-3 over A on Cmaj7.
-- **Grading is octave-free with the bass optional.** It names the missing degree, the extra notes, or the shape actually played. Exact-position grading stays in Coach.
-- **The phone layout docks the keys at the bottom** (only notes in play, no bass row), with Hear/Check on the bar and the ii–V–I as a one-row strip.
-- **Quartal G7♭9 plays the ♯9, not the ♭9:** no stack of 4ths reaches A♭ with B and F. Itai hasn't ruled on it.
+- **Top note = structural melody note** (spec §8 item 6): longest note starting in the chord's span, an eighth anticipation belongs to the next chord, ties to the note nearest the attack. One voicing per chord, not block chords.
+- **Melody tunes only** (§8 item 7). Only Co-op Blues (`referenceTune`) has a melody among bundled tunes; public-domain charts are changes only (rule 0). Never hard-code its id: the button uses `referenceTune`.
+- **Step through untimed** (§8 item 8), filing each clean chord like the ii–V–I; Hear the head plays in time, swung, capped at 112 bpm.
+- **Pill dimmed but clickable** (aria-disabled), not `disabled` with a tooltip: tooltips don't exist on touch.
+- **Phone keyboard in tune mode spans this chord ±1**, not the whole head (16 chords made the keys tiny).
 
 ## Gotchas
-- **Exporting from `voicing.ts`:** it now exports `candidates`, `styleOptions`, `layoutScore`, `bassOf`, `inversions`, `drop`, `CENTER`, `movement` and `ChordLike` for `voicingForms.ts`. Watch for name clashes through `index.ts`'s `export *`.
-- **`useChordStrikes` needs 2+ notes, and repeats need a release.** On-screen keys on this tab toggle pending notes and don't emit on the bus, so they can't trigger a strike.
-- **The dev app's 500s on `/api/health`** just mean the `api` preview isn't running.
-- **The persona agents ran on Sonnet** via the Agent tool. Their raw reports aren't saved; the spec is the record.
+- **Quartal rarely fits under a melody** (14/16 Co-op Blues chords fall back to close, labelled per chord). Building quartal stacks down from the melody note would be its own piece of work.
+- **Grading is octave-free:** when the melody's pitch class is already in the shell, playing it on top isn't enforced.
+- **Vitest won't run files outside `packages/theory-core`;** for scratch probes write a `.ts` script with absolute imports and run `npx tsx <file>`.
+- **The repo doesn't use Prettier** (no config; files were never formatted). Don't reformat.
+- **The demo's IndexedDB still holds test runs**; "Start over…" in the passport clears them.
+- **Quartal G7♭9 still plays the ♯9.** Itai hasn't ruled on it.
 
 ## Suggested skills
-- `mattpocock-skills:tdd` for the prefix registry and the `shape:` ids (property tests first).
+- `mattpocock-skills:tdd` for any new theory-core function (tests first; see `test/voiceTheTune.test.ts`).
+- The built-in browser on `web-demo-build` (`npm run build:demo` first) for UI checks.
 - `ship` when Itai says "commit and push".
-- `run`, or the built-in browser on `web` (:5173), to check the tab. It writes nothing, so the dev server is safe, but use Study mode or the demo build for anything that grades in Coach.
