@@ -40,6 +40,11 @@ interface Props {
   /** Hand a chord back to the dial: drop any pick or keep that touches it. */
   onDial: (chordId: string) => void;
   onSelect: (moveId: string) => void;
+  /** The chord under Study's chord cursor (⇧ ← →), if it's live. */
+  cursorChordId?: string | null;
+  /** Bumped on every cursor step, so stepping onto the same chord again reopens it. */
+  cursorTick?: number;
+  onStepChord?: (dir: 1 | -1) => void;
 }
 
 const route = (m: ReharmMove) => (
@@ -69,11 +74,29 @@ function logicOf(m: ReharmMove) {
   };
 }
 
-export function ChordMoveSelector({ chords, accepted, pathway, forcedIds, keptIds, level, selectedId, onPick, onKeep, onDial, onSelect }: Props) {
+export function ChordMoveSelector({
+  chords,
+  accepted,
+  pathway,
+  forcedIds,
+  keptIds,
+  level,
+  selectedId,
+  onPick,
+  onKeep,
+  onDial,
+  onSelect,
+  cursorChordId,
+  cursorTick,
+  onStepChord,
+}: Props) {
   const rows = chords
     .map((c) => ({ chord: c, options: accepted.filter((m) => m.replaces.includes(c.id)).sort((a, b) => a.level - b.level || a.priority - b.priority) }))
     .filter((r) => r.options.length > 0);
   const quiet = chords.length - rows.length;
+  const cursorAt = cursorChordId ? chords.findIndex((c) => c.id === cursorChordId) : -1;
+  const cursorChord = cursorAt >= 0 ? chords[cursorAt] : null;
+  const cursorBare = !!cursorChord && !rows.some((r) => r.chord.id === cursorChord.id);
 
   return (
     <section aria-labelledby="chord-by-chord-h" className="space-y-2">
@@ -85,6 +108,34 @@ export function ChordMoveSelector({ chords, accepted, pathway, forcedIds, keptId
           Pick the move for each change, or keep it as written.{quiet > 0 ? ` ${quiet} other chord${quiet === 1 ? " has" : "s have"} no move that fits.` : ""}
         </p>
       </div>
+      {onStepChord && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          {([-1, 1] as const).map((dir) => (
+            <button
+              key={dir}
+              type="button"
+              onClick={() => onStepChord(dir)}
+              aria-label={dir === 1 ? "Next chord (Shift + →)" : "Previous chord (Shift + ←)"}
+              title={dir === 1 ? "Next chord (⇧ →)" : "Previous chord (⇧ ←)"}
+              className="cursor-pointer rounded-full border-2 border-ink px-2.5 py-0.5 font-marker hover:bg-paper-shade"
+              style={{ order: dir === 1 ? 2 : 0 }}
+            >
+              {dir === 1 ? "chord ›" : "‹ chord"}
+            </button>
+          ))}
+          <span aria-live="polite" className="order-1 min-w-0 font-hand text-ink-soft">
+            {cursorChord ? (
+              <>
+                {cursorAt + 1} of {chords.length}: bar {cursorChord.at.bar}
+                {cursorChord.at.beat > 1 ? `.${cursorChord.at.beat}` : ""} <ChordName symbol={symbol(cursorChord)} className="text-ink" />
+                {cursorBare ? " · no move fits here, so it stays as written" : ""}
+              </>
+            ) : (
+              "step through the changes one chord at a time"
+            )}
+          </span>
+        </div>
+      )}
       <ol className="grid gap-2 sm:grid-cols-2">
         {rows.map(({ chord, options }) => {
           const inPath = pathway.find((m) => m.replaces.includes(chord.id));
@@ -102,6 +153,7 @@ export function ChordMoveSelector({ chords, accepted, pathway, forcedIds, keptId
                 dialMove={choice.kind === "dial" ? (inPath ?? null) : null}
                 level={level}
                 selected={!!inPath && inPath.id === selectedId}
+                cursorTick={chord.id === cursorChordId ? (cursorTick ?? 0) : undefined}
                 onPick={onPick}
                 onKeep={() => onKeep(chord.id)}
                 onDial={() => onDial(chord.id)}
@@ -122,6 +174,7 @@ function ChordRow({
   dialMove,
   level,
   selected,
+  cursorTick,
   onPick,
   onKeep,
   onDial,
@@ -134,6 +187,8 @@ function ChordRow({
   dialMove: ReharmMove | null;
   level: number;
   selected: boolean;
+  /** Set while the chord cursor is on this chord; each new value is one step onto it. */
+  cursorTick?: number;
   onPick: (m: ReharmMove) => void;
   onKeep: () => void;
   onDial: () => void;
@@ -159,6 +214,21 @@ function ChordRow({
     };
   }, [open]);
 
+  // The chord cursor stepped here: open the options, focus the trigger (Enter toggles it,
+  // Escape closes it) and bring the row into view. When the cursor leaves, close it again.
+  const trigger = useRef<HTMLButtonElement>(null);
+  const isCursor = cursorTick !== undefined;
+  const wasCursor = useRef(false);
+  useEffect(() => {
+    if (isCursor) {
+      setOpen(true);
+      trigger.current?.focus({ preventScroll: true });
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      box.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
+    } else if (wasCursor.current) setOpen(false);
+    wasCursor.current = isCursor;
+  }, [isCursor, cursorTick]);
+
   const choose = (fn: () => void) => () => {
     fn();
     setOpen(false);
@@ -167,7 +237,8 @@ function ChordRow({
   return (
     <div ref={box} className="relative">
       <div
-        className={`flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 ${selected ? "border-ink bg-paper-light" : "border-ink-faint/60"}`}
+        data-chord-cursor={isCursor || undefined}
+        className={`flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 ${isCursor ? "border-ink bg-wash-mustard/25" : selected ? "border-ink bg-paper-light" : "border-ink-faint/60"}`}
       >
         <span className="w-16 shrink-0 text-xs text-ink-soft">
           bar {chord.at.bar}
@@ -175,6 +246,7 @@ function ChordRow({
           <ChordName symbol={sym} className="block text-lg text-ink" />
         </span>
         <button
+          ref={trigger}
           type="button"
           aria-haspopup="listbox"
           aria-expanded={open}

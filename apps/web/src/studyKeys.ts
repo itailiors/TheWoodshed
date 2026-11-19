@@ -5,6 +5,8 @@ export interface StudyKeyActions {
   toggle(): void;
   /** -1 = previous move, +1 = next */
   step(dir: 1 | -1): void;
+  /** Shift + ← →: previous / next chord of the tune (theory-core's `stepChord`). */
+  chord(dir: 1 | -1): void;
   dial(dir: 1 | -1): void;
   flipView(): void;
   loop(): void;
@@ -34,7 +36,8 @@ export function useStudyKeys(enabled: boolean, actions: StudyKeyActions) {
             return true;
           case "ArrowLeft":
           case "ArrowRight":
-            a.step(e.key === "ArrowRight" ? 1 : -1);
+            // Shift walks the tune's chords one by one; bare arrows walk the reharm's moves
+            (e.shiftKey ? a.chord : a.step)(e.key === "ArrowRight" ? 1 : -1);
             return true;
           case "ArrowUp":
           case "ArrowDown":

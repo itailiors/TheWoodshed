@@ -7,6 +7,7 @@ export type Shortcut = [keys: string, what: string];
 export const STUDY_SHORTCUTS: Shortcut[] = [
   ["Space", "play / stop"],
   ["← →", "previous / next move"],
+  ["⇧ ← →", "previous / next chord"],
   ["↑ ↓", "dial up / down"],
   ["A", "original / reharm"],
   ["L", "loop the move"],

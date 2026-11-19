@@ -204,7 +204,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
 - Works in the static demo at its `/TheWoodshed/` subpath, still with zero `/api` requests.
 
 ### 🎛️ Hands off the mouse: keyboard shortcuts
-- **Study:** `Space` play / stop · `← →` previous / next move (in bar order; its card scrolls into view) · `↑ ↓` dial up / down · `A` original / reharm · `L` loop the move · `[ ]` tempo · `, .` key a half step · `?` the shortcut card.
+- **Study:** `Space` play / stop · `← →` previous / next move (in bar order; its card scrolls into view) · `Shift + ← →` previous / next chord (every change of the tune in order; opens its Chord-by-chord options when a move fits there, else marks it in red on the lead sheet) · `↑ ↓` dial up / down · `A` original / reharm · `L` loop the move · `[ ]` tempo · `, .` key a half step · `?` the shortcut card.
 - **Practice Mode:** `Space` · `← →` spice (the dial) · `A` A/B · `L` loop · `T` trade 2s/4s · `[ ]` · `, .` · `1`–`4` mute piano / bass / drums / click · `Esc` back to Study · `?`. The legend sits in the header on wide screens; below that, **⌨ Shortcuts** opens the same card.
 - **The `?` card** is modal: while it's open no key reaches the page, so a stray Space can't start the band behind it. `Esc` or `?` closes it.
 - Shortcuts stay out of the way: they're off while you type in a field, while a drawer, the X-ray (which has its own `← →`) or the ▶ prompt is open, and for browser chords (Ctrl/⌘/Alt). Space plays the band even when a button has focus.

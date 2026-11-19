@@ -2,6 +2,9 @@ import {
   conceptKind,
   editorPathway,
   editorPicks,
+  liveChordCursor,
+  stepChord,
+  type ChordCursor,
   chroma,
   transposeTune,
   densityLabel,
@@ -211,6 +214,18 @@ export function App() {
   // Chord by chord: keep one chord as written, or hand it back to the dial
   const keepChord = (chordId: string) => edit({ type: "keep", chordId });
   const dialChord = (chordId: string) => edit({ type: "release", chordId });
+  // The chord cursor (⇧ ← →): walks the tune's own changes, opening the move over each one
+  // (theory-core's `stepChord`). It goes stale on its own once another move is opened.
+  const [chordCursor, setChordCursor] = useState<ChordCursor | null>(null);
+  const [chordTick, setChordTick] = useState(0);
+  const cursorChordId = liveChordCursor(chordCursor, original, selectedId)?.chordId ?? null;
+  const stepChordBy = (dir: 1 | -1) => {
+    const next = stepChord(original, pathway, chordCursor, selectedId, dir);
+    if (!next) return;
+    setChordCursor(next);
+    setChordTick((t) => t + 1);
+    if (next.moveId !== selectedId) setSelectedId(next.moveId);
+  };
 
   const usedCategories = [...new Set(pathway.map((m) => m.category))];
 
@@ -439,6 +454,7 @@ export function App() {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       document.querySelector(`[data-move-id="${CSS.escape(next.id)}"]`)?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
     },
+    chord: stepChordBy,
     dial: (dir) => changeLevel(Math.min(4, Math.max(0, level + dir))),
     flipView: () => setView((v) => (v === "reharm" ? "original" : "reharm")),
     loop: () => selected && setLoopSelection((l) => !l),
@@ -721,6 +737,7 @@ export function App() {
                       playhead={playback.position}
                       loopBars={playback.status === "playing" || loopSelection ? loop : null}
                       lastBar={bars}
+                      activeChordId={cursorChordId}
                     />
                   </div>
                 </div>
@@ -765,6 +782,9 @@ export function App() {
                     onKeep={keepChord}
                     onDial={dialChord}
                     onSelect={setSelectedId}
+                    cursorChordId={cursorChordId}
+                    cursorTick={chordTick}
+                    onStepChord={stepChordBy}
                   />
                 </div>
               </SketchBox>
