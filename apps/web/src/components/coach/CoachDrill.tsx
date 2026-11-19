@@ -12,6 +12,7 @@ import {
   prettyNote,
   prettySymbol,
   randomKey,
+  seededRandom,
   symbol,
   transposeTune,
   type DrillStep,
@@ -199,9 +200,15 @@ export function CoachDrill({
   const leaps = winning.filter((a) => a.vl && !a.vl.smooth).length;
   const cleanRun = finished && misses === 0 && leaps === 0;
   const autoAdvance = transfer || keyFlow !== "hold";
+  // one seeded draw per run, so "Advancing to X" names the key the timer lands in
+  const nextK = useMemo(
+    () => (keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key, seededRandom(`${drillIdentity}:${runId.current}`))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [finished, key, keyFlow, drillIdentity],
+  );
   const finishText = cleanRun
     ? autoAdvance
-      ? `Clean run! Advancing to ${prettyNote(keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key))}…`
+      ? `Clean run! Advancing to ${prettyNote(nextK)}…`
       : "Clean run! Try it in another key."
     : [
         misses ? `Done, with ${misses} miss${misses === 1 ? "" : "es"}.` : "Done.",
@@ -226,7 +233,6 @@ export function CoachDrill({
       );
     }
     if (autoAdvance && cleanRun) {
-      const nextK = keyFlow !== "hold" ? nextCircleKey(key, keyFlow) : randomKey(key);
       const t = setTimeout(() => setKey(nextK), 1400);
       return () => clearTimeout(t);
     }
