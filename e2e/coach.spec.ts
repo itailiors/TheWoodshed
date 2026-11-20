@@ -11,6 +11,8 @@ import {
   basicsLesson,
   referenceTune,
   RULES,
+  unmetChain,
+  unmetDescent,
   type Lesson,
 } from "@reharm/theory-core";
 import type { Page } from "@playwright/test";
@@ -26,7 +28,8 @@ import { expect, installFakeMidi, test, type FakeMidi } from "./fixtures";
 
 const KEY = referenceTune.key.tonic;
 const TRITONE_SUB = "dominant.tritoneSub";
-const FIRST = nextUp(conceptStates({ concepts: [], cleanKeys: {} }, {}, new Date()), 1)[0];
+const FRESH = conceptStates({ concepts: [], cleanKeys: {} }, {}, new Date());
+const FIRST = nextUp(FRESH, 1)[0];
 /** The QWERTY key for a pitch class (A = C … J = B, M switches it on). */
 const QWERTY = ["a", "w", "s", "e", "d", "f", "t", "g", "y", "h", "u", "j"];
 
@@ -123,7 +126,9 @@ test("the tritone sub shows its prerequisite note; Continue anyway opens step 1,
   await pickConcept(page, TRITONE_SUB);
   const lesson = canonicalLesson(TRITONE_SUB, KEY)!;
   const n = lesson.steps.length;
-  const summary = prereqSummary(TRITONE_SUB, KEY, { lessonFor: anyLesson })!;
+  // a cold start: the count covers the whole unmet chain (P6), not only the direct prerequisites
+  const summary = prereqSummary(TRITONE_SUB, KEY, { lessonFor: anyLesson, chain: unmetChain(FRESH, TRITONE_SUB) })!;
+  expect(summary.sentence).toMatch(/\(4 lessons, \d+ steps, from the tritone\)\.$/);
   // one routing line: the note, with the lesson's headline; no stepper yet
   await expect(prereqNote(page)).toContainText(summary.sentence);
   await expect(learnStage(page).locator("[data-lesson-headline]")).toHaveText(lesson.headline);
@@ -213,6 +218,65 @@ test("Esc on an open glossary chip closes it and stays on Coach; Learn and the c
   await expect(sheet).toHaveCount(0);
   await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();
   await expect(learnStage(page)).toBeVisible();
+  // a second Esc doesn't throw the learner out of the lesson (P6): same step, still on Coach
+  const at = await stepHeading(page).textContent();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();
+  await expect(stepHeading(page)).toHaveText(at!);
+});
+
+test("Learn that first follows a cold chain down and returns all the way up, one Back at a time", async ({ page }) => {
+  await openCoach(page);
+  // dominant resolution from scratch: guide tones builds on 7th chords, so 7th chords opens first
+  const target = "basics:dominantResolution";
+  const path = unmetDescent(FRESH, target);
+  expect(path).toEqual(["basics:guideTones", "basics:sevenths"]);
+  await pickConcept(page, target);
+  await prereqNote(page).getByRole("button", { name: "Learn that first" }).click();
+  // deepest first; each lesson returns to the one that needed it
+  const chain = [...path].reverse(); // [7th chords, guide tones]
+  const backTo = [path[0], target]; // 7th chords → guide tones → dominant resolution
+  for (let i = 0; i < chain.length; i++) {
+    await expect(learnStage(page)).toHaveAttribute("data-coach-learn", chain[i]);
+    await expect(stepHeading(page)).toBeFocused();
+    const n = anyLesson(chain[i], KEY)!.steps.length;
+    for (let s = 1; s < n; s++) await learnStage(page).getByRole("button", { name: "Next ›" }).click();
+    await learnStage(page).getByRole("button", { name: `Back to ${learnName(backTo[i])} ›` }).click();
+  }
+  // home: nothing unmet any more, so its lesson opens at step 1 with the focus on it
+  await expect(learnStage(page)).toHaveAttribute("data-coach-learn", target);
+  await expect(prereqNote(page)).toHaveCount(0);
+  await expect(stepHeading(page)).toHaveText(/^Step 1 of /);
+  await expect(stepHeading(page)).toBeFocused();
+});
+
+test("a finished foundation's last press is Next up: one button that opens it (and counts the finish)", async ({ page }) => {
+  await openCoach(page);
+  await expect(learnStage(page)).toHaveAttribute("data-coach-learn", FIRST);
+  const n = basicsLesson(FIRST, KEY)!.steps.length;
+  for (let s = 1; s < n; s++) await learnStage(page).getByRole("button", { name: "Next ›" }).click();
+  const after = nextUp(conceptStates({ concepts: [], cleanKeys: {} }, { [FIRST]: { finishedAt: new Date().toISOString() } }, new Date()), 1)[0];
+  await learnStage(page).getByRole("button", { name: `Next up: ${learnName(after)} ›` }).click();
+  await expect(learnStage(page)).toHaveAttribute("data-coach-learn", after);
+  await expect(stepHeading(page)).toHaveText(/^Step 1 of /);
+  await expect(page.locator("[data-lesson-done]")).toContainText(`${learnName(FIRST)} done.`);
+  expect((await flagsOf(page))[FIRST]).toMatchObject({ finishedAt: expect.any(String) });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("reharm.panelOpens") ?? "{}")["learn.finish"]?.opens)).toBe(1);
+});
+
+test('"Just the rule": the prerequisite note is one line above the folded lesson, and counts nothing', async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("reharm.explain", "rule"));
+  await openCoach(page);
+  await pickConcept(page, TRITONE_SUB);
+  const line = page.locator("[data-prereq-compact]");
+  await expect(line).toContainText("Builds on the tritone and dominant resolution");
+  await expect(line.getByRole("button", { name: "Learn it →" })).toBeVisible();
+  // the lesson isn't blocked: the folded rule is right there
+  await expect(learnStage(page).locator("[data-lesson-folded]")).toBeVisible();
+  await expect(prereqNote(page).getByRole("button", { name: "Continue anyway" })).toHaveCount(0);
+  const counts = await page.evaluate(() => JSON.parse(localStorage.getItem("reharm.panelOpens") ?? "{}"));
+  expect(counts["prereq.view"]).toBeUndefined();
 });
 
 test("ISOLATION: notes through every Learn step (computer keys, on-screen keys, MIDI, the ask) save nothing", async ({ page }) => {

@@ -80,14 +80,20 @@ test("Path: a card opens the Coach on its concept (a rule shows its note; a foun
   await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();
   await expect(page.locator("[data-coach-learn]")).toHaveAttribute("data-coach-learn", TRITONE_SUB);
   await expect(page.getByRole("note", { name: "Builds on" })).toBeVisible();
+  // the drawer that held the card is gone: focus lands on the note's first action, not <body>
+  await expect(page.getByRole("note", { name: "Builds on" }).getByRole("button", { name: "Learn that first" })).toBeFocused();
 
-  await page.keyboard.press("Escape"); // back to Study
+  // Esc never leaves Coach from a lesson (P6): back to Study with the tab
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();
+  await page.getByRole("tablist", { name: "Mode" }).getByRole("tab", { name: "Study" }).click();
   await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
   await openPathAgain(page);
   const basic = FRESH_NEXT[1];
   await (await card(page, basic)).click();
   await expect(page.locator("[data-coach-learn]")).toHaveAttribute("data-coach-learn", basic);
   await expect(page.locator("[data-coach-learn] [data-step-heading]")).toHaveText(`Step 1 of ${basicsLesson(basic, KEY)!.steps.length}`);
+  await expect(page.locator("[data-coach-learn] [data-step-heading]")).toBeFocused();
 });
 
 async function openPathAgain(page: Page) {

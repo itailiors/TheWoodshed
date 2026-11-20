@@ -1,5 +1,8 @@
 import {
+  atLeastFamiliar,
   chroma,
+  unmetChain,
+  unmetDescent,
   conceptDrillSteps,
   conceptKind,
   isBasicsId,
@@ -20,7 +23,7 @@ import { useRevealState } from "../Reveal";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { updateLessonFlag } from "../../learn/lessonFlags";
-import { ownDue } from "../../learn/pathStates";
+import { ownDue, pathStates } from "../../learn/pathStates";
 import { usePathStates } from "../../learn/usePathStates";
 import { useQwerty } from "../../midi/qwerty";
 import type { MidiStatus } from "../../midi/useMidi";
@@ -152,7 +155,7 @@ interface Props {
   /** The moves in the current reharm, listed first. */
   pathway: ReharmMove[];
   /** Which move, concept rule, and key to open on (from "Drill the voicing" or the Concept Passport). */
-  initial: { moveId: string | null; ruleId?: string | null; key?: string; scope?: CoachScope };
+  initial: { moveId: string | null; ruleId?: string | null; key?: string; scope?: CoachScope; focus?: boolean };
   midi: { status: MidiStatus; connect: () => void };
   onMode: (m: AppMode) => void;
   /** A due review from another concept or chart: the app resolves the concept and key. */
@@ -229,7 +232,13 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
       : openingStage({ state: status?.state ?? "new", hasLesson: !!learn, basics, lastStage: flag?.lastStage, touchFirst, midiConnected });
   /** Focus follows a stage change the player made (not the page opening). */
   const focusStage = useRef(false);
-  const [stageFocus, setStageFocus] = useState(false);
+  // opened from a Path card (the drawer closed under the click): focus goes to the lesson, not <body>
+  const [stageFocus, setStageFocus] = useState(!!initial.focus);
+  useEffect(() => {
+    if (initial.focus) window.scrollTo({ top: 0 });
+    // on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const pickStage = (s: LessonStage) => {
     focusStage.current = true;
     setStageFocus(true);
@@ -243,24 +252,45 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
     document.getElementById("coach-h")?.focus();
   }, [stage, activeRuleId]);
 
-  /** "Learn that first" (or a step's prerequisite chip): the concept to come back to, shown as "from …". */
-  const [returnTo, setReturnTo] = useState<{ forId: string; id: string; scope: CoachScope; moveId: string | null } | null>(null);
-  /** Open `prereqId`'s Learn, to come back to `from` (the current concept, or a rail item's own chip). */
+  /**
+   * "Learn that first" (or a step's prerequisite chip): a STACK of concepts to come back to, so a
+   * chain several lessons deep returns all the way (7th chords → guide tones → dominant resolution
+   * → the tritone sub). The top entry is shown as "from …" while its `forId` is open.
+   */
+  const [returnStack, setReturnStack] = useState<{ forId: string; id: string; scope: CoachScope; moveId: string | null }[]>([]);
+  /**
+   * Open `prereqId`'s Learn, to come back to `from` (the current concept, or a rail item's own chip).
+   * A prerequisite that itself builds on something unmet opens the deepest one, and each lesson on
+   * the way down returns to the one that needed it.
+   */
   const learnFirstFor = (from: { id: string; scope: CoachScope }, prereqId: string) => {
-    setReturnTo({ forId: prereqId, id: from.id, scope: from.scope, moveId });
+    const path = [prereqId, ...unmetDescent(states, prereqId)];
+    const open = path[path.length - 1];
+    setReturnStack((s) => [
+      ...s,
+      ...path.map((forId, i) => (i === 0 ? { forId, id: from.id, scope: from.scope, moveId } : { forId, id: path[i - 1], scope: "concept" as const, moveId: null })),
+    ]);
     setScope("concept");
-    setRuleId(prereqId);
-    setPicked((p) => ({ ...p, [prereqId]: "learn" }));
+    setRuleId(open);
+    setPicked((p) => ({ ...p, [open]: "learn" }));
     focusStage.current = true;
     setStageFocus(true);
     setSheetOpen(false);
   };
   const learnFirst = (prereqId: string) => learnFirstFor({ id: activeRuleId, scope }, prereqId);
-  const returning = returnTo && returnTo.forId === activeRuleId ? returnTo : null;
+  const top = returnStack[returnStack.length - 1];
+  const returning = top && top.forId === activeRuleId ? top : null;
+  // a basic's finishing press goes straight on: Next up as it will be once this lesson counts as finished
+  const nextAfter = useMemo(() => {
+    if (!basics) return null;
+    const done = { ...flags, [activeRuleId]: { ...flags[activeRuleId], finishedAt: new Date().toISOString() } };
+    return pathStates(progress, done, new Date(), 2).nextUp.find((id) => id !== activeRuleId) ?? null;
+  }, [basics, flags, activeRuleId, progress]);
+  const [finishedFrom, setFinishedFrom] = useState<{ id: string; next: string } | null>(null);
   const finishLesson = () => {
     if (returning) {
       // back where the player came from, on its Learn stage (the note, if a prerequisite is still unmet)
-      setReturnTo(null);
+      setReturnStack((s) => s.slice(0, -1));
       setScope(returning.scope);
       setRuleId(returning.id);
       if (returning.moveId) setMoveId(returning.moveId);
@@ -269,6 +299,15 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
       return;
     }
     if (basics) {
+      if (nextAfter) {
+        // one press: this lesson is finished (the stepper set `finishedAt`, counted learn.finish) and Next up opens
+        setFinishedFrom({ id: activeRuleId, next: nextAfter });
+        setScope("concept");
+        setRuleId(nextAfter);
+        setPicked((p) => ({ ...p, [nextAfter]: "learn" }));
+        setStageFocus(true);
+        return;
+      }
       setLessonDone(activeRuleId);
       return;
     }
@@ -302,9 +341,12 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
     />
   );
 
-  // Esc back to Study, like Practice Mode
+  // Esc back to Study, like Practice Mode, but never out of an open lesson: there Esc only closes
+  // a chip or a sheet (their capture-phase handlers), and a second Esc doesn't throw the step away
+  const inLesson = useRef(false);
+  inLesson.current = stage === "learn" && !!learn;
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !(e.target instanceof HTMLInputElement) && onMode("study");
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !e.defaultPrevented && !inLesson.current && !(e.target instanceof HTMLInputElement) && onMode("study");
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onMode]);
@@ -366,6 +408,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   }, [sheetOpen]);
   const [allOpen, setAllOpen] = useRevealState("coach.allConcepts");
   const pickConcept = (id: string) => {
+    // a concept picked by hand leaves any "Learn that first" trip: no stale "from …" later
+    setReturnStack([]);
     setScope("concept");
     setRuleId(id);
     setSheetOpen(false);
@@ -777,18 +821,37 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                   own={own}
                   ladder={ladder}
                   from={returning ? learnName(returning.id) : undefined}
-                  finishLabel={returning ? `Back to ${learnName(returning.id)} ›` : basics ? "Done" : "Study it ›"}
+                  finishLabel={
+                    returning
+                      ? `Back to ${learnName(returning.id)} ›`
+                      : basics
+                        ? nextAfter
+                          ? `Next up: ${learnName(nextAfter)} ›`
+                          : "Done"
+                        : "Study it ›"
+                  }
                   onFinish={finishLesson}
                   onLearn={learnFirst}
                   midiConnected={midiConnected}
                   focus={stageFocus}
+                  chain={unmetChain(states, activeRuleId)}
+                  prereqKnown={(id) => atLeastFamiliar(states.get(id)?.state ?? "new")}
                   footer={
-                    lessonDone === activeRuleId && (
+                    lessonDone === activeRuleId ? (
                       <p role="status" className="font-hand text-base text-ink-soft" data-lesson-done>
                         ✓ Lesson done.{" "}
-                        {elsewhere ? "Now hear it and play it where it lives: the link above." : "Pick the next concept on the left, or press Next ›."}
+                        {elsewhere ? "Now hear it and play it where it lives: the link above." : "Nothing new is waiting: pick any concept on the path."}
                       </p>
-                    )
+                    ) : finishedFrom?.next === activeRuleId ? (
+                      <p className="font-hand text-base text-ink-soft" data-lesson-done>
+                        <span role="status">✓ {learnName(finishedFrom.id)} done.</span>{" "}
+                        {PRACTISE_ELSEWHERE[finishedFrom.id] && (
+                          <button type="button" onClick={() => onMode(PRACTISE_ELSEWHERE[finishedFrom.id]!.mode)} className="cursor-pointer font-marker text-sm underline-offset-2 hover:underline">
+                            {PRACTISE_ELSEWHERE[finishedFrom.id]!.label}
+                          </button>
+                        )}
+                      </p>
+                    ) : null
                   }
                 />
               ) : basics ? (

@@ -69,6 +69,11 @@ export interface LessonStepperProps {
    * "Step by step ›" when folded. Only for a mount that a click or key caused (Study's "Why it works").
    */
   focusOnOpen?: boolean;
+  /**
+   * A step's "New to …? Learn that first →" is stale for a concept the player already knows, or
+   * after they chose "Continue anyway": true hides it. Default: always shown.
+   */
+  prereqKnown?: (conceptId: string) => boolean;
 }
 
 /**
@@ -160,6 +165,9 @@ function Depth(props: LessonStepperProps) {
 
 type Reveal = "answered" | "shown";
 const PULSE_MS = 1200;
+/** The widest one-range-per-lesson keyboard, in semitones: about an octave and a half on a phone, two and a half octaves wide. */
+const MAX_SPAN_NARROW = 20;
+const MAX_SPAN_WIDE = 31;
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 /** An answer key as the lesson text prints it: answers stay engine-spelled for matching, but B♭♭ reads A. */
 const answerName =(n: string) => prettyNote(readable(n));
@@ -201,6 +209,7 @@ function Stepper({
   autoPlay = true,
   deeper,
   ruleLabel = "The rule",
+  prereqKnown,
 }: LessonStepperProps) {
   const steps = lesson.steps;
   const last = steps.length - 1;
@@ -256,11 +265,33 @@ function Stepper({
     };
   }, []);
 
+  // a phone's docked block (keys + nav) sits on the viewport's bottom edge: the step's heading and
+  // text must sit above it, never under it (spec §A, U6). Scroll only as far as needed.
+  const textRef = useRef<HTMLDivElement>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const docked = variant === "full" && narrow;
+  const clearDock = () => {
+    if (!docked || !textRef.current || !dockRef.current || !heading.current) return;
+    const dockTop = dockRef.current.getBoundingClientRect().top;
+    const textBottom = textRef.current.getBoundingClientRect().bottom;
+    const headTop = heading.current.getBoundingClientRect().top;
+    const over = textBottom + 8 - dockTop;
+    if (over <= 0 && headTop >= 0) return;
+    // never scroll the heading off the top: show the heading first if both can't fit
+    window.scrollBy({ top: headTop < 0 ? headTop - 8 : Math.min(over, Math.max(0, headTop - 8)) });
+  };
+  // on open (Coach mounts the stepper on the Learn stage) and after every step change or reveal
+  useEffect(() => {
+    clearDock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [at, revealed, docked]);
+
   // focus follows Next/Back (not the first render: opening a card shouldn't steal focus)
   useEffect(() => {
     if (!focusAfter.current) return;
     focusAfter.current = false;
-    heading.current?.focus();
+    // the dock decides the scroll (above), not the browser's focus scroll, which can land the heading under it
+    heading.current?.focus(docked ? { preventScroll: true } : undefined);
   }, [at, revealed]);
 
   const reveal = (how: Reveal) => {
@@ -347,8 +378,13 @@ function Stepper({
 
   // ── the keyboard ──
   const showKeys = step.highlight.length > 0 || !!step.ask;
-  const placed = placeHighlights(step.highlight);
-  const { low, high } = keyRange(placed, narrow ? 12 : 24);
+  // one range for the whole lesson, so a key stays put from step to step (the M1 rule within a step,
+  // now across steps); a lesson spread too wide for the screen falls back to each step's own range
+  const lessonRange = useMemo(() => {
+    const r = keyRange(steps.flatMap((s) => placeHighlights(s.highlight)), narrow ? 12 : 24);
+    return r.high - r.low <= (narrow ? MAX_SPAN_NARROW : MAX_SPAN_WIDE) ? r : null;
+  }, [steps, narrow]);
+  const { low, high } = lessonRange ?? keyRange(placeHighlights(step.highlight), narrow ? 12 : 24);
   const { lit, ghost } = keyMarks(step, low, high, askOpen, tap.hits, tap.wrong);
 
   const name = learnName(lesson.conceptId);
@@ -443,7 +479,7 @@ function Stepper({
         </nav>
       </header>
 
-      <div aria-live="polite" data-step-text className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`}>
+      <div ref={textRef} aria-live="polite" data-step-text className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`}>
         {askOpen ? (
           <>
             <p className="font-marker">{step.ask!.prompt}</p>
@@ -475,7 +511,7 @@ function Stepper({
         )}
       </div>
 
-      {step.prereqLink && onLearn && (
+      {step.prereqLink && onLearn && !prereqKnown?.(step.prereqLink) && (
         <button
           type="button"
           onClick={() => onLearn(step.prereqLink!)}
@@ -485,16 +521,17 @@ function Stepper({
         </button>
       )}
 
-      {full && narrow ? (
+      {docked ? (
         // a phone: one docked block at the bottom, keys (when the step has any) above the nav row
-        <div className="sticky bottom-0 z-20 -mx-4 space-y-1.5 border-t-2 border-ink bg-paper-light px-3 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+        <div ref={dockRef} data-lesson-dock className="sticky bottom-0 z-20 -mx-4 space-y-1.5 border-t-2 border-ink bg-paper-light px-3 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
           {keyboard}
           {nav}
         </div>
       ) : (
         <>
           {keyboard}
-          {nav}
+          {/* on the last step the payoff (the rule, Go deeper) comes before the finishing press */}
+          {at !== last && nav}
         </>
       )}
 
@@ -515,6 +552,7 @@ function Stepper({
               {deeper}
             </section>
           )}
+          {!docked && nav}
         </>
       )}
 

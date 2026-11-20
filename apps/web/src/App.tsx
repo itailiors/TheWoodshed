@@ -362,6 +362,8 @@ export function App() {
     ruleId?: string | null;
     key?: string;
     scope?: "concept" | "tune";
+    /** Opened from a Path card or link: focus goes to the lesson (the drawer that had it is gone). */
+    focus?: boolean;
   } | null>(null);
   const openCoach = (id?: string) => {
     const targetMoveId = id ?? selected?.id ?? null;
@@ -413,7 +415,7 @@ export function App() {
    */
   const openConcept = (conceptId: string) => {
     setPassportOpen(false);
-    setCoachTarget({ moveId: null, ruleId: conceptId, scope: "concept" });
+    setCoachTarget({ moveId: null, ruleId: conceptId, scope: "concept", focus: true });
     void setMode("coach");
   };
   const openConceptRef = useRef(openConcept);
@@ -609,6 +611,7 @@ export function App() {
                     ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
                     key: coachTarget?.key,
                     scope: coachTarget?.scope,
+                    focus: coachTarget?.focus,
                   }
             }
             midi={midi}

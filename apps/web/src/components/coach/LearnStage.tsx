@@ -37,6 +37,10 @@ interface Props {
   focus: boolean;
   /** Under the lesson: a basic's practice link, the "lesson done" line. */
   footer?: ReactNode;
+  /** Everything this concept still builds on, deepest first (`unmetChain`): the note's count covers it all. */
+  chain?: readonly string[];
+  /** A concept the player already knows (Familiar or better): its "New to …? Learn that first →" link is stale. */
+  prereqKnown: (conceptId: string) => boolean;
 }
 
 /** ▶ Before / ▶ After for the folded lesson ("Just the rule"), voice-led and played through the player's audition. */
@@ -62,7 +66,7 @@ function Audition({ before, after }: { before: ChordLike[]; after: ChordLike[] }
  * that first" / "Continue anyway"). One routing line at a time: the note, else the return banner
  * in the stepper header. The ⚙ explanations setting (and fading) can open the lesson folded.
  */
-export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, from, finishLabel, onFinish, onLearn, midiConnected, focus, footer }: Props) {
+export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, from, finishLabel, onFinish, onLearn, midiConnected, focus, footer, chain, prereqKnown }: Props) {
   const { lesson, audio } = data;
   const explain = useExplainSetting();
   // the rough run already spent when this lesson opened: a rough latest run reopens the steps once (spec §D), as in Study
@@ -77,20 +81,24 @@ export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, 
   // "Continue anyway" sets the flag (the state follows); this hides the note at once and focuses step 1
   const [continued, setContinued] = useState(false);
   const noteFor = !continued && status?.state === "recommendedFirst" && status.recommendedFirst.length ? status.recommendedFirst : null;
+  // "Just the rule": the note is one line above the folded lesson, never in its way (decision 6)
+  const compactNote = explain === "rule";
 
   return (
     <div className="space-y-4" data-coach-learn={conceptId}>
       {ladder}
       <Suspense fallback={<p className="font-hand text-ink-soft">Opening the lesson…</p>}>
-        {noteFor ? (
+        {noteFor && !compactNote ? (
           <section aria-label={`${learnName(conceptId)}: before you start`} className="space-y-3">
             <p className="font-marker text-lg font-bold">{learnName(conceptId)}</p>
-            <PrereqNote conceptId={conceptId} tonic={tonic} only={noteFor} onLearnFirst={onLearn} onContinue={() => setContinued(true)} />
+            <PrereqNote conceptId={conceptId} tonic={tonic} only={noteFor} chain={chain} onLearnFirst={onLearn} onContinue={() => setContinued(true)} autoFocus={focus} />
             <p className="font-hand text-xl leading-snug" data-lesson-headline>
               {lesson.headline}
             </p>
           </section>
         ) : (
+          <>
+          {noteFor && <PrereqNote conceptId={conceptId} tonic={tonic} only={noteFor} onLearnFirst={onLearn} compact />}
           <LessonStepper
             lesson={lesson}
             variant="full"
@@ -104,7 +112,9 @@ export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, 
             notice={depth.rough ? roughRunLine(prettyNote(depth.rough.keyTonic)) : undefined}
             audition={audio && <Audition before={audio.before} after={audio.after} />}
             focusOnOpen={focus || continued}
+            prereqKnown={(id) => !!flag?.continuedAnyway || continued || prereqKnown(id)}
           />
+          </>
         )}
       </Suspense>
       {footer}
