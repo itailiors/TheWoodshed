@@ -237,7 +237,8 @@ function coltrane(f: ColtraneLearn): Lesson {
     steps: [
       {
         // the map first: where the tour goes, before how it gets there
-        text: `The map first: three key centres, ${pn(c1)}, ${pn(c2)} and ${pn(home)}, a major 3rd apart.`,
+        // a centre charted by its easier key signature (E♭ over B) shows the key's own degree once: "E♭ (same key as D♯)"
+        text: `The map first: three key centres, ${twin(c1, f.centreDegrees[0])}, ${twin(c2, f.centreDegrees[1])} and ${pn(home)}, a major 3rd apart.`,
         highlight: [hl(c1, "♭VI"), hl(c2, "III", "down"), hl(home, "home", "down")],
         map: [...f.centres],
         play: "interval",

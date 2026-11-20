@@ -35,7 +35,7 @@ import {
   type TritoneSubLearn,
 } from "../src/learn";
 import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES, readable } from "../src/learn/lesson";
-import { chroma, intervalName, mod, transpose } from "../src/pitch";
+import { chroma, intervalName, keySignature, mod, transpose } from "../src/pitch";
 import { chainMotions as chainMotionsOf, type Rule } from "../src/ruleKit";
 import { gospelTurnaround, rootlessTwoFiveOne, secondaryDominant, secondaryTwoFive, tritoneSub, upperStructure, upperStructureII } from "../src/rules";
 import {
@@ -509,8 +509,17 @@ describe("lesson notes are the engine's notes, in every key", () => {
         const pcsRun = raw.map(chroma).filter((pc, i, xs) => i === 0 || pc !== xs[i - 1]);
         expect(f.line.map((s) => chroma(s.note))).toEqual(pcsRun);
         expect(l.steps[2].highlight.map((h) => chroma(h.note))).toEqual(pcsRun.slice(0, 4));
+        // each new centre (and so its V7) is the key signature with the fewest accidentals: E♭ over B, never D♯
+        for (const c of f.centres.slice(0, 2)) expect(Math.abs(keySignature(c)), `${T}: ${c}`).toBeLessThanOrEqual(6);
+        f.centres.slice(0, 2).forEach((c, i) => expect(chroma(f.centreDegrees[i])).toBe(chroma(c)));
       }),
     );
+    // the sharp keys, as charted (Giant Steps' B: B♭7 → E♭maj7), with the key's own degree twinned once
+    const inB = lessonForMove(moveIn("symmetric.coltraneSubstitution", "B"))!;
+    expect(inB.steps[0].text).toBe("The map first: three key centres, G, E♭ (same key as D♯) and B, a major 3rd apart.");
+    expect(inB.steps[1].text).toContain("B♭7 → E♭maj7");
+    expect((moveIn("symmetric.coltraneSubstitution", "E").facts.learn as ColtraneLearn).centres).toEqual(["C", "Ab", "E"]);
+    expect((moveIn("symmetric.coltraneSubstitution", "A").facts.learn as ColtraneLearn).centres).toEqual(["F", "Db", "A"]);
   });
 
   it("constant structure: the half-step shape is the target's, every voice slides −1, and the ask lights the shape (or its 3rd and 7th)", () => {

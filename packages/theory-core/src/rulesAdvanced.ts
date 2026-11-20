@@ -5,7 +5,7 @@
  * and on tonicized chords, not just the home key.
  */
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
-import { chroma, mod, transpose, type Interval } from "./pitch";
+import { chroma, fewestAccidentals, mod, transpose, type Interval } from "./pitch";
 import type {
   BackdoorLearn,
   BorrowedIvLearn,
@@ -363,7 +363,10 @@ export const coltraneSubstitution: Rule = {
     const beats = distribute(chord.beats + next.beats, 6);
     if (!beats) return null;
     const T = afterNext.root;
-    const roots = [chord.root, tidy(transpose(T, "b3")), tidy(transpose(T, "b6")), tidy(transpose(T, "7")), tidy(transpose(T, "3")), next.root];
+    // the two new centres as players chart them, the key signature with fewer accidentals (E♭, not
+    // D♯, over B: Giant Steps writes B♭7 → E♭maj7); each one's V7 a fifth above it
+    const [flatSix, three] = [fewestAccidentals(tidy(transpose(T, "b6"))), fewestAccidentals(tidy(transpose(T, "3")))];
+    const roots = [chord.root, tidy(transpose(flatSix, "5")), flatSix, tidy(transpose(three, "5")), three, next.root];
     const qualities = ["m7", "7", "maj7", "7", "maj7", "7"] as const;
     const chords = roots.map((r, i) => mk(r, qualities[i], beats[i]));
     const centres: [string, string, string] = [roots[2], roots[4], T];
@@ -380,6 +383,8 @@ export const coltraneSubstitution: Rule = {
       target: symbol(afterNext),
       targetRoot: T,
       centres,
+      // ♭VI and III as the key spells them (D♯ over B), for the twin where a centre is charted otherwise
+      centreDegrees: [readable(transpose(T, "b6")), readable(transpose(T, "3")), T],
       centreChords: [symbol(chords[2]), symbol(chords[4]), symbol(afterNext)],
       dominants: [symbol(chords[1]), symbol(chords[3]), symbol(chords[5])],
       dominantRoots: [roots[1], roots[3], roots[5]],

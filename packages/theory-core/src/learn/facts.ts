@@ -109,6 +109,8 @@ export interface ColtraneLearn {
   targetRoot: string;
   /** ♭VI, III and I of the target: three key centres a major 3rd apart, in the order they're toured. */
   centres: [string, string, string];
+  /** The same three as degrees of the key (♭VI, III, I; D♯ for III over B), double accidentals respelled. */
+  centreDegrees: [string, string, string];
   /** The chords that land on them: ♭VImaj7, IIImaj7 and the target. */
   centreChords: [string, string, string];
   /** Each centre's own V7, in the same order. */
