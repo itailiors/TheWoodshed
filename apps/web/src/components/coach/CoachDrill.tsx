@@ -71,6 +71,8 @@ interface Props {
   onRun?: (run: { key: string; clean: boolean }) => void;
   midiStatus: MidiStatus;
   onConnectMidi: () => void;
+  /** "Learn it →" on a chip for another concept (the formula's numerals): the page's learn-first, so the way back holds. */
+  onLearnConcept?: (conceptId: string) => void;
 }
 
 /** An attempt the engine heard, at a chord of the move. */
@@ -124,6 +126,7 @@ export function CoachDrill({
   onRun,
   midiStatus,
   onConnectMidi,
+  onLearnConcept,
 }: Props) {
   // Play it is the full problem (spec §A, stage 4): hint off, a new key after every clean run.
   // The page remounts the drill on a stage change, so these are each stage's starting point.
@@ -319,6 +322,7 @@ export function CoachDrill({
       activeStep={!finished ? current : undefined}
       lesson={lesson}
       onLearn={() => onStage("learn")}
+      onLearnConcept={onLearnConcept}
     />
   );
   // the hand-off to the next rung: Study it's last chord → Self-check; a clean self-check → Play it
@@ -607,6 +611,7 @@ function WhyThisWorksCard({
   activeStep,
   lesson,
   onLearn,
+  onLearnConcept,
 }: {
   pedagogy: RulePedagogy;
   move: ReharmMove;
@@ -614,6 +619,7 @@ function WhyThisWorksCard({
   activeStep?: DrillStep;
   lesson: Lesson | null;
   onLearn: () => void;
+  onLearnConcept?: (conceptId: string) => void;
 }) {
   const [more, setMore] = useState(false);
   if (lesson) {
@@ -630,7 +636,7 @@ function WhyThisWorksCard({
             </>
           )}
           <span className="text-ink">
-            <GlossText text={pedagogy.formula} numerals />
+            <GlossText text={pedagogy.formula} numerals onLearn={onLearnConcept} />
           </span>
         </span>
         <p className="font-hand text-base text-ink">{lesson.headline}</p>

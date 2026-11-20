@@ -814,6 +814,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                 }
                 midiStatus={midi.status}
                 onConnectMidi={midi.connect}
+                onLearnConcept={learnFirst}
               />
               )}
             </div>
