@@ -246,7 +246,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
   3. **Voice leading:** the guide-tone score as a hatched ink bar, with the actual motion (A♭→G, −1).
   4. **The pathway:** the verdict and the arithmetic behind it (`L2×2 + 9 = 13`): in the reharm, lost the beats to a better move, phrase quota full, or too spicy for the dial.
 - **It can't misrepresent the engine.** `generateMoves` and `buildPathway` are thin wrappers over `generateMovesTraced` and `buildPathwayTraced`, so the X-ray reads the same code path the app plays from, and a property test checks that.
-- **Proof:** the engine's claims run live in the browser. That's 8 properties × 200 generated tunes in a Web Worker: deterministic, melody-safe, keeps the form, respects the dial, the X-ray tells the truth, key-independent, spells like a chart, walks like a bassist. They're the same `PROOFS` objects CI asserts (`@reharm/theory-core/testing`).
+- **Proof:** the engine's claims run live in the browser. That's 9 properties × 200 generated tunes in a Web Worker: deterministic, melody-safe, keeps the form, respects the dial, the X-ray tells the truth, key-independent, spells like a chart, lessons are the engine, walks like a bassist. They're the same `PROOFS` objects CI asserts (`@reharm/theory-core/testing`).
   - Re-run a seed to replay identical cases.
   - A failure shows fast-check's shrunk counterexample.
   - A determinism handshake hashes the engine's full output (SHA-256) on the main thread and in the worker, and shows they match.

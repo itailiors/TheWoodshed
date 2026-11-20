@@ -56,7 +56,14 @@ packages/theory-core/             THE ENGINE: pure, deterministic TypeScript, no
   src/fixtures/someday.ts         Someday My Prince Will Come, bars 1–8 (copyrighted melody): golden-test fixture only, no longer shipped in the app
   src/control.ts                ★ DIAL_CONTROLLERS {modWheel: 1, expression: 11}, pedalToLevel (hysteresis, PEDAL_MARGIN 6), levelBand
   src/testing/arbitraries.ts      fast-check generators
-  src/testing/proofs.ts           PROOFS: 8 claims as executable properties, run by CI AND by the app's Proof tab
+  src/learn/                      the lesson layer (no pitches of its own; formats facts.learn), exported from the package root
+    graph.ts                      concept graph: 17 rules + basics nodes, hard/soft prerequisite edges, conceptStates, nextUp
+    glossary.ts                   glossary entries for the terms and labels the UI shows
+    lesson.ts  facts.ts           lesson/step types and helpers; the facts.learn fields rules fill
+    lessons/rules.ts              rule lessons (hear → see on the keys → name → the rule)
+    lessons/basics.ts             basics lessons (guide tones, …)
+    index.ts                      barrel: lessonForMove, basicsLesson, graph and glossary re-exports (never import it from engine.ts/ruleKit.ts: cycle)
+  src/testing/proofs.ts           PROOFS: 9 claims as executable properties (incl. "Lessons are the engine"), run by CI AND by the app's Proof tab
   src/testing/index.ts
   test/*.test.ts                  pitch, rules.property, advancedRules, someday.golden, coopBlues.golden ★, control ★, voicing, practice, ireal, band, proofs
   test/arbitraries.ts             re-export shim

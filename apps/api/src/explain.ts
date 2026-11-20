@@ -38,6 +38,8 @@ export class ExplainError extends Error {
 
 /** Everything the model may talk about, and nothing else. No raw tune data. */
 export function buildFacts(tune: Tune, move: ReharmMove) {
+  // `learn` (the lesson layer's fields) stays out: it is for the UI, and adding it would roll every cache key.
+  const { learn: _learn, ...engineFacts } = move.facts;
   const chords = realize(tune, [move]);
   const scales = improvMap(tune, chords)
     .filter((e) => move.chords.some((c) => c.id === e.chord.id))
@@ -66,7 +68,7 @@ export function buildFacts(tune: Tune, move: ReharmMove) {
       melodyCheck: move.checks.melody.map((m) => ({ over: prettySymbol(m.chordSymbol), note: pn(m.note), role: pn(m.role), verdict: m.verdict })),
       melodyVerified: move.checks.melodyVerified,
     },
-    engineFacts: JSON.parse(JSON.stringify(move.facts), (_k, v) => (typeof v === "string" && /^[A-G][b#]*$/.test(v) ? pn(v) : v)),
+    engineFacts: JSON.parse(JSON.stringify(engineFacts), (_k, v) => (typeof v === "string" && /^[A-G][b#]*$/.test(v) ? pn(v) : v)),
     scales,
     draft: move.text,
   };
