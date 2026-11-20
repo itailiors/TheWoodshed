@@ -8,8 +8,9 @@ import { buildFacts } from "../src/explain";
 const TRITONE_SUB = "dominant.tritoneSub@10.1";
 // Re-pinned in 4a (was 3330b645…92f8): the draft (move.text) is now the lesson's words.
 // Re-pinned in 4c (was a21b6c38…592e): the facts carry lesson, pedagogy, prereqs and glossary.
-// No API key was configured either time, so the rolls cost nothing; 4d's PROMPT_VERSION bump rolls keys once more anyway.
-const PINNED_SHA256 = "cff838e4f7a52574f3dba8cda39e60a4f19c786a806e8b887a12f0632a32d524";
+// Re-pinned in 4d (was cff838e4…d524): engineFacts chord symbols in display spelling ("Gb9" → "G♭9"), under 4d's PROMPT_VERSION bump.
+// No API key was configured any of these times, so the rolls cost nothing.
+const PINNED_SHA256 = "90a40533ecd4891aa9f62d55c64aff930000161204eef93aaa867697c7eba86b";
 
 describe("buildFacts", () => {
   const move = generateMoves(referenceTune).accepted.find((m) => m.id === TRITONE_SUB);
@@ -43,7 +44,8 @@ describe("buildFacts", () => {
     const text = JSON.stringify(facts);
     expect(text).not.toContain("undefined");
     expect(text).not.toMatch(/"(highlight|ask|sound|prereqLink)"/); // keyboard data stays in the UI
-    expect(text).not.toMatch(/\b[A-G](b|#)\b/); // display spelling only
+    expect(text).not.toMatch(/(?<![\p{L}])[A-G][b#](?![a-ln-z])|#/u); // display spelling only, chord symbols too
+    expect(facts.engineFacts).toMatchObject({ original: "C7", sub: "G♭9" });
   });
 
   it("gives a move without a lesson null lesson fields, never undefined", () => {

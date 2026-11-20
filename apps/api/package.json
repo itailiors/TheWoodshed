@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts --dev",
     "dev:demo": "tsx watch src/index.ts --demo",
     "start": "tsx src/index.ts",
     "test": "vitest run",

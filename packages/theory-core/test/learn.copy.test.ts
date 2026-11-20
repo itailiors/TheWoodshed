@@ -21,7 +21,7 @@ import {
   type LessonFlag,
   type TritoneSubLearn,
 } from "../src/learn";
-import { ARTICLE_BEFORE_NOTE } from "../src/learn/lesson";
+import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
 import { chroma, mod, transpose } from "../src/pitch";
 import { secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
 import { backdoorTwoFive, borrowedIv } from "../src/rulesAdvanced";
@@ -48,7 +48,7 @@ const BASICS = [
   "basics:symmetricOctave",
 ];
 const SLICE = ["dominant.tritoneSub", "functional.secondaryDominant", "functional.secondaryTwoFive", "modal.borrowedIv", "modal.backdoorTwoFive"];
-const BANNED = /\b(simply|just|of course|obviously|basically|magical|lush|sophisticated|spice up|jazzy|game-changer|secret|unlock|let's dive in|it's important to note)\b/i;
+const BANNED = BANNED_PHRASES;
 
 const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 const sentences = (s: string) => s.split(/(?<=[.!?])\s+/).filter(Boolean);

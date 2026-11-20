@@ -88,6 +88,13 @@ export const readable = (n: string) => (/(bb|##|x)$/.test(n) ? simplifyNote(n) :
  */
 export const ARTICLE_BEFORE_NOTE = /(?<!\p{L})[Aa]n? [A-G](?![a-z])/u;
 
+/**
+ * Hype and filler the style guide bans from every line of copy: lessons, step cues and the
+ * Claude-written Deep Dive (the API's output validator uses this same regex). Not global, so `.test` is stateless.
+ */
+export const BANNED_PHRASES =
+  /\b(simply|just|of course|obviously|basically|magical|lush|sophisticated|spice up|jazzy|game-changer|secret|unlock|let's dive in|it's important to note)\b/i;
+
 /** "E rises to F", "B♭ falls to A", "B♭ holds". */
 export function moves(m: VoiceMotion): string {
   if (m.semitones === 0) return pn(m.from) === pn(m.to) ? `${pn(m.from)} holds` : `${pn(m.from)} holds as ${pn(m.to)}`;

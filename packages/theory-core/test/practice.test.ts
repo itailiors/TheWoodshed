@@ -5,7 +5,7 @@ import { conceptDrillSteps, diffStrike, diffVoiceLeading, drillSteps } from "../
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
 import { BUNDLED_TUNES } from "../src/index";
-import { ARTICLE_BEFORE_NOTE } from "../src/learn/lesson";
+import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
 import { chordAtBeat, evaluateLineNote, isOnBeat, isPassingTone } from "../src/lineEval";
 import { chroma, midiOf, mod, prettySymbol, spellMidi } from "../src/pitch";
 import { RULES } from "../src/ruleset";
@@ -153,7 +153,7 @@ describe("comping coach diff", () => {
   });
 
   describe("step cues", () => {
-    const BANNED = /\b(simply|just|of course|obviously|basically|magical|lush|sophisticated|spice up|jazzy|game-changer|secret|unlock|let's dive in|it's important to note)\b/i;
+    const BANNED = BANNED_PHRASES;
     const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
     const NOTE = /(?<![\p{L}\p{N}])[A-G][♭♯]*(?![\p{L}\p{N}])/gu;
 
