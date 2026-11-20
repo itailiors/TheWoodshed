@@ -1,5 +1,6 @@
 import { chordTones, guideTones, prettyNote, symbol, type ReharmMove } from "@reharm/theory-core";
 import { useEffect, useState } from "react";
+import { countOpen } from "../usage/panelOpens";
 import { SketchBox, SketchRule } from "../design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "../design/tokens";
 import { ChordName } from "./ChordName";
@@ -104,7 +105,10 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
             <button
               type="button"
               aria-expanded={why}
-              onClick={() => setWhy(!why)}
+              onClick={() => {
+                if (!why) countOpen("study.why");
+                setWhy(!why);
+              }}
               className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-1 font-marker text-ink-soft hover:border-ink hover:text-ink"
             >
               Why it works <span aria-hidden>{why ? "▾" : "▸"}</span>

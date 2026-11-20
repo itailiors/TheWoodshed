@@ -1,5 +1,44 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { PANEL_LABEL, readPanelOpens, resetPanelOpens } from "../usage/panelOpens";
 import { ThemeSwitch } from "./ThemeSwitch";
+
+/** The panel-open tally: which folded panels you actually open. Read fresh each time the menu opens. */
+function PanelUse() {
+  const [counts, setCounts] = useState(readPanelOpens);
+  const rows = Object.entries(counts)
+    .filter(([name]) => PANEL_LABEL[name])
+    .sort((a, b) => b[1].opens - a[1].opens);
+  return (
+    <section aria-label="Panel use" className="mt-3 border-t-2 border-dashed border-ink-faint pt-2 text-sm">
+      <h3 className="font-marker">Panels you open</h3>
+      <p className="text-xs text-ink-faint">Counted in this browser only, never sent.</p>
+      {rows.length === 0 ? (
+        <p className="mt-1 text-xs text-ink-soft">Nothing opened yet.</p>
+      ) : (
+        <>
+          <ul className="mt-1 space-y-0.5">
+            {rows.map(([name, c]) => (
+              <li key={name} className="flex justify-between gap-4">
+                <span>{PANEL_LABEL[name]}</span>
+                <span className="font-marker tabular-nums">{c.opens}</span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => {
+              resetPanelOpens();
+              setCounts({});
+            }}
+            className="mt-1 cursor-pointer text-xs text-ink-soft underline hover:text-ink"
+          >
+            Reset counts
+          </button>
+        </>
+      )}
+    </section>
+  );
+}
 
 /**
  * One ⚙ in the header instead of controls you set once and forget (the colour scheme today).
@@ -61,6 +100,7 @@ export function SettingsMenu() {
           <span>Colours</span>
           <ThemeSwitch />
         </div>
+        {open && <PanelUse />}
       </div>
     </div>
   );

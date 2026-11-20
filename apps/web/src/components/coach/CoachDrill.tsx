@@ -29,6 +29,7 @@ import { useDrillSession } from "../../practice/useDrillSession";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { ChordName } from "../ChordName";
 import { Reveal, useRevealState } from "../Reveal";
+import { countOpen } from "../../usage/panelOpens";
 import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
 import { PenKeyboard, type PenKeyboardProps, type PenMark } from "../practice/PenKeyboard";
 import { useNarrow } from "../../device/media";
@@ -580,7 +581,10 @@ function WhyThisWorksCard({
       <button
         type="button"
         aria-expanded={more}
-        onClick={() => setMore(!more)}
+        onClick={() => {
+          if (!more) countOpen("coach.whenToUse");
+          setMore(!more);
+        }}
         className="cursor-pointer font-marker text-xs text-ink-soft underline decoration-dotted hover:text-ink"
       >
         When to use it, and the bandstand cue <span aria-hidden>{more ? "▾" : "▸"}</span>

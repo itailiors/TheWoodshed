@@ -51,6 +51,7 @@ import { MoveCard } from "./components/MoveCard";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
 import { Reveal, useRevealState } from "./components/Reveal";
+import { countOpen } from "./usage/panelOpens";
 import { SideRail } from "./components/SideRail";
 import { useNarrow } from "./device/media";
 import { useWakeLock } from "./device/wakeLock";
@@ -333,6 +334,11 @@ export function App() {
   const [shapeReview, setShapeReview] = useState<{ ruleId: string; keyTonic: string } | null>(null);
   const [xrayOpen, setXrayOpen] = useState(false);
   const [passportOpen, setPassportOpen] = useState(false);
+  // drawer opens from a click are tallied (this browser only) alongside the folded panels
+  const openDrawer = (name: "setlist" | "progress" | "xray") => {
+    countOpen(`drawer.${name}`);
+    ({ setlist: setLibraryOpen, progress: setPassportOpen, xray: setXrayOpen })[name](true);
+  };
   // The Coach page opens on a specific tune move or directly on a 12-key concept drill.
   const [coachTarget, setCoachTarget] = useState<{
     moveId: string | null;
@@ -604,8 +610,8 @@ export function App() {
         playing={playback.status === "playing"}
         onPlay={playback.toggle}
         onPractice={() => openCoach()}
-        onLibrary={() => setLibraryOpen(true)}
-        onProgress={() => setPassportOpen(true)}
+        onLibrary={() => openDrawer("setlist")}
+        onProgress={() => openDrawer("progress")}
       />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && (
@@ -676,7 +682,7 @@ export function App() {
             )}
             <button
               type="button"
-              onClick={() => setLibraryOpen(true)}
+              onClick={() => openDrawer("setlist")}
               onPointerEnter={() => void LibraryDrawer.preload().catch(() => {})}
               className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
             >
@@ -684,7 +690,7 @@ export function App() {
             </button>
             <button
               type="button"
-              onClick={() => setPassportOpen(true)}
+              onClick={() => openDrawer("progress")}
               onPointerEnter={() => void PracticeDashboard.preload().catch(() => {})}
               className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
             >
@@ -693,7 +699,7 @@ export function App() {
             <ModeSwitch mode="study" onMode={setMode} />
             <button
               type="button"
-              onClick={() => setXrayOpen(true)}
+              onClick={() => openDrawer("xray")}
               onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
               className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
               title="See how the engine decided, bar by bar, and run its proofs live"

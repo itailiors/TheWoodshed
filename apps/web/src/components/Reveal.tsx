@@ -1,4 +1,5 @@
 import { useId, useState, type ReactNode } from "react";
+import { countOpen } from "../usage/panelOpens";
 
 /**
  * One-click disclosure for a secondary panel. Closed, its children are NOT mounted: a folded
@@ -16,6 +17,7 @@ export function useRevealState(storeKey: string, defaultOpen = false) {
     }
   });
   const setOpen = (v: boolean) => {
+    if (v && !open && !storeKey.startsWith("hint.")) countOpen(storeKey); // a dismissed tip isn't a panel
     setOpenState(v);
     try {
       localStorage.setItem(key, v ? "1" : "0");
