@@ -136,6 +136,43 @@ describe("concept states", () => {
     expect(at(8, { dueAt: "2026-11-01T00:00:00Z" })).toMatchObject({ state: "proficient", due: true });
   });
 
+  it("a passed test-out counts like a finished lesson, on the concept and on the prerequisites it marked", () => {
+    const s = states(empty, {
+      "dominant.tritoneSub": { testedOutAt: "2026-11-20" },
+      "basics:tritone": { testedOutAt: "2026-11-20", testedOutVia: "dominant.tritoneSub" },
+    });
+    expect(s.get("dominant.tritoneSub")!.state).toBe("familiar");
+    expect(s.get("basics:tritone")!.state).toBe("familiar");
+  });
+
+  it("'Relearn this' caps the state at Learning whatever the evidence, and never lifts a New concept", () => {
+    const id = "dominant.tritoneSub";
+    const keys = KEYS.slice(0, 8);
+    const mastered = { concepts: keys.map((k) => row(id, k)), cleanKeys: { [id]: keys } };
+    expect(states(mastered).get(id)!.state).toBe("mastered");
+    expect(states(mastered, { [id]: { relearn: true } }).get(id)).toMatchObject({ state: "learning", cleanKeys: 8 });
+    expect(states(empty, { [id]: { finishedAt: "y", testedOutAt: "z", relearn: true } }).get(id)!.state).toBe("learning");
+    expect(states(empty, { "basics:tritone": { relearn: true } }).get("basics:tritone")!.state).toBe("new");
+  });
+
+  it("a relearned prerequisite no longer counts as Familiar for what builds on it", () => {
+    const done = { seenAt: "x", finishedAt: "y" };
+    const s = states(empty, { "basics:tritone": { ...done, relearn: true }, "basics:guideTones": done, "basics:dominantResolution": done });
+    expect(s.get("dominant.tritoneSub")).toMatchObject({ state: "recommendedFirst", recommendedFirst: ["basics:tritone"] });
+  });
+
+  it("the stage left on changes nothing about the state", () => {
+    expect(states(empty, { "modal.borrowedIv": { lastStage: "play" } }).get("modal.borrowedIv")!.state).toBe(states().get("modal.borrowedIv")!.state);
+  });
+
+  it("reads reviews whose dates are ms, as the web client keeps them", () => {
+    const id = "dominant.tritoneSub";
+    const keys = KEYS.slice(0, 8);
+    const ms = (iso: string) => new Date(iso).getTime();
+    const concepts = keys.map((k, i) => ({ ...row(id, k), dueAt: ms("2026-12-01T00:00:00Z"), lastReviewedAt: ms("2026-11-10T00:00:00Z") + i, lastGrade: i === 7 ? 5 : 2 }));
+    expect(conceptStates({ concepts, cleanKeys: { [id]: keys } }, {}, NOW).get(id)!.state).toBe("mastered");
+  });
+
   it("attempts with no clean run are Learning", () => {
     const s = states({ concepts: [row("modal.borrowedIv", "C", { cleanRuns: 0, lastGrade: 2 })], cleanKeys: {} });
     expect(s.get("modal.borrowedIv")!.state).toBe("learning");

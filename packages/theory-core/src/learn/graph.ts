@@ -105,10 +105,25 @@ export const atLeastFamiliar = (s: ConceptState) => RANK[s] >= RANK.familiar;
 export const PROFICIENT_KEYS = 4;
 export const MASTERED_KEYS = 8;
 
+/** The Coach stages a concept can be left on (`lastStage`). */
+export const LESSON_STAGES = ["learn", "study", "self", "play"] as const;
+export type LessonStage = (typeof LESSON_STAGES)[number];
+
 /** One concept's lesson record, kept in the browser (`reharm.lessons`). ISO dates. */
 export interface LessonFlag {
+  /** The lesson was opened: the concept is at least Learning. */
   seenAt?: string;
+  /** The lesson was finished: the concept is Familiar for the path (fading still waits for a clean key). */
   finishedAt?: string;
+  /** A passed 2-key test-out; counts like `finishedAt`. */
+  testedOutAt?: string;
+  /** Set on a prerequisite marked by another concept's test-out: that concept's id (so Undo removes exactly these). */
+  testedOutVia?: string;
+  /** The player asked to relearn it: the state is capped at Learning whatever the evidence. The only demotion. */
+  relearn?: boolean;
+  /** The Coach stage the player last used for this concept. */
+  lastStage?: LessonStage;
+  /** "Continue anyway" on the prerequisite note: the note is gone for good. */
   continuedAnyway?: boolean;
 }
 
@@ -122,7 +137,16 @@ export interface ConceptStatus {
   recommendedFirst: string[];
 }
 
-type Progress = Pick<ProgressSummary, "concepts" | "cleanKeys">;
+/** Just what the states read from a review. Dates may be ISO strings or ms (the web client's `Review`). */
+interface ReviewLike {
+  ruleId: string;
+  dueAt: string | number | Date;
+  attempts: number;
+  lastGrade: number | null;
+  lastReviewedAt: string | number | Date | null;
+}
+type Progress = { concepts: readonly ReviewLike[]; cleanKeys: ProgressSummary["cleanKeys"] };
+const time = (t: string | number | Date | null) => (t === null ? -Infinity : new Date(t).getTime());
 
 const matches = (pattern: string, ruleId: string) => (pattern.endsWith("*") ? ruleId.startsWith(pattern.slice(0, -1)) : ruleId === pattern);
 
@@ -140,7 +164,7 @@ export function conceptStates(progress: Progress, flags: Readonly<Record<string,
     const reviews = progress.concepts.filter((r) => r.ruleId === c.id);
     const clean = progress.cleanKeys[c.id]?.length ?? 0;
     const due = reviews.some((r) => new Date(r.dueAt).getTime() <= now.getTime());
-    const latest = [...reviews].sort((a, b) => (b.lastReviewedAt ?? "").localeCompare(a.lastReviewedAt ?? ""))[0];
+    const latest = [...reviews].sort((a, b) => time(b.lastReviewedAt) - time(a.lastReviewedAt))[0];
     const flag = flags[c.id];
     const borrowed = c.evidence.some((p) => cleanRuleIds.some((id) => matches(p, id)));
     const unmet = c.hard.filter((h) => !atLeastFamiliar(visit(BY_ID.get(h)!).state));
@@ -148,10 +172,12 @@ export function conceptStates(progress: Progress, flags: Readonly<Record<string,
     let state: ConceptState;
     if (clean >= MASTERED_KEYS && (latest?.lastGrade ?? 0) >= 4 && !due) state = "mastered";
     else if (clean >= PROFICIENT_KEYS) state = "proficient";
-    else if (clean >= 1 || flag?.finishedAt || borrowed) state = "familiar";
+    else if (clean >= 1 || flag?.finishedAt || flag?.testedOutAt || borrowed) state = "familiar";
     else if (flag?.seenAt || reviews.some((r) => r.attempts > 0)) state = "learning";
     else if (unmet.length && !flag?.continuedAnyway) state = "recommendedFirst";
     else state = "new";
+    // the player's own "Relearn this": the only demotion, capped at Learning
+    if (flag?.relearn && RANK[state] > RANK.learning) state = "learning";
 
     const status: ConceptStatus = { id: c.id, state, due, cleanKeys: clean, recommendedFirst: state === "recommendedFirst" ? unmet : [] };
     out.set(c.id, status);
