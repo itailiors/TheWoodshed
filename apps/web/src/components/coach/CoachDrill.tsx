@@ -123,11 +123,12 @@ export function CoachDrill({
     if (conceptRuleId) {
       const res = conceptDrillSteps(conceptRuleId, key);
       const matchedRule = RULES.find((r) => r.id === conceptRuleId);
+      // set for every rule in every key (theory-core's learn.canonical test)
       return {
-        dmove: res.move,
+        dmove: res.move!,
         steps: res.steps,
         rule: matchedRule,
-        activeTune: res.tune,
+        activeTune: res.tune!,
       };
     }
     const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);

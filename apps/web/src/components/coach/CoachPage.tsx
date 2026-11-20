@@ -94,8 +94,9 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const activeRuleId = scope === "concept" || !tuneMove ? ruleId : tuneMove.ruleId;
   const activeRule = RULES.find((r) => r.id === activeRuleId) ?? RULES[0];
 
-  const conceptFallback = useMemo(() => conceptDrillSteps(activeRuleId, key), [activeRuleId, key]);
-  const move = scope === "tune" && tuneMove ? tuneMove : conceptFallback.move;
+  // every rule fires on its canonical progression in all 12 keys (theory-core's learn.canonical test), so `.move` is set
+  const conceptFallback = useMemo(() => conceptDrillSteps(activeRule.id, key), [activeRule.id, key]);
+  const move = scope === "tune" && tuneMove ? tuneMove : conceptFallback.move!;
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
   // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done
@@ -137,7 +138,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const conceptSamples = useMemo(
     () =>
       RULES.map((r) => {
-        const sample = conceptDrillSteps(r.id, "C").move;
+        const sample = conceptDrillSteps(r.id, "C").move!;
         return { rule: r, category: sample.category, level: sample.level };
       }),
     [],

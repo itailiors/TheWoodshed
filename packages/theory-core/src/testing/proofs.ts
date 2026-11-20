@@ -3,6 +3,7 @@ import { walkingBass } from "../band";
 import { generateMoves, generateMovesTraced } from "../engine";
 import { buildPathway, buildPathwayTraced, DENSITY, overlaps } from "../pathway";
 import { hasRuleLesson, lessonForMove } from "../learn";
+import { canonicalMove } from "../learn/canonical";
 import { RULES } from "../ruleset";
 import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, prettyNote, transpose } from "../pitch";
 import { sortedHarmony, absBeat } from "../time";
@@ -174,7 +175,9 @@ export const PROOFS: Proof[] = [
           const p = r.propose(ctx);
           return p ? [{ id: `${r.id} on ${chord.root}${chord.quality} → ${next.root}${next.quality}`, ruleId: r.id, facts: p.facts }] : [];
         });
-        for (const m of [...generateMoves(moved).accepted, ...direct]) {
+        // and each lesson rule on its canonical progression in this key (what Coach's Learn stage teaches)
+        const canonical = RULES.filter((r) => hasRuleLesson(r.id)).flatMap((r) => canonicalMove(r.id, key) ?? []);
+        for (const m of [...generateMoves(moved).accepted, ...direct, ...canonical]) {
           const lesson = lessonForMove(m);
           if (!lesson) continue;
           const spelled = factNotes(m.facts.learn);

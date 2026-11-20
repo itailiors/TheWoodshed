@@ -1,10 +1,9 @@
 import { chordTones, guideTones, symbol, type ChordTone } from "./chords";
-import { generateMoves } from "./engine";
+import { canonicalDrill } from "./learn/canonical";
 import { classifyNote } from "./melody";
-import { chroma, mod, prettyNote, prettySymbol, simplifyNote, spellChroma, transpose } from "./pitch";
-import { RULES } from "./ruleset";
+import { chroma, mod, prettyNote, prettySymbol, spellChroma } from "./pitch";
 import { sortedHarmony } from "./time";
-import type { ChordEvent, HarmonicFunction, Quality, ReharmMove, Tune } from "./types";
+import type { ChordEvent, ReharmMove, Tune } from "./types";
 import { voiceChord, voiceProgression, type Voicing } from "./voicing";
 
 export interface StepCue {
@@ -58,7 +57,8 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
     case "functional.secondaryTwoFive":
       if (i === 0) {
         return {
-          role: `Related ii (${sym})`,
+          // the related ii goes in front of an existing V7; the full ii–V brings its own
+          role: `${move.facts.related ? "Related ii" : "ii"} (${sym})`,
           whyHere: `Sets up the dominant a 5th below (${nextSym ?? "V7"}); lock in guide tones ${gts}.`,
         };
       }
@@ -214,93 +214,22 @@ export function drillSteps(tune: Tune, move: ReharmMove): DrillStep[] {
 }
 
 export type ConceptDrillResult = DrillStep[] & {
-  tune: Tune;
-  move: ReharmMove;
+  /** The canonical chart; null for an unknown rule. */
+  tune: Tune | null;
+  /** The rule's own move on it; null (and no steps) when it doesn't fire, never another rule's move. */
+  move: ReharmMove | null;
   steps: DrillStep[];
 };
 
 /**
- * Build a pure, tune-independent canonical cadence for any rule in `targetKey`
- * and return its `DrillStep[]` (also carrying `.tune`, `.move`, and `.steps`).
+ * The rule's canonical progression (`CANONICAL_PROGRESSIONS`, shared with the Learn stage) in
+ * `targetKey`, and its `DrillStep[]` (also carrying `.tune`, `.move`, and `.steps`).
  */
 export function conceptDrillSteps(ruleId: string, targetKey: string): ConceptDrillResult {
-  const T = simplifyNote(targetKey);
-  const ii = simplifyNote(transpose(T, "2"));
-  const IV = simplifyNote(transpose(T, "4"));
-  const V = simplifyNote(transpose(T, "5"));
-
-  const ev = (
-    id: string,
-    bar: number,
-    root: string,
-    quality: Quality,
-    roman: string,
-    func: HarmonicFunction,
-    alterations: string[] = [],
-  ): ChordEvent => ({
-    id,
-    at: { bar, beat: 1 },
-    beats: 4,
-    root,
-    quality,
-    extensions: [],
-    alterations,
-    analysis: { roman, func },
-  });
-
-  let harmony: ChordEvent[];
-  let mode: "major" | "minor" = "major";
-
-  switch (ruleId) {
-    case "chromatic.passingDiminished":
-      harmony = [ev("c1", 1, T, "maj7", "Imaj7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
-      break;
-    case "chromatic.commonToneDiminished":
-      harmony = [ev("c0", 1, V, "7", "V7", "D"), ev("c1", 2, T, "maj7", "Imaj7", "T"), ev("c2", 3, IV, "maj7", "IVmaj7", "PD")];
-      break;
-    case "modal.borrowedIv":
-      harmony = [ev("c1", 1, IV, "maj7", "IVmaj7", "PD"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
-      break;
-    case "voicing.upperStructureBVI":
-      mode = "minor";
-      harmony = [ev("c1", 1, V, "7", "V7", "D", ["b13"]), ev("c2", 2, T, "m6", "im6", "T")];
-      break;
-    case "functional.secondaryDominant":
-      harmony = [ev("c1", 1, simplifyNote(transpose(T, "6")), "m7", "vim7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
-      break;
-    case "chromatic.minorLineCliche":
-      mode = "minor";
-      harmony = [ev("c1", 1, T, "m7", "im7", "T"), ev("c2", 2, IV, "m7", "ivm7", "PD")];
-      break;
-    case "symmetric.coltraneSubstitution":
-    case "voicing.rootlessTwoFiveOne":
-      harmony = [ev("c1", 1, ii, "m7", "iim7", "PD"), ev("c2", 2, V, "7", "V7", "D"), ev("c3", 3, T, "maj7", "Imaj7", "T")];
-      break;
-    default:
-      // All V7 → Imaj7 rules (secondaryTwoFive, tritoneSub, upperStructureII, gospelTurnaround, backdoorTwoFive, flatSixFlatSeven, constantStructure)
-      harmony = [ev("c1", 1, V, "7", "V7", "D"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
-      break;
-  }
-
-  const rule = RULES.find((r) => r.id === ruleId) ?? RULES[0];
-  const tune: Tune = {
-    id: `concept:${rule.id}`,
-    title: `${rule.name} (12-Key Concept Drill)`,
-    key: { tonic: T, mode },
-    meter: [4, 4],
-    feel: "swing",
-    tempo: 120,
-    sections: [{ id: "A", label: "A", startBar: 1, bars: harmony.length }],
-    formOrder: ["A"],
-    harmony,
-    melody: [],
-    melodyCoverage: "none",
-    source: { kind: "manual", personalUseOnly: true },
-  };
-
-  const generated = generateMoves(tune, [rule]).accepted[0] ?? generateMoves(tune).accepted[0];
-  const steps = drillSteps(tune, generated);
-  return Object.assign(steps, { tune, move: generated, steps });
+  const drill = canonicalDrill(ruleId, targetKey);
+  const move = drill?.move && drill.move.ruleId === ruleId ? drill.move : null;
+  const steps = drill && move ? drillSteps(drill.tune, move) : [];
+  return Object.assign(steps, { tune: drill?.tune ?? null, move, steps });
 }
 
 export interface ToneCheck {

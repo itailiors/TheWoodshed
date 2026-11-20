@@ -326,10 +326,10 @@ describe("rule: secondary dominant", () => {
   });
 
   it("has a 12-key concept drill: vi7 → ii7 becomes VI7(♭9) → ii7", () => {
-    const d = conceptDrillSteps(RULE, "Eb");
-    expect(d.move.ruleId).toBe(RULE);
-    expect(d.move.chords.map(symbol)).toEqual(["C7(b9)"]);
-    expect(d.move.targetSymbol).toBe("Fm7");
+    const move = conceptDrillSteps(RULE, "Eb").move!;
+    expect(move.ruleId).toBe(RULE);
+    expect(move.chords.map(symbol)).toEqual(["C7(b9)"]);
+    expect(move.targetSymbol).toBe("Fm7");
   });
 });
 

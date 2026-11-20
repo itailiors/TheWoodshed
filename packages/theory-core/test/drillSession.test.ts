@@ -17,7 +17,7 @@ import type { Quality } from "../src/types";
 // Dm9 → G7(♭9) → Cmaj7 in C. Targets: [38|60,64,65,69] → [43|59,62,65,68] → [48|59,62,64,67].
 const moveIn = (key: string): DrillRun => {
   const { move, steps } = conceptDrillSteps("functional.secondaryTwoFive", key);
-  return { kind: "move", steps, tuneId: "concept", moveId: move.id, ruleId: move.ruleId };
+  return { kind: "move", steps, tuneId: "concept", moveId: move!.id, ruleId: move!.ruleId };
 };
 const played = (run: DrillRun, i: number) => {
   if (run.kind !== "move") throw new Error("not a move");
