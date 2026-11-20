@@ -54,6 +54,8 @@ export interface PenKeyboardProps {
   guides?: number[];
   /** Wash these keys by hand: LH brick with a square tag, RH blue with a dot. */
   hands?: HandMark[];
+  /** Labels written ON the keys (a lesson step's lit keys: "3rd", "♭9"), at the foot of each key. */
+  keyLabels?: PenMark[];
 }
 
 function layout(low: number, high: number) {
@@ -87,6 +89,7 @@ export function PenKeyboard({
   guides = [],
   hands = [],
   short = false,
+  keyLabels = [],
 }: PenKeyboardProps) {
   const WH = short ? 60 : WH_FULL;
   const BH = short ? 38 : BH_FULL;
@@ -238,6 +241,23 @@ export function PenKeyboard({
         </g>
       )}
       <g ref={marks} />
+      {keyLabels.filter(here).map((mk) => {
+        const k = pos.get(mk.midi)!;
+        return (
+          <text
+            key={`kl${mk.midi}`}
+            data-key-label={mk.midi}
+            x={k.x + (k.black ? BW : WW) / 2}
+            y={TOP + (k.black ? BH : WH) - 6}
+            textAnchor="middle"
+            fontSize={k.black ? 8 : 10}
+            fontWeight={700}
+            className={`pointer-events-none font-marker ${k.black ? "fill-paper-light" : "fill-ink"}`}
+          >
+            {mk.label}
+          </text>
+        );
+      })}
       {missing.map((mk, i) => {
         const c = center(mk.midi);
         return c ? (

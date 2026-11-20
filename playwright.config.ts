@@ -20,7 +20,11 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     trace: "retain-on-failure",
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // a phone (Chromium with Pixel 5's viewport, touch and user agent), for the lesson and path specs only
+    { name: "mobile", use: { ...devices["Pixel 5"] }, testMatch: /(learn|path)\.spec\.ts$/ },
+  ],
   webServer: {
     command: `npm run preview -w @reharm/web -- --outDir dist-demo --port ${PORT} --strictPort`,
     url: `http://localhost:${PORT}`,

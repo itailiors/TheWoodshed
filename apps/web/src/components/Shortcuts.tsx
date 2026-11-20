@@ -32,6 +32,16 @@ export const PRACTICE_SHORTCUTS: Shortcut[] = [
   ["?", "this list"],
 ];
 
+/** Coach's Learn stage (the LessonStepper). Space/Enter on a focused button press that button instead. */
+export const COACH_LEARN_SHORTCUTS: Shortcut[] = [
+  ["← →", "back / next step"],
+  ["Enter", "next step (on a question: Show me, then reveal)"],
+  ["Space", "▶ hear the step"],
+  ["Esc", "close a word's note"],
+  ["M", "QWERTY keys"],
+  ["?", "this list"],
+];
+
 /** Shortcuts the letter keys can't serve while QWERTY mode is playing notes with them. */
 const QWERTY_TAKES = new Set(["A", "L", "T", "F"]);
 export const available = (list: Shortcut[], qwertyOn: boolean) => list.filter(([k]) => !(qwertyOn && QWERTY_TAKES.has(k)));
