@@ -196,6 +196,41 @@ export function conceptStates(progress: Progress, flags: Readonly<Record<string,
   return out;
 }
 
+/** `id`'s hard prerequisites that aren't yet Familiar, whatever `id`'s own state. */
+const unmetOf = (states: ReadonlyMap<string, ConceptStatus>, id: string) =>
+  (BY_ID.get(id)?.hard ?? []).filter((h) => !atLeastFamiliar(states.get(h)?.state ?? "new"));
+
+/**
+ * Everything `id` still builds on, all the way down, in the order to learn it (deepest first):
+ * for the tritone sub from scratch, 7th chords → guide tones → dominant resolution → the tritone.
+ * `id` itself is not in it. Pure.
+ */
+export function unmetChain(states: ReadonlyMap<string, ConceptStatus>, id: string): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>([id]);
+  const visit = (x: string) => {
+    for (const h of unmetOf(states, x)) {
+      if (seen.has(h)) continue;
+      seen.add(h);
+      visit(h);
+      out.push(h);
+    }
+  };
+  visit(id);
+  return out;
+}
+
+/**
+ * "Learn that first", followed down: `id`'s first unmet prerequisite, then that one's, until one
+ * with nothing unmet (the lesson to open). [dominant resolution, guide tones, 7th chords] for the
+ * tritone sub from scratch; each one returns to the one before it. Pure.
+ */
+export function unmetDescent(states: ReadonlyMap<string, ConceptStatus>, id: string): string[] {
+  const out: string[] = [];
+  for (let x = unmetOf(states, id)[0]; x && !out.includes(x); x = unmetOf(states, x)[0]) out.push(x);
+  return out;
+}
+
 /**
  * What to learn next: due reviews first, then the frontier (not yet Familiar, every hard
  * prerequisite Familiar), lowest tier first, ties in `CONCEPTS` order. A short list, never all.

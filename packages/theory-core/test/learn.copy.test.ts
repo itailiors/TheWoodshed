@@ -30,6 +30,8 @@ import {
   levelEntry,
   nextUp,
   prereqSummary,
+  unmetChain,
+  unmetDescent,
   type Lesson,
   type LessonFlag,
   type TritoneSubLearn,
@@ -451,6 +453,27 @@ describe("prerequisite summaries", () => {
     expect(prereqSummary("dominant.tritoneSub", "C", { only: ["basics:dominantResolution"] })!.prereqs.map((p) => p.id)).toEqual(["basics:dominantResolution"]);
     expect(prereqSummary("basics:tritone", "C")).toBeNull();
     expect(prereqSummary("nope", "C")).toBeNull();
+  });
+
+  it("a cold start counts the whole unmet chain, deepest first, and Learn that first walks down it", () => {
+    const fresh = conceptStates({ concepts: [], cleanKeys: {} }, {}, new Date("2026-11-20"));
+    const chain = unmetChain(fresh, "dominant.tritoneSub");
+    // learning order: each concept after what it builds on; it starts where "Learn that first" opens
+    expect(chain).toEqual(["basics:tritone", "basics:sevenths", "basics:guideTones", "basics:dominantResolution"]);
+    expect(unmetDescent(fresh, "dominant.tritoneSub")).toEqual(["basics:tritone"]);
+    expect(unmetDescent(fresh, "basics:dominantResolution")).toEqual(["basics:guideTones", "basics:sevenths"]);
+    const s = prereqSummary("dominant.tritoneSub", "C", { chain })!;
+    const total = chain.reduce((n, id) => n + basicsLesson(id, "C")!.steps.length, 0);
+    expect(s.steps).toBe(total);
+    expect(s.sentence).toBe(`This builds on the tritone and dominant resolution (4 lessons, ${total} steps, from the tritone).`);
+    // a chain no deeper than the direct prerequisites reads as before
+    expect(prereqSummary("dominant.tritoneSub", "C", { chain: ["basics:tritone", "basics:dominantResolution"] })!.sentence).toBe(
+      "This builds on the tritone and dominant resolution (7 steps).",
+    );
+    // with 7th chords finished, guide tones has nothing unmet: an empty chain
+    const later = conceptStates({ concepts: [], cleanKeys: {} }, { "basics:sevenths": { finishedAt: "2026-11-20" } }, new Date("2026-11-20"));
+    expect(unmetChain(later, "basics:guideTones")).toEqual([]);
+    expect(unmetDescent(later, "basics:guideTones")).toEqual([]);
   });
 
   it("every concept whose hard prerequisites all have lessons gets a positive count", () => {

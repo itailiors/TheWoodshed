@@ -34,6 +34,11 @@ export interface PrereqSummaryOptions {
   only?: readonly string[];
   /** A prerequisite's lesson in a key. Default: basics lessons only; Coach passes one that also knows rule lessons. */
   lessonFor?: (id: string, tonic: string) => Lesson | null;
+  /**
+   * The whole unmet chain (`unmetChain`), when it reaches past the direct prerequisites: the count
+   * then covers every lesson in it, and the line says where "Learn that first" starts.
+   */
+  chain?: readonly string[];
 }
 
 /** "The tritone" → "the tritone"; keeps a leading proper noun ("Coltrane") or numeral ("♭VI–♭VII–I"). */
@@ -51,8 +56,18 @@ export function prereqSummary(conceptId: string, tonic: string, opts: PrereqSumm
   if (!ids.length) return null;
   const lessonFor = opts.lessonFor ?? basicsLesson;
   const prereqs = ids.map((id) => ({ id, name: learnName(id), steps: lessonFor(id, tonic)?.steps.length ?? 0 }));
+  const names = listOf(prereqs.map((p) => inSentence(p.name)));
+  // a chain deeper than the direct prerequisites: count every lesson in it, and name where it starts
+  const chain = opts.chain && opts.chain.some((id) => !ids.includes(id)) ? opts.chain : null;
+  if (chain) {
+    const counts = chain.map((id) => lessonFor(id, tonic)?.steps.length ?? 0);
+    const total = counts.reduce((n, s) => n + s, 0);
+    const lessons = `${chain.length} lessons`;
+    const count = counts.every((s) => s > 0) ? `${lessons}, ${total} steps` : lessons;
+    return { prereqs, steps: total, sentence: `This builds on ${names} (${count}, from ${inSentence(learnName(chain[0]))}).` };
+  }
   const steps = prereqs.reduce((n, p) => n + p.steps, 0);
   // a partial count would undersell the work, so the line names a count only when every prerequisite has a lesson
   const count = prereqs.every((p) => p.steps > 0) ? ` (${steps} step${steps === 1 ? "" : "s"})` : "";
-  return { prereqs, steps, sentence: `This builds on ${listOf(prereqs.map((p) => inSentence(p.name)))}${count}.` };
+  return { prereqs, steps, sentence: `This builds on ${names}${count}.` };
 }
