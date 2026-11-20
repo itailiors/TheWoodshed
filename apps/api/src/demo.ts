@@ -1,4 +1,4 @@
-import type { ReharmMove } from "@reharm/theory-core";
+import { templateDeepDive, type ReharmMove } from "@reharm/theory-core";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,11 +37,11 @@ export function loadDemoExplanations(file = DEMO_EXPLANATIONS_FILE): DemoExplana
   }
 }
 
-/** The engine's deterministic text in the Deep Dive shape. Always available, costs nothing. */
+/** The engine's deterministic text in the Deep Dive shape (never repeating a lesson's steps). Always available, costs nothing. */
 export function templateExplanation(move: ReharmMove): DemoExplanation {
   return {
     summary: move.text.summary,
-    deepDive: [move.text.theory, move.text.insight].filter(Boolean).join("\n\n"),
+    deepDive: templateDeepDive(move),
     recreateRule: move.text.recreateRule,
     model: "Reharm Lab engine",
   };

@@ -1,4 +1,4 @@
-import { BUNDLED_TUNES, generateMoves, scramble, referenceTune, transposeTune } from "@reharm/theory-core";
+import { BUNDLED_TUNES, generateMoves, lessonForMove, scramble, referenceTune, transposeTune } from "@reharm/theory-core";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import initSqlJs from "sql.js";
 import { tmpdir } from "node:os";
@@ -104,6 +104,24 @@ describe("read-only demo mode", () => {
     const shipped = loadDemoExplanations();
     expect(shipped).not.toBeNull();
     for (const m of generateMoves(referenceTune).accepted) expect(Object.keys(shipped!.explanations)).toContain(m.id);
+  });
+
+  it("the template Deep Dive never repeats a lessoned move's steps (shipped file and fallback alike)", async () => {
+    const { loadDemoExplanations, templateExplanation } = await import("../src/demo");
+    const shipped = loadDemoExplanations()!;
+    let lessoned = 0;
+    for (const tune of BUNDLED_TUNES)
+      for (const m of generateMoves(tune).accepted) {
+        const lesson = lessonForMove(m);
+        if (!lesson) continue;
+        lessoned++;
+        const texts = [templateExplanation(m).deepDive, ...(tune.id === shipped.tuneId ? [shipped.explanations[m.id].deepDive] : [])];
+        for (const text of texts) {
+          expect(text, m.id).toMatch(/\S/);
+          for (const s of lesson.steps) expect(text, m.id).not.toContain(s.text);
+        }
+      }
+    expect(lessoned).toBeGreaterThan(0);
   });
 });
 

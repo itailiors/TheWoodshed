@@ -42,3 +42,4 @@ export * from "./ears";
 export * from "./concepts";
 export * from "./learn";
 export * from "./learn/canonical";
+export * from "./explainTemplate";
