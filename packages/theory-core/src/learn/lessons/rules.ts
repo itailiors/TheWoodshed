@@ -127,7 +127,7 @@ function secondaryTwoFive(f: SecondaryTwoFiveLearn): Lesson {
         // say what goes before what comes: the chart's chord is dropped for a V of the target
         text: f.related
           ? `${V} is the V of ${target}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`
-          : `We drop ${orig} and set up ${target} with its own V, ${V}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`,
+          : `Drop ${orig} and set up ${target} with its own V, ${V}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`,
         highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target", "down")],
         play: "before",
         prereqLink: "functional.secondaryDominant",

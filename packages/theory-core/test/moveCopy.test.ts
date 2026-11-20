@@ -72,7 +72,7 @@ describe("move-card copy", () => {
   it("a ii–V never says it 'briefly' sounds like home, into the tonic or anywhere else", () => {
     const t = text("functional.secondaryTwoFive@2.1");
     expect(t.summary).toMatch(/: a ii–V that walks you into F6\.$/);
-    expect(t.theory).toMatch(/^We drop B♭7 and set up F6 with its own V, C7\(♭9\)/);
+    expect(t.theory).toMatch(/^Drop B♭7 and set up F6 with its own V, C7\(♭9\)/); // P6: imperative, like the rest of the copy
     // a minor-major tonic, whose roman ("i(maj7)") isn't a plain "i"
     const p = moveText(secondaryTwoFive, ch("Eb", "maj7"), { ...ch("C", "mMaj7"), analysis: { roman: "i(maj7)", func: "T" } }, { tonic: "C", mode: "minor" });
     // a non-tonic target
