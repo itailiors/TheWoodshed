@@ -8,8 +8,13 @@ import {
   basicsLesson,
   categoryEntry,
   type ColtraneLearn,
+  type CommonToneDiminishedLearn,
   type ConstantStructureLearn,
+  type GospelTurnaroundLearn,
+  type MediantDominantLearn,
+  type MinorLineClicheLearn,
   type OneNoteOnTopLearn,
+  type PassingDiminishedLearn,
   CONCEPTS,
   conceptNode,
   conceptStates,
@@ -27,8 +32,17 @@ import {
 import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
 import { chroma, mod, transpose } from "../src/pitch";
 import { chainMotions as chainMotionsOf, type Rule } from "../src/ruleKit";
-import { secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
-import { backdoorTwoFive, borrowedIv, coltraneSubstitution, constantStructure } from "../src/rulesAdvanced";
+import { gospelTurnaround, secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
+import {
+  backdoorTwoFive,
+  borrowedIv,
+  coltraneSubstitution,
+  commonToneDiminished,
+  constantStructure,
+  mediantDominant,
+  minorLineCliche,
+  passingDiminished,
+} from "../src/rulesAdvanced";
 import { oneNoteOnTop } from "../src/rulesOneNote";
 import { KEYS, transposeTune } from "../src/transpose";
 import type { ChordEvent, MoveCategory, Quality, Tune } from "../src/types";
@@ -61,7 +75,14 @@ const SLICE = [
   "symmetric.coltraneSubstitution",
   "chromatic.constantStructure",
   "melody.oneNoteOnTop",
+  "dominant.mediantDominant",
+  "gospel.halfStepTurnaround",
+  "chromatic.passingDiminished",
+  "chromatic.commonToneDiminished",
+  "chromatic.minorLineCliche",
 ];
+/** Rule lessons held to the basics' rule: no double accidental shown anywhere (5a's display helpers). */
+const NO_DOUBLES = new Set(["dominant.mediantDominant", "gospel.halfStepTurnaround", "chromatic.passingDiminished", "chromatic.commonToneDiminished", "chromatic.minorLineCliche"]);
 const BANNED = BANNED_PHRASES;
 
 const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
@@ -101,6 +122,19 @@ function edgeCases(T: string) {
     [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("2"), "m7"), ch(at("5"), "7")))], // ii → V
     [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("5"), "7", 6), ch(T, "maj7")))], // 3-chord walk
     [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("5"), "7", 8), ch(T, "maj7")))], // 3-chord walk, two beats each
+    [mediantDominant, mediantDominant.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))],
+    [mediantDominant, mediantDominant.propose(ctx(ch(at("5"), "7"), ch(T, "6")))], // into a 6 chord: G♯ still falls to the 5th
+    [gospelTurnaround, gospelTurnaround.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))], // lands on maj13
+    [gospelTurnaround, gospelTurnaround.propose(ctx(ch(at("5"), "7"), ch(T, "6")))], // lands on 6/9: the ♭7 rises
+    [gospelTurnaround, gospelTurnaround.propose(ctx(ch(at("5"), "7"), ch(T, "maj")))], // a plain triad: 6/9 too
+    [passingDiminished, passingDiminished.propose(ctx(ch(T, "maj7"), ch(at("2"), "m7")))], // up
+    [passingDiminished, passingDiminished.propose(ctx(ch(at("3"), "m7"), ch(at("2"), "m7")))], // down
+    [passingDiminished, passingDiminished.propose(ctx(ch(at("3"), "m7"), ch(at("2"), "7")))], // down, into a dominant: three shared keys
+    [passingDiminished, passingDiminished.propose(ctx(ch(at("4"), "maj7"), ch(at("5"), "7")))], // up, IV → V
+    [commonToneDiminished, commonToneDiminished.propose({ ...ctx(ch(T, "maj7"), ch(at("4"), "maj7")), prev: ch(at("5"), "7") })],
+    [commonToneDiminished, commonToneDiminished.propose({ ...ctx(ch(T, "6"), ch(at("4"), "maj7")), prev: ch(at("5"), "7") })], // shares the 6th too
+    [commonToneDiminished, commonToneDiminished.propose({ ...ctx({ ...ch(T, "6"), bass: at("5") }, ch(at("4"), "maj7")), prev: ch(at("5"), "7") })], // a slash chord: the bass moves
+    [minorLineCliche, minorLineCliche.propose(ctx(ch(T, "m"), ch(at("4"), "m7")))],
   ];
   return cases.flatMap(([r, p], i) => (p ? [{ ruleId: r.id, facts: p.facts, where: `${T} edge ${i}` }] : []));
 }
@@ -179,9 +213,9 @@ describe("lesson copy", () => {
       // step 1 plays on open, so it always has something to play
       expect(!!l.steps[0].play || !!l.steps[0].sound?.length, `${at}: step 1 has no ▶ cue`).toBe(true);
       for (const s of l.steps) for (const c of s.sound ?? []) expect(c.length, at).toBeGreaterThan(0);
-      // basics: no double flats or sharps anywhere a reader or the keyboard sees them (rule lessons
-      // print the engine's spelling, e.g. A♭7's ♭9 as B♭♭; tidying those is 5a's display helper)
-      const basic = isBasicsId(l.conceptId);
+      // basics and the diminished/chromatic lessons (NO_DOUBLES): no double flats or sharps anywhere a reader
+      // or the keyboard sees them (older rule lessons may still print the engine's spelling, e.g. A♭7's ♭9 as B♭♭)
+      const basic = isBasicsId(l.conceptId) || NO_DOUBLES.has(l.conceptId);
       const notes = l.steps.flatMap((s) => [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.sound ?? []).flat()]);
       if (basic) expect(notes.filter((n) => /bb|##|x/.test(n)), at).toEqual([]);
       const asks = l.steps.flatMap((s, i) => (s.ask ? [i] : []));
@@ -371,6 +405,119 @@ describe("lesson notes are the engine's notes, in every key", () => {
     for (const { lesson } of three) expect(lesson.steps[3].text).toMatch(/^Over .+\. Into .+ lands as the /);
   });
 
+  const minor3rds = (ns: string[]) => [...ns, ns[0]].slice(1).map((n, i) => mod(chroma(n) - chroma(ns[i]), 12));
+  const doubled = (n: string) => /(bb|##|x)$/.test(n);
+  const pcsOf = (ns: string[]) => [...new Set(ns.map(chroma))].sort((a, b) => a - b);
+
+  it("mediant dominant: the °7 is V7(♭9) without its root and splits the octave; III7(♭9)'s upper four are the same keys, respelled pairs equal", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("dominant.mediantDominant", T);
+        const f = m.facts.learn as MediantDominantLearn;
+        const l = lessonForMove(m)!;
+        expect(minor3rds(f.dim)).toEqual([3, 3, 3, 3]);
+        expect(f.dim.map(chroma).sort()).toEqual(chordTones({ root: f.originalRoot, quality: "7", extensions: [], alterations: ["b9"] }).filter((t) => t.degree !== "1").map((t) => chroma(t.note)).sort());
+        f.subTones.forEach((n, k) => expect(chroma(n), `${n}/${f.dimTwins[k]}`).toBe(chroma(f.dimTwins[k])));
+        expect(mod(chroma(f.subRoot) - chroma(T), 12)).toBe(4);
+        expect(f.resolution.map((r) => r.semitones)).toEqual([-1, -2]);
+        expect(f.familyRoots.map((r) => mod(chroma(r) - chroma(T), 12))).toEqual([7, 10, 1, 4]);
+        for (const n of [...f.dim, ...f.subTones]) expect(doubled(n), n).toBe(false);
+        expect(l.steps[0].prereqLink).toBe("basics:dim7");
+      }),
+    );
+  });
+
+  it("gospel: the shown grip is root–♭7–3rd under the major triad on the 9th, and the landing named is the chord the voices make", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("gospel.halfStepTurnaround", T);
+        const f = m.facts.learn as GospelTurnaroundLearn;
+        const at = (d: string) => chroma(transpose(f.approachRoot, d));
+        expect(f.grip.lh.map(chroma)).toEqual([at("1"), at("b7"), at("3")]);
+        expect(f.grip.rh.map(chroma)).toEqual([at("9"), at("#11"), at("13")]);
+        expect(mod(chroma(f.grip.rh[1]) - chroma(f.grip.rh[0]), 12)).toBe(4); // a major triad on top
+        expect(mod(chroma(f.approachRoot) - chroma(T), 12)).toBe(1);
+        expect(chroma(f.sharpEleven)).toBe(chroma(f.susRoot)); // the old root kept inside
+        // the six grip voices land on exactly the landing chord's keys: Cmaj13 over a maj7
+        expect(f.landing).toBe(`${T}maj13`);
+        expect(pcsOf(f.gripMotions.map((v) => v.to))).toEqual(pcsOf(["1", "3", "5", "7", "9", "13"].map((d) => transpose(T, d))));
+        expect(f.gripMotions.filter((v) => v.semitones !== 0).every((v) => v.semitones === -1)).toBe(true);
+        expect(lessonForMove(m)!.steps[3].ask!.answer).toEqual(f.held);
+      }),
+    );
+    // over a 6 chord the ♭7 rises to the root and the 9th joins: it lands on 6/9, never maj13
+    const six = ruleLessons.filter((r) => r.lesson.conceptId === "gospel.halfStepTurnaround" && /6\/9/.test(r.lesson.headline));
+    expect(six.length).toBeGreaterThan(0);
+    for (const { lesson } of six) expect(lesson.steps[3].text).toMatch(/rises to/);
+  });
+
+  it("passing °7: up, it is the target's V7(♭9) without its root, 3rd up to the root, ♭9 down to the 5th; down, it keeps the flats", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("chromatic.passingDiminished", T);
+        const f = m.facts.learn as PassingDiminishedLearn;
+        expect(f.ascending).toBe(true);
+        expect(minor3rds(f.dimTones)).toEqual([3, 3, 3, 3]);
+        expect(f.roles).toEqual(["3", "5", "b7", "b9"]);
+        expect(mod(chroma(f.impliedV) - chroma(f.targetRoot), 12)).toBe(7);
+        expect(f.pull!.map((p) => [chroma(p.to), p.semitones])).toEqual([
+          [chroma(f.targetRoot), 1],
+          [chroma(f.impliedV), -1],
+        ]);
+        for (const n of f.dimTones) expect(doubled(n), n).toBe(false);
+      }),
+    );
+    // falling, the °7 is never called a dominant, and its own tones are flat-side (E♭ G♭ A C), with no double accidental
+    const down = [...KEYS.flatMap(edgeCases), ...fromTunes].filter((m) => m.ruleId === "chromatic.passingDiminished" && !(m.facts.learn as PassingDiminishedLearn).ascending);
+    expect(down.length).toBeGreaterThan(0);
+    for (const m of down) {
+      const f = m.facts.learn as PassingDiminishedLearn;
+      expect(lessonForMove(m)!.steps.map((s) => s.text).join(" "), m.where).not.toMatch(/dominant|V7/);
+      expect(f.dimTones.join(" "), m.where).not.toMatch(/#|bb/);
+      expect(minor3rds(f.dimTones)).toEqual([3, 3, 3, 3]);
+    }
+  });
+
+  it("common-tone °7: the leaning tones are spelled as they rise (♯2, ♯4; no double sharps) and each rises a half step into the 3rd and 5th", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("chromatic.commonToneDiminished", T);
+        const f = m.facts.learn as CommonToneDiminishedLearn;
+        const r = f.root;
+        // ♯2 and ♯4 of the root (D♯, F♯ over C); only a double sharp is respelled, to the same key
+        for (const [n, iv] of [
+          [f.dimTones[1], "#2"],
+          [f.dimTones[2], "#4"],
+        ] as const) {
+          const sharp = transpose(r, iv);
+          if (doubled(sharp)) expect(chroma(n), `${r}: ${n}`).toBe(chroma(sharp));
+          else expect(n, r).toBe(sharp);
+        }
+        expect(minor3rds(f.dimTones)).toEqual([3, 3, 3, 3]);
+        expect(f.leans.map((v) => [v.semitones, v.toDegree])).toEqual([
+          [1, "3"],
+          [1, "5"],
+        ]);
+        for (const n of f.dimTones) expect(doubled(n), n).toBe(false);
+        expect(f.shared).toEqual([r]);
+        // no flat-side leaning tone ever names a rising voice ("E♭ rises to E" would read as a blue ♭3)
+        expect(lessonForMove(m)!.steps[1].text).not.toMatch(/♭ rises/);
+      }),
+    );
+  });
+
+  it("line cliché: the root voice falls by half steps through the four stops, named without the added 9th", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("chromatic.minorLineCliche", T);
+        const f = m.facts.learn as MinorLineClicheLearn;
+        expect(f.line.slice(1).map((n, i) => mod(chroma(f.line[i]) - chroma(n), 12))).toEqual([1, 1, 1]);
+        expect(f.stops.map((s) => s.slice(f.root.length))).toEqual(["m", "m(maj7)", "m7", "m6"]);
+        expect([f.third, f.fifth].map((n) => mod(chroma(n) - chroma(f.root), 12))).toEqual([3, 7]);
+      }),
+    );
+  });
+
   it("basics: guide tones and dominant resolution light exactly guideTones() and transpose(), and agree with the engine's voice motion", () => {
     fc.assert(
       fc.property(fc.constantFrom(...KEYS), (T) => {
@@ -488,6 +635,47 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     const top = lessonForMove(canonicalMove("melody.oneNoteOnTop", "C")!)!;
     expect(top.steps[2].text).toBe("Over D, G is the sus 4th of D7sus4; over D♭, it's the ♯11 of D♭7(♯11).");
     expect(top.deeper).toBe("The interval from bass to top note suggests the chord: a half step above the bass gives 7(♭9), a tritone 7(♯11).");
+  });
+
+  it("the teacher's wording for the diminished and chromatic moves, in C", () => {
+    const lesson = (id: string) => lessonForMove(canonicalMove(id, "C")!)!;
+    const med = lesson("dominant.mediantDominant");
+    expect(med.steps[0]).toMatchObject({ text: "Add the ♭9 to G7 and drop the root: B, D, F, A♭, a diminished 7th.", prereqLink: "basics:dim7" });
+    expect(med.steps[1].text).toBe("Put E under them: G♯ (same key as A♭), B, D and F make E7(♭9).");
+    expect(med.steps[3].text).toBe("With a ♭9, G7, B♭7, D♭7 and E7 all hold these four keys: the Family.");
+    // gospel: the landing is what the voices make, the grip is playable, the sub keeps G7's root as its ♯11
+    const gos = lesson("gospel.halfStepTurnaround");
+    expect(gos.headline).toBe("Turn G7 → Cmaj7 into F/G → D♭13(♯11) → Cmaj13: a slide into home from a half step above.");
+    expect(gos.steps[2].text).toBe("Left hand D♭, C♭, F; right hand the E♭ triad: the 9th, ♯11 and 13th.");
+    expect(gos.steps[3].text).toBe("Into Cmaj13, D♭, F, E♭ and B♭ fall a half step; G and C♭ (same key as B) hold.");
+    expect(gos.deeper).toBe("D♭13(♯11)'s ♯11 is G: the sub keeps G7's root inside, as the ♯11.");
+    const up = lesson("chromatic.passingDiminished");
+    expect(up.steps[1].text).toBe("C♯, E, G, B♭ are A7(♭9) without A: its 3rd, 5th, 7th and ♭9.");
+    expect(up.steps[2].text).toBe("So C♯dim7 works as Dm7's V7(♭9) with no root: C♯ rises to D, B♭ falls to A.");
+    const down = ruleLessons.find((r) => r.where === "C edge 26")!.lesson;
+    expect(down.headline).toBe("Between Em7 and Dm7, slip in E♭dim7: the bass walks down E, E♭, D by half steps.");
+    expect(down.steps.map((s) => s.text)).toEqual([
+      "E to D is a whole step. E♭dim7 fills it, so the bass walks down by half steps.",
+      "E♭dim7 already holds A and C, Dm7's 5th and 7th.",
+      "The other keys move: E♭ falls to D and G♭ falls to F.",
+    ]);
+    // spelled by direction: sharps rise (Itai's yes, Gate 0 item 8)
+    const ct = lesson("chromatic.commonToneDiminished");
+    expect(ct.steps.map((s) => s.text)).toEqual([
+      "Cdim7 is C, D♯, F♯, A: it shares only C with Cmaj7, and the bass stays.",
+      "D♯ rises to E, the 3rd; F♯ rises to G, the 5th.",
+      "D♯ and F♯ are appoggiaturas: tension on the beat that resolves up into Cmaj7.",
+    ]);
+    const lc = lesson("chromatic.minorLineCliche");
+    expect(lc.steps[2].text).toBe("Each stop renames the chord: Cm, Cm(maj7), Cm7, Cm6.");
+    expect(lc.rule).toBe("Over a long minor chord, hold the 3rd and 5th; walk the root voice down, inside or in the bass: 1, 7, ♭7, 6.");
+  });
+
+  it("the gospel turnaround into Co-op Blues' F6 lands on F6/9: the ♭7 rises, the ♯11 holds", () => {
+    const l = lessonAt("gospel.halfStepTurnaround@10.1")!;
+    expect(l.headline).toBe("Turn C7 → F6 into B♭/C → G♭13(♯11) → F6/9: a slide into home from a half step above.");
+    expect(l.steps[3].text).toBe("Into F6/9, G♭, B♭, A♭ and E♭ fall a half step; F♭ rises to F; C holds.");
+    expect(l.steps[3].ask!.answer).toEqual(["C"]);
   });
 
   it("the backdoor names the missing leading tone, not a missing tritone", () => {

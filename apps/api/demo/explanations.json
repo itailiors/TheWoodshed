@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T17:20:56.087Z",
+  "generatedAt": "2026-11-20T17:40:53.136Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -65,9 +65,9 @@
       "model": "Reharm Lab engine"
     },
     "gospel.halfStepTurnaround@10.1": {
-      "summary": "C7 → F6 becomes B♭/C → G♭13(♯11) → F6.",
-      "deepDive": "B♭/C is a C9sus: a B♭ triad over C. It's the gospel way to sound the dominant while holding back the 3rd. G♭13(♯11) is the tritone sub of C7, voiced as a 13(♯11) cluster a half step above F. Each voice either slides down a half step or stays put as it lands on F6.",
-      "recreateRule": "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
+      "summary": "Turn C7 → F6 into B♭/C → G♭13(♯11) → F6/9: a slide into home from a half step above.",
+      "deepDive": "G♭13(♯11)'s ♯11 is C: the sub keeps C7's root inside, as the ♯11.\n\nWhere else: A V7 resolving to a major tonic with at least 2 beats.\n\nOn the bandstand: Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
+      "recreateRule": "Before a major I, play IV/V, then a 13(♯11) chord a half step above I, and slide down into I.",
       "model": "Reharm Lab engine"
     },
     "modal.backdoorTwoFive@10.1": {
@@ -77,9 +77,9 @@
       "model": "Reharm Lab engine"
     },
     "dominant.mediantDominant@10.1": {
-      "summary": "Swap C7 for A7(♭9), the dominant a major 3rd above F6.",
-      "deepDive": "C7(♭9) is C under an E–G–B♭–D♭ diminished 7th. A7(♭9) is the same four notes over A, so your right hand doesn't move: only the bass does. Into F6, C♯ (the 3rd) falls a half step to C, G (the ♭7) falls a whole step to F, and A is already the 3rd of F. III7 normally resolves to vi, so the ear expects D minor and gets the major tonic instead: a bright, gospel-tinged arrival.\n\nThe whole Family over the same E°7: C7(♭9), E♭7(♭9), G♭7(♭9), A7(♭9). The tritone sub and the backdoor ♭VII7 are two of its members; this is the fourth.",
-      "recreateRule": "Any V7 → I can become III7(♭9) → I: keep the °7 a half step below I in your hands and put the bass a major 3rd above I.",
+      "summary": "Play A7(♭9) instead of C7: the same diminished shape on top, a new bass under it.",
+      "deepDive": "A7 usually leads to Dm, so the ear expects D minor and gets F major instead.\n\nWhere else: Replacing a V7 that resolves to a major chord.\n\nOn the bandstand: Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
+      "recreateRule": "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@10.1": {

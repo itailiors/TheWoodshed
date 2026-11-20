@@ -31,10 +31,12 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     expect(m.voicingHint).toEqual({ lh: ["G", "F", "B"], rh: ["Eb", "G", "Bb"] });
   });
 
-  it("Move 4: gospel turnaround in bar 8 slides by half steps into B♭maj9", () => {
+  it("Move 4: gospel turnaround in bar 8 slides by half steps into B♭maj13", () => {
     const m = find("gospel.halfStepTurnaround", 8)!;
     expect(m.chords.map(symbol)).toEqual(["Eb/F", "B13(#11)"]);
     expect(m.voiceLeading.map((v) => v.semitones).sort()).toEqual([-1, -1, -1, -1, -1, 0, 0]);
+    // 5c: named for what the voices reach (G♯ → G is the 13th), not B♭maj9
+    expect(m.facts.target).toBe("Bbmaj13");
   });
 
   it("rejects ii–Vs that clash with the melody (b9 over a half-diminished ii)", () => {

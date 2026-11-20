@@ -9,8 +9,8 @@ import {
   symbol,
   triadTones,
 } from "./chords";
-import { chroma, prettySymbol, simplifyNote, transpose } from "./pitch";
-import type { SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "./learn/facts";
+import { chroma, simplifyNote, transpose } from "./pitch";
+import type { GospelTurnaroundLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "./learn/facts";
 import { chain, chainMotions, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { Quality } from "./types";
 import { nearestMotion } from "./voiceLeading";
@@ -268,8 +268,37 @@ export const gospelTurnaround: Rule = {
     const apRoot = simplifyNote(transpose(next.root, "b2"));
     const approach = mk(apRoot, "7", split[1], ["9", "13"], ["#11"]);
     const targetRich = { ...next, extensions: ["9", "13"] };
-    const targetSym = symbol({ ...next, extensions: ["9"] });
     const vl = chordTones(approach).map((t) => nearestMotion(t.note, chordTones(targetRich)));
+    // Name what the voices land on, not a chord they don't reach: B♭ → A is the 13th, so a maj7
+    // target arrives as maj13; over a 6 (or a triad) C♭ rises to the root and the 9th joins: 6/9.
+    const plain = !next.display && !next.bass;
+    const landing = !plain
+      ? symbol(next)
+      : next.quality === "maj7"
+        ? symbol(targetRich)
+        : next.quality === "6" || next.quality === "maj"
+          ? `${next.root}6/9`
+          : symbol(next);
+    const degreeOf = (d: string) => chordTones(approach).find((t) => t.degree === d)!.note;
+    // a playable grip, not a 7-note cluster: root, ♭7, 3rd in the left hand, the major triad on the 9th on top
+    const grip = { lh: [apRoot, degreeOf("b7"), degreeOf("3")] as [string, string, string], rh: [degreeOf("9"), degreeOf("#11"), degreeOf("13")] as [string, string, string] };
+    const gripMotions = [...grip.lh, ...grip.rh].map((n) => vl.find((m) => m.from === n)!);
+    const learn: GospelTurnaroundLearn = {
+      original: symbol(chord),
+      sus: sus.display!,
+      susRoot: chord.root,
+      susTriad: [susTop, transpose(susTop, "3"), transpose(susTop, "5")],
+      approach: symbol(approach),
+      approachRoot: apRoot,
+      target: symbol(next),
+      landing,
+      targetRoot: next.root,
+      grip,
+      gripMotions,
+      held: vl.filter((m) => m.semitones === 0).map((m) => m.from),
+      sharpEleven: degreeOf("#11"),
+      leadingTone: guideTones(chord)[0].note,
+    };
 
     return {
       title: "Gospel turnaround",
@@ -278,16 +307,8 @@ export const gospelTurnaround: Rule = {
       styleTags: ["gospel", "neo-soul"],
       chords: [sus, approach],
       voiceLeading: vl,
-      facts: { sus: sus.display, approach: symbol(approach), target: targetSym, motions: vl },
-      text: {
-        summary: `${ps(chord)} → ${ps(next)} becomes ${prettySymbol(sus.display!)} → ${ps(approach)} → ${prettySymbol(targetSym)}.`,
-        theory:
-          `${prettySymbol(sus.display!)} is a ${pn(chord.root)}9sus: a ${pn(susTop)} triad over ${pn(chord.root)}. It's the gospel way to sound the dominant ` +
-          `while holding back the 3rd. ${ps(approach)} is the tritone sub of ${ps(chord)}, voiced as a 13(♯11) cluster ` +
-          `a half step above ${pn(next.root)}. Each voice either slides down a half step or stays put as it lands on ${prettySymbol(targetSym)}.`,
-        recreateRule:
-          "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
-      },
+      facts: { sus: sus.display, approach: symbol(approach), target: landing, motions: vl, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

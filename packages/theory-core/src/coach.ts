@@ -4,8 +4,13 @@ import type {
   BackdoorLearn,
   BorrowedIvLearn,
   ColtraneLearn,
+  CommonToneDiminishedLearn,
   ConstantStructureLearn,
+  GospelTurnaroundLearn,
+  MediantDominantLearn,
+  MinorLineClicheLearn,
   OneNoteOnTopLearn,
+  PassingDiminishedLearn,
   SecondaryDominantLearn,
   SecondaryTwoFiveLearn,
   TritoneSubLearn,
@@ -58,7 +63,6 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
   const sym = prettySymbol(symbol(c));
   const nextSym = chords[i + 1] ? prettySymbol(symbol(chords[i + 1])) : undefined;
   const into = nextSym ? ` into ${nextSym}` : "";
-  const orig0 = move.original[0] ? prettySymbol(symbol(move.original[0])) : undefined;
   const [g3, g7] = guideTones(c).map((g) => nn(g.note));
   const gts = [g3, g7].filter(Boolean).join(" and ");
   const last = i === move.chords.length - 1;
@@ -126,10 +130,12 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "dominant.mediantDominant": {
-      const dim = (facts.sharedDiminished as string[] | undefined) ?? [];
+      const L = learn as MediantDominantLearn | undefined;
+      if (!L) break;
+      const [r3] = L.resolution;
       return {
         role: `Mediant dominant (III7 · ${sym})`,
-        whyHere: `Keep the ${dim.map(nn).join("–")} °7 of ${orig0 ? `${orig0}(♭9)` : "the V7(♭9)"} in your hands; only the bass moves, to ${nn(c.root)}. Its 3rd falls a half step${into}.`,
+        whyHere: `Keep ${prettySymbol(L.original)}(♭9)'s ${L.dim.map(nn).join(", ")} on top and put ${nn(L.subRoot)} in the bass. Into ${prettySymbol(L.target)}, ${nn(r3.from)} ${toDegree(r3)}.`,
       };
     }
     case "voicing.rootlessTwoFiveOne": {
@@ -164,10 +170,16 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
           : `Stack the II major triad in RH over the root–3–♭7 shell in LH.`,
       };
     case "chromatic.minorLineCliche": {
-      const degs = ["1 (root)", "♮7 (major 7th)", "♭7 (minor 7th)", "6 (sixth)"];
+      const L = learn as MinorLineClicheLearn | undefined;
+      if (!L) break;
+      const [third, fifth] = [nn(L.third), nn(L.fifth)];
       return {
-        role: `Line cliché step ${i + 1} (${sym})`,
-        whyHere: `Keep the ${prettyNote(c.root)} minor triad anchored while the moving voice steps to ${degs[i] ?? "the next degree"}.`,
+        role: `Line cliché ${i + 1} of 4 (${sym})`,
+        whyHere:
+          i === 0
+            ? `Hold ${third} and ${fifth} still. The root voice, ${nn(L.line[0])}, starts the walk down by half steps.`
+            : // the drill's chord keeps its added 9th (Cm9), so the cue names the step's degree, not the stop's name (Cm7)
+              `Hold ${third} and ${fifth}; the root voice steps down to ${nn(L.line[i])}, ${["", "the major 7th", "the ♭7", "the 6th"][i]}.`,
       };
     }
     case "melody.oneNoteOnTop": {
@@ -186,17 +198,25 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
         whyHere: `Over ${nn(c.root)}, ${held} is the ${role ? roleWord(role) : "colour"} of ${sym}. The top never moves; the bass walks down a half step${into}.`,
       };
     }
-    case "gospel.halfStepTurnaround":
+    case "gospel.halfStepTurnaround": {
+      const L = learn as GospelTurnaroundLearn | undefined;
+      if (!L) break;
       if (i === 0) {
         return {
-          role: `IV/V gospel sus (${sym})`,
-          whyHere: `Suspends the leading tone by stacking a major triad a whole step below the dominant root before the chromatic approach.`,
+          role: `IV/V, the sus (${sym})`,
+          whyHere: `The ${nn(L.susTriad[0])} triad over ${nn(L.susRoot)} in the bass: no 3rd, so nothing leans into ${prettySymbol(L.target)} yet.`,
         };
       }
+      // only keys of the chord in your hands: a rising voice is said without its landing
+      const holds = L.gripMotions.filter((m) => m.semitones === 0).map((m) => nn(m.from));
+      const rises = L.gripMotions.filter((m) => m.semitones > 0).map((m) => `${nn(m.from)} rises a half step; `);
       return {
-        role: `♭II13(♯11) approach (${sym})`,
-        whyHere: `Tritone-sub cluster a half step above ${nextSym ?? "home"}; every upper voice slides down by semitone or holds common tones.`,
+        role: `♭II13(♯11), tritone sub (${sym})`,
+        whyHere:
+          `Left hand ${L.grip.lh.map(nn).join(", ")}; right hand the ${nn(L.grip.rh[0])} triad. Into ${prettySymbol(L.landing)}, ` +
+          `${holds.join(" and ")} hold${holds.length === 1 ? "s" : ""}; ${rises.join("")}the rest fall a half step.`,
       };
+    }
     case "modal.backdoorTwoFive": {
       const L = learn as BackdoorLearn | undefined;
       if (!L) break;
@@ -212,19 +232,25 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "chromatic.passingDiminished": {
-      const target = String(facts.target);
-      const ascending = facts.ascending === true;
+      const L = learn as PassingDiminishedLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
       if (c.quality !== "dim7") {
         return {
           role: `Before the °7 (${sym})`,
-          whyHere: `${sym} keeps the downbeat. Then the bass, ${nn(c.root)}, ${ascending ? "climbs" : "falls"} a half step${into}.`,
+          whyHere: `${sym} keeps the downbeat. Then the bass, ${nn(c.root)}, ${L.ascending ? "climbs" : "falls"} a half step${into}.`,
+        };
+      }
+      if (L.ascending && L.pull) {
+        const [lead, flatNine] = L.pull;
+        return {
+          role: `Passing °7 (${sym})`,
+          whyHere: `${sym} works as ${target}'s V7(♭9) with no root: ${nn(lead.from)} rises to its root, ${nn(flatNine.from)} falls to its 5th.`,
         };
       }
       return {
         role: `Passing °7 (${sym})`,
-        whyHere: ascending
-          ? `${nn(c.root)} in the bass is the leading tone of ${target}: ${sym} works as its V7(♭9) with no root.`
-          : `The bass, ${nn(c.root)}, falls a half step into ${target}; the symmetrical °7 lets the upper voices slip in by step.`,
+        whyHere: `${sym} already holds ${L.shared.map((s) => nn(s.note)).join(" and ")}, ${target}'s ${L.shared.map((s) => lessonDegree(s.degree)).join(" and ")}. The other keys step into it.`,
       };
     }
     case "modal.flatSixFlatSeven": {
@@ -257,18 +283,18 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "chromatic.commonToneDiminished": {
-      const lean = (facts.leaningTones as string[] | undefined) ?? [];
-      const land = (facts.resolvesTo as string[] | undefined) ?? [];
-      const chord = String(facts.chord);
+      const L = learn as CommonToneDiminishedLearn | undefined;
+      if (!L) break;
+      const [l3, l5] = L.leans;
       if (c.quality === "dim7") {
         return {
           role: `Common-tone °7 (${sym})`,
-          whyHere: `Keep ${nn(c.root)} as the common tone. ${lean.map(nn).join(" and ")} are appoggiaturas: each leans up a half step into ${chord}.`,
+          whyHere: `${nn(L.root)} is the common tone. ${nn(l3.from)} and ${nn(l5.from)} are appoggiaturas: each rises a half step into ${prettySymbol(L.chord)}.`,
         };
       }
       return {
         role: `Arrival (${sym})`,
-        whyHere: `${land.map(nn).join(" and ")}, the 3rd and 5th, arrive: the °7 dissolves into the chord you were already on.`,
+        whyHere: `${nn(l3.to)} and ${nn(l5.to)}, the 3rd and 5th, arrive: the °7 dissolves into the chord you were already on.`,
       };
     }
     case "symmetric.coltraneSubstitution": {

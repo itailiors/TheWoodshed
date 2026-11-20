@@ -114,7 +114,8 @@ describe("diminished spelling", () => {
       expect(symbol(m.chords[0])).toBe(`${root}dim7`);
     }
     const c = canonicalMove("chromatic.commonToneDiminished", "C")!;
-    expect(c.text.theory).toContain("Its D♯ and F♯ (the ♯2 and ♯4) each rise a half step, into E and G");
+    // since 5c the words are the lesson's (MoveText derives from it)
+    expect(c.text.theory).toContain("D♯ rises to E, the 3rd; F♯ rises to G, the 5th.");
   });
 });
 

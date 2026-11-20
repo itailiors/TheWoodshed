@@ -2,18 +2,23 @@ import { describe, expect, it } from "vitest";
 import { chordChromas, chordTones, guideTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
-import { BUNDLED_TUNES, canonicalMove } from "../src/index";
-import { basicsLesson, CONCEPTS, hasRuleLesson, isBasicsId, lessonForMove, type Lesson } from "../src/learn";
+import { BUNDLED_TUNES, canonicalMove, canonicalTune } from "../src/index";
+import { basicsLesson, CONCEPTS, hasRuleLesson, isBasicsId, lessonForMove, parseSymbol, type Lesson } from "../src/learn";
 import type {
   BackdoorLearn,
   BorrowedIvLearn,
   ColtraneLearn,
   ConstantStructureLearn,
+  GospelTurnaroundLearn,
+  MediantDominantLearn,
+  MinorLineClicheLearn,
   OneNoteOnTopLearn,
+  PassingDiminishedLearn,
   SecondaryDominantLearn,
   SecondaryTwoFiveLearn,
   TritoneSubLearn,
 } from "../src/learn/facts";
+import { passingDiminished } from "../src/rulesAdvanced";
 import { degreeWord } from "../src/learn/lesson";
 import { chroma, mod, prettyNote, transpose } from "../src/pitch";
 import { RULES } from "../src/ruleset";
@@ -94,6 +99,44 @@ const RULE_ASKS: Record<string, Allowed> = {
     const walk = move!.chords.slice(1);
     return walk.map((c) => chroma(c.root)).filter((b) => mod(chroma(f.heldNote) - b, 12) === DEGREE_SEMIS[role]);
   },
+  // "Keep those four keys. Tap the bass a major 3rd above C.": III7(♭9)'s root, and the claim holds (same four keys on top)
+  "dominant.mediantDominant": (_l, { learn, move }) => {
+    const f = learn as MediantDominantLearn;
+    const sub = move!.chords[0];
+    const upper = (c: Parameters<typeof chordTones>[0]) => pcs(chordTones(c).filter((t) => t.degree !== "1").map((t) => t.note));
+    expect(upper(sub)).toEqual(upper({ ...move!.original[0], extensions: [], alterations: ["b9"] }));
+    return [mod(chroma(f.targetRoot) + 4, 12)];
+  },
+  // "Which keys of D♭13(♯11) stay put into Cmaj13?": the approach's keys that the landing also has
+  "gospel.halfStepTurnaround": (_l, { learn, move }) => {
+    const f = learn as GospelTurnaroundLearn;
+    const landing = chordChromas(parseSymbol(f.landing)!);
+    return pcs(chordTones(move!.chords[1]).map((t) => t.note)).filter((pc) => landing.has(pc));
+  },
+  // up: "C♯dim7 is a dominant without its root. Tap that root: the V of Dm7." (and it is: V7(♭9) less its root);
+  // down: "Tap the two keys E♭dim7 shares with Dm7."
+  "chromatic.passingDiminished": (_l, { learn, move }) => {
+    const f = learn as PassingDiminishedLearn;
+    const dim = pcs(chordTones(move!.chords[1]).map((t) => t.note));
+    if (f.ascending) {
+      const V = transpose(f.targetRoot, "5");
+      expect(dim).toEqual(pcs(chordTones(shape(V, "7", [], ["b9"])).filter((t) => t.degree !== "1").map((t) => t.note)));
+      return [chroma(V)];
+    }
+    const target = chordChromas(parseSymbol(f.target)!);
+    return dim.filter((pc) => target.has(pc));
+  },
+  // "Which two keys of Cdim7 rise a half step into Cmaj7?": °7 keys not in the chord whose half step up is
+  "chromatic.commonToneDiminished": (_l, { move }) => {
+    const [dim, chord] = move!.chords;
+    const has = chordChromas(chord);
+    return pcs(chordTones(dim).map((t) => t.note)).filter((pc) => !has.has(pc) && has.has(mod(pc + 1, 12)));
+  },
+  // "Start on C. Tap the next three keys down by half steps."
+  "chromatic.minorLineCliche": (_l, { learn }) => {
+    const r = chroma((learn as MinorLineClicheLearn).root);
+    return [1, 2, 3].map((s) => mod(r - s, 12));
+  },
 };
 
 /** Semitones above the root for each degree a held top note can take (independent of the rule's tables). */
@@ -143,6 +186,11 @@ const PROMPTS: Record<string, RegExp> = {
   "symmetric.coltraneSubstitution": /^Each key gets its own V7\. Tap the root a fifth above \S+\.$/,
   "chromatic.constantStructure": /^Move the whole shape up a half step\. Tap (the 3rd and 7th of )?\S+\.$/,
   "melody.oneNoteOnTop": /^\S+ is the \S+( \S+)? of one walk chord\. Tap its bass\.$/,
+  "dominant.mediantDominant": /^Keep those four keys\. Tap the bass a major 3rd above \S+\.$/,
+  "gospel.halfStepTurnaround": /^(Which keys of \S+ stay put into \S+\? Tap them|Which key of \S+ stays put into \S+\? Tap it)\.$/,
+  "chromatic.passingDiminished": /^(\S+ is a dominant without its root\. Tap that root: the V of \S+|Tap the (key|two keys|three keys) \S+ shares with \S+)\.$/,
+  "chromatic.commonToneDiminished": /^Which two keys of \S+ rise a half step into \S+\? Tap them\.$/,
+  "chromatic.minorLineCliche": /^Start on \S+\. Tap the next three keys down by half steps\.$/,
   "basics:sevenths": /^Make it \S+: lower one key\. Tap the new 3rd\.$/,
   "basics:numerals": /^V is the chord on step 5\. Tap its root\.$/,
   "basics:tritone": /^Tap the key a tritone above \S+\.$/,
@@ -161,6 +209,15 @@ const ruleLessons = [
   ),
   // and every rule on its canonical progression (Coach's Learn stage), in 12 keys
   ...RULES.flatMap((r) => KEYS.flatMap((k) => canonicalMove(r.id, k) ?? []).map((m) => ({ where: `canonical ${m.ruleId} in ${m.id}`, m }))),
+  // the descending passing °7 (iii → ♭iii°7 → ii, and into a major and a dominant ii), which no canonical chart reaches
+  ...KEYS.flatMap((k) =>
+    (["m7", "maj7", "7"] as const).flatMap((q) => {
+      const up = canonicalTune("chromatic.passingDiminished", k)!;
+      const ii = up.harmony[1];
+      const tune = { ...up, harmony: [{ ...up.harmony[0], root: transpose(ii.root, "2"), quality: "m7" as const }, { ...ii, quality: q }] };
+      return generateMoves(tune, [passingDiminished]).accepted.map((m) => ({ where: `down into ${ii.root}${q} in ${k}`, m }));
+    }),
+  ),
 ]
   .filter(({ m }) => hasRuleLesson(m.ruleId))
   .map(({ where, m }) => ({ where, lesson: lessonForMove(m)!, ctx: { learn: (m.facts as { learn?: unknown }).learn, move: m } }));
@@ -187,6 +244,19 @@ describe("every ask has exactly one right answer set", () => {
       const lit = new Set(step.highlight.map((h) => chroma(h.note)));
       for (const pc of answer) expect(lit.has(pc), `${where}: answer key ${pc} isn't lit in "${step.text}"`).toBe(true);
     }
+  });
+
+  it("the diminished and chromatic asks (5c), worded as audited, in C", () => {
+    const ask = (id: string) => lessonForMove(canonicalMove(id, "C")!)!.steps.find((s) => s.ask)!.ask!;
+    expect(ask("dominant.mediantDominant")).toEqual({ kind: "tapNotes", prompt: "Keep those four keys. Tap the bass a major 3rd above C.", answer: ["E"] });
+    expect(ask("gospel.halfStepTurnaround")).toEqual({ kind: "tapNotes", prompt: "Which keys of D♭13(♯11) stay put into Cmaj13? Tap them.", answer: ["Cb", "G"] });
+    expect(ask("chromatic.passingDiminished")).toEqual({ kind: "tapNotes", prompt: "C♯dim7 is a dominant without its root. Tap that root: the V of Dm7.", answer: ["A"] });
+    expect(ask("chromatic.commonToneDiminished")).toEqual({ kind: "tapNotes", prompt: "Which two keys of Cdim7 rise a half step into Cmaj7? Tap them.", answer: ["D#", "F#"] });
+    expect(ask("chromatic.minorLineCliche")).toEqual({ kind: "tapNotes", prompt: "Start on C. Tap the next three keys down by half steps.", answer: ["B", "Bb", "A"] });
+    // the falling °7 asks what it shares, never calls itself a dominant
+    const down = ruleLessons.find((r) => r.where === "down into Dm7 in C")!.lesson;
+    expect(down.steps.find((s) => s.ask)!.ask).toEqual({ kind: "tapNotes", prompt: "Tap the two keys E♭dim7 shares with Dm7.", answer: ["A", "C"] });
+    expect(ruleLessons.filter((r) => r.where.startsWith("down into")).length).toBe(36);
   });
 
   it("the reference ii–V asks about guide tones, so G (Gm9's root, C7's 5th) is not a right answer it rejects", () => {

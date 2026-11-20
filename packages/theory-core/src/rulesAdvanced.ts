@@ -6,7 +6,16 @@
  */
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
-import type { BackdoorLearn, BorrowedIvLearn, ColtraneLearn, ConstantStructureLearn } from "./learn/facts";
+import type {
+  BackdoorLearn,
+  BorrowedIvLearn,
+  ColtraneLearn,
+  CommonToneDiminishedLearn,
+  ConstantStructureLearn,
+  MediantDominantLearn,
+  MinorLineClicheLearn,
+  PassingDiminishedLearn,
+} from "./learn/facts";
 import { readable } from "./learn/lesson";
 import { chain, chainMotions, dimTones, distribute, mk, planeMotion, pn, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
@@ -102,7 +111,31 @@ export const mediantDominant: Rule = {
     const dim = (["7", "2", "4", "b6"] as const).map((d) => tidy(transpose(T, d)));
     const familyChords = (["5", "b7", "b2", "3"] as const).map((d) => mk(tidy(transpose(T, d)), "7", 1, [], ["b9"]));
     const [third, seventh] = guideTones(sub).map((g) => g.note);
-    const fifthOfT = transpose(T, "5");
+    // III7(♭9)'s upper four, double accidentals respelled (D♯7's F𝄪 reads G), each paired with the °7 key it shares
+    const four = (xs: string[]) => [xs[0], xs[1], xs[2], xs[3]] as [string, string, string, string];
+    const subTones = four(chordTones(sub).filter((t) => t.degree !== "1").map((t) => readable(t.note)));
+    const viRoot = transpose(T, "6");
+    const learn: MediantDominantLearn = {
+      original: symbol(chord),
+      sub: symbol(sub),
+      subPlain: symbol(mk(sub.root, "7", 1)),
+      target: symbol(next),
+      originalRoot: chord.root,
+      subRoot: sub.root,
+      targetRoot: T,
+      dim: four(dim),
+      subTones,
+      dimTwins: four(subTones.map((n) => dim.find((d) => chroma(d) === chroma(n))!)),
+      // the 3rd to the target's 5th, the ♭7 to its root (nearest motion over a 6 chord could send G♯ up to A)
+      resolution: [
+        nearestMotion(readable(third), chordTones(next).filter((t) => t.degree === "5" || t.degree === "#5")),
+        nearestMotion(seventh, chordTones(next).filter((t) => t.degree === "1")),
+      ],
+      family: four(familyChords.map((c) => symbol({ ...c, alterations: [] }))),
+      familyRoots: four(familyChords.map((c) => c.root)),
+      relativeMinor: viRoot,
+      relativeMinorChord: symbol(mk(viRoot, "m", 1)),
+    };
     return {
       title: "Mediant dominant (III7)",
       level: 3,
@@ -116,20 +149,9 @@ export const mediantDominant: Rule = {
         sharedDiminished: dim,
         family: familyChords.map(symbol),
         guideToneChain: chain([third, seventh], [next]),
+        learn,
       },
-      text: {
-        summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a major 3rd above ${ps(next)}.`,
-        theory:
-          `${ps(familyChords[0])} is ${pn(chord.root)} under ${/^[AEF]/.test(dim[0]) ? "an" : "a"} ${dim.map(pn).join("–")} diminished 7th. ${ps(sub)} is the same four notes over ${pn(sub.root)}, ` +
-          `so your right hand doesn't move: only the bass does. ` +
-          `Into ${ps(next)}, ${pn(third)} (the 3rd) falls a half step to ${pn(fifthOfT)}, ${pn(seventh)} (the ♭7) falls a whole step to ${pn(T)}, ` +
-          `and ${pn(sub.root)} is already the 3rd of ${pn(T)}. ` +
-          `III7 normally resolves to vi, so the ear expects ${pn(transpose(T, "6"))} minor and gets the major tonic instead: a bright, gospel-tinged arrival.`,
-        recreateRule:
-          "Any V7 → I can become III7(♭9) → I: keep the °7 a half step below I in your hands and put the bass a major 3rd above I.",
-        insight:
-          `The whole Family over the same ${pn(dim[0])}°7: ${familyChords.map(ps).join(", ")}. The tritone sub and the backdoor ♭VII7 are two of its members; this is the fourth.`,
-      },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -227,24 +249,44 @@ export const passingDiminished: Rule = {
     const dimRoot = tidy(transpose(chord.root, ascending ? UP_SEMITONE : DOWN_SEMITONE));
     const dim = mk(dimRoot, "dim7", split[1]);
     const V = transpose(next.root, "5");
-    const dimNotes = dimTones(dim).map((t) => pn(t.note));
+    const tones = dimTones(dim).map((t) => t.note);
+    const V7 = mk(V, "7", 1, [], ["b9"]);
+    const vTones = chordTones(V7);
+    const targetTones = chordTones(next);
+    const motions = tones.map((n) => nearestMotion(n, targetTones));
+    const learn: PassingDiminishedLearn = {
+      from: symbol(chord),
+      dim: symbol(dim),
+      target: symbol(next),
+      fromRoot: chord.root,
+      dimRoot,
+      targetRoot: next.root,
+      ascending,
+      dimTones: tones,
+      impliedV: V,
+      impliedV7: symbol(V7),
+      impliedVPlain: symbol(mk(V, "7", 1)),
+      // going up the °7 is V7(♭9) without its root: its tones are that chord's 3rd, 5th, ♭7 and ♭9
+      roles: ascending ? tones.map((n) => vTones.find((t) => chroma(t.note) === chroma(n))!.degree) : [],
+      motions,
+      pull: ascending
+        ? [
+            nearestMotion(tones[0], targetTones.filter((t) => t.degree === "1")),
+            // to the target's 5th (the V's root); a target with an altered 5th takes the nearest tone
+            nearestMotion(tones[3], targetTones.some((t) => chroma(t.note) === chroma(V)) ? targetTones.filter((t) => chroma(t.note) === chroma(V)) : targetTones),
+          ]
+        : null,
+      shared: targetTones.filter((t) => tones.some((n) => chroma(n) === chroma(t.note))).map((t) => ({ note: t.note, degree: t.degree })),
+      moving: motions.filter((m) => !targetTones.some((t) => chroma(t.note) === chroma(m.from))),
+    };
     return {
       title: ascending ? "Passing diminished (up)" : "Passing diminished (down)",
       level: 2,
       category: "chromatic",
       styleTags: ["bebop", "standard"],
       chords: [keep(chord, split[0]), dim],
-      facts: { target: ps(next), dim: ps(dim), bassLine: [chord.root, dimRoot, next.root], ascending },
-      text: {
-        summary: `Fill the gap with a diminished chord so the bass walks by half steps: ${ps(chord)} → ${ps(dim)} → ${ps(next)}.`,
-        theory: ascending
-          ? `${ps(dim)} sits a half step between ${pn(chord.root)} and ${pn(next.root)}, so the bass climbs chromatically. ` +
-            `It's also a disguised dominant: ${dimNotes.join(" ")} are the 3rd, 5th, ♭7 and ♭9 of ${pn(V)}7, the V of ${ps(next)}, played without its root. ` +
-            `That's why it pulls so strongly into the next chord.`
-          : `${ps(dim)} is a chromatic passing chord: the bass walks down by half steps (${[chord.root, dimRoot, next.root].map(pn).join(" → ")}) ` +
-            `while the symmetrical diminished shape lets the upper voices slip into ${ps(next)} by step.`,
-        recreateRule: "Between two chords a whole step apart, put a diminished 7th on the half step in between, so the bass walks chromatically.",
-      },
+      facts: { target: ps(next), dim: ps(dim), bassLine: [chord.root, dimRoot, next.root], ascending, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -267,22 +309,29 @@ export const commonToneDiminished: Rule = {
     // spelled by direction of resolution: they rise, so ♯2 and ♯4 (C: D♯, F♯), not the °7's own E♭ and G♭
     const lean = [risingTone(chord.root, "#2"), risingTone(chord.root, "#4")];
     const resolve = [transpose(chord.root, "3"), transpose(chord.root, "5")];
+    // ♯2 into the 3rd, ♯4 into the 5th (over a chord with a 9th, D♯ is as near to D as to E)
+    const leans = lean.map((n, k) => nearestMotion(n, chordTones(chord).filter((t) => (k ? t.degree === "5" || t.degree === "#5" : t.degree === "3"))));
+    // the °7's 6th (its own ♭♭7), spelled as the 6th it is: A over C, G♯ over B
+    const sixth = readable(transpose(chord.root, "6"));
+    const all: [string, string, string, string] = [chord.root, lean[0], lean[1], sixth];
+    const learn: CommonToneDiminishedLearn = {
+      chord: symbol(chord),
+      dim: symbol(dim),
+      root: chord.root,
+      dimTones: all,
+      leans: [leans[0], leans[1]],
+      shared: all.filter((n) => chordTones(chord).some((t) => chroma(t.note) === chroma(n))),
+      bassStays: !chord.bass || chroma(chord.bass) === chroma(chord.root),
+    };
     return {
       title: "Common-tone diminished",
       level: 3,
       category: "chromatic",
       styleTags: ["standard", "stride", "gospel"],
       chords: [dim, keep(chord, split[0])],
-      voiceLeading: lean.map((n) => nearestMotion(n, chordTones(chord))),
-      facts: { chord: ps(chord), dim: ps(dim), leaningTones: lean, resolvesTo: resolve },
-      text: {
-        summary: `Lean into ${ps(chord)} from the diminished chord on the same root: ${ps(dim)} → ${ps(chord)}.`,
-        theory:
-          `${ps(dim)} shares only its root with ${ps(chord)}. Its ${pn(lean[0])} and ${pn(lean[1])} (the ♯2 and ♯4) each rise a half step, ` +
-          `into ${pn(resolve[0])} and ${pn(resolve[1])}, the 3rd and 5th. It's an appoggiatura chord: tension that dissolves into the chord you were already on, ` +
-          `so it adds motion without changing the harmony.`,
-        recreateRule: "On a major chord that lasts a while, start with the diminished 7th on the same root and let it resolve up by half steps.",
-      },
+      voiceLeading: leans,
+      facts: { chord: ps(chord), dim: ps(dim), leaningTones: lean, resolvesTo: resolve, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -425,24 +474,26 @@ export const minorLineCliche: Rule = {
       mk(r, "m7", beats[2], ["9"]),
       mk(r, "m6", beats[3], ["9"]),
     ];
-    const line = [r, tidy(transpose(r, "7")), tidy(transpose(r, "b7")), tidy(transpose(r, "6"))];
+    const line: [string, string, string, string] = [r, tidy(transpose(r, "7")), tidy(transpose(r, "b7")), tidy(transpose(r, "6"))];
+    // `stops`: the four chords without their added 9th. symbol() rightly prints m7 + 9 as "Cm9",
+    // which would read as a different chord from "Cm" when a lesson names the line's stops.
+    const stops = chords.map((c) => symbol({ ...c, extensions: [] }));
+    const learn: MinorLineClicheLearn = {
+      chord: symbol(chord),
+      root: r,
+      third: readable(transpose(r, "b3")),
+      fifth: readable(transpose(r, "5")),
+      line,
+      stops: [stops[0], stops[1], stops[2], stops[3]],
+    };
     return {
       title: "Minor line cliché",
       level: 2,
       category: "chromatic",
       styleTags: ["bill-evans", "standard", "ballad"],
       chords,
-      // `stops`: the four chords without their added 9th. symbol() rightly prints m7 + 9 as "Cm9",
-      // which would read as a different chord from "Cm" when a lesson names the line's stops.
-      facts: { root: r, chromaticLine: line, stops: chords.map((c) => symbol({ ...c, extensions: [] })) },
-      text: {
-        summary: `Walk an inner voice chromatically down through ${ps(chord)}: ${chords.map(ps).join(" → ")}.`,
-        theory:
-          `Sitting on ${ps(chord)} for a full bar can feel static. Keeping ${pn(transpose(r, "b3"))} and ${pn(transpose(r, "5"))} anchored while walking the root voice ` +
-          `down by half steps (${line.map(pn).join(" → ")}) creates the classic 1–7–♭7–6 minor line cliché.`,
-        recreateRule:
-          "Over a sustained minor chord, keep the minor triad still and walk the root voice down by half steps: 1 → ♮7 → ♭7 → 6 (m → m(maj7) → m7 → m6).",
-      },
+      facts: { root: r, chromaticLine: line, stops, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

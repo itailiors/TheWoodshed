@@ -1,15 +1,21 @@
+import type { VoiceMotion } from "../../types";
 import type { PathStop } from "../../voiceLeading";
 import type {
   BackdoorLearn,
   BorrowedIvLearn,
   ColtraneLearn,
+  CommonToneDiminishedLearn,
   ConstantStructureLearn,
+  GospelTurnaroundLearn,
+  MediantDominantLearn,
+  MinorLineClicheLearn,
   OneNoteOnTopLearn,
+  PassingDiminishedLearn,
   SecondaryDominantLearn,
   SecondaryTwoFiveLearn,
   TritoneSubLearn,
 } from "../facts";
-import { degreeWord, hl, hlTo, moves, pn, ps, twin, type Lesson } from "../lesson";
+import { degreeWord, hl, hlTo, motionVerb, moves, pn, ps, twin, type Lesson } from "../lesson";
 
 /*
  * Rule lessons. Each one reads only its rule's `facts.learn`, computed in `propose()`; nothing
@@ -351,6 +357,233 @@ function oneNoteOnTop(f: OneNoteOnTopLearn): Lesson {
   };
 }
 
+/** "A, B and C". */
+const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** "G♯ falls a half step to G", "G♯ holds". */
+const goes = (m: VoiceMotion) => (m.semitones === 0 ? `${pn(m.from)} holds` : `${pn(m.from)} ${motionVerb(m)} to ${pn(m.to)}`);
+const COUNT = ["", "", "two", "three", "four"];
+/** Words as the copy budget counts them (anything with a letter or digit). */
+const wordCount = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+
+function mediantDominant(f: MediantDominantLearn): Lesson {
+  const [orig, sub, target] = [ps(f.original), ps(f.sub), ps(f.target)];
+  const [r3, r7] = f.resolution;
+  // III7(♭9)'s own spelling, with the °7 key it shares in parentheses where they differ (G♯, same key as A♭)
+  const named = f.subTones.map((n, k) => twin(n, f.dimTwins[k]));
+  return {
+    conceptId: "dominant.mediantDominant",
+    headline: `Play ${sub} instead of ${orig}: the same diminished shape on top, a new bass under it.`,
+    steps: [
+      {
+        text: `Add the ♭9 to ${orig} and drop the root: ${f.dim.map(pn).join(", ")}, a diminished 7th.`,
+        highlight: f.dim.map((n) => hl(n, pn(n))),
+        play: "ab",
+        term: "diminished 7th",
+        prereqLink: "basics:dim7",
+      },
+      {
+        text: `Put ${pn(f.subRoot)} under them: ${listOf(named)} make ${sub}.`,
+        highlight: [hl(f.subRoot, "bass"), hl(f.subTones[0], "3rd"), hl(f.subTones[2], "♭7"), hl(f.subTones[3], "♭9")],
+        ask: { kind: "tapNotes", prompt: `Keep those four keys. Tap the bass a major 3rd above ${pn(f.targetRoot)}.`, answer: [f.subRoot] },
+      },
+      {
+        text: `Into ${target}, ${goes(r3)}, ${goes(r7)}. ${pn(f.subRoot)} is its 3rd.`,
+        highlight: [hl(r3.from, "3rd"), hlTo(r3, "5th"), hl(r7.from, "♭7"), hlTo(r7, "root")],
+        play: "ab",
+      },
+      {
+        text: `With a ♭9, ${listOf(f.family.map(ps))} all hold these four keys: the Family.`,
+        highlight: f.familyRoots.map((n, k) => hl(n, ["V", "♭VII", "♭II", "III"][k])),
+        term: "the Family",
+      },
+    ],
+    rule: "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
+    deeper: `${ps(f.subPlain)} usually leads to ${ps(f.relativeMinorChord)}, so the ear expects ${pn(f.relativeMinor)} minor and gets ${pn(f.targetRoot)} major instead.`,
+  };
+}
+
+function gospelTurnaround(f: GospelTurnaroundLearn): Lesson {
+  const [orig, sus, approach, target, landing] = [ps(f.original), ps(f.sus), ps(f.approach), ps(f.target), ps(f.landing)];
+  const [lh, rh] = [f.grip.lh, f.grip.rh];
+  const falls = f.gripMotions.filter((m) => m.semitones < 0);
+  const rises = f.gripMotions.filter((m) => m.semitones > 0);
+  // the held keys, a respelled one last: "G and C♭ (same key as B) hold"
+  const holds = f.gripMotions.filter((m) => m.semitones === 0).sort((a, b) => Number(pn(a.from) !== pn(a.to)) - Number(pn(b.from) !== pn(b.to)));
+  const holdList = `${listOf(holds.map((m) => twin(m.from, m.to)))} hold${holds.length === 1 ? "s" : ""}`;
+  const risen = rises.map((m) => `${moves(m)}; `).join("");
+  const full = `Into ${landing}, ${listOf(falls.map((m) => pn(m.from)))} fall a half step; ${risen}${holdList}.`;
+  // a respelled hold plus a rising voice runs past 20 words: then the falling voices go unnamed
+  const short = `Into ${landing}, ${holdList}; ${risen}every other voice falls a half step.`;
+  const one = f.held.length === 1;
+  return {
+    conceptId: "gospel.halfStepTurnaround",
+    headline: `Turn ${orig} → ${target} into ${sus} → ${approach} → ${landing}: a slide into home from a half step above.`,
+    steps: [
+      {
+        text: `${sus} is ${pn(f.susRoot)}9sus: the ${pn(f.susTriad[0])} triad over ${pn(f.susRoot)} in the bass. No ${pn(f.leadingTone)}, so nothing leans into ${pn(f.targetRoot)} yet.`,
+        highlight: [hl(f.susRoot, "bass"), ...f.susTriad.map((n) => hl(n, pn(n), "up"))],
+        play: "after",
+        term: "sus",
+      },
+      {
+        text: `${approach} is the tritone sub of ${orig}, its root a half step above ${pn(f.targetRoot)}.`,
+        highlight: [hl(f.approachRoot, "♭II"), hl(f.targetRoot, "home", "down"), hl(f.susRoot, "old root", "up")],
+        prereqLink: "dominant.tritoneSub",
+      },
+      {
+        // a playable grip, not a 7-note cluster
+        text: `Left hand ${lh.map(pn).join(", ")}; right hand the ${pn(rh[0])} triad: the 9th, ♯11 and 13th.`,
+        highlight: [hl(lh[0], "root"), hl(rh[0], "9th"), hl(rh[1], "♯11", "up"), hl(rh[2], "13th", "up")],
+        play: "after",
+        prereqLink: "basics:extensions",
+      },
+      {
+        text: wordCount(full) <= 20 ? full : short,
+        highlight: [
+          ...holds.map((m) => hl(m.from, pn(m.from) === pn(m.to) ? "holds" : `holds as ${pn(m.to)}`)),
+          ...rises.map((m) => hl(m.from, "↑")),
+          hl(falls[0].from, "↓"),
+          hlTo(falls[0], pn(falls[0].to)),
+        ].slice(0, 4),
+        play: "after",
+        ask: {
+          kind: "tapNotes",
+          prompt: one ? `Which key of ${approach} stays put into ${landing}? Tap it.` : `Which keys of ${approach} stay put into ${landing}? Tap them.`,
+          answer: f.held,
+        },
+      },
+      {
+        text: `Compare: ${pn(f.susRoot)} falls a fifth to ${pn(f.targetRoot)}; here ${pn(f.approachRoot)} slides down a half step after the sus.`,
+        highlight: [hl(f.susRoot, "old"), hl(f.approachRoot, "new"), hl(f.targetRoot, "home", "down")],
+        play: "ab",
+      },
+    ],
+    rule: "Before a major I, play IV/V, then a 13(♯11) chord a half step above I, and slide down into I.",
+    deeper: `${approach}'s ♯11 is ${twin(f.sharpEleven, f.susRoot)}: the sub keeps ${orig}'s root inside, as the ♯11.`,
+  };
+}
+
+function passingDiminished(f: PassingDiminishedLearn): Lesson {
+  const [from, dim, target] = [ps(f.from), ps(f.dim), ps(f.target)];
+  const dir = f.ascending ? "up" : "down";
+  const walk = [f.fromRoot, f.dimRoot, f.targetRoot];
+  const gap = {
+    text: `${pn(f.fromRoot)} to ${pn(f.targetRoot)} is a whole step. ${dim} fills it, so the bass ${f.ascending ? "moves" : "walks down"} by half steps.`,
+    highlight: walk.map((n, k) => hl(n, pn(n), k ? dir : undefined)),
+    play: "ab" as const,
+    prereqLink: "basics:dim7",
+  };
+  const headline = `Between ${from} and ${target}, slip in ${dim}: the bass walks ${f.ascending ? "" : "down "}${walk.map(pn).join(", ")} by half steps.`;
+  const rule = "Between two chords a whole step apart, put a diminished 7th on the half step between their roots.";
+  if (f.ascending) {
+    // going up, the °7 is the target's V7(♭9) without its root: its 3rd rises home, its ♭9 falls to the 5th
+    const [lead, flatNine] = f.pull!;
+    return {
+      conceptId: "chromatic.passingDiminished",
+      headline,
+      steps: [
+        gap,
+        {
+          text: `${f.dimTones.map(pn).join(", ")} are ${ps(f.impliedV7)} without ${pn(f.impliedV)}: its ${listOf(f.roles.map(degreeWord))}.`,
+          highlight: [hl(f.impliedV, "V"), hl(f.dimTones[0], degreeWord(f.roles[0])), hl(f.dimTones[2], degreeWord(f.roles[2])), hl(f.dimTones[3], degreeWord(f.roles[3]))],
+          ask: { kind: "tapNotes", prompt: `${dim} is a dominant without its root. Tap that root: the V of ${target}.`, answer: [f.impliedV] },
+          prereqLink: "functional.secondaryDominant",
+        },
+        {
+          text: `So ${dim} works as ${target}'s V7(♭9) with no root: ${moves(lead)}, ${moves(flatNine)}.`,
+          highlight: [hl(lead.from, "↑"), hlTo(lead, pn(lead.to)), hl(flatNine.from, "↓"), hlTo(flatNine, pn(flatNine.to))],
+          play: "after",
+        },
+      ],
+      rule,
+      deeper: `Any rising passing °7 works the same way: it is the next chord's V7(♭9) with no root, like ${ps(f.impliedVPlain)} here.`,
+    };
+  }
+  // going down, it isn't a dominant: it shares keys with the target and the rest step into it
+  const movers = f.moving;
+  const n = f.shared.length;
+  return {
+    conceptId: "chromatic.passingDiminished",
+    headline,
+    steps: [
+      gap,
+      {
+        text: `${dim} already holds ${listOf(f.shared.map((s) => pn(s.note)))}, ${target}'s ${listOf(f.shared.map((s) => degreeWord(s.degree)))}.`,
+        highlight: f.shared.map((s) => hl(s.note, degreeWord(s.degree))),
+        ask: { kind: "tapNotes", prompt: n === 1 ? `Tap the key ${dim} shares with ${target}.` : `Tap the ${COUNT[n]} keys ${dim} shares with ${target}.`, answer: f.shared.map((s) => s.note) },
+      },
+      {
+        text: `The other keys move: ${listOf(movers.map(moves))}.`,
+        highlight: movers.slice(0, 2).flatMap((m) => [hl(m.from, pn(m.from)), hlTo(m, pn(m.to))]),
+        play: "after",
+      },
+    ],
+    rule,
+    deeper: `Falling, ${dim} isn't a dominant: its symmetrical shape lets every voice hold or step into ${target}.`,
+  };
+}
+
+function commonToneDiminished(f: CommonToneDiminishedLearn): Lesson {
+  const [dim, chord] = [ps(f.dim), ps(f.chord)];
+  const [l3, l5] = f.leans;
+  const [root, , , sixth] = f.dimTones;
+  return {
+    conceptId: "chromatic.commonToneDiminished",
+    headline: `Start on ${dim}, then ${chord}: two notes lean a half step up into the chord.`,
+    steps: [
+      {
+        text: `${dim} is ${f.dimTones.map(pn).join(", ")}: it shares ${f.shared.length === 1 ? `only ${pn(root)}` : listOf(f.shared.map(pn))} with ${chord}${f.bassStays ? ", and the bass stays" : ""}.`,
+        highlight: [hl(root, "root"), hl(l3.from, "♯2", "up"), hl(l5.from, "♯4", "up"), hl(sixth, "6th", "up")],
+        play: "after",
+        prereqLink: "basics:dim7",
+      },
+      {
+        text: `${moves(l3)}, the 3rd; ${moves(l5)}, the 5th.`,
+        highlight: [hl(l3.from, "♯2"), hlTo(l3, "3rd"), hl(l5.from, "♯4"), hlTo(l5, "5th")],
+        play: "after",
+        ask: { kind: "tapNotes", prompt: `Which two keys of ${dim} rise a half step into ${chord}? Tap them.`, answer: [l3.from, l5.from] },
+      },
+      {
+        text: `${pn(l3.from)} and ${pn(l5.from)} are appoggiaturas: tension on the beat that resolves up into ${chord}.`,
+        highlight: [hl(l3.from, "↑"), hl(l5.from, "↑")],
+        play: "ab",
+        term: "appoggiatura",
+      },
+    ],
+    rule: "On a major chord that lasts, start on the diminished 7th with the same root and let its middle notes rise a half step.",
+    deeper: "Sharps because they rise: the passing °7 that falls spells the same keys with flats.",
+  };
+}
+
+function minorLineCliche(f: MinorLineClicheLearn): Lesson {
+  const [, seven, flatSeven, six] = f.line;
+  return {
+    conceptId: "chromatic.minorLineCliche",
+    headline: `Hold ${ps(f.stops[0])} and walk its root down by half steps: ${f.line.map(pn).join(", ")}.`,
+    steps: [
+      {
+        text: `Keep ${pn(f.third)} and ${pn(f.fifth)} still: the minor triad's 3rd and 5th.`,
+        highlight: [hl(f.third, "3rd"), hl(f.fifth, "5th", "up")],
+        play: "before",
+      },
+      {
+        text: `The root voice walks down by half steps: ${f.line.map(pn).join(", ")}. That's a line cliché.`,
+        highlight: f.line.map((n, k) => hl(n, pn(n), k ? "down" : undefined)),
+        play: "after",
+        ask: { kind: "tapNotes", prompt: `Start on ${pn(f.root)}. Tap the next three keys down by half steps.`, answer: f.line.slice(1) },
+        term: "line cliché",
+      },
+      {
+        text: `Each stop renames the chord: ${f.stops.map(ps).join(", ")}.`,
+        highlight: [hl(seven, "maj7"), hl(flatSeven, "♭7", "down"), hl(six, "6", "down")],
+        play: "ab",
+      },
+    ],
+    rule: "Over a long minor chord, hold the 3rd and 5th; walk the root voice down, inside or in the bass: 1, 7, ♭7, 6.",
+    deeper: "Move the line to the top voice and it becomes a melody over a still chord.",
+  };
+}
+
 /** Rule lessons by rule id, each reading its rule's `facts.learn`. */
 export const RULE_LESSONS = {
   "dominant.tritoneSub": tritoneSub,
@@ -361,4 +594,9 @@ export const RULE_LESSONS = {
   "symmetric.coltraneSubstitution": coltrane,
   "chromatic.constantStructure": constantStructure,
   "melody.oneNoteOnTop": oneNoteOnTop,
+  "dominant.mediantDominant": mediantDominant,
+  "gospel.halfStepTurnaround": gospelTurnaround,
+  "chromatic.passingDiminished": passingDiminished,
+  "chromatic.commonToneDiminished": commonToneDiminished,
+  "chromatic.minorLineCliche": minorLineCliche,
 } as const satisfies Record<string, (f: never) => Lesson>;
