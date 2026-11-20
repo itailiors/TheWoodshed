@@ -204,8 +204,9 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   // every rule fires on its canonical progression in all 12 keys (theory-core's learn.canonical test), so `.move` is set
   const conceptFallback = useMemo(() => conceptDrillSteps(activeRule.id, key), [activeRule.id, key]);
   const move = inTune ? tuneMove : conceptFallback.move!;
-  // a chart's move can drop out in another key (the melody rules it out there): then there is
-  // nothing to drill in that key, never the old key's chords graded under the new one
+  // a guard: the engine is transposition-invariant (theory-core's transposeInvariance test), so a
+  // chart's move fires in every key. If that ever broke, show a notice, never the old key's chords
+  // graded under the new one
   const missingInKey = useMemo(() => inTune && !tuneMoveInKey(tune, tuneMove!.id, key).move, [inTune, tune, tuneMove, key]);
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,

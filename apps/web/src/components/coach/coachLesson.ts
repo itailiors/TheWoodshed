@@ -45,8 +45,9 @@ function fromMove(tune: Tune, move: ReharmMove): CoachLesson | null {
 
 /**
  * A chart's move in another key: the chart transposed, and the move with the same id on it, or
- * null when it doesn't fire there (the melody rules it out in that key). Move ids are positional,
- * so the same id is the same move. Never the old key's move on the new key's chart. Pure.
+ * null when it doesn't fire there. The engine is transposition-invariant (theory-core's
+ * transposeInvariance test), so null is a guard, not a case the bundled tunes reach. Move ids are
+ * positional, so the same id is the same move. Never the old key's move on the new key's chart. Pure.
  */
 export function tuneMoveInKey(tune: Tune, moveId: string, key: string): { tune: Tune; move: ReharmMove | null } {
   const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
