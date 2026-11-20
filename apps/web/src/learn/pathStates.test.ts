@@ -4,7 +4,7 @@ import { demoProgress } from "../library/demoHistory";
 import { browserHistory } from "../library/historyBrowser";
 import { memoryBackend } from "../library/localPractice";
 import { LESSONS_STORE, readLessonFlags } from "./lessonFlags";
-import { ownProgressOnly, pathStates } from "./pathStates";
+import { freshStart, ownProgressOnly, pathStates } from "./pathStates";
 import { memoryStorage, throwingStorage } from "./testStorage";
 
 const NOW = new Date("2026-11-20T12:00:00Z");
@@ -68,5 +68,23 @@ describe("path states come from this browser's own runs and flags", () => {
     const { states } = pathStates(null, readLessonFlags(), NOW);
     expect(states.get("basics:sevenths")!.state).toBe("familiar");
     expect(states.get("basics:tritone")!.state).toBe("new");
+  });
+});
+
+describe("a fresh visitor's first Coach stop", () => {
+  it("is Next up's first item, a foundation with no unmet prerequisite, even over the demo's sample", async () => {
+    const p = await demoAdapter().progress();
+    const first = freshStart(p, {}, NOW);
+    expect(first).toBe(fresh.nextUp[0]);
+    expect(first).toMatch(/^basics:/);
+    expect(fresh.states.get(first!)!.state).toBe("new");
+    expect(fresh.states.get(first!)!.recommendedFirst).toEqual([]);
+  });
+
+  it("is nothing once the player has a flag or a run of their own (the Coach opens where it always did)", async () => {
+    expect(freshStart(null, { "dominant.tritoneSub": { seenAt: "2026-11-20" } }, NOW)).toBeNull();
+    const h = demoAdapter();
+    await h.saveCoachRun({ tuneId: "co-op-blues", moveId: "dominant.tritoneSub@10.1", ruleId: "dominant.tritoneSub", keyTonic: "F", misses: 1, leaps: 0, maxLeap: 2 });
+    expect(freshStart(await h.progress(), {}, NOW)).toBeNull();
   });
 });

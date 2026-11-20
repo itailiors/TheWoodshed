@@ -1,16 +1,36 @@
-import { chroma, conceptDrillSteps, conceptKind, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
-import { useEffect, useMemo, useState } from "react";
+import {
+  chroma,
+  conceptDrillSteps,
+  conceptKind,
+  isBasicsId,
+  KEYS,
+  learnName,
+  prettyNote,
+  prettySymbol,
+  RULES,
+  symbol,
+  type LessonStage,
+  type ReharmMove,
+  type Tune,
+} from "@reharm/theory-core";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { useRevealState } from "../Reveal";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
-import { fetchProgress, onPracticeSaved, type Progress } from "../../library/practice";
+import { updateLessonFlag } from "../../learn/lessonFlags";
+import { usePathStates } from "../../learn/usePathStates";
+import { useQwerty } from "../../midi/qwerty";
 import type { MidiStatus } from "../../midi/useMidi";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill, nextCircleKey, type KeyFlow } from "./CoachDrill";
+import { coachLesson } from "./coachLesson";
+import { coachInput, openingStage, retireGradingStore, stagesFor } from "./gradingMode";
+import { LearnStage } from "./LearnStage";
+import { StageLadder } from "./StageLadder";
 import { useTouchFirst } from "../../device/media";
 import { ChordName } from "../ChordName";
 
@@ -67,6 +87,13 @@ interface Props {
 }
 
 const RULE_NAME = new Map(RULES.map((r) => [r.id, r.name]));
+
+/** A basic has no drill: its ladder is Learn plus where it's practised (spec §A "Basics concepts"). */
+const PRACTISE_ELSEWHERE: Partial<Record<string, { label: string; mode: AppMode }>> = {
+  "basics:guideTones": { label: "Practise it: Voicings › Shells ›", mode: "voicings" },
+  "basics:dominantResolution": { label: "Practise it: Changes, V → I ›", mode: "changes" },
+  "basics:twoFiveOne": { label: "Practise it: Changes, ii–V–I ›", mode: "changes" },
+};
 const CIRCLE_FOURTHS = [0, 5, 10, 3, 8, 1, 6, 11, 4, 9, 2, 7].map((c) => KEYS.find((k) => chroma(k) === c)!);
 const CIRCLE_FIFTHS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5].map((c) => KEYS.find((k) => chroma(k) === c)!);
 
@@ -91,27 +118,113 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const touchFirst = useTouchFirst();
 
   const tuneMove = accepted.find((m) => m.id === moveId) ?? firstTuneMove;
-  const activeRuleId = scope === "concept" || !tuneMove ? ruleId : tuneMove.ruleId;
+  // a basics foundation (the fresh path's first stop, or a prerequisite) is always a concept: it has no move in a tune
+  const basics = isBasicsId(ruleId);
+  const activeRuleId = scope === "concept" || !tuneMove || basics ? ruleId : tuneMove.ruleId;
   const activeRule = RULES.find((r) => r.id === activeRuleId) ?? RULES[0];
+  const inTune = scope === "tune" && !!tuneMove && !basics;
 
   // every rule fires on its canonical progression in all 12 keys (theory-core's learn.canonical test), so `.move` is set
   const conceptFallback = useMemo(() => conceptDrillSteps(activeRule.id, key), [activeRule.id, key]);
-  const move = scope === "tune" && tuneMove ? tuneMove : conceptFallback.move!;
+  const move = inTune ? tuneMove : conceptFallback.move!;
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
-  // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done
-  const [progress, setProgress] = useState<Progress | null>(null);
+  // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done.
+  // The path states (Learn or Play it, the prerequisite note) read only the player's OWN runs (rule 11).
+  const { progress, own, states, flags, loading } = usePathStates();
   const [session, setSession] = useState<Record<string, { clean: string[]; tried: string[] }>>({});
+
+  // ── the stage ladder: Learn → Study it → Self-check → Play it (spec §A) ──
+  const qwertyOn = useQwerty().enabled;
+  const midiConnected = midi.status === "connected";
+  const input = coachInput(midiConnected, qwertyOn);
+  // the old global grading choice is retired: each concept's `lastStage` flag is the one source of truth
+  useEffect(retireGradingStore, []);
+  const learn = useMemo(
+    () => coachLesson(activeRuleId, key, inTune ? { tune, move: tuneMove! } : null),
+    [activeRuleId, key, inTune, tune, tuneMove],
+  );
+  const stages = stagesFor(!!learn, basics);
+  const status = states.get(activeRuleId);
+  const flag = flags[activeRuleId];
+  /** Stages picked in this visit, per concept (also kept as `lastStage`); otherwise where the concept opens. */
+  const [picked, setPicked] = useState<Record<string, LessonStage>>({});
+  const chosen = picked[activeRuleId];
+  const stage: LessonStage =
+    chosen && stages.includes(chosen)
+      ? chosen
+      : openingStage({ state: status?.state ?? "new", hasLesson: !!learn, basics, lastStage: flag?.lastStage, touchFirst, midiConnected });
+  /** Focus follows a stage change the player made (not the page opening). */
+  const focusStage = useRef(false);
+  const [stageFocus, setStageFocus] = useState(false);
+  const pickStage = (s: LessonStage) => {
+    focusStage.current = true;
+    setStageFocus(true);
+    setPicked((p) => ({ ...p, [activeRuleId]: s }));
+    // in a handler, never an effect (StrictMode): where this concept was left
+    updateLessonFlag(activeRuleId, { lastStage: s });
+  };
   useEffect(() => {
-    let live = true;
-    const load = () => void fetchProgress().then((p) => live && p && setProgress(p));
-    load();
-    const off = onPracticeSaved(load);
-    return () => {
-      live = false;
-      off();
-    };
-  }, []);
+    if (!focusStage.current || stage === "learn") return;
+    focusStage.current = false;
+    document.getElementById("coach-h")?.focus();
+  }, [stage, activeRuleId]);
+
+  /** "Learn that first" (or a step's prerequisite chip): the concept to come back to, shown as "from …". */
+  const [returnTo, setReturnTo] = useState<{ forId: string; id: string; scope: CoachScope; moveId: string | null } | null>(null);
+  const learnFirst = (prereqId: string) => {
+    setReturnTo({ forId: prereqId, id: activeRuleId, scope, moveId });
+    setScope("concept");
+    setRuleId(prereqId);
+    setPicked((p) => ({ ...p, [prereqId]: "learn" }));
+    focusStage.current = true;
+    setStageFocus(true);
+  };
+  const returning = returnTo && returnTo.forId === activeRuleId ? returnTo : null;
+  const finishLesson = () => {
+    if (returning) {
+      // back where the player came from, on its Learn stage (the note, if a prerequisite is still unmet)
+      setReturnTo(null);
+      setScope(returning.scope);
+      setRuleId(returning.id);
+      if (returning.moveId) setMoveId(returning.moveId);
+      setPicked((p) => ({ ...p, [returning.id]: "learn" }));
+      setStageFocus(true);
+      return;
+    }
+    if (basics) {
+      setLessonDone(activeRuleId);
+      return;
+    }
+    // finished: Familiar for the path (the stepper set `finishedAt`); hand off to Study it
+    pickStage("study");
+  };
+  const [lessonDone, setLessonDone] = useState<string | null>(null);
+  const elsewhere = basics ? PRACTISE_ELSEWHERE[activeRuleId] : undefined;
+  const finishedStages = new Set<LessonStage>([
+    ...(flag?.finishedAt || flag?.testedOutAt ? (["learn"] as const) : []),
+    ...((own.cleanKeys[activeRuleId]?.length ?? 0) > 0 ? (["self", "play"] as const) : []),
+  ]);
+  const ladder = (
+    <StageLadder
+      stages={stages}
+      stage={stage}
+      onStage={pickStage}
+      finished={finishedStages}
+      selfWithHint={input !== "none"}
+      extra={
+        elsewhere && (
+          <button
+            type="button"
+            onClick={() => onMode(elsewhere.mode)}
+            className="tap-lg cursor-pointer whitespace-nowrap rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
+          >
+            {elsewhere.label}
+          </button>
+        )
+      }
+    />
+  );
 
   // Esc back to Study, like Practice Mode
   useEffect(() => {
@@ -349,7 +462,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               ‹ Prev
             </button>
             <span className="text-ink-soft" aria-live="polite">
-              {scope === "concept" ? "Concept" : "Move"} {stepIdx + 1} of {stepList.length}
+              {stepIdx < 0 ? learnName(activeRuleId) : `${scope === "concept" ? "Concept" : "Move"} ${stepIdx + 1} of ${stepList.length}`}
             </span>
             <button
               type="button"
@@ -453,11 +566,52 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
           <div className="order-1 lg:order-none">
           <SketchBox seed={seedOf("coach-drill")} fill={paper.light} strokeWidth={2} style={{ viewTransitionName: "lead-sheet" }}>
             <div className="p-3 sm:p-4 md:p-6">
+              {loading && !chosen ? (
+                // where a concept opens depends on the player's own runs: wait for them (a moment, from this browser or the API)
+                <p className="font-hand text-ink-soft">Opening your notebook…</p>
+              ) : stage === "learn" && learn ? (
+                // GRADER ISOLATION: Learn renders the lesson INSTEAD of the drill, so nothing that grades or saves is mounted
+                <LearnStage
+                  key={`${activeRuleId}:${inTune ? move.id : ""}`}
+                  conceptId={activeRuleId}
+                  data={learn}
+                  tonic={key}
+                  status={status}
+                  flag={flag}
+                  own={own}
+                  ladder={ladder}
+                  from={returning ? learnName(returning.id) : undefined}
+                  finishLabel={returning ? `Back to ${learnName(returning.id)} ›` : basics ? "Done" : "Study it ›"}
+                  onFinish={finishLesson}
+                  onLearn={learnFirst}
+                  midiConnected={midiConnected}
+                  focus={stageFocus}
+                  footer={
+                    lessonDone === activeRuleId && (
+                      <p role="status" className="font-hand text-base text-ink-soft" data-lesson-done>
+                        ✓ Lesson done.{" "}
+                        {elsewhere ? "Now hear it and play it where it lives: the link above." : "Pick the next concept on the left, or press Next ›."}
+                      </p>
+                    )
+                  }
+                />
+              ) : basics ? (
+                // a basic without a lesson: nothing to drill here (every node Next up returns has one, so this is a fallback)
+                <div className="space-y-3">
+                  {ladder}
+                  <p className="font-hand text-lg">{learnName(activeRuleId)} has no lesson here yet.</p>
+                </div>
+              ) : (
               <CoachDrill
-                key={`${scope}:${scope === "concept" ? activeRuleId : move.id}`}
+                key={`${scope}:${scope === "concept" ? activeRuleId : move.id}:${stage}`}
+                stage={stage === "learn" ? "study" : stage}
+                input={input}
+                onStage={pickStage}
+                ladder={ladder}
+                lesson={learn?.lesson ?? null}
                 tune={tune}
                 move={move}
-                conceptRuleId={scope === "concept" || !tuneMove ? activeRuleId : null}
+                conceptRuleId={inTune ? null : activeRuleId}
                 keyFlow={keyFlow}
                 drillKey={key}
                 onDrillKey={setKey}
@@ -470,13 +624,15 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                 midiStatus={midi.status}
                 onConnectMidi={midi.connect}
               />
+              )}
             </div>
           </SketchBox>
           </div>
         </div>
 
         {/* ── Zone 3 (Right Rail): Concept Passport Page ── */}
-        <aside aria-labelledby="coach-passport-h" className="order-3 space-y-3 lg:sticky lg:top-4 lg:order-none">
+        {/* a basic has no keys of its own to stamp: its practice is filed under Changes and Voicings */}
+        <aside aria-labelledby="coach-passport-h" hidden={basics} className="order-3 space-y-3 lg:sticky lg:top-4 lg:order-none">
           <SketchBox seed={seedOf("coach-passport")} fill={paper.light}>
             <div className="space-y-3 p-4">
               <div>

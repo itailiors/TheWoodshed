@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchProgress, onPracticeSaved, type Progress } from "../library/practice";
-import { onLessonFlagsChanged, readLessonFlags } from "./lessonFlags";
+import { onLessonFlagsChanged, readLessonFlags, type LessonFlags } from "./lessonFlags";
 import { ownProgressOnly, pathStates, type OwnProgress, type PathStates } from "./pathStates";
 
 /**
@@ -38,7 +38,7 @@ export function useOwnProgress(): { own: OwnProgress; progress: Progress | null;
  * Concept states and Next up, from this browser's own runs and its lesson flags. Re-reads after
  * a saved run and after any flag change.
  */
-export function usePathStates(limit = 4): PathStates & { own: OwnProgress; loading: boolean } {
+export function usePathStates(limit = 4): PathStates & { own: OwnProgress; progress: Progress | null; flags: LessonFlags; loading: boolean } {
   const { own, progress, loading } = useOwnProgress();
   const [flags, setFlags] = useState(readLessonFlags);
   const [tick, setTick] = useState(0);
@@ -61,5 +61,6 @@ export function usePathStates(limit = 4): PathStates & { own: OwnProgress; loadi
   }, []);
 
   const result = useMemo(() => pathStates(progress, flags, new Date(), limit), [progress, flags, limit, tick]);
-  return { ...result, own, loading };
+  // `progress` is the passport as shown (it may be the demo's sample, marked `sample`): for display only, never for states
+  return { ...result, own, progress, flags, loading };
 }

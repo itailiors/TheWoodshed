@@ -1,6 +1,4 @@
-import { useCallback, useState } from "react";
-import { isTouchFirst } from "../../device/media";
-import type { MidiStatus } from "../../midi/useMidi";
+import { atLeastFamiliar, type ConceptState, type LessonStage } from "@reharm/theory-core";
 
 /*
  * How the Coach finds out what you played.
@@ -18,45 +16,74 @@ import type { MidiStatus } from "../../midi/useMidi";
  * pitch detection on the real piano) needs no new grading path: publish the detected chord
  * to the note bus as another strike source and it becomes a "listen" mode, the self-check
  * panel stepping aside on its own.
+ *
+ * Which mode runs is decided by the Coach's stage ladder (Learn → Study it → Self-check → Play it,
+ * spec §A), through `modeForStage`. The stage a concept was left on is its `lastStage` lesson flag
+ * (`reharm.lessons`): the one source of truth. The old global `reharm.coachGrading` is retired.
  */
 export type GradingMode = "listen" | "self" | "study";
 /** The verdict a self-check gives one chord. */
 export type SelfVerdict = "nailed" | "missed";
 
-const KEY = "reharm.coachGrading";
+/** Where the notes can come from: a MIDI keyboard, the computer keys (QWERTY on), or neither. */
+export type CoachInput = "midi" | "qwerty" | "none";
 
-function stored(): GradingMode | null {
-  try {
-    const v = localStorage.getItem(KEY);
-    return v === "listen" || v === "self" || v === "study" ? v : null;
-  } catch {
-    return null;
-  }
+/** What the drill does on a stage. */
+export interface StageMode {
+  grading: GradingMode;
+  /** "Show the voicing hint" is on and can't be turned off (Self-check with keys that the engine hears). */
+  hintForced: boolean;
+  /** Chord strikes are heard and graded (`useChordStrikes` is enabled). */
+  strikes: boolean;
 }
 
 /**
- * The automatic choice: listen whenever MIDI is connected; otherwise self-check on touch-first
- * devices (phone, iPad), where there's no keyboard to type on and tapping a five-note voicing
- * onto a tiny keyboard is a chore; otherwise listen (QWERTY and clicks work on a desktop).
+ * The ladder onto the drill. Pure. **Learn → null: the drill is not mounted at all** (grader
+ * isolation; the lesson stepper renders instead). Study it → "study" (ungraded). Self-check →
+ * "self" at an acoustic piano, or, when the engine can hear you (MIDI, or the computer keys),
+ * "listen" with the hint forced on ("Self-check: with hint"). Play it → "listen", hint free.
  */
-export function autoMode(midi: MidiStatus, touchFirst = isTouchFirst()): GradingMode {
-  if (midi === "connected") return "listen";
-  return touchFirst ? "self" : "listen";
+export function modeForStage(stage: LessonStage, input: CoachInput): StageMode | null {
+  switch (stage) {
+    case "learn":
+      return null;
+    case "study":
+      return { grading: "study", hintForced: false, strikes: false };
+    case "self":
+      return input === "none" ? { grading: "self", hintForced: false, strikes: false } : { grading: "listen", hintForced: true, strikes: true };
+    case "play":
+      return { grading: "listen", hintForced: false, strikes: true };
+  }
 }
 
-/** The current mode, the player's override (remembered) or else the automatic choice. */
-export function useGradingMode(midi: MidiStatus): [GradingMode, (m: GradingMode) => void] {
-  const [override, setOverride] = useState<GradingMode | null>(stored);
-  // plugging in MIDI always means "listen to me", whatever was picked before
-  // (Study is the exception: nothing is graded there, so a keyboard being plugged in changes nothing)
-  const mode = midi === "connected" && override !== "study" ? "listen" : (override ?? autoMode(midi));
-  const set = useCallback((m: GradingMode) => {
-    setOverride(m);
-    try {
-      localStorage.setItem(KEY, m);
-    } catch {
-      /* private mode: the choice lasts this visit */
-    }
-  }, []);
-  return [mode, set];
+/** The input the Coach hears now. MIDI wins over the computer keys. */
+export const coachInput = (midiConnected: boolean, qwertyOn: boolean): CoachInput => (midiConnected ? "midi" : qwertyOn ? "qwerty" : "none");
+
+/** The stages a concept's ladder shows: Learn only for a lesson; basics have no drill. */
+export function stagesFor(hasLesson: boolean, basics: boolean): LessonStage[] {
+  if (basics) return hasLesson ? ["learn"] : [];
+  return hasLesson ? ["learn", "study", "self", "play"] : ["study", "self", "play"];
+}
+
+/**
+ * Where a concept opens (spec §A "Where a concept opens"). Pure. The stage it was left on wins
+ * when it's on the ladder. Otherwise: not yet Familiar → Learn (when there is a lesson); Familiar
+ * or above, or no lesson → Play it, or Self-check on a touch-first device with no MIDI (tapping a
+ * five-note voicing onto a phone's keys is a chore).
+ */
+export function openingStage(o: { state: ConceptState; hasLesson: boolean; basics: boolean; lastStage?: LessonStage; touchFirst: boolean; midiConnected: boolean }): LessonStage {
+  const stages = stagesFor(o.hasLesson, o.basics);
+  if (o.lastStage && stages.includes(o.lastStage)) return o.lastStage;
+  if (o.basics || (o.hasLesson && !atLeastFamiliar(o.state))) return "learn";
+  return o.touchFirst && !o.midiConnected ? "self" : "play";
+}
+
+/** The retired global grading choice: removed once, so nothing reads a stale value. */
+export const RETIRED_GRADING_STORE = "reharm.coachGrading";
+export function retireGradingStore() {
+  try {
+    localStorage.removeItem(RETIRED_GRADING_STORE);
+  } catch {
+    /* blocked storage: nothing was kept */
+  }
 }

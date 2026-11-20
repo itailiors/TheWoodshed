@@ -50,6 +50,8 @@ import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
 import { useExplainSetting } from "./learn/explainDepth";
 import { useOwnProgress } from "./learn/usePathStates";
+import { readLessonFlags } from "./learn/lessonFlags";
+import { freshStart } from "./learn/pathStates";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
 import { Reveal, useRevealState } from "./components/Reveal";
@@ -293,7 +295,7 @@ export function App() {
   const midi = useMidi();
   // how much the move cards' lessons explain: the ⚙ setting, then the player's own runs (never the demo's sample)
   const explain = useExplainSetting();
-  const { own } = useOwnProgress();
+  const { own, progress: ownHistory, loading: historyLoading } = useOwnProgress();
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem("reharm.mode");
@@ -560,6 +562,9 @@ export function App() {
   }
 
   if (mode === "coach") {
+    // a fresh visitor (no runs of their own, no lesson flags) opening the tab starts on the path's first
+    // foundation, not on a gated rule; anyone else opens where the Coach always did
+    const start = !coachTarget && !historyLoading ? freshStart(ownHistory, readLessonFlags(), new Date()) : null;
     return (
       <Suspense fallback={<Inking label="Opening the Coach" />}>
         <Toaster />
@@ -569,12 +574,16 @@ export function App() {
             tune={tune}
             accepted={accepted}
             pathway={pathway}
-            initial={{
-              moveId: coachTarget?.moveId ?? selected?.id ?? null,
-              ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
-              key: coachTarget?.key,
-              scope: coachTarget?.scope,
-            }}
+            initial={
+              start
+                ? { moveId: null, ruleId: start, scope: "concept" }
+                : {
+                    moveId: coachTarget?.moveId ?? selected?.id ?? null,
+                    ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
+                    key: coachTarget?.key,
+                    scope: coachTarget?.scope,
+                  }
+            }
             midi={midi}
             onMode={setMode}
             onPractise={(r) => practiseConcept(r)}

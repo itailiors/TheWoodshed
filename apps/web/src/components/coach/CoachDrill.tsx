@@ -17,11 +17,13 @@ import {
   type DrillRun,
   type DrillStep,
   type KeyPlan,
+  type Lesson,
+  type LessonStage,
   type ReharmMove,
   type RulePedagogy,
   type Tune,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { player } from "../../audio/player";
 import { pen } from "../../design/tokens";
 import { useChordStrikes } from "../../midi/noteBus";
@@ -34,12 +36,25 @@ import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
 import { PenKeyboard, type PenKeyboardProps, type PenMark } from "../practice/PenKeyboard";
 import { useNarrow } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
-import { useGradingMode, type GradingMode, type SelfVerdict } from "./gradingMode";
+import { modeForStage, type CoachInput, type SelfVerdict } from "./gradingMode";
 import { SelfCheckPanel } from "./SelfCheckPanel";
 
 export type KeyFlow = "fourths" | "fifths" | "hold";
 
+/** The drill's stages: the ladder's Learn never mounts it (grader isolation). */
+export type DrillStage = Exclude<LessonStage, "learn">;
+
 interface Props {
+  /** Study it, Self-check or Play it: what the drill grades (`modeForStage`). */
+  stage: DrillStage;
+  /** Where the notes come from (MIDI, the computer keys, or neither). */
+  input: CoachInput;
+  /** Move to another stage of the ladder ("Ready? Self-check ›", "Why? (5 steps)"). */
+  onStage: (s: LessonStage) => void;
+  /** The stage ladder, under the title. */
+  ladder: ReactNode;
+  /** The concept's lesson, when it has one: the Why card collapses to its headline and rule. */
+  lesson: Lesson | null;
   tune: Tune;
   move: ReharmMove;
   /** When set, drills the rule's pure canonical cadence in `drillKey` via `conceptDrillSteps`. */
@@ -92,6 +107,11 @@ export function nextCircleKey(currentKey: string, flow: KeyFlow): string {
 }
 
 export function CoachDrill({
+  stage,
+  input,
+  onStage,
+  ladder,
+  lesson,
   tune,
   move,
   conceptRuleId = null,
@@ -102,13 +122,18 @@ export function CoachDrill({
   midiStatus,
   onConnectMidi,
 }: Props) {
-  const [transfer, setTransfer] = useState(false);
-  const [showHint, setShowHint] = useState(true);
+  // Play it is the full problem (spec §A, stage 4): hint off, a new key after every clean run.
+  // The page remounts the drill on a stage change, so these are each stage's starting point.
+  const [transfer, setTransfer] = useState(stage === "play");
+  const [hintPicked, setShowHint] = useState(stage !== "play");
   const [optionsOpen, setOptionsOpen] = useRevealState("coach.options");
   const [pending, setPending] = useState<number[]>([]);
   /** The step being heard right now ("Hear the move" / "Hear this chord"), or null. */
   const [heard, setHeard] = useState<number | null>(null);
-  const [mode, setMode] = useGradingMode(midiStatus);
+  const stageMode = modeForStage(stage, input)!;
+  const mode = stageMode.grading;
+  // Self-check with keys the engine hears is listen mode with the hint forced on
+  const showHint = stageMode.hintForced || hintPicked;
   /** Self-check: has the current chord's voicing been revealed, and was it just marked missed? */
   const [revealed, setRevealed] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -186,7 +211,6 @@ export function CoachDrill({
     },
     [move.id, conceptRuleId, key],
   );
-  useEffect(() => setShowHint(!transfer), [transfer]);
 
   const cleanRun = drill.view.clean;
   const finishText = cleanRun
@@ -206,7 +230,8 @@ export function CoachDrill({
     drill.strike(notes);
     setPending([]);
   };
-  useChordStrikes(strike, mode === "listen");
+  // strikes are heard only on Play it and Self-check's hint mode (`modeForStage`); Study it never grades
+  useChordStrikes(strike, stageMode.strikes);
 
   /** The self-check's verdict on the current chord. A miss keeps it revealed for another go. */
   const selfGrade = (v: SelfVerdict) => {
@@ -216,10 +241,6 @@ export function CoachDrill({
       setRevealed(false);
       setRetrying(false);
     } else setRetrying(true);
-  };
-  const switchMode = (m: GradingMode) => {
-    setMode(m);
-    reset();
   };
 
   // Strictly scope the engine's red-pen markup to the active stepIdx so prior chords never bleed
@@ -288,13 +309,24 @@ export function CoachDrill({
   }, [studyMode, steps.length]);
 
   const why = rule?.pedagogy && (
-    <WhyThisWorksCard pedagogy={rule.pedagogy} move={dmove} keyLabel={keyName(key)} activeStep={!finished ? current : undefined} />
+    <WhyThisWorksCard
+      pedagogy={rule.pedagogy}
+      move={dmove}
+      keyLabel={keyName(key)}
+      activeStep={!finished ? current : undefined}
+      lesson={lesson}
+      onLearn={() => onStage("learn")}
+    />
   );
+  // the hand-off to the next rung: Study it's last chord → Self-check; a clean self-check → Play it
+  const withHint = input !== "none";
+  const studyDone = studyMode && studyStep === steps.length - 1;
+  const ladderNext = "tap-lg cursor-pointer rounded-full border-2 border-ink bg-paper-light px-3 py-0.5 font-marker text-sm hover:-rotate-1 motion-reduce:hover:rotate-0";
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 id="coach-h" className="ink-wobble font-marker text-2xl font-bold uppercase md:text-3xl">
+        <h2 id="coach-h" tabIndex={-1} className="ink-wobble font-marker text-2xl font-bold uppercase outline-none focus-visible:underline md:text-3xl">
           {dmove.title}
         </h2>
         <p className="text-sm text-ink-soft">
@@ -303,7 +335,7 @@ export function CoachDrill({
         </p>
       </div>
 
-      <GradingSwitch mode={mode} onMode={switchMode} midiConnected={midiStatus === "connected"} />
+      {ladder}
 
       {!narrow && why}
 
@@ -368,6 +400,13 @@ export function CoachDrill({
         {finished && savedRun && (
           <p className="mt-1 font-hand text-sm text-ink-soft" role="status">
             ✎ Saved to your passport: graded {savedRun.grade}/5 in {prettyNote(savedRun.review.keyTonic)} · {nextReview(savedRun.review.intervalDays)}
+          </p>
+        )}
+        {finished && cleanRun && stage === "self" && (
+          <p className="mt-2">
+            <button type="button" onClick={() => onStage("play")} className={ladderNext}>
+              Clean in {prettyNote(key)}. Play it from memory ›
+            </button>
           </p>
         )}
       </section>
@@ -492,11 +531,20 @@ export function CoachDrill({
           </button>
         )}
         <label className="flex items-center gap-2">
-          <input type="checkbox" checked={transfer} onChange={(e) => setTransfer(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
+          <input
+            type="checkbox"
+            checked={transfer}
+            onChange={(e) => {
+              setTransfer(e.target.checked);
+              // a new key every time is the test: the hint goes off with it (and back on without it)
+              setShowHint(!e.target.checked);
+            }}
+            className="h-4 w-4 accent-[var(--color-ink)]"
+          />
           New key after every clean run
         </label>
-        {/* in a self-check the reveal is the hint */}
-        {!selfMode && !studyMode && (
+        {/* in a self-check the reveal is the hint; with keys the engine hears, Self-check keeps the hint on */}
+        {!selfMode && !studyMode && !stageMode.hintForced && (
           <label className="flex items-center gap-2">
             <input type="checkbox" checked={showHint} onChange={(e) => setShowHint(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
             Show the voicing hint
@@ -506,7 +554,13 @@ export function CoachDrill({
       </Reveal>
       <p className="text-sm text-ink-soft">
         {studyMode ? (
-          "When it sits under your fingers, switch to Play it here or Self-check and run it for real."
+          studyDone ? (
+            <button type="button" onClick={() => onStage("self")} className={ladderNext}>
+              {withHint ? "Ready? Play it with the hint ›" : "Ready? Self-check ›"}
+            </button>
+          ) : (
+            "Step through every chord; when it sits under your fingers, Self-check runs it for real."
+          )
         ) : midiStatus === "connected" ? (
           "Listening to your MIDI keyboard: strike each chord, then release all keys."
         ) : selfMode ? (
@@ -536,19 +590,42 @@ export function CoachDrill({
 }
 
 
-/** Generalized rule card + transposed original progression + active step cue shown before striking a chord. */
+/**
+ * The Why card beside the drill. With a lesson it collapses to formula + the lesson's headline +
+ * its rule, and "Why? (n steps)" reopens Learn (spec §A, stage 2). Without one (a rule whose
+ * lesson isn't written yet): the generalized rule card, the original progression and the active
+ * step's cue, as before.
+ */
 function WhyThisWorksCard({
   pedagogy,
   move,
   keyLabel,
   activeStep,
+  lesson,
+  onLearn,
 }: {
   pedagogy: RulePedagogy;
   move: ReharmMove;
   keyLabel: string;
   activeStep?: DrillStep;
+  lesson: Lesson | null;
+  onLearn: () => void;
 }) {
   const [more, setMore] = useState(false);
+  if (lesson) {
+    return (
+      <aside aria-label="Why this move works" data-why-card className="space-y-1.5 rounded-lg border-2 border-ink/80 bg-wash-mustard/20 px-3.5 py-2.5 text-sm leading-snug">
+        <span className="font-marker text-xs font-bold uppercase tracking-wider text-ink-soft">
+          💡 Why this works · <span className="text-ink">{pedagogy.formula}</span>
+        </span>
+        <p className="font-hand text-base text-ink">{lesson.headline}</p>
+        <p className="font-medium text-ink">{lesson.rule}</p>
+        <button type="button" onClick={onLearn} className="cursor-pointer font-marker text-xs text-ink-soft underline decoration-dotted hover:text-ink">
+          Why? ({lesson.steps.length} steps)
+        </button>
+      </aside>
+    );
+  }
   return (
     <aside
       aria-label="Why this move works"
@@ -698,33 +775,6 @@ function StudyNotes({ steps, at }: { steps: DrillStep[]; at: number }) {
           <span className="font-marker text-ink-soft">{step.stepCue.role}:</span> {step.stepCue.whyHere}
         </p>
       )}
-    </div>
-  );
-}
-
-/** Listen (the engine hears your notes), self-check (an acoustic piano, no cable) or study (nothing graded). */
-function GradingSwitch({ mode, onMode, midiConnected }: { mode: GradingMode; onMode: (m: GradingMode) => void; midiConnected: boolean }) {
-  const opts: { id: GradingMode; label: string; title: string }[] = [
-    { id: "listen", label: midiConnected ? "🎹 Listening to MIDI" : "🎹 Play it here", title: "The engine hears what you play (MIDI, computer keys or the keys below) and marks it up" },
-    { id: "self", label: "✋ Self-check", title: "At an acoustic piano: reveal the voicing, play it, grade yourself" },
-    { id: "study", label: "📖 Study it", title: "See each chord on the keys and how to play it, chord by chord. Nothing is graded" },
-  ];
-  return (
-    <div role="radiogroup" aria-label="How your playing is checked" className="flex flex-wrap items-center gap-2 font-marker text-sm">
-      {opts.map((o) => (
-        <button
-          key={o.id}
-          type="button"
-          role="radio"
-          aria-checked={mode === o.id}
-          disabled={midiConnected && o.id === "self"}
-          onClick={() => onMode(o.id)}
-          className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 disabled:cursor-default disabled:opacity-40 ${mode === o.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
-        >
-          {o.label}
-        </button>
-      ))}
-      {midiConnected && <span className="font-hand text-xs text-ink-soft">(MIDI connected, so the engine listens)</span>}
     </div>
   );
 }
