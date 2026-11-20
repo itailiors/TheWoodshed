@@ -110,7 +110,10 @@ export const mediantDominant: Rule = {
     if (!isMajorTarget(next) || chord.quality !== "7" || chord.display || chord.bass || !resolvesDownFifth(chord, next)) return null;
     const T = next.root;
     const sub = mk(tidy(transpose(T, "3")), "7", chord.beats, [], ["b9"]);
-    const dim = (["7", "2", "4", "b6"] as const).map((d) => tidy(transpose(T, d)));
+    // the °7 is the chart's V7(♭9) without its root: spelled as that chord's 3rd, 5th, ♭7, ♭9 (D♭7 in G♭: F A♭ C♭ D, not B for C♭)
+    const dim = chordTones(mk(chord.root, "7", 1, [], ["b9"]))
+      .filter((t) => t.degree !== "1")
+      .map((t) => readable(t.note));
     const familyChords = (["5", "b7", "b2", "3"] as const).map((d) => mk(tidy(transpose(T, d)), "7", 1, [], ["b9"]));
     const [third, seventh] = guideTones(sub).map((g) => g.note);
     // III7(♭9)'s upper four, double accidentals respelled (D♯7's F𝄪 reads G), each paired with the °7 key it shares

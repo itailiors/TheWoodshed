@@ -638,6 +638,13 @@ describe("lesson notes are the engine's notes, in every key", () => {
     }
   });
 
+  it("mediant dominant: the °7 is spelled as the chart's V7(♭9) without its root, so III7(♭9) needs no twin where they agree (G♭)", () => {
+    const l = lessonForMove(canonicalMove("dominant.mediantDominant", "Gb")!)!;
+    expect(l.steps[0].text).toBe("Add the ♭9 to D♭7 and drop the root: F, A♭, C♭, D, a diminished 7th.");
+    expect(l.steps[1].text).toBe("Put B♭ under them: D, F, A♭ and C♭ make B♭7(♭9).");
+    expect(lessonForMove(canonicalMove("dominant.mediantDominant", "C")!)!.steps[1].text).toBe("Put E under them: G♯ (same key as A♭), B, D and F make E7(♭9).");
+  });
+
   it("one minor key, one name: in D♭ and G♭ the parallel minor is C♯ / F♯ minor in every lesson, and a respelled ♭VII root gets its twin", () => {
     const gb = basicsLesson("basics:parallelMinor", "Gb")!;
     expect(gb.steps[0].text).toBe("F♯ minor, G♭'s parallel minor, lowers B♭, E♭ and F to A, D and E.");
