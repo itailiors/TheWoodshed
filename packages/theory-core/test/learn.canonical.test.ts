@@ -3,6 +3,7 @@ import { conceptDrillSteps } from "../src/coach";
 import { anyLesson, CANONICAL_PROGRESSIONS, canonicalLesson, canonicalMove, canonicalTune } from "../src/learn/canonical";
 import { basicsLesson, hasRuleLesson, prereqSummary } from "../src/learn";
 import { symbol } from "../src/chords";
+import { chroma } from "../src/pitch";
 import { RULES } from "../src/ruleset";
 import { KEYS } from "../src/transpose";
 
@@ -22,7 +23,10 @@ describe("canonical progressions", () => {
         const m = canonicalMove(r.id, k);
         expect(m, `${r.id} in ${k}`).not.toBeNull();
         expect(m!.ruleId).toBe(r.id);
-        expect(canonicalTune(r.id, k)!.key.tonic).toBe(k);
+        // the drill's key, by name; a minor progression in D♭ or G♭ is charted C♯ or F♯ minor (same keys)
+        const minor = CANONICAL_PROGRESSIONS[r.id].mode === "minor";
+        expect(canonicalTune(r.id, k)!.key.tonic).toBe(minor && (k === "Db" || k === "Gb") ? (k === "Db" ? "C#" : "F#") : k);
+        expect(chroma(canonicalTune(r.id, k)!.key.tonic)).toBe(chroma(k));
       }
   });
 

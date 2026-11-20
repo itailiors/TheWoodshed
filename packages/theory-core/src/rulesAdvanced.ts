@@ -490,7 +490,8 @@ export const minorLineCliche: Rule = {
       mk(r, "m7", beats[2], ["9"]),
       mk(r, "m6", beats[3], ["9"]),
     ];
-    const line: [string, string, string, string] = [r, tidy(transpose(r, "7")), tidy(transpose(r, "b7")), tidy(transpose(r, "6"))];
+    // spelled as the degrees they are (C♯m: C♯, B♯, B, A♯, as a real book writes it); only a double accidental is respelled
+    const line: [string, string, string, string] = [r, readable(transpose(r, "7")), readable(transpose(r, "b7")), readable(transpose(r, "6"))];
     // `stops`: the four chords without their added 9th. symbol() rightly prints m7 + 9 as "Cm9",
     // which would read as a different chord from "Cm" when a lesson names the line's stops.
     const stops = chords.map((c) => symbol({ ...c, extensions: [] }));

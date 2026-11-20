@@ -1,5 +1,5 @@
 import { generateMoves } from "../engine";
-import { simplifyNote, transpose } from "../pitch";
+import { playableKey, simplifyNote, transpose } from "../pitch";
 
 /** An interval name above the tonic, as `transpose()` takes it. */
 type Degree = "1" | "2" | "4" | "5" | "6";
@@ -72,7 +72,8 @@ export function canonicalTune(ruleId: string, tonic: string): Tune | null {
   const prog = CANONICAL_PROGRESSIONS[ruleId];
   const rule = RULES.find((r) => r.id === ruleId);
   if (!prog || !rule) return null;
-  const T = simplifyNote(tonic);
+  // a minor progression in D♭ or G♭ is charted in C♯ or F♯ minor: 8 and 9 flats aren't a key anyone reads in
+  const T = prog.mode === "minor" ? playableKey(simplifyNote(tonic), "minor") : simplifyNote(tonic);
   const harmony: ChordEvent[] = prog.chords.map((c, i) => ({
     id: `c${i + 1}`,
     at: { bar: i + 1, beat: 1 },
