@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T18:10:55.053Z",
+  "generatedAt": "2026-11-20T18:56:49.915Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -13,7 +13,7 @@
     "functional.secondaryTwoFive@2.1": {
       "summary": "Swap B♭7 for Gm9 → C7(♭9): a ii–V that walks you into F6.",
       "deepDive": "C7(♭9)'s ♭9, D♭, falls a half step to C, the 5th of F6.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
-      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii.",
+      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@4.1": {
@@ -42,7 +42,7 @@
     },
     "dominant.tritoneSub@8.3": {
       "summary": "Play A♭9 instead of D7(♭9). Same two tense notes, but the bass slides down a half step into Gm7.",
-      "deepDive": "Every note of A♭9 is a tone or tension of D7(♭9): A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. So A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "deepDive": "Every note of A♭9 is a tone or tension of D7(♭9): A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
       "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
@@ -60,7 +60,7 @@
     },
     "dominant.tritoneSub@10.1": {
       "summary": "Play G♭9 instead of C7. Same two tense notes, but the bass slides down a half step into F6.",
-      "deepDive": "Every note of G♭9 is a tone or tension of C7: G♭ is the ♭5, D♭ the ♭9, A♭ the ♭13. So G♭ Lydian dominant and C altered share all seven notes: both are modes of D♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "deepDive": "Every note of G♭9 is a tone or tension of C7: G♭ is the ♭5, D♭ the ♭9, A♭ the ♭13. And G♭ Lydian dominant and C altered share all seven notes: both are modes of D♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
       "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
@@ -97,12 +97,12 @@
     "functional.secondaryTwoFive@11.3": {
       "summary": "Split D7 into Am7♭5 → D7(♭9): its related ii in front, a full ii–V into Gm7.",
       "deepDive": "D7(♭9)'s ♭9, E♭, falls a half step to D, the 5th of Gm7.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
-      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii.",
+      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@11.3": {
       "summary": "Play A♭9 instead of D7. Same two tense notes, but the bass slides down a half step into Gm7.",
-      "deepDive": "Every note of A♭9 is a tone or tension of D7: A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. So A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "deepDive": "Every note of A♭9 is a tone or tension of D7: A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
       "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
