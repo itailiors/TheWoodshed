@@ -3,7 +3,7 @@ import { simplifyNote, transpose } from "../../pitch";
 import { chainMotions } from "../../ruleKit";
 import type { Quality } from "../../types";
 import type { BasicsId } from "../graph";
-import { degreeWord, hl, moves, pn, ps, readable, twin, type Lesson } from "../lesson";
+import { degreeWord, hl, hlTo, moves, pn, ps, readable, twin, type Lesson } from "../lesson";
 
 /*
  * The foundation lessons, for any tonic: every note comes from `transpose()`, `chordTones()`,
@@ -103,10 +103,10 @@ function tritone(T: string): Lesson {
     conceptId: "basics:tritone",
     headline: "A tritone splits the octave exactly in half: six half steps, the most restless interval.",
     steps: [
-      { text: `From ${pn(T)} up to ${pn(b5)} is six half steps: a tritone.`, highlight: [hl(T, pn(T)), hl(b5, "♭5")], play: "interval", term: "tritone" },
+      { text: `From ${pn(T)} up to ${pn(b5)} is six half steps: a tritone.`, highlight: [hl(T, pn(T)), hl(b5, "♭5", "up")], play: "interval", term: "tritone" },
       {
         text: `Go up six more from ${pn(b5)} and you're back on ${pn(T)}: it halves the octave.`,
-        highlight: [hl(b5, pn(b5)), hl(T, pn(T))],
+        highlight: [hl(b5, pn(b5)), hl(T, pn(T), "up")],
         play: "interval",
         ask: { kind: "tapNotes", prompt: `Tap the key a tritone above ${pn(b5)}.`, answer: [T] },
       },
@@ -138,7 +138,8 @@ function guideTonesLesson(T: string): Lesson {
         text: `With ${pn(V7.root)} in the bass, ${pn(g3)} and ${pn(g7)} alone still sound like ${sym(V7)}.`,
         highlight: [hl(V7.root, "bass"), hl(g3, "3rd"), hl(g7, "7th")],
         sound: [[V7.root, g3, g7]],
-        ask: { kind: "tapNotes", prompt: `Tap the two keys that make ${sym(V7)} a dominant 7th.`, answer: [g3, g7] },
+        // the guide tones by name: the root and ♭7 also "make" a 7th chord to a newcomer
+        ask: { kind: "tapNotes", prompt: `Tap ${sym(V7)}'s guide tones: the 3rd and 7th.`, answer: [g3, g7] },
       },
     ],
     rule: "Find the 3rd and 7th first; the root, 5th and tensions add colour on top.",
@@ -154,21 +155,22 @@ function dominantResolution(T: string): Lesson {
     conceptId: "basics:dominantResolution",
     headline: `In ${sym(V7)} → ${sym(I)}, two notes pull by half step: ${pn(g3)} up to ${pn(T)}, ${pn(g7)} down to ${pn(i3)}.`,
     steps: [
-      { text: `${sym(V7)}'s root, ${pn(V7.root)}, falls a fifth to ${pn(T)}.`, highlight: [hl(V7.root, "V"), hl(T, "I")], sound: [tones(V7), tones(I)] },
+      { text: `${sym(V7)}'s root, ${pn(V7.root)}, falls a fifth to ${pn(T)}.`, highlight: [hl(V7.root, "V"), hl(T, "I", "down")], sound: [tones(V7), tones(I)] },
       {
         text: `Its 3rd, ${pn(g3)}, rises a half step to ${pn(T)}: the leading tone.`,
-        highlight: [hl(g3, "3rd"), hl(T, "root")],
+        highlight: [hl(g3, "3rd"), hl(T, "root", "up")],
         term: "leading tone",
         prereqLink: "basics:guideTones",
       },
       {
         text: `Its 7th, ${pn(g7)}, falls a half step to ${pn(i3)}, the 3rd of ${sym(I)}.`,
-        highlight: [hl(g7, "7th"), hl(i3, "3rd")],
-        ask: { kind: "tapNotes", prompt: `Where does ${pn(g7)} go in ${sym(I)}? Tap it.`, answer: [i3] },
+        highlight: [hl(g7, "7th"), hl(i3, "3rd", "down")],
+        // "where does it go" allows any chord tone: say which way, and how far
+        ask: { kind: "tapNotes", prompt: `${pn(g7)} falls a half step into ${sym(I)}. Tap where it lands.`, answer: [i3] },
       },
       {
         text: `Two half-step pulls at once, ${pn(g3)} and ${pn(g7)}: that's why ${sym(V7)} → ${sym(I)} sounds like home.`,
-        highlight: [hl(g3, "↑"), hl(T, pn(T)), hl(g7, "↓"), hl(i3, pn(i3))],
+        highlight: [hl(g3, "↑"), hl(T, pn(T), "up"), hl(g7, "↓"), hl(i3, pn(i3), "down")],
         sound: [tones(V7), tones(I)],
       },
     ],
@@ -188,20 +190,21 @@ function twoFiveOne(T: string): Lesson {
     conceptId: "basics:twoFiveOne",
     headline: "ii–V–I: the roots fall in fifths, and the guide tones move by half step or hold.",
     steps: [
-      { text: `The roots fall in fifths: ${pn(ii.root)} to ${pn(V7.root)} to ${pn(T)}.`, highlight: [hl(ii.root, "ii"), hl(V7.root, "V"), hl(T, "I")], sound: progression },
+      { text: `The roots fall in fifths: ${pn(ii.root)} to ${pn(V7.root)} to ${pn(T)}.`, highlight: [hl(ii.root, "ii"), hl(V7.root, "V", "down"), hl(T, "I", "down")], sound: progression },
       {
         text: `${sym(ii)}'s 7th: ${moves(seventh[0])}, ${sym(V7)}'s ${degreeWord(seventh[0].toDegree)}.`,
-        highlight: [hl(ii7, "7th"), hl(seventh[0].to, degreeWord(seventh[0].toDegree))],
+        highlight: [hl(ii7, "7th"), hlTo(seventh[0], degreeWord(seventh[0].toDegree))],
         prereqLink: "basics:guideTones",
       },
       {
         text: `${sym(ii)}'s 3rd: ${moves(third[0])}, now ${sym(V7)}'s ${degreeWord(third[0].toDegree)}.`,
         highlight: [hl(ii3, "3rd")],
-        ask: { kind: "tapNotes", prompt: `Which key of ${sym(ii)} stays for ${sym(V7)}? Tap it.`, answer: [third[0].to] },
+        // the ii's root is in the V too (D is G7's 5th): the ask names the guide tones
+        ask: { kind: "tapNotes", prompt: `Which of ${sym(ii)}'s guide tones stays for ${sym(V7)}? Tap it.`, answer: [third[0].to] },
       },
       {
         text: `Into ${sym(I)}, ${moves(seventh[1])} and ${moves(third[1])}: home.`,
-        highlight: [hl(seventh[1].from, "↑"), hl(seventh[1].to, pn(seventh[1].to)), hl(third[1].from, "↓"), hl(third[1].to, pn(third[1].to))],
+        highlight: [hl(seventh[1].from, "↑"), hlTo(seventh[1], pn(seventh[1].to)), hl(third[1].from, "↓"), hlTo(third[1], pn(third[1].to))],
         sound: progression,
         prereqLink: "basics:dominantResolution",
       },
@@ -228,7 +231,7 @@ function extensions(T: string): Lesson {
       },
       {
         text: `On ${sym(V7)}, ${pn(eleven)} is an avoid note: a half step above ${pn(g3)}, the 3rd, it clashes.`,
-        highlight: [hl(eleven, "avoid"), hl(g3, "3rd")],
+        highlight: [hl(eleven, "avoid"), hl(g3, "3rd", "down")],
         sound: [[...tones(V7), eleven]],
         term: "avoid note",
         prereqLink: "basics:guideTones",
@@ -245,7 +248,7 @@ function extensions(T: string): Lesson {
       },
       {
         text: `Play ${pn(g3)}, ${pn(g7)}, ${pn(nine)} and ${pn(thirteen)} over ${pn(G)}: the guide tones hold the chord, the tensions colour it.`,
-        highlight: [hl(g3, "3rd"), hl(g7, "♭7"), hl(nine, "9th"), hl(thirteen, "13th")],
+        highlight: [hl(g3, "3rd"), hl(g7, "♭7", "up"), hl(nine, "9th", "up"), hl(thirteen, "13th", "up")],
         sound: [[G, g3, g7, nine, thirteen]],
       },
     ],
@@ -277,7 +280,7 @@ function dim7(T: string): Lesson {
       },
       {
         text: `Past ${pn(ab)}, the next minor 3rd is ${twin(next, b)}, so only three different diminished 7ths exist.`,
-        highlight: [hl(ab, "°7"), hl(next, "root")],
+        highlight: [hl(ab, "°7"), hl(next, "root", "up")],
         play: "interval",
       },
       {
@@ -287,7 +290,7 @@ function dim7(T: string): Lesson {
       },
       {
         text: `So ${sym(dim)} pulls into ${pn(T)} like ${sym(V7)} does: ${pn(b)} rises to ${pn(T)}, ${pn(ab)} falls to ${pn(G)}.`,
-        highlight: [hl(b, "↑"), hl(T, pn(T)), hl(ab, "↓"), hl(G, pn(G))],
+        highlight: [hl(b, "↑"), hl(T, pn(T), "up"), hl(ab, "↓"), hl(G, pn(G), "down")],
         sound: [[b, d, f, ab], tones(chord(T, "maj"))],
         prereqLink: "basics:dominantResolution",
       },
@@ -311,10 +314,10 @@ function symmetricOctave(T: string): Lesson {
     conceptId: "basics:symmetricOctave",
     headline: `Three major 3rds stack to an octave: ${pn(T)}, ${pn(E)}, ${pn(Ab)}, back to ${pn(T)}. Three keys, equally spaced.`,
     steps: [
-      { text: `${pn(T)} up a major 3rd is ${pn(E)}. ${second}`, highlight: [hl(T, pn(T)), hl(E, pn(E)), hl(Ab, "♭6")], play: "interval" },
+      { text: `${pn(T)} up a major 3rd is ${pn(E)}. ${second}`, highlight: [hl(T, pn(T)), hl(E, pn(E), "up"), hl(Ab, "♭6", "up")], play: "interval" },
       {
         text: `One more from ${pn(Ab)} lands on ${pn(T)}: three major 3rds fill the octave exactly.`,
-        highlight: [hl(Ab, pn(Ab)), hl(T, pn(T))],
+        highlight: [hl(Ab, pn(Ab)), hl(T, pn(T), "up")],
         play: "interval",
         ask: { kind: "tapNotes", prompt: `Tap the key a major 3rd above ${pn(Ab)}.`, answer: [T] },
       },
@@ -355,7 +358,8 @@ function parallelMinor(T: string): Lesson {
         text: `${sym(iv)} borrows ${pn(m6)} from ${pn(T)} minor; ${sym(bVII)} borrows ${pn(m7)} and ${pn(m6)}.`,
         highlight: [hl(m6, "♭6"), hl(m7, "♭7")],
         term: "borrowed",
-        ask: { kind: "tapNotes", prompt: `Tap the key ${sym(iv)} takes from ${pn(T)} minor.`, answer: [m6] },
+        // most of the iv's keys are in the minor scale too: ask for the one the major key lacks
+        ask: { kind: "tapNotes", prompt: `Which key of ${sym(iv)} isn't in ${pn(T)} major? Tap it.`, answer: [m6] },
       },
       {
         text: `Both still land on ${pn(T)}: ${sym(iv)} → ${sym(I)} and ${sym(bVII)} → ${sym(I)}, a darker way home.`,

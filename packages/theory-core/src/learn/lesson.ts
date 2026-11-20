@@ -14,6 +14,11 @@ export interface Highlight {
   note: string;
   /** Written on the key. */
   label: string;
+  /**
+   * Which way this key lies from the key before it in the list, when the text says so ("F falls
+   * to E": E is "down" from F). Unset: the nearest octave. The keyboard places it accordingly.
+   */
+  dir?: "up" | "down";
 }
 
 export interface LessonStep {
@@ -89,4 +94,7 @@ export function moves(m: VoiceMotion): string {
   return `${pn(m.from)} ${m.semitones > 0 ? "rises" : "falls"} to ${pn(m.to)}`;
 }
 
-export const hl = (note: string, label: string): Highlight => ({ note, label });
+export const hl = (note: string, label: string, dir?: "up" | "down"): Highlight => (dir ? { note, label, dir } : { note, label });
+
+/** The key a motion lands on, placed the way it moves from the key listed just before it. */
+export const hlTo = (m: VoiceMotion, label: string): Highlight => hl(m.to, label, m.semitones > 0 ? "up" : m.semitones < 0 ? "down" : undefined);

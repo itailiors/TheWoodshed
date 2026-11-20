@@ -1,5 +1,5 @@
 import type { BackdoorLearn, BorrowedIvLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "../facts";
-import { degreeWord, hl, moves, pn, ps, twin, type Lesson } from "../lesson";
+import { degreeWord, hl, hlTo, moves, pn, ps, twin, type Lesson } from "../lesson";
 
 /*
  * Rule lessons. Each one reads only its rule's `facts.learn`, computed in `propose()`; nothing
@@ -18,30 +18,33 @@ function tritoneSub(f: TritoneSubLearn): Lesson {
     steps: [
       {
         text: "A tritone is exactly half an octave: six half steps.",
-        highlight: [hl(f.originalRoot, pn(f.originalRoot)), hl(f.subRoot, pn(f.subRoot))],
+        highlight: [hl(f.originalRoot, pn(f.originalRoot)), hl(f.subRoot, pn(f.subRoot), "up")],
         play: "interval",
         term: "tritone",
         prereqLink: "basics:tritone",
       },
       {
         text: `Go up a tritone from ${pn(f.originalRoot)}, the V of ${pn(f.targetRoot)}, and you land on ${pn(f.subRoot)}: the ♭II.`,
-        highlight: [hl(f.originalRoot, "V"), hl(f.subRoot, "♭II")],
+        highlight: [hl(f.originalRoot, "V"), hl(f.subRoot, "♭II", "up")],
       },
       {
+        // the ask needs only what step 2 and the guide-tones basics gave: the original's 3rd and 7th
         text: `${orig}'s guide tones: ${pn(o3)} and ${pn(o7)}. ${sub} swaps them: ${twin(s3, o7)} is its 3rd, ${twin(s7, o3)} its 7th.`,
-        highlight: [hl(o3, `3rd → ${pn(s7)} 7th`), hl(o7, `7th → ${pn(s3)} 3rd`)],
-        ask: { kind: "tapNotes", prompt: `Tap the two keys ${orig} and ${sub} share.`, answer: [o3, o7] },
+        highlight: [hl(o3, pn(s7)), hl(o7, pn(s3))],
+        ask: { kind: "tapNotes", prompt: `${sub} keeps ${orig}'s guide tones. Tap them.`, answer: [o3, o7] },
+        term: "guide tones",
         prereqLink: "basics:guideTones",
       },
       {
         text: `Both pull the same way: ${moves(r3)}, ${moves(r7)}. That's the resolution into ${target}.`,
-        highlight: [hl(r3.from, "↑"), hl(r3.to, pn(r3.to)), hl(r7.from, "↓"), hl(r7.to, pn(r7.to))],
+        highlight: [hl(r3.from, "↑"), hlTo(r3, pn(r3.to)), hl(r7.from, "↓"), hlTo(r7, pn(r7.to))],
         play: "ab",
         prereqLink: "basics:dominantResolution",
       },
       {
         text: `What changes is the bass: ${pn(f.subRoot)} slides down a half step to ${pn(f.targetRoot)}, not ${pn(f.originalRoot)} falling a fifth.`,
-        highlight: [hl(f.subRoot, "new bass"), hl(f.targetRoot, "home"), hl(f.originalRoot, "old bass")],
+        // the old bass sits a fifth above home, so both arrivals read as falls
+        highlight: [hl(f.subRoot, "new"), hl(f.targetRoot, "home", "down"), hl(f.originalRoot, "old", "up")],
         play: "ab",
       },
     ],
@@ -56,24 +59,25 @@ function secondaryDominant(f: SecondaryDominantLearn): Lesson {
   const [orig, dom, target] = [ps(f.original), ps(f.dominant), ps(f.target)];
   const [r3, r7] = f.resolution;
   const third = f.raised
-    ? { text: `Raise its 3rd: ${pn(f.raised[0])} becomes ${pn(f.raised[1])}, the leading tone of ${pn(f.targetRoot)}.`, highlight: [hl(f.raised[0], "♭3"), hl(f.raised[1], "3rd"), hl(f.targetRoot, "target")] }
-    : { text: `Its 3rd, ${pn(f.third)}, is already the leading tone of ${pn(f.targetRoot)}.`, highlight: [hl(f.third, "3rd"), hl(f.targetRoot, "target")] };
+    ? { text: `Raise its 3rd: ${pn(f.raised[0])} becomes ${pn(f.raised[1])}, the leading tone of ${pn(f.targetRoot)}.`, highlight: [hl(f.raised[0], "♭3"), hl(f.raised[1], "3rd", "up"), hl(f.targetRoot, "target", "up")] }
+    : { text: `Its 3rd, ${pn(f.third)}, is already the leading tone of ${pn(f.targetRoot)}.`, highlight: [hl(f.third, "3rd"), hl(f.targetRoot, "target", "up")] };
+  // the ask is "the 3rd and 7th", so both answer keys are lit on the reveal
   const seventh =
     f.seventhChange === "lowered" && f.lowered
-      ? { text: `Flatten its 7th: ${pn(f.lowered[0])} drops to ${pn(f.lowered[1])}. Now it's ${dom}.`, highlight: [hl(f.lowered[0], "7"), hl(f.lowered[1], "♭7")] }
+      ? { text: `Flatten its 7th: ${pn(f.lowered[0])} drops to ${pn(f.lowered[1])}. Now it's ${dom}.`, highlight: [hl(f.lowered[0], "7"), hl(f.lowered[1], "♭7", "down"), hl(f.third, "3rd")] }
       : f.seventhChange === "kept"
         ? { text: `Its ♭7, ${pn(f.seventh)}, stays, and ${pn(f.third)} makes it ${dom}.`, highlight: [hl(f.seventh, "♭7"), hl(f.third, "3rd")] }
-        : { text: `Add the ♭7, ${pn(f.seventh)}, over ${pn(f.root)}. Now it's ${dom}.`, highlight: [hl(f.root, "root"), hl(f.seventh, "♭7")] };
+        : { text: `Add the ♭7, ${pn(f.seventh)}, over ${pn(f.root)}. Now it's ${dom}.`, highlight: [hl(f.root, "root"), hl(f.seventh, "♭7", "up"), hl(f.third, "3rd")] };
   return {
     conceptId: "functional.secondaryDominant",
     headline: `Play ${orig} as ${dom}. Its 3rd, ${pn(f.third)}, now leans a half step up into ${target}.`,
     steps: [
-      { text: `${orig} already falls a fifth to ${target}: ${pn(f.root)} down to ${pn(f.targetRoot)}.`, highlight: [hl(f.root, "root"), hl(f.targetRoot, "target")], play: "before" },
+      { text: `${orig} already falls a fifth to ${target}: ${pn(f.root)} down to ${pn(f.targetRoot)}.`, highlight: [hl(f.root, "root"), hl(f.targetRoot, "target", "down")], play: "before" },
       { ...third, term: "leading tone", prereqLink: "basics:dominantResolution" },
       { ...seventh, ask: { kind: "tapNotes", prompt: `Tap the 3rd and 7th of ${dom}.`, answer: [f.third, f.seventh] } },
       {
         text: `Into ${target}, ${moves(r3)} and ${moves(r7)}.`,
-        highlight: [hl(r3.from, "↑"), hl(r3.to, pn(r3.to)), hl(r7.from, r7.semitones ? "↓" : "holds"), hl(r7.to, pn(r7.to))],
+        highlight: [hl(r3.from, "↑"), hlTo(r3, pn(r3.to)), hl(r7.from, r7.semitones ? "↓" : "holds"), hlTo(r7, pn(r7.to))],
         play: "ab",
       },
       ...(f.targetMinor && f.flatNine
@@ -97,26 +101,35 @@ function secondaryTwoFive(f: SecondaryTwoFiveLearn): Lesson {
       ? `Split ${orig} into ${ii} → ${V}: its related ii in front, a full ii–V into ${target}.`
       : `Swap ${orig} for ${ii} → ${V}: a ii–V that walks you into ${target}.`,
     steps: [
-      { text: `${V} is the V of ${target}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`, highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target")], play: "before", prereqLink: "functional.secondaryDominant" },
+      {
+        // say what goes before what comes: the chart's chord is dropped for a V of the target
+        text: f.related
+          ? `${V} is the V of ${target}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`
+          : `We drop ${orig} and set up ${target} with its own V, ${V}: ${pn(f.VRoot)} falls a fifth to ${pn(f.targetRoot)}.`,
+        highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target", "down")],
+        play: "before",
+        prereqLink: "functional.secondaryDominant",
+      },
       {
         text:
           `${ii} is ${f.related ? `${V}'s related ii` : "the ii"}` +
           `${f.targetMinor ? `, half-diminished because ${target} is minor` : ""}: ${pn(f.iiRoot)} falls a fifth to ${pn(f.VRoot)}.`,
-        highlight: [hl(f.iiRoot, "ii"), hl(f.VRoot, "V"), hl(f.targetRoot, "target")],
+        highlight: [hl(f.iiRoot, "ii"), hl(f.VRoot, "V", "down"), hl(f.targetRoot, "target", "down")],
         ...(f.related ? { term: "related ii" } : f.targetMinor ? { term: "half-diminished" } : {}),
       },
       {
         text: `${ii}'s 7th: ${moves(s7toV)}, ${V}'s ${degreeWord(s7toV.toDegree)}. Its 3rd: ${moves(s3toV)}, ${V}'s ${degreeWord(s3toV.toDegree)}.`,
-        highlight: [hl(f.iiSeventh.from, "7th"), hl(s7toV.to, degreeWord(s7toV.toDegree)), hl(f.iiThird.from, "3rd")],
-        ask: { kind: "tapNotes", prompt: `Which key of ${ii} stays for ${V}? Tap it.`, answer: [s3toV.semitones === 0 ? s3toV.to : s7toV.to] },
+        highlight: [hl(f.iiSeventh.from, "7th"), hlTo(s7toV, degreeWord(s7toV.toDegree)), hl(f.iiThird.from, "3rd")],
+        // the ii's root can be a chord tone of the V too (G is C7's 5th): the ask names the guide tones
+        ask: { kind: "tapNotes", prompt: `Which of ${ii}'s guide tones stays for ${V}? Tap it.`, answer: [s3toV.semitones === 0 ? s3toV.to : s7toV.to] },
         prereqLink: "basics:twoFiveOne",
       },
       {
         text: `Into ${target}, ${moves(s7toT)} and ${moves(s3toT)}.`,
-        highlight: [hl(s7toT.from, pn(s7toT.from)), hl(s7toT.to, pn(s7toT.to)), hl(s3toT.from, pn(s3toT.from)), hl(s3toT.to, pn(s3toT.to))],
+        highlight: [hl(s7toT.from, pn(s7toT.from)), hlTo(s7toT, pn(s7toT.to)), hl(s3toT.from, pn(s3toT.from)), hlTo(s3toT, pn(s3toT.to))],
         play: "after",
       },
-      ...(f.related ? [] : [{ text: `The trade: ${orig}'s colour goes, and ${pn(f.VRoot)} to ${pn(f.targetRoot)} makes a stronger arrival on ${target}.`, highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target")], play: "ab" as const }]),
+      ...(f.related ? [] : [{ text: `The trade: ${orig}'s colour goes, and ${pn(f.VRoot)} to ${pn(f.targetRoot)} makes a stronger arrival on ${target}.`, highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target", "down")], play: "ab" as const }]),
     ],
     rule: "Before any major or minor chord, go up a fifth for the V and another fifth for the ii.",
     deeper: `${V}'s ♭9, ${pn(f.flatNine[0])}, falls a half step to ${pn(f.flatNine[1])}, the 5th of ${target}.`,
@@ -132,17 +145,18 @@ function borrowedIv(f: BorrowedIvLearn): Lesson {
       ? `Let ${IV} turn into ${iv} before ${target}: one note drops a half step, and home sounds bittersweet.`
       : `Play ${iv} instead of ${IV}: one note drops a half step, and ${target} sounds bittersweet.`,
     steps: [
-      { text: `${iv} is borrowed from ${pn(f.targetRoot)} minor: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3")], play: "after", term: "borrowed", prereqLink: "basics:parallelMinor" },
+      { text: `${iv} is borrowed from ${pn(f.targetRoot)} minor: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3", "up")], play: "after", term: "borrowed", prereqLink: "basics:parallelMinor" },
       {
         text: `Its only change is the 3rd: ${pn(six)} drops a half step to ${pn(flatSix)}.`,
-        highlight: [hl(six, "3rd"), hl(flatSix, "♭3")],
+        highlight: [hl(six, "3rd"), hl(flatSix, "♭3", "down")],
         play: "ab",
-        ask: { kind: "tapNotes", prompt: `Tap the one key that changes from ${IV} to ${iv}.`, answer: [flatSix] },
+        // "the key that changes" could be the old 3rd or the new one, and a maj7 IV changes its 7th too (E → D in Fm6): ask for the new 3rd
+        ask: { kind: "tapNotes", prompt: `Lower ${IV}'s 3rd a half step. Tap the new key.`, answer: [flatSix] },
       },
-      { text: `Then ${pn(flatSix)} falls again, to ${pn(five)}: the 5th of ${target}.`, highlight: [hl(flatSix, "♭6"), hl(five, "5th")], play: "after" },
+      { text: `Then ${pn(flatSix)} falls again, to ${pn(five)}: the 5th of ${target}.`, highlight: [hl(flatSix, "♭6"), hl(five, "5th", "down")], play: "after" },
       {
         text: `That line, ${pn(six)} → ${pn(flatSix)} → ${pn(five)}, is the minor plagal sound: bittersweet, a softer landing than V–I.`,
-        highlight: [hl(six, "6"), hl(flatSix, "♭6"), hl(five, "5")],
+        highlight: [hl(six, "6"), hl(flatSix, "♭6", "down"), hl(five, "5", "down")],
         play: "ab",
         term: "minor plagal",
       },
@@ -162,25 +176,25 @@ function backdoor(f: BackdoorLearn): Lesson {
         text: f.iv
           ? `The backdoor borrows two chords from ${pn(f.targetRoot)} minor: ${ps(f.iv)} (iv) and ${bVII} (♭VII7).`
           : `The backdoor borrows ${bVII} from ${pn(f.targetRoot)} minor: the ♭VII7.`,
-        highlight: [hl(f.bVIIRoot, "♭VII"), hl(f.targetRoot, "home")],
+        highlight: [hl(f.bVIIRoot, "♭VII"), hl(f.targetRoot, "home", "up")],
         play: "after",
         term: "backdoor",
         prereqLink: f.iv ? "modal.borrowedIv" : "basics:parallelMinor",
       },
       {
         text: `${bVII} has no ${pn(f.leadingTone)}, so no leading tone pushes up into ${pn(f.targetRoot)}.`,
-        highlight: [hl(f.leadingTone, "missing"), hl(f.targetRoot, "home")],
+        highlight: [hl(f.leadingTone, "missing"), hl(f.targetRoot, "home", "up")],
         play: "ab",
       },
       {
         text: `Its ${pn(f.bVIISeventh)} falls a half step to ${pn(f.targetFifth)}; its root ${pn(f.bVIIRoot)} climbs a whole step to ${pn(f.targetRoot)}.`,
-        highlight: [hl(f.bVIISeventh, "♭7"), hl(f.targetFifth, "5th"), hl(f.bVIIRoot, "root"), hl(f.targetRoot, "home")],
+        highlight: [hl(f.bVIISeventh, "♭7"), hl(f.targetFifth, "5th", "down"), hl(f.bVIIRoot, "root"), hl(f.targetRoot, "home", "up")],
         play: "after",
       },
       {
         text: `Its 9th is ${twin(f.bVIINinth, f.targetRoot)}: home is already sounding before you arrive.`,
         highlight: [hl(f.bVIINinth, "9th")],
-        ask: { kind: "tapNotes", prompt: `Tap the note ${bVII} already shares with ${target}'s root.`, answer: [f.bVIINinth] },
+        ask: { kind: "tapNotes", prompt: `Which key of ${bVII} is already ${target}'s root? Tap it.`, answer: [f.bVIINinth] },
       },
     ],
     rule: "For a major I, play the minor 7th a 4th above it, then the dominant 7th a whole step below it.",
