@@ -57,6 +57,11 @@ test("Study: first load shows headlines; the rest is one click away", async ({ p
   await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
   const open = tricks(page).locator("[data-move-id]").first();
   await expect(open.getByRole("button", { name: /Practice this move/ })).toBeVisible();
+  // the card face carries the audition: the written changes, then the move
+  await expect(open.getByRole("button", { name: /^▶?\s*Before$/ })).toBeVisible();
+  await expect(open.getByRole("button", { name: /^▶?\s*After$/ })).toBeVisible();
+  // the scale card waits behind "Solo over it"
+  await expect(page.getByRole("region", { name: "Improvisation map" })).toHaveCount(0);
   // the open card is a headline: its explanation waits behind "Why it works"
   const why = open.getByRole("button", { name: /Why it works/ });
   await expect(why).toHaveAttribute("aria-expanded", "false");
@@ -69,7 +74,32 @@ test("Study: first load shows headlines; the rest is one click away", async ({ p
   await expect(tricks(page).getByRole("button", { name: /^\d+ considered & rejected/ })).toHaveAttribute("aria-expanded", "false");
   await page.getByRole("button", { name: /Solo over it/ }).click();
   await expect(page.getByRole("heading", { name: "Improv heatmap" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Improvisation map" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Trade 2s/ })).toHaveCount(0);
+});
+
+test("Study: the dial is named by how far it goes, with the density in each tooltip", async ({ page }) => {
+  await page.goto("/");
+  const words = ["Original", "Inside", "Colour", "Bold", "Out"];
+  for (const [i, w] of words.entries()) {
+    const radio = dial(page).getByRole("radio", { name: new RegExp(`^L${i}\\b`) });
+    await expect(radio).toHaveAccessibleName(`L${i} ${w}`);
+    await expect(radio).toHaveAttribute("title", new RegExp(`^L${i} ${w}: `));
+  }
+  await expect(dial(page).getByRole("radio", { name: /^L2\b/ })).toHaveAttribute("title", /^L2 Colour: .*1 move per 4 bars$/);
+});
+
+test("Pre-push: a move headline and a ▶ button are in the first viewport, console clean", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(String(e)));
+
+  await page.goto("/");
+  const card = tricks(page).locator("[data-move-id]").first();
+  await expect(card.getByRole("heading", { level: 3 })).toBeInViewport();
+  await expect(card.getByRole("button", { name: /^▶?\s*Before$/ })).toBeInViewport();
+  await page.waitForLoadState("networkidle");
+  expect(errors).toEqual([]);
 });
 
 test("Fake MIDI: a chord is registered, released, and an unplug leaves no stuck notes", async ({ page }) => {

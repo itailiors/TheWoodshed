@@ -69,7 +69,7 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
 ## Features
 
 ### 🎚️ Reharm Dial with A/B ghost playback
-- A five-level "spice dial" (Original → Functional → Bebop → Gospel → Modern) controls how adventurous the moves are *and* how many there are, phrase by phrase:
+- A five-level dial (L0 Original → L1 Inside → L2 Colour → L3 Bold → L4 Out), named by how far from the written changes it goes, controls how adventurous the moves are *and* how many there are, phrase by phrase (each stop's tooltip gives its density):
 
   | Level | Moves allowed |
   |---|---|

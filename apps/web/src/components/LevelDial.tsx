@@ -15,7 +15,9 @@ function PenCircle({ seed }: { seed: number }) {
 }
 
 /**
- * The "spice dial": how far the engine is allowed to go.
+ * The dial: how far from the written changes the engine is allowed to go (L0 Original ·
+ * L1 Inside · L2 Colour · L3 Bold · L4 Out). Each stop's tooltip adds its density, from
+ * theory-core's `DENSITY` ("L2 Colour: up to 1 move per 4 bars"); phones show only L0–L4.
  *
  * With the pedal linked (CC11 expression or CC1 mod wheel), an ink needle under the dial
  * follows the controller continuously, and the pen circle snaps from stop to stop as the

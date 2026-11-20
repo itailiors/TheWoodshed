@@ -121,10 +121,13 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
   src/library/demoHistory.ts    ★ hydrates the fixture relative to now → Progress (same rules as the API: clean = cleanRuns > 0, due = dueAt ≤ now)
   src/library/demoHistory.json  ★ Co-op Blues: 31 reviews across 6 rules (5 due), 20 improv runs (45% → 75% chord tones), places → move ids
   src/components/
-    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  ImprovCard.tsx  MoveCard.tsx  DeepDive.tsx
+    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  DeepDive.tsx
+    MoveCard.tsx ★ face: headline, chords, summary, ▶ Before / ▶ After (voiceProgression → player.playSequence, both land on the target)
+    ImprovCard.tsx ★ the scale card; in Study it sits inside "🎹 Solo over it" with the heatmap, folded on first load
     OriginalStamp.tsx ★ Rough.js rubber stamp "ORIGINAL COMPOSITION © 2026 ITAI LIOR // SOFTWARE & JAZZ CO-OP", shown in Study's
                        lead-sheet footer when tune.rights.kind === "original" (not in Practice: it would cover the staff)
-    LevelDial.tsx ★ the dial + PedalLink toggle ("🦶 Link to mod wheel / pedal"); red ink needle tracks the raw CC value, .dial-snap on level change
+    LevelDial.tsx ★ the dial, L0 Original · L1 Inside · L2 Colour · L3 Bold · L4 Out (words from levelEntry(n), hidden below sm;
+                    tooltip "L2 Colour: up to 1 move per 4 bars" from densityLabel/DENSITY) + PedalLink toggle ("🦶 Link to mod wheel / pedal"); red ink needle tracks the raw CC value, .dial-snap on level change
     TransportBar.tsx ★ (+QwertyToggle)  TrioMixer.tsx  BeatPulse.tsx  KeyPicker.tsx  ModeSwitch.tsx  SideRail.tsx
     QwertyToggle.tsx ★ the ⌨ pill: "No MIDI? Play with your keyboard (M)" / "Keys on · A = C4", Z−/X+ buttons, held notes, tooltip map
     LoadingLine.tsx  Toaster.tsx  OfflineBanner.tsx  PanelBoundary.tsx

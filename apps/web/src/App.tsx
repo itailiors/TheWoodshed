@@ -202,6 +202,13 @@ export function App() {
   const shownChords = view === "reharm" ? realized : original;
   const improv = useMemo(() => improvMap(tune, shownChords), [tune, shownChords]);
 
+  /** The written chord a move resolves into (the engine's `targetSymbol`): its Before / After both land there. */
+  const targetOf = (m: ReharmMove) => {
+    if (!m.targetSymbol) return undefined;
+    const i = original.findIndex((c) => c.id === m.replaces[m.replaces.length - 1]);
+    return i >= 0 ? original[i + 1] : undefined;
+  };
+
   const selected = pathway.find((m) => m.id === selectedId) ?? pathway[0] ?? null;
   const improvForSelected = selected
     ? improv.filter((e) =>
@@ -852,6 +859,12 @@ export function App() {
             )}
 
             <Reveal label="🎹 Solo over it" open={soloOpen} onToggle={setSoloOpen} className="mt-4">
+              {/* the scale card is for soloing, so it waits in here with the heatmap rather than crowding first load */}
+              {!bareFacts && selected && improvForSelected.length > 0 && (
+                <div className="mt-3">
+                  <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}${view === "original" ? " (original)" : ""}`} />
+                </div>
+              )}
               <div className="mt-3">
                 <ImprovHeatmap
                   key={tune.id}
@@ -867,16 +880,7 @@ export function App() {
               </div>
             </Reveal>
 
-            {bareFacts ? (
-              <div className="mt-6 lg:hidden">{bareFacts}</div>
-            ) : (
-              selected &&
-              improvForSelected.length > 0 && (
-                <div className="mt-6 lg:hidden">
-                  <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}`} />
-                </div>
-              )
-            )}
+            {bareFacts && <div className="mt-6 lg:hidden">{bareFacts}</div>}
           </section>
 
           {/* ── right: reharm & tricks ── */}
@@ -905,6 +909,7 @@ export function App() {
                 key={m.id}
                 tuneId={tune.id}
                 move={m}
+                target={targetOf(m)}
                 selected={m.id === selected?.id}
                 onSelect={() => setSelectedId(m.id)}
                 onPick={pick}
@@ -913,12 +918,6 @@ export function App() {
                 alternatives={accepted.filter((a) => a.id !== m.id && overlaps(a, m))}
               />
             ))}
-
-            {!bareFacts && selected && improvForSelected.length > 0 && (
-              <div className="hidden lg:block">
-                <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}${view === "original" ? " (original)" : ""}`} />
-              </div>
-            )}
 
             {rejected.length > 0 && (
               <Reveal

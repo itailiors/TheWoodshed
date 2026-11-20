@@ -1,5 +1,6 @@
-import { chordTones, guideTones, prettyNote, symbol, type ReharmMove } from "@reharm/theory-core";
-import { useEffect, useState } from "react";
+import { chordTones, guideTones, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
+import { useEffect, useRef, useState } from "react";
+import { player } from "../audio/player";
 import { countOpen } from "../usage/panelOpens";
 import { SketchBox, SketchRule } from "../design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "../design/tokens";
@@ -10,6 +11,8 @@ import { DoodleKeyboard } from "./DoodleKeyboard";
 interface Props {
   tuneId: string;
   move: ReharmMove;
+  /** The chord the move resolves into, from the tune as written: Before and After both land on it. */
+  target?: ChordEvent;
   selected: boolean;
   alternatives: ReharmMove[];
   onSelect: () => void;
@@ -39,7 +42,65 @@ function MoveKeyboard({ move }: { move: ReharmMove }) {
   return <DoodleKeyboard notes={chordTones(shown).map((t) => t.note)} accent={guideTones(shown).map((t) => t.note)} color={color} />;
 }
 
-export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPick, onPractice, onDrill }: Props) {
+/** Seconds per chord in the Before / After audition: long enough to hear each change land. */
+const AUDITION_SECONDS = 1.1;
+/** Un-presses whichever card's Before / After is sounding (one audition at a time). */
+let unpress: (() => void) | null = null;
+
+/**
+ * ▶ Before / ▶ After on the card face: the written chords, then the move, each voice-led
+ * (theory-core's `voiceProgression`) and played through the player's audition path, so this
+ * stays Tone-free. Both halves end on the chord the move resolves into, when there is one.
+ */
+function BeforeAfter({ move, target }: { move: ReharmMove; target?: ChordEvent }) {
+  const [sounding, setSounding] = useState<"before" | "after" | null>(null);
+  const mine = useRef(() => setSounding(null)).current;
+  // one audition at a time across cards: a new one silences the old one's callbacks, so un-press the old button here
+  useEffect(
+    () => () => {
+      if (unpress === mine) {
+        unpress = null;
+        player.cancelAudition();
+      }
+    },
+    [mine],
+  );
+  const play = (half: "before" | "after") => {
+    const chords = [...(half === "before" ? move.original : move.chords), ...(target ? [target] : [])];
+    if (unpress !== mine) unpress?.();
+    unpress = mine;
+    setSounding(half);
+    void player.playSequence(
+      voiceProgression(chords).map((v) => [v.bass, ...v.upper]),
+      AUDITION_SECONDS,
+      (i) => {
+        if (i !== null) return;
+        setSounding(null);
+        if (unpress === mine) unpress = null;
+      },
+    );
+  };
+  const btn = (half: "before" | "after", label: string) => (
+    <button
+      type="button"
+      aria-pressed={sounding === half}
+      onClick={() => play(half)}
+      title={half === "before" ? "Hear the changes as written" : "Hear the move"}
+      className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm hover:-rotate-1 ${sounding === half ? "border-ink bg-paper-shade" : "border-ink-soft hover:border-ink"}`}
+    >
+      <span aria-hidden>▶ </span>
+      {label}
+    </button>
+  );
+  return (
+    <div role="group" aria-label="Hear it" className="mt-2 flex flex-wrap items-center gap-2">
+      {btn("before", "Before")}
+      {btn("after", "After")}
+    </div>
+  );
+}
+
+export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill }: Props) {
   const color = CATEGORY_WASH[move.category];
   const bar = move.span.from.bar;
   // Level 2 of the card: theory, melody check, voice leading, keys, rule, Deep Dive. Closes with the card.
@@ -84,6 +145,8 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
 
           <p className="mt-2 text-[15px] leading-snug">{move.text.summary}</p>
         </button>
+
+        <BeforeAfter move={move} target={target} />
 
         {selected && (
           <div className="mt-3 flex flex-wrap items-start gap-2">

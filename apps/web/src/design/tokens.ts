@@ -1,4 +1,4 @@
-import type { MoveCategory } from "@reharm/theory-core";
+import { levelEntry, type MoveCategory } from "@reharm/theory-core";
 
 /*
  * Colours as CSS variable references, so every theme (src/design/themes.ts) reaches inline
@@ -74,13 +74,15 @@ const STYLE_LABEL: Record<string, string> = {
 };
 export const styleLabel = (tag: string) => STYLE_LABEL[tag] ?? tag.replace(/-/g, " ");
 
-export const LEVELS = [
-  { level: 0, label: "Original" },
-  { level: 1, label: "Functional" },
-  { level: 2, label: "Bebop" },
-  { level: 3, label: "Gospel" },
-  { level: 4, label: "Modern" },
-] as const;
+/**
+ * The dial's stops, named by how far from the written changes they go (Original · Inside ·
+ * Colour · Bold · Out). The words come from theory-core's glossary (`levelEntry(n)`, alias
+ * "L2 Colour"), so the dial and the glossary chips can't drift apart.
+ */
+export const LEVELS = [0, 1, 2, 3, 4].map((level) => ({
+  level,
+  label: levelEntry(level)!.aliases[0].replace(/^L\d\s+/, ""),
+}));
 
 /** Stable seed from a string, so a sketch doesn't re-jitter on every render. */
 export function seedOf(s: string): number {
