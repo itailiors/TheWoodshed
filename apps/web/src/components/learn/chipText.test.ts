@@ -1,7 +1,7 @@
 import { anyLesson, CONCEPTS, decodeSymbol, glossaryEntry, GLOSSARY, KEYS, RULES } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
 import { chipLines, chipSegments, lessonChips, SCALE_TERMS, SCREEN_TERMS, symbolIn, termForConcept, type Segment } from "./chipText";
-import { FIRST_RUN_HINTS } from "./hints";
+import { DEMO_STUDY_HINT, FIRST_RUN_HINTS } from "./hints";
 
 const joined = (segs: Segment[]) => segs.map((s) => s.text).join("");
 const chips = (segs: Segment[]) => segs.filter((s) => s.kind !== "text");
@@ -75,8 +75,8 @@ describe("glossary chips: where they go", () => {
   });
 
   it("first-run hints: one line per screen, short", () => {
-    for (const [screen, line] of Object.entries(FIRST_RUN_HINTS)) expect(line.split(/\s+/).length, screen).toBeLessThanOrEqual(22);
-    expect(Object.keys(FIRST_RUN_HINTS).sort()).toEqual(["changes", "coach", "practice", "voicings"]);
+    for (const [screen, line] of Object.entries({ ...FIRST_RUN_HINTS, demoStudy: DEMO_STUDY_HINT })) expect(line.split(/\s+/).length, screen).toBeLessThanOrEqual(22);
+    expect(Object.keys(FIRST_RUN_HINTS).sort()).toEqual(["changes", "coach", "practice", "study", "voicings"]);
   });
 
   it("chips work in all 12 keys for the symbols the lessons print", () => {

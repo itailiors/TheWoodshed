@@ -23,7 +23,16 @@ function PenCircle({ seed }: { seed: number }) {
  * follows the controller continuously, and the pen circle snaps from stop to stop as the
  * level changes: you can see where your foot is *and* which harmony you're hearing.
  */
-export function LevelDial({ level, onChange }: { level: number; onChange: (l: number) => void }) {
+export function LevelDial({
+  level,
+  onChange,
+  pedalLink = true,
+}: {
+  level: number;
+  onChange: (l: number) => void;
+  /** Show the pedal link beside the dial. Study passes false (it lives in "⋯ More"): the dial then shows it only while linked, as a readout. */
+  pedalLink?: boolean;
+}) {
   const p = usePedal();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const needle = useRef<HTMLSpanElement>(null);
@@ -78,13 +87,13 @@ export function LevelDial({ level, onChange }: { level: number; onChange: (l: nu
           </span>
         )}
       </div>
-      <PedalLink />
+      {(pedalLink || p.linked) && <PedalLink />}
     </div>
   );
 }
 
 /** Opt-in: off by default, because jittery wheels shouldn't change the harmony on their own. */
-function PedalLink() {
+export function PedalLink() {
   const p = usePedal();
   return (
     <button

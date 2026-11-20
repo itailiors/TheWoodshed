@@ -44,7 +44,10 @@ import type { PractiseRequest } from "./components/progress/PracticeDashboard";
 import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
-import { LevelDial } from "./components/LevelDial";
+import { LevelDial, PedalLink } from "./components/LevelDial";
+import { MoreMenu } from "./components/MoreMenu";
+import { FirstRunHint } from "./components/learn/FirstRunHint";
+import { DEMO_STUDY_HINT } from "./components/learn/hints";
 import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
 import { usePathwayEditor } from "./usePathwayEditor";
@@ -249,7 +252,6 @@ export function App() {
   const [chordsOpen, setChordsOpen] = useRevealState("study.chordByChord");
   const [soloOpen, setSoloOpen] = useRevealState("study.solo");
   const [rejectedOpen, setRejectedOpen] = useRevealState("study.rejected");
-  const [hintSeen, setHintSeen] = useRevealState("hint.study");
   const stepChordBy = (dir: 1 | -1) => {
     const next = stepChord(original, pathway, chordCursor, selectedId, dir);
     if (!next) return;
@@ -719,6 +721,9 @@ export function App() {
           </header>
         </SketchBox>
 
+        {/* the demo is a portfolio link: one line says what this is, before any control (one hint per view) */}
+        {DEMO && <FirstRunHint screen="study" text={DEMO_STUDY_HINT} className="-mt-3 mb-3 text-base" />}
+
         {/* ── toolbar ── */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -748,37 +753,70 @@ export function App() {
               📒 Progress
             </button>
             <ModeSwitch mode="study" onMode={setMode} />
-            <button
-              type="button"
-              onClick={() => openDrawer("xray")}
-              onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
-              className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              title="See how the engine decided, bar by bar, and run its proofs live"
-            >
-              🔬 Engine X-ray
-            </button>
-            <button
-              type="button"
-              onClick={() => void shareLink()}
-              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              title="Copy a link to this reharm: the tune, key, dial level and your picks. It opens ready to play."
-            >
-              🔗 Share
-            </button>
-            {!touchFirst && (
-              <button
-                type="button"
-                onClick={() => setHelpOpen(true)}
-                className="cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
-                title="Keyboard shortcuts"
-                aria-label="Keyboard shortcuts"
-              >
-                ⌨ <Kbd k="?" />
-              </button>
-            )}
+            {/* the occasional tools wait behind one pill, so the first view leads with the dial and the moves */}
+            <MoreMenu>
+              {(close) => (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      openDrawer("xray");
+                    }}
+                    onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
+                    className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade pointer-coarse:min-h-11"
+                    title="See how the engine decided, bar by bar, and run its proofs live"
+                  >
+                    🔬 Engine X-ray
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      void shareLink();
+                    }}
+                    className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade pointer-coarse:min-h-11"
+                    title="Copy a link to this reharm: the tune, key, dial level and your picks. It opens ready to play."
+                  >
+                    🔗 Share
+                  </button>
+                  {!touchFirst && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        close();
+                        setHelpOpen(true);
+                      }}
+                      className="cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
+                      title="Keyboard shortcuts"
+                      aria-label="Keyboard shortcuts"
+                    >
+                      ⌨ <Kbd k="?" />
+                    </button>
+                  )}
+                  {/* a pedal needs MIDI: phones in practice have none, so it's a desktop-only tool */}
+                  {!touchFirst && <PedalLink />}
+                </>
+              )}
+            </MoreMenu>
             <KeyPicker {...keyControl} />
-            <LevelDial level={level} onChange={changeLevel} />
+            <LevelDial level={level} onChange={changeLevel} pedalLink={false} />
           </div>
+          {/* phones: the moves sit 2+ screens below the lead sheet; one tap jumps there (same DOM and tab order) */}
+          {pathway.length > 0 && (
+            <a
+              href="#tricks-h"
+              data-jump-to-moves
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("tricks-h")?.scrollIntoView({ block: "start" });
+                document.querySelector<HTMLElement>("[data-move-id] button")?.focus({ preventScroll: true });
+              }}
+              className="tap-lg rounded-full border-2 border-ink bg-paper-light px-3 font-marker lg:hidden"
+            >
+              {pathway.length} move{pathway.length === 1 ? "" : "s"} ↓
+            </a>
+          )}
           <div className="flex items-center gap-1 font-marker" role="group" aria-label="Show chords">
             {(["original", "reharm"] as const).map((v) => (
               <button
@@ -857,19 +895,6 @@ export function App() {
                           ? `${tune.rights.note} No melody, so moves aren't melody-checked. `
                           : "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
                         : ""}
-                    {!hintSeen && (
-                      <>
-                        Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.{" "}
-                        <button
-                          type="button"
-                          onClick={() => setHintSeen(true)}
-                          className="cursor-pointer underline decoration-dotted hover:text-ink"
-                          aria-label="Dismiss this tip"
-                        >
-                          Got it
-                        </button>
-                      </>
-                    )}
                   </p>
                   {tune.rights?.kind === "original" && <OriginalStamp rights={tune.rights} className="ml-auto" />}
                 </div>
@@ -942,6 +967,8 @@ export function App() {
                 </p>
               )}
             </div>
+
+            {!DEMO && pathway.length > 0 && <FirstRunHint screen="study" />}
 
             {bareFacts && <div className="hidden lg:block">{bareFacts}</div>}
 

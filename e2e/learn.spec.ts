@@ -41,6 +41,30 @@ test("Study loads cleanly, on a desktop and a phone", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("first viewport: one line says what the demo is; on a phone one tap reaches a headline and ▶", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
+  const hint = page.locator('[data-first-run-hint="study"]');
+  await expect(hint).toBeInViewport();
+  await expect(hint).toContainText("each card teaches one move");
+  // Study shows one hint line, not two
+  await expect(page.locator("[data-first-run-hint]")).toHaveCount(1);
+  const card = tricks(page).locator("[data-move-id]").first();
+  const jump = page.locator("[data-jump-to-moves]");
+  if (await jump.isVisible()) {
+    // a phone: the moves are below the lead sheet (same DOM order); the chip jumps there
+    await expect(jump).toBeInViewport();
+    await jump.click();
+  }
+  await expect(card.getByRole("heading", { level: 3 })).toBeInViewport();
+  await expect(card.getByRole("button", { name: /^▶?\s*Before$/ })).toBeInViewport();
+  // the occasional tools wait behind "⋯ More"
+  await page.getByRole("button", { name: /More$/ }).click();
+  await expect(page.getByRole("group", { name: "More tools" }).getByRole("button", { name: /Share/ })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("group", { name: "More tools" })).toBeHidden();
+});
+
 test("the move cards pass an axe scan (WCAG A/AA)", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("[data-move-id]").first()).toBeVisible();
