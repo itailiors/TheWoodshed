@@ -20,6 +20,7 @@ import { useRevealState } from "../Reveal";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { updateLessonFlag } from "../../learn/lessonFlags";
+import { ownDue } from "../../learn/pathStates";
 import { usePathStates } from "../../learn/usePathStates";
 import { useQwerty } from "../../midi/qwerty";
 import type { MidiStatus } from "../../midi/useMidi";
@@ -308,10 +309,13 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
     return () => window.removeEventListener("keydown", onKey);
   }, [onMode]);
 
-  const cleanFor = (rId: string) => {
-    const keys = new Set([...(progress?.cleanKeys[rId] ?? []), ...(session[rId]?.clean ?? [])].map(chroma));
+  /** Keys played clean: your own runs plus this visit's (rule 11: the ribbon and the move list never count the sample). */
+  const cleanFor = (rId: string, from: Pick<typeof own, "cleanKeys"> = own) => {
+    const keys = new Set([...(from.cleanKeys[rId] ?? []), ...(session[rId]?.clean ?? [])].map(chroma));
     return [...keys].sort((a, b) => a - b).map((c) => KEYS[c]);
   };
+  /** The passport aside shows the passport as given: in a fresh demo that's the sample notebook, labelled as one. */
+  const sampleShown = DEMO && !!progress?.sample;
 
   const inReharm = new Set(pathway.map((m) => m.id));
   const groups = useMemo(() => {
@@ -397,7 +401,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const stepTo = (d: -1 | 1) => stepList[stepIdx + d]?.pick();
 
   // the Changes game's and the Voicings tab's reviews are played in their own tabs, not drilled here
-  const due = (progress?.due ?? []).filter((d) => conceptKind(d.ruleId) === "reharm").slice(0, 5);
+  // your own due reviews only: the demo's sample notebook is someone else's practice (rule 11)
+  const due = ownDue(progress).filter((d) => conceptKind(d.ruleId) === "reharm").slice(0, 5);
   const now = Date.now();
   const activeCleanKeys = cleanFor(activeRuleId);
   const activeCleanSet = new Set(activeCleanKeys.map(chroma));
@@ -670,8 +675,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
           {/* one routing line at a time (spec §A): the hint waits while a PrereqNote or the return banner shows */}
           <FirstRunHint screen="coach" hidden={!!returning || (stage === "learn" && !!learn && status?.state === "recommendedFirst" && !flag?.continuedAnyway)} className="order-1 lg:order-none" />
 
-          {/* 12-Key Circle-of-Fifths Ribbon & Key Flow Selector */}
-          <div className="order-2 lg:order-none">
+          {/* 12-Key Circle-of-Fifths Ribbon & Key Flow Selector (a basic has no drill, so no keys to walk) */}
+          <div className="order-2 lg:order-none" hidden={basics} data-coach-ribbon>
           <SketchBox seed={seedOf("coach-ribbon")} fill={paper.base} strokeWidth={1.6}>
             <div className="space-y-2.5 p-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -831,11 +836,17 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                 <h3 id="coach-passport-h" className="font-marker text-lg uppercase">
                   {activeRule.name} · passport
                 </h3>
+                {sampleShown && (
+                  // labelled where it's seen, like the passport drawer's "Sample notebook" (rule 11)
+                  <p className="font-hand text-sm text-ink-soft" data-coach-sample>
+                    Sample notebook: a made-up player's stamps, not yours.
+                  </p>
+                )}
               </div>
               <KeyMatrix
                 ruleId={activeRuleId}
                 reviews={(progress?.concepts ?? []).filter((c) => c.ruleId === activeRuleId)}
-                clean={activeCleanKeys}
+                clean={progress ? cleanFor(activeRuleId, progress) : activeCleanKeys}
                 now={now}
                 lastPlace={null}
                 current={key}

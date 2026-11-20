@@ -4,7 +4,7 @@ import { demoProgress } from "../library/demoHistory";
 import { browserHistory } from "../library/historyBrowser";
 import { memoryBackend } from "../library/localPractice";
 import { LESSONS_STORE, readLessonFlags } from "./lessonFlags";
-import { freshStart, ownProgressOnly, pathStates } from "./pathStates";
+import { freshStart, ownDue, ownProgressOnly, pathStates } from "./pathStates";
 import { memoryStorage, throwingStorage } from "./testStorage";
 
 const NOW = new Date("2026-11-20T12:00:00Z");
@@ -29,6 +29,14 @@ describe("path states come from this browser's own runs and flags", () => {
     for (const c of CONCEPTS) expect(notYet.has(states.get(c.id)!.state), c.id).toBe(true);
     for (const c of CONCEPTS) expect(states.get(c.id)!.due, c.id).toBe(false);
     expect(nextUp).toEqual(fresh.nextUp);
+  });
+
+  it("the seeded sample's due list is never the player's (Coach's Due for review, the phone's 'n due')", async () => {
+    const p = await demoAdapter().progress();
+    expect(p!.due.length).toBeGreaterThan(0);
+    expect(ownDue(p)).toEqual([]);
+    expect(ownDue(null)).toEqual([]);
+    expect(ownDue({ ...p!, sample: false })).toBe(p!.due);
   });
 
   it("one clean run of the player's own makes that concept Familiar", async () => {

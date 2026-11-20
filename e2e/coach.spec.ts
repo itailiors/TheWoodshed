@@ -97,6 +97,27 @@ test("a fresh visitor's first Coach view is the path's first lesson, step 1, wit
   expect(errors).toEqual([]);
 });
 
+test("RULE 11: a fresh demo's Coach shows no unlabelled sample due list or clean counts", async ({ page }) => {
+  await openCoach(page);
+  await expect(learnStage(page)).toBeVisible();
+  // the sample notebook's due reviews are someone else's: no "Due for review" box, no "n due" on the phone's button
+  await expect(page.getByRole("heading", { name: /Due for review/i, includeHidden: true })).toHaveCount(0);
+  await expect(page.getByText(/\boverdue\b/)).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /\d+ due/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /\d+ due/ })).toHaveCount(0);
+  // a basic has no drill: no 12-key ribbon
+  await expect(page.locator("[data-coach-ribbon]")).toBeHidden();
+
+  // the tritone sub is clean in several keys of the sample: the ribbon counts only your own (none yet)
+  await pickConcept(page, TRITONE_SUB);
+  await expect(page.locator("[data-coach-ribbon]")).toContainText("0/12 clean");
+  // the passport aside still shows the sample's stamps, labelled where they're seen
+  await expect(page.locator("[data-coach-sample]")).toContainText("Sample notebook");
+  // anything else reading "n/12 clean" in the rail or the drill would be the sample's, unlabelled
+  const counts = await page.locator("#coach-moves, #coach-drill").evaluateAll((els) => els.map((e) => e.textContent ?? "").join(" ").match(/[1-9]\d*\/12 clean/gi) ?? []);
+  expect(counts).toEqual([]);
+});
+
 test("the tritone sub shows its prerequisite note; Continue anyway opens step 1, Next walks one step at a time, and the last step lands on Study it", async ({ page }) => {
   await openCoach(page);
   await pickConcept(page, TRITONE_SUB);

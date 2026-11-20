@@ -12,6 +12,9 @@ const EMPTY: OwnProgress = { concepts: [], cleanKeys: {} };
  */
 export const ownProgressOnly = (p: Progress | null | undefined): OwnProgress => (!p || p.sample ? EMPTY : { concepts: p.concepts, cleanKeys: p.cleanKeys });
 
+/** The player's own due reviews from a passport, or none: the sample's "due" list is someone else's (rule 11). */
+export const ownDue = (p: Progress | null | undefined): Progress["due"] => (!p || p.sample ? [] : p.due);
+
 export interface PathStates {
   states: Map<string, ConceptStatus>;
   /** What to learn next (due first, then the frontier), at most `limit`. */
