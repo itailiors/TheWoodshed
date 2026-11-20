@@ -50,6 +50,23 @@ export const PANEL_LABEL: Record<string, string> = {
   ...LEARNING_LABEL,
 };
 
+/**
+ * The success criteria (PLAN "Success criteria"), read off the counters in their own words, so the
+ * M2 review needs only the ⚙ panel: lessons finished against the week-1 target, the "Continue
+ * anyway" share against decision 8's 50% trigger, and Why it works against its Study baseline. Pure.
+ */
+export function learningSummary(counts: Readonly<Record<string, PanelOpen>>): string[] {
+  const n = (k: string) => counts[k]?.opens ?? 0;
+  const views = n("prereq.view");
+  const skips = n("prereq.continueAnyway");
+  const pct = views ? Math.round((skips / views) * 100) : 0;
+  return [
+    `Lessons finished: ${n("learn.finish")} (target: 3 in the first week)`,
+    `Continue anyway: ${skips} of ${views} notes${views ? ` (${pct}%)` : ""}; 50% or more builds the skip-ahead test`,
+    `Why it works opened: ${n("why.open")} (Study baseline counter: ${n("study.why")})`,
+  ];
+}
+
 export function readPanelOpens(): Record<string, PanelOpen> {
   try {
     const raw = JSON.parse(localStorage.getItem(STORE) ?? "null") as Record<string, PanelOpen> | null;
