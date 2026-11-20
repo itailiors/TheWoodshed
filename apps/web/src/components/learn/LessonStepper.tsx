@@ -1,4 +1,4 @@
-import { chroma, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
+import { chroma, learnName, prettyNote, readable, type Lesson, type LessonStep } from "@reharm/theory-core";
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
 import { SketchBox } from "../../design/rough";
 import { seedOf, wash } from "../../design/tokens";
@@ -161,6 +161,8 @@ function Depth(props: LessonStepperProps) {
 type Reveal = "answered" | "shown";
 const PULSE_MS = 1200;
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+/** An answer key as the lesson text prints it: answers stay engine-spelled for matching, but B♭♭ reads A. */
+const answerName =(n: string) => prettyNote(readable(n));
 
 /** The marks a step puts on the keyboard. Pure. */
 function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean, hits: number[], wrong: number | null) {
@@ -179,7 +181,7 @@ function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean,
       const at = placed.find((m) => ((m % 12) + 12) % 12 === pc) ?? inRange(pc, low, high);
       if (at === null || at === undefined) return [];
       const spelled = answer.find((n) => chroma(n) === pc);
-      return [{ midi: at, label: labelOf.get(pc) ?? prettyNote(spelled ?? "") }];
+      return [{ midi: at, label: labelOf.get(pc) ?? (spelled ? answerName(spelled) : "") }];
     });
   }
   const ghost = askOpen && wrong !== null ? inRange(wrong, low, high) : null;
@@ -265,7 +267,7 @@ function Stepper({
     setRevealed((r) => (r[at] ? r : { ...r, [at]: how }));
     setPulsed(false);
     // a wrong key's "Not G" is over once the answer is out: the status says the answer instead
-    if (step.ask) setStatus(how === "answered" ? `✓ ${listOf(step.ask.answer.map(prettyNote))}` : `The answer: ${listOf(step.ask.answer.map(prettyNote))}`);
+    if (step.ask) setStatus(how === "answered" ? `✓ ${listOf(step.ask.answer.map(answerName))}` : `The answer: ${listOf(step.ask.answer.map(answerName))}`);
     // the Show me button goes away with the ask: keep focus on the step
     focusAfter.current = true;
   };
@@ -467,7 +469,7 @@ function Stepper({
             </p>
             {step.map && <KeyCentreMap centres={step.map} />}
             {revealed[at] === "answered" && step.ask && (
-              <p className="mt-1 font-marker text-base text-sage-ink">✓ {listOf(step.ask.answer.map(prettyNote))}</p>
+              <p className="mt-1 font-marker text-base text-sage-ink">✓ {listOf(step.ask.answer.map(answerName))}</p>
             )}
           </>
         )}

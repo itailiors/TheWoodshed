@@ -8,7 +8,7 @@ export * from "./facts";
 export * from "./graph";
 export * from "./glossary";
 export type { Highlight, Lesson, LessonStep, PlayCue } from "./lesson";
-export { BANNED_PHRASES } from "./lesson";
+export { BANNED_PHRASES, readable } from "./lesson";
 // canonical.ts (rule lessons in any key) imports the engine, so it stays off this barrel: the package root exports it
 export { hasRuleLesson, lessonForMove, type RuleLessonId } from "./ruleLesson";
 

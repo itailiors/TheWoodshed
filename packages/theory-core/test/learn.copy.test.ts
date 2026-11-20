@@ -176,7 +176,9 @@ const fromTunes = [...BUNDLED_TUNES, someday].flatMap((t) =>
   ),
 );
 
-const ruleLessons = [...fromTunes, ...KEYS.flatMap(edgeCases)].map((m) => ({ where: m.where, lesson: lessonForMove(m)! }));
+// and what Coach's Learn stage teaches: every rule on its canonical progression (minor ones too), in 12 keys
+const fromCanonical = RULES.flatMap((r) => KEYS.flatMap((k) => (canonicalMove(r.id, k) ? [{ ...canonicalMove(r.id, k)!, where: `${r.id} canonical in ${k}` }] : [])));
+const ruleLessons = [...fromTunes, ...KEYS.flatMap(edgeCases), ...fromCanonical].map((m) => ({ where: m.where, lesson: lessonForMove(m)! }));
 const basicsLessons = BASICS.flatMap((id) => KEYS.map((k) => ({ where: `${id} in ${k}`, lesson: basicsLesson(id, k)! })));
 const ALL: { where: string; lesson: Lesson }[] = [...ruleLessons, ...basicsLessons];
 
@@ -256,8 +258,8 @@ describe("lesson copy", () => {
       // step 1 plays on open, so it always has something to play
       expect(!!l.steps[0].play || !!l.steps[0].sound?.length, `${at}: step 1 has no ▶ cue`).toBe(true);
       for (const s of l.steps) for (const c of s.sound ?? []) expect(c.length, at).toBeGreaterThan(0);
-      // basics and the diminished/chromatic lessons (NO_DOUBLES): no double flats or sharps anywhere a reader
-      // or the keyboard sees them (older rule lessons may still print the engine's spelling, e.g. A♭7's ♭9 as B♭♭)
+      // no lesson prints a double flat or sharp (`pn` reads B♭♭ as A); basics and the NO_DOUBLES lessons also
+      // keep them off the keys they light (older rule lessons' highlight and answer notes are engine-spelled, matched by pitch class)
       const basic = isBasicsId(l.conceptId) || NO_DOUBLES.has(l.conceptId);
       const notes = l.steps.flatMap((s) => [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.sound ?? []).flat()]);
       if (basic) expect(notes.filter((n) => /bb|##|x/.test(n)), at).toEqual([]);
@@ -271,7 +273,7 @@ describe("lesson copy", () => {
         expect(text, at).not.toMatch(BANNED);
         expect(text, at).not.toMatch(/#/);
         expect(text, `${at}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/); // "Bb", "Bbm7", "Bbdim7"; not "Above"
-        if (basic) expect(text, `${at}: double accidental in "${text}"`).not.toMatch(/♭♭|♯♯|𝄫|𝄪/u);
+        expect(text, `${at}: double accidental in "${text}"`).not.toMatch(/♭♭|♯♯|𝄫|𝄪/u);
         expect(text, `${at}: "a"/"an" before a note name in "${text}"`).not.toMatch(ARTICLE_BEFORE_NOTE);
       }
     }

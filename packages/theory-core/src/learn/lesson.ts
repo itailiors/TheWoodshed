@@ -55,7 +55,14 @@ export interface Lesson {
 
 // ── formatting helpers (no harmony here: notes come in already computed) ──
 
-export const pn = prettyNote;
+/**
+ * A spelling a reader can take in: double flats and sharps become the everyday key name
+ * (E♭♭ → D); single accidentals (C♭, E♯) stay, since they are the chord's correct spelling.
+ */
+export const readable = (n: string) => (/(bb|##|x)$/.test(n) ? simplifyNote(n) : n);
+
+/** A note as a lesson prints it: display spelling, never a double accidental (B♭♭ reads A). */
+export const pn = (n: string) => prettyNote(readable(n));
 export const ps = (sym: string) => prettySymbol(sym);
 
 /** "F♭ (same key as E)" the first time a key shows up under a second spelling. */
@@ -81,12 +88,6 @@ const DEGREE_WORD: Record<string, string> = {
   "13": "13th",
 };
 export const degreeWord = (d: string) => DEGREE_WORD[d] ?? pn(d);
-
-/**
- * A spelling a reader can take in: double flats and sharps become the everyday key name
- * (E♭♭ → D); single accidentals (C♭, E♯) stay, since they are the chord's correct spelling.
- */
-export const readable = (n: string) => (/(bb|##|x)$/.test(n) ? simplifyNote(n) : n);
 
 /*
  * Copy never puts "a"/"an" before a note name ("an E♭ triad" reads as "an E-flat" or "a E"):

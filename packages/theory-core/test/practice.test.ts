@@ -191,6 +191,8 @@ describe("comping coach diff", () => {
             expect(text, at).not.toMatch(/#|undefined|NaN|\?/);
             expect(text, at).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/);
             expect(text, at).not.toMatch(ARTICLE_BEFORE_NOTE);
+            // the lessons' rule: no double flat or sharp a reader has to decode (B♭♭ reads A)
+            expect(text, `${at}: double accidental`).not.toMatch(/♭♭|♯♯|𝄫|𝄪/u);
           }
         }
       }

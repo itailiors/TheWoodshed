@@ -2,7 +2,7 @@ import fc from "fast-check";
 import { walkingBass } from "../band";
 import { generateMoves, generateMovesTraced } from "../engine";
 import { buildPathway, buildPathwayTraced, DENSITY, overlaps } from "../pathway";
-import { hasRuleLesson, lessonForMove } from "../learn";
+import { hasRuleLesson, lessonForMove, readable } from "../learn";
 import { canonicalMove } from "../learn/canonical";
 import { RULES } from "../ruleset";
 import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, prettyNote, transpose } from "../pitch";
@@ -185,7 +185,8 @@ export const PROOFS: Proof[] = [
           const lesson = lessonForMove(m);
           if (!lesson) continue;
           const spelled = factNotes(m.facts.learn);
-          const shown = new Set([...spelled].map(prettyNote));
+          // as a reader sees it: a computed B♭♭ is printed A (`readable`), the same key respelled, never a new note
+          const shown = new Set([...spelled].map((n) => prettyNote(readable(n))));
           for (const s of lesson.steps) {
             for (const n of [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.map ?? [])]) must(spelled.has(n), `${m.id}: lights ${n}, which the engine never computed`);
             for (const text of [s.text, s.ask?.prompt ?? "", ...s.highlight.map((h) => h.label)])
