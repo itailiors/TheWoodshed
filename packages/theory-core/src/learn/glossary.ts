@@ -1,8 +1,13 @@
+import type { MoveCategory } from "../types";
+
 /*
- * One short gloss per rule-specific term, for the glossary chips. Chord symbols, ii–V–I, the
- * 3rd and 7th and "dominant" are not here: the reader already owns them. A gloss is at most
- * 8 words; `conceptId` is where "Learn it" goes.
+ * One short gloss per term the UI shows, for the glossary chips: rule-specific terms, the move
+ * categories, the level dial's labels and the roman numerals the lessons use. Chord symbols,
+ * ii–V–I, the 3rd and 7th and "dominant" are not here: the reader already owns them. A gloss is
+ * at most 8 words; `conceptId` is where "Learn it" goes.
  */
+
+export type GlossaryKind = "term" | "category" | "level" | "numeral";
 
 export interface GlossaryEntry {
   term: string;
@@ -10,14 +15,37 @@ export interface GlossaryEntry {
   conceptId?: string;
   /** Other spellings that mean the same term in copy. */
   aliases: string[];
+  /** What the entry names; absent means a plain term. Numerals match case-sensitively (ii ≠ II). */
+  kind?: Exclude<GlossaryKind, "term">;
 }
 
-const e = (term: string, gloss: string, conceptId?: string, aliases: string[] = []): GlossaryEntry => ({
+const e = (term: string, gloss: string, conceptId?: string, aliases: string[] = [], kind?: GlossaryEntry["kind"]): GlossaryEntry => ({
   term,
   gloss,
   ...(conceptId ? { conceptId } : {}),
   aliases,
+  ...(kind ? { kind } : {}),
 });
+
+/** Move categories, keyed by the engine's `MoveCategory`; `term` is the label the UI prints. */
+const CATEGORY: Record<MoveCategory, GlossaryEntry> = {
+  functional: e("Functional", "Secondary dominants and ii–Vs: chords pointing ahead.", undefined, [], "category"),
+  "dominant-sub": e("Dominant sub", "Another dominant standing in for the V7.", undefined, [], "category"),
+  gospel: e("Gospel", "A sus chord, then a half-step slide home.", undefined, [], "category"),
+  voicing: e("Voicing", "Same chords, new notes on top.", undefined, [], "category"),
+  chromatic: e("Chromatic", "Colour from half steps and passing chords.", undefined, [], "category"),
+  modal: e("Modal", "Chords borrowed from the parallel minor.", undefined, [], "category"),
+  symmetric: e("Symmetric", "Root motion that splits the octave evenly.", undefined, [], "category"),
+};
+
+/** Level-dial labels, keyed `L0`–`L4` (the prefix e2e asserts); the alias is the full dial label. */
+const LEVEL: readonly GlossaryEntry[] = [
+  e("L0", "Original: the changes as written.", undefined, ["L0 Original"], "level"),
+  e("L1", "Inside: moves that stay in the key.", undefined, ["L1 Inside"], "level"),
+  e("L2", "Colour: new colour, same harmonic job.", undefined, ["L2 Colour"], "level"),
+  e("L3", "Bold: borrowed and redirected arrivals.", undefined, ["L3 Bold"], "level"),
+  e("L4", "Out: leaves the key or the voice-leading.", undefined, ["L4 Out"], "level"),
+];
 
 export const GLOSSARY: readonly GlossaryEntry[] = [
   e("tritone", "Six half steps: exactly half an octave.", "basics:tritone"),
@@ -41,16 +69,47 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("avoid note", "A note that clashes with the chord.", undefined),
   e("upper structure", "A triad on top that supplies the tensions.", "voicing.upperStructureBVI"),
   e("rootless", "Voiced without the root; the bass has it.", "voicing.rootlessTwoFiveOne"),
+  e("Close (rootless)", "No root: 3rd, 7th, colours within an octave.", "voicing.rootlessTwoFiveOne"),
+  e("Type A", "Rootless grip with the 3rd on the bottom.", "voicing.rootlessTwoFiveOne"),
+  e("Type B", "Rootless grip with the 7th on the bottom.", "voicing.rootlessTwoFiveOne"),
   e("shell", "Root, 3rd and 7th only.", "basics:guideTones", ["shells"]),
   e("drop 2", "Second voice from the top dropped an octave.", undefined),
   e("constant structure", "One chord shape moved to new roots.", "chromatic.constantStructure", ["planing"]),
   e("appoggiatura", "A leaning note that resolves by step.", undefined),
   e("enclosure", "Notes above and below a target, then it.", undefined),
   e("the Family", "Four dominants a minor third apart.", "dominant.mediantDominant"),
+  // terms the remaining lessons use (spec §D/§E); 2i links the last two to basics:sevenths and basics:numerals
+  e("tensions", "Notes above the 7th: 9th, 11th, 13th.", "basics:extensions", ["tension", "extensions"]),
+  e("diminished 7th", "Four notes stacked in minor 3rds.", "basics:dim7"),
+  e("augmented triad", "Three notes a major 3rd apart.", "basics:symmetricOctave"),
+  e("sus", "The 4th replaces the 3rd: no pull yet."),
+  e("line cliché", "One voice moving by half steps, chord held.", "chromatic.minorLineCliche"),
+  e("dominant 7th", "Major 3rd plus ♭7: wants to resolve."),
+  e("roman numerals", "Chords named by their root's scale step."),
+  // roman numerals the lessons print (2i links them to basics:numerals)
+  e("V", "The chord built on the key's 5th.", undefined, [], "numeral"),
+  e("♭II", "Chord on the lowered 2nd: tritone-sub root.", undefined, [], "numeral"),
+  e("ii", "Minor chord on the key's 2nd step.", undefined, [], "numeral"),
+  e("♭VII7", "Dominant on the lowered 7th: the backdoor.", undefined, [], "numeral"),
+  e("iv", "Minor chord on the 4th, borrowed from minor.", undefined, [], "numeral"),
+  ...Object.values(CATEGORY),
+  ...LEVEL,
 ];
 
 const norm = (s: string) => s.toLowerCase();
-const INDEX = new Map(GLOSSARY.flatMap((g) => [g.term, ...g.aliases].map((t) => [norm(t), g] as const)));
+const keyOf = (g: GlossaryEntry, t: string) => (g.kind === "numeral" ? t : norm(t));
+const INDEX = new Map(GLOSSARY.flatMap((g) => [g.term, ...g.aliases].map((t) => [keyOf(g, t), g] as const)));
 
-/** A term's entry, by its name or an alias, any case. */
-export const glossaryEntry = (term: string): GlossaryEntry | undefined => INDEX.get(norm(term));
+/** A term's entry, by its name or an alias, any case (numerals: exact case, so `iv` never answers for `IV`). */
+export const glossaryEntry = (term: string): GlossaryEntry | undefined => {
+  const exact = INDEX.get(term);
+  if (exact?.kind === "numeral") return exact;
+  const g = INDEX.get(norm(term));
+  return g?.kind === "numeral" ? undefined : g;
+};
+
+/** The glossary entry for a move category's label. */
+export const categoryEntry = (category: MoveCategory): GlossaryEntry => CATEGORY[category];
+
+/** The glossary entry for a level-dial position, 0–4. */
+export const levelEntry = (level: number): GlossaryEntry | undefined => LEVEL[level];

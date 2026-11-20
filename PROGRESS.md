@@ -8,3 +8,4 @@ One row per sub-phase, newest last. Status: done · parked · blocked (reverted)
 | Sub-phase | Status | Commit | Checks | Notes |
 |---|---|---|---|---|
 | plan | done | (this commit) | n/a | PLAN.md, spec and this file; Gate 0 answered by Itai |
+| 2g | done | 53af070 | typecheck ok; test 550 core + 25 api + 46 web green | `buildFacts` drops top-level `learn` before the reviver. `apps/api/test/explain.test.ts` pins sha256 `3330b645…92f8` of `buildFacts(referenceTune, dominant.tritoneSub@10.1)`: **4a must re-pin it deliberately**. Restoring pre-8d8d832 keys was taken from the audit (not re-derived from an old checkout). Counts 8→9 in README, STATE_OF_THE_UNION, index.html; §1 tree has `src/learn/`. og-card untouched |

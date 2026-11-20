@@ -4,12 +4,24 @@ import { guideTones, triadTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
 import { BUNDLED_TUNES } from "../src/index";
-import { basicsLesson, conceptNode, glossaryEntry, hasRuleLesson, lessonForMove, type Lesson, type TritoneSubLearn } from "../src/learn";
+import {
+  basicsLesson,
+  categoryEntry,
+  CONCEPTS,
+  conceptNode,
+  glossaryEntry,
+  hasRuleLesson,
+  lessonForMove,
+  levelEntry,
+  prereqSummary,
+  type Lesson,
+  type TritoneSubLearn,
+} from "../src/learn";
 import { chroma, mod, transpose } from "../src/pitch";
 import { secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
 import { backdoorTwoFive, borrowedIv } from "../src/rulesAdvanced";
 import { KEYS, transposeTune } from "../src/transpose";
-import type { ChordEvent, Quality, Tune } from "../src/types";
+import type { ChordEvent, MoveCategory, Quality, Tune } from "../src/types";
 import { nearestMotion } from "../src/voiceLeading";
 
 /*
@@ -117,6 +129,71 @@ describe("lesson copy", () => {
         expect(text, at).not.toMatch(/#/);
         expect(text, `${at}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b/);
       }
+    }
+  });
+});
+
+describe("the glossary covers what the UI labels", () => {
+  const CATEGORIES: MoveCategory[] = ["functional", "dominant-sub", "gospel", "voicing", "chromatic", "modal", "symmetric"];
+
+  it("every move category and dial level has an entry, glossed in eight words or fewer", () => {
+    for (const tune of BUNDLED_TUNES) for (const m of generateMoves(tune).accepted) expect(CATEGORIES).toContain(m.category);
+    for (const c of CATEGORIES) {
+      const g = categoryEntry(c);
+      expect(g.kind, c).toBe("category");
+      expect(glossaryEntry(g.term), c).toBe(g);
+      expect(words(g.gloss), g.term).toBeLessThanOrEqual(8);
+    }
+    for (const level of [0, 1, 2, 3, 4]) {
+      const g = levelEntry(level)!;
+      expect(g, `L${level}`).toBeDefined();
+      expect(g.term).toBe(`L${level}`);
+      expect(glossaryEntry(`L${level}`)).toBe(g);
+      expect(words(g.gloss), g.term).toBeLessThanOrEqual(8);
+    }
+    expect(levelEntry(2)!.aliases).toContain("L2 Colour");
+  });
+
+  it("has the voicing labels, the lesson terms and the numerals; numerals match their exact case", () => {
+    for (const t of ["Type A", "Type B", "Close (rootless)", "tensions", "extensions", "diminished 7th", "augmented triad", "sus", "line cliché", "dominant 7th", "roman numerals"])
+      expect(glossaryEntry(t), t).toBeDefined();
+    for (const t of ["borrowed", "appoggiatura", "tonicize", "constant structure", "upper structure", "shell", "rootless", "the Family"]) expect(glossaryEntry(t), t).toBeDefined();
+    for (const n of ["V", "♭II", "ii", "♭VII7", "iv"]) expect(glossaryEntry(n)?.kind, n).toBe("numeral");
+    expect(glossaryEntry("IV")).toBeUndefined(); // the minor iv's gloss must never answer for major IV
+    expect(glossaryEntry("v")).toBeUndefined();
+  });
+});
+
+describe("prerequisite summaries", () => {
+  it("count the prerequisite lessons' steps, in every key", () => {
+    for (const k of KEYS) {
+      const s = prereqSummary("dominant.tritoneSub", k)!;
+      expect(s.prereqs.map((p) => p.id)).toEqual(["basics:tritone", "basics:dominantResolution"]);
+      expect(s.steps).toBe(basicsLesson("basics:tritone", k)!.steps.length + basicsLesson("basics:dominantResolution", k)!.steps.length);
+      expect(s.steps).toBeGreaterThan(0);
+    }
+    expect(prereqSummary("basics:dominantResolution", "C")!.sentence).toBe("This builds on guide tones (3 steps).");
+    expect(prereqSummary("dominant.tritoneSub", "C")!.sentence).toBe("This builds on the tritone and dominant resolution (7 steps).");
+    // a prerequisite without a lesson yet (here a rule; Coach passes `lessonFor` for those): names only, never a partial count
+    expect(prereqSummary("functional.secondaryTwoFive", "C")!.sentence).toBe("This builds on secondary dominant and the ii–V–I.");
+    const stub = basicsLesson("basics:tritone", "C")!;
+    const withRules = prereqSummary("functional.secondaryTwoFive", "C", { lessonFor: (id, k) => basicsLesson(id, k) ?? stub })!;
+    expect(withRules.steps).toBe(stub.steps.length + basicsLesson("basics:twoFiveOne", "C")!.steps.length);
+    expect(withRules.sentence).toMatch(/\(\d+ steps\)\.$/);
+  });
+
+  it("summarises only the unmet prerequisites when told, and nothing for a concept with none", () => {
+    expect(prereqSummary("dominant.tritoneSub", "C", { only: ["basics:dominantResolution"] })!.prereqs.map((p) => p.id)).toEqual(["basics:dominantResolution"]);
+    expect(prereqSummary("basics:tritone", "C")).toBeNull();
+    expect(prereqSummary("nope", "C")).toBeNull();
+  });
+
+  it("every concept whose hard prerequisites all have lessons gets a positive count", () => {
+    for (const c of CONCEPTS) {
+      const s = prereqSummary(c.id, "C");
+      if (!s) continue;
+      for (const p of s.prereqs) if (basicsLesson(p.id, "C")) expect(p.steps, `${c.id} → ${p.id}`).toBeGreaterThan(0);
+      if (s.prereqs.every((p) => basicsLesson(p.id, "C"))) expect(s.steps, c.id).toBeGreaterThan(0);
     }
   });
 });

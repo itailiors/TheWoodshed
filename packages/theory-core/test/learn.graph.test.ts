@@ -74,6 +74,12 @@ describe("the concept graph", () => {
     expect(ts.soft).toEqual(["functional.secondaryDominant"]);
   });
 
+  it("the teacher's edges: the Family needs the dim7; ♭VI–♭VII–I pairs with the backdoor; the gospel slide needs tensions", () => {
+    expect(conceptNode("dominant.mediantDominant")).toMatchObject({ hard: ["basics:dim7"], soft: ["dominant.tritoneSub", "modal.backdoorTwoFive"] });
+    expect(conceptNode("modal.flatSixFlatSeven")).toMatchObject({ hard: ["basics:parallelMinor"], soft: ["modal.borrowedIv", "modal.backdoorTwoFive"] });
+    expect(conceptNode("gospel.halfStepTurnaround")).toMatchObject({ hard: ["dominant.tritoneSub", "basics:extensions"], soft: ["voicing.upperStructureII"] });
+  });
+
   it("borrows evidence only from families that exist", () => {
     const real = [earRuleId("landing"), earRuleId("setup"), shapeRuleId("shell", "7")];
     for (const c of CONCEPTS)
@@ -138,6 +144,13 @@ describe("next up", () => {
     expect(n).toContain("functional.secondaryDominant");
     expect(n).not.toContain("functional.secondaryTwoFive");
     expect(n.indexOf("functional.secondaryDominant")).toBeLessThan(n.indexOf("dominant.tritoneSub"));
+  });
+
+  it("the mediant dominant waits on the dim7 alone, not on the tritone sub", () => {
+    expect(states().get("dominant.mediantDominant")).toMatchObject({ state: "recommendedFirst", recommendedFirst: ["basics:dim7"] });
+    const n = nextUp(states(empty, { "basics:dim7": { seenAt: "x", finishedAt: "y" } }), 99);
+    expect(n).toContain("dominant.mediantDominant");
+    expect(n).not.toContain("dominant.tritoneSub");
   });
 
   it("puts due reviews first", () => {

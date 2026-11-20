@@ -68,12 +68,14 @@ export const CONCEPTS: readonly ConceptNode[] = [
   node("functional.secondaryDominant", 1, ["basics:dominantResolution"]),
   node("dominant.tritoneSub", 2, ["basics:tritone", "basics:dominantResolution"], ["functional.secondaryDominant"]),
   node("voicing.upperStructureBVI", 2, ["basics:guideTones", "basics:extensions"]),
-  node("gospel.halfStepTurnaround", 3, ["dominant.tritoneSub"]),
+  // the approach chord is the tritone sub voiced as a 13(♯11) cluster: tensions first; upper structure II (9, ♯11, 13) is the same grip
+  node("gospel.halfStepTurnaround", 3, ["dominant.tritoneSub", "basics:extensions"], ["voicing.upperStructureII"]),
   node("voicing.rootlessTwoFiveOne", 2, ["basics:guideTones", "basics:extensions", "basics:twoFiveOne"]),
   node("voicing.upperStructureII", 2, ["basics:guideTones", "basics:extensions"], ["dominant.tritoneSub"]),
   node("modal.backdoorTwoFive", 3, ["modal.borrowedIv", "basics:twoFiveOne"], ["dominant.tritoneSub"]),
-  node("dominant.mediantDominant", 3, ["dominant.tritoneSub"], ["modal.backdoorTwoFive", "basics:dim7"]),
-  node("modal.flatSixFlatSeven", 3, ["basics:parallelMinor"], ["modal.borrowedIv"]),
+  // "the Family" is the °7's four dominants a minor 3rd apart: the dim7 is the real prerequisite
+  node("dominant.mediantDominant", 3, ["basics:dim7"], ["dominant.tritoneSub", "modal.backdoorTwoFive"]),
+  node("modal.flatSixFlatSeven", 3, ["basics:parallelMinor"], ["modal.borrowedIv", "modal.backdoorTwoFive"]),
   node("modal.borrowedIv", 3, ["basics:parallelMinor"]),
   node("chromatic.passingDiminished", 2, ["basics:dim7", "functional.secondaryDominant"]),
   node("chromatic.commonToneDiminished", 3, ["basics:dim7"], ["chromatic.passingDiminished"]),
