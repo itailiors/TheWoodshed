@@ -50,6 +50,7 @@ import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
+import { Reveal, useRevealState } from "./components/Reveal";
 import { SideRail } from "./components/SideRail";
 import { useNarrow } from "./device/media";
 import { useWakeLock } from "./device/wakeLock";
@@ -229,9 +230,15 @@ export function App() {
   const [chordCursor, setChordCursor] = useState<ChordCursor | null>(null);
   const [chordTick, setChordTick] = useState(0);
   const cursorChordId = liveChordCursor(chordCursor, original, selectedId)?.chordId ?? null;
+  // Study's secondary panels fold away (one click each); see Reveal for why folded means unmounted
+  const [chordsOpen, setChordsOpen] = useRevealState("study.chordByChord");
+  const [soloOpen, setSoloOpen] = useRevealState("study.solo");
+  const [rejectedOpen, setRejectedOpen] = useRevealState("study.rejected");
+  const [hintSeen, setHintSeen] = useRevealState("hint.study");
   const stepChordBy = (dir: 1 | -1) => {
     const next = stepChord(original, pathway, chordCursor, selectedId, dir);
     if (!next) return;
+    if (!chordsOpen) setChordsOpen(true); // stepping lands focus on the chord's row, so the list must be there
     setChordCursor(next);
     setChordTick((t) => t + 1);
     setCursorFollow(true);
@@ -792,7 +799,19 @@ export function App() {
                           ? `${tune.rights.note} No melody, so moves aren't melody-checked. `
                           : "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
                         : ""}
-                    Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.
+                    {!hintSeen && (
+                      <>
+                        Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.{" "}
+                        <button
+                          type="button"
+                          onClick={() => setHintSeen(true)}
+                          className="cursor-pointer underline decoration-dotted hover:text-ink"
+                          aria-label="Dismiss this tip"
+                        >
+                          Got it
+                        </button>
+                      </>
+                    )}
                   </p>
                   {tune.rights?.kind === "original" && <OriginalStamp rights={tune.rights} className="ml-auto" />}
                 </div>
@@ -800,7 +819,8 @@ export function App() {
             </SketchBox>
 
             {accepted.length > 0 && (
-              <SketchBox seed={seedOf("chord-by-chord")} fill={paper.light} className="mt-6">
+              <Reveal label="Edit chord by chord" open={chordsOpen} onToggle={setChordsOpen} className="mt-6">
+              <SketchBox seed={seedOf("chord-by-chord")} fill={paper.light} className="mt-3">
                 <div className="p-3 sm:p-4">
                   <ChordMoveSelector
                     chords={original}
@@ -822,11 +842,24 @@ export function App() {
                   />
                 </div>
               </SketchBox>
+              </Reveal>
             )}
 
-            <div className="mt-6">
-              <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} level={level} view={view} />
-            </div>
+            <Reveal label="🎹 Solo over it" open={soloOpen} onToggle={setSoloOpen} className="mt-4">
+              <div className="mt-3">
+                <ImprovHeatmap
+                  key={tune.id}
+                  tune={tune}
+                  chords={shownChords}
+                  loop={loop}
+                  playing={playback.status === "playing"}
+                  level={level}
+                  view={view}
+                  trading={false}
+                  mixer={false}
+                />
+              </div>
+            </Reveal>
 
             {bareFacts ? (
               <div className="mt-6 lg:hidden">{bareFacts}</div>
@@ -882,10 +915,15 @@ export function App() {
             )}
 
             {rejected.length > 0 && (
-              <SketchBox seed={seedOf("rejected")} className="text-ink opacity-80">
+              <Reveal
+                label={`${rejected.length} considered & rejected`}
+                open={rejectedOpen}
+                onToggle={setRejectedOpen}
+              >
+              <SketchBox seed={seedOf("rejected")} className="mt-3 text-ink opacity-80">
                 <section className="p-4 text-sm">
-                  <h3 className="font-marker text-base font-bold uppercase">Considered &amp; rejected</h3>
-                  <ul className="mt-1 space-y-1">
+                  <h3 className="sr-only">Considered &amp; rejected</h3>
+                  <ul className="space-y-1">
                     {rejected.map((r) => (
                       <li key={r.move.id}>
                         <span className="font-marker">
@@ -897,6 +935,7 @@ export function App() {
                   </ul>
                 </section>
               </SketchBox>
+              </Reveal>
             )}
           </aside>
         </div>

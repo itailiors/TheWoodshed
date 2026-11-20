@@ -53,6 +53,10 @@ interface Props {
   onGhostPersonality?: (p: GhostPersonality) => void;
   ghostInstrument?: GhostInstrument;
   onGhostInstrument?: (inst: GhostInstrument) => void;
+  /** Offer Ghost Master trading. Off in Study, which leaves performing to Practice. Default true. */
+  trading?: boolean;
+  /** Show the heatmap's own volume mixer. Off where the page already has one. Default: when not compact. */
+  mixer?: boolean;
 }
 
 /** Passes shorter than this aren't worth a history entry (a stray note or two). */
@@ -147,11 +151,13 @@ export function ImprovHeatmap({
   onGhostPersonality,
   ghostInstrument: controlledInstrument,
   onGhostInstrument,
+  trading = true,
+  mixer = !compact,
 }: Props) {
   const [localTrade, setLocalTrade] = useState<TradeSpan>(0);
   const [localPersonality, setLocalPersonality] = useState<GhostPersonality>("side-slipper");
   const [localInstrument, setLocalInstrument] = useState<GhostInstrument>("sax");
-  const tradeBars = controlledTrade ?? localTrade;
+  const tradeBars: TradeSpan = trading ? (controlledTrade ?? localTrade) : 0;
   const setTradeBars = onTradeBars ?? setLocalTrade;
   const ghostPersonality = controlledPersonality ?? localPersonality;
   const setGhostPersonality = onGhostPersonality ?? setLocalPersonality;
@@ -715,7 +721,7 @@ export function ImprovHeatmap({
               <input type="checkbox" checked={armed} onChange={(e) => setArmed(e.target.checked)} className="h-4 w-4 accent-[var(--color-ink)]" />
               Record my line
             </label>
-            <button
+            {trading && <button
               type="button"
               onClick={() => setTradeBars(tradeBars === 0 ? 2 : tradeBars === 2 ? 4 : 0)}
               aria-pressed={tradeBars > 0}
@@ -724,7 +730,7 @@ export function ImprovHeatmap({
               }`}
             >
               {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
-            </button>
+            </button>}
             {tradeBars > 0 && (
               <>
                 <button
@@ -749,7 +755,7 @@ export function ImprovHeatmap({
                 </select>
               </>
             )}
-            {!compact && <VolumeMixer compact beatsPerBar={bpb} />}
+            {mixer && <VolumeMixer compact beatsPerBar={bpb} />}
             <button
               type="button"
               onClick={() => {

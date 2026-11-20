@@ -38,9 +38,10 @@ packages/theory-core/             THE ENGINE: pure, deterministic TypeScript, no
   src/voiceLeading.ts  src/voicing.ts   guide-tone motion; close-position voicings with minimum movement
   src/scales.ts  src/improv.ts    chord-scale suggestions; improvMap
   src/ruleKit.ts                  Rule/Proposal types and helpers (tidy, splitBeats, distribute, chain)
-  src/rules.ts                    CORE_RULES: secondary ii–V (+ "add the related ii", L1), tritone sub, upper structure, gospel turnaround
-  src/rulesAdvanced.ts            ADVANCED_RULES: passing °7, backdoor ii–V, ♭VI–♭VII–I, borrowed iv, common-tone °7, Coltrane, constant structure
-  src/ruleset.ts                  RULES = [...CORE_RULES, ...ADVANCED_RULES]   (11 rules, L1–L4)
+  src/rules.ts                    CORE_RULES: secondary ii–V (+ "add the related ii", L1), secondary dominant, tritone sub, upper structures ♭VI and II, gospel turnaround, rootless ii–V–I
+  src/rulesAdvanced.ts            ADVANCED_RULES: backdoor ii–V, mediant dominant, ♭VI–♭VII–I, borrowed iv, passing °7, common-tone °7, Coltrane, constant structure, minor line cliché
+  src/rulesOneNote.ts             one note on top (L4)
+  src/ruleset.ts                  RULES = [...CORE_RULES, ...ADVANCED_RULES, oneNoteOnTop]   (17 rules, L1–L4)
   src/engine.ts                   generateMovesTraced → generateMoves is a thin wrapper
   src/pathway.ts                  DENSITY caps; buildPathwayTraced → buildPathway wraps it; realize()
   src/pathwayEditor.ts            editPathway: dial click vs pedal, picks, kept chords, open move, links; editorPathway
@@ -177,7 +178,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 ## 4. What works now (verified)
 
 - **131/131 tests** (115 theory-core + 16 API) and a clean typecheck across all three workspaces. CI was green at `d81764b`; the Must-Be floor commit `7834922` and later work have not been checked in CI here.
-- **Engine:** 11 rules (L1–L4), melody filter with reasons, voice-leading scores, density-capped pathways, scale map, voicings, Roman analysis.
+- **Engine:** 17 rules (L1–L4), melody filter with reasons, voice-leading scores, density-capped pathways, scale map, voicings, Roman analysis.
 - **Study, Practice and Coach modes** with continuity, which is unchanged from before.
   - **Shared across modes:** global key change, trio mixer, count-in, click and beat dot.
   - **Mixer popover** (master fader → "Advanced"/"Mix"): per-channel faders, plus a Band section with a swing slider (50% even → 67% triplet 2:1 default → 75% hard; moves the ride skip, snare chatter, comping offbeats and the head's straight-written eighths via `swingTime`) and band styles (As written, Walking, Bass in 2, Ballad, Bossa, Straight 8ths; a waltz offers only the first four). `bandFeel()` in theory-core resolves a style; changes re-lay the parts mid-tune.

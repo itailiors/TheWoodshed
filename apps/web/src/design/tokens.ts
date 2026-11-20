@@ -55,6 +55,25 @@ export const CATEGORY_LABEL: Record<MoveCategory, string> = {
   symmetric: "Symmetric",
 };
 
+/** Readable names for the engine's style tags; an unknown tag falls back to its slug with spaces. */
+const STYLE_LABEL: Record<string, string> = {
+  bebop: "bebop",
+  standard: "standards",
+  gospel: "gospel",
+  modern: "modern jazz",
+  "neo-soul": "neo-soul",
+  "bill-evans": "Bill Evans",
+  "lydian-dominant": "Lydian dominant",
+  "modal-interchange": "borrowed chords",
+  cinematic: "film scoring",
+  stride: "stride",
+  coltrane: "Coltrane",
+  planing: "planing",
+  ballad: "ballads",
+  pedal: "pedal point",
+};
+export const styleLabel = (tag: string) => STYLE_LABEL[tag] ?? tag.replace(/-/g, " ");
+
 export const LEVELS = [
   { level: 0, label: "Original" },
   { level: 1, label: "Functional" },

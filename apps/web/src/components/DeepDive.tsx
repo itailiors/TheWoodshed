@@ -1,6 +1,6 @@
 import type { ReharmMove } from "@reharm/theory-core";
-import { useState } from "react";
-import { DEMO, demoExplanation, type Explanation } from "../demo";
+import { useEffect, useState } from "react";
+import { DEMO, demoExplanation, demoHasWrittenDeepDives, type Explanation } from "../demo";
 import { SketchBox } from "../design/rough";
 import { seedOf, wash } from "../design/tokens";
 import { reportApiUnreachable, useApiStatus } from "../library/apiStatus";
@@ -20,6 +20,16 @@ export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove })
   const api = useApiStatus();
   const [state, setState] = useState<State>({ kind: "idle" });
   const [data, setData] = useState<Explanation | null>(memo.get(memoKey) ?? null);
+  // demo: hide the button until we know the shipped file is Claude-written, not a template echo
+  const [demoWritten, setDemoWritten] = useState(false);
+  useEffect(() => {
+    if (!DEMO) return;
+    let live = true;
+    void demoHasWrittenDeepDives().then((w) => live && setDemoWritten(w));
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const load = async (fresh = false) => {
     setState({ kind: "loading" });
@@ -58,6 +68,8 @@ export function DeepDive({ tuneId, move }: { tuneId: string; move: ReharmMove })
   // The health check already told us there's no key: say so up front instead of offering a button that can't work.
   const noKey = state.kind === "no-key" || (!DEMO && api.state === "online" && api.claudeKey === false);
   const offline = !DEMO && api.state === "offline";
+
+  if (DEMO && !demoWritten) return null;
 
   if (!data && noKey) {
     return (

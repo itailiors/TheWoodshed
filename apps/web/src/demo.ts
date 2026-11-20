@@ -15,7 +15,17 @@ export interface Explanation {
   cached: boolean;
 }
 
-let file: Promise<{ tuneId: string; explanations: Record<string, Omit<Explanation, "cached">> }> | null = null;
+type DemoFile = { tuneId: string; source?: "template" | "claude"; explanations: Record<string, Omit<Explanation, "cached">> };
+let file: Promise<DemoFile> | null = null;
+const loadFile = () => (file ??= import("../../api/demo/explanations.json") as Promise<DemoFile>);
+
+/**
+ * True when the demo ships Claude-written Deep Dives. A template file only repeats the card's
+ * own theory and insight word for word, so the demo hides the button rather than offer an echo.
+ */
+export async function demoHasWrittenDeepDives(): Promise<boolean> {
+  return (await loadFile()).source === "claude";
+}
 
 /**
  * Lazy-loaded, so normal builds don't carry the demo text in the main bundle.
@@ -24,8 +34,7 @@ let file: Promise<{ tuneId: string; explanations: Record<string, Omit<Explanatio
  * engine's own explanation instead.
  */
 export async function demoExplanation(tuneId: string, move: ReharmMove): Promise<Explanation> {
-  file ??= import("../../api/demo/explanations.json") as Promise<{ tuneId: string; explanations: Record<string, Omit<Explanation, "cached">> }>;
-  const f = await file;
+  const f = await loadFile();
   const hit = tuneId === f.tuneId ? f.explanations[move.id] : undefined;
   return (
     (hit && { ...hit, cached: true }) ?? {

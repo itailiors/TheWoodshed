@@ -304,7 +304,7 @@ export const coltraneSubstitution: Rule = {
         summary: `Turn ${ps(chord)} → ${ps(next)} → ${ps(afterNext)} into a tour of three keys a major 3rd apart: ${chords.map(ps).join(" → ")} → ${ps(afterNext)}.`,
         theory:
           `Coltrane's substitution divides the octave into three equal parts. ${centres.map(pn).join(", ")} are a major 3rd apart (an augmented triad), ` +
-          `and each is reached from its own dominant (${pn(roots[1])}7, ${pn(roots[3])}7, ${pn(roots[5])}7). ` +
+          `and each is reached from its own dominant (${ps(chords[1])}, ${ps(chords[3])}, ${ps(chords[5])}). ` +
           `You pass through three key centres in the time of one ii–V and still land on ${ps(afterNext)}. Practise the guide tones first: ` +
           `${chain(guideTones(chords[0]).map((g) => g.note), [...chords.slice(1), afterNext])}.`,
         recreateRule: "Over ii–V–I, tonicize the keys a major 3rd apart: V7–I into ♭VI, V7–I into III, then the real V7–I.",

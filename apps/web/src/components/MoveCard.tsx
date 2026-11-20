@@ -1,6 +1,7 @@
 import { chordTones, guideTones, prettyNote, symbol, type ReharmMove } from "@reharm/theory-core";
+import { useEffect, useState } from "react";
 import { SketchBox, SketchRule } from "../design/rough";
-import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, wash } from "../design/tokens";
+import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "../design/tokens";
 import { ChordName } from "./ChordName";
 import { DeepDive } from "./DeepDive";
 import { DoodleKeyboard } from "./DoodleKeyboard";
@@ -40,6 +41,11 @@ function MoveKeyboard({ move }: { move: ReharmMove }) {
 export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPick, onPractice, onDrill }: Props) {
   const color = CATEGORY_WASH[move.category];
   const bar = move.span.from.bar;
+  // Level 2 of the card: theory, melody check, voice leading, keys, rule, Deep Dive. Closes with the card.
+  const [why, setWhy] = useState(false);
+  useEffect(() => {
+    if (!selected) setWhy(false);
+  }, [selected]);
   return (
     <SketchBox seed={seedOf(move.id)} fill={selected ? paper.light : undefined} className="text-ink" roughness={selected ? 1.6 : 1.2}>
       <article className="p-4" data-move-id={move.id}>
@@ -51,7 +57,7 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
                 {move.title} <span className="text-base font-normal normal-case">(Bar {bar})</span>
               </h3>
               <p className="text-ink-soft text-xs">
-                {CATEGORY_LABEL[move.category]} · L{move.level} · {move.styleTags.join(", ")}
+                {CATEGORY_LABEL[move.category]} · L{move.level} · heard in {move.styleTags.map(styleLabel).join(", ")}
               </p>
             </div>
           </header>
@@ -79,6 +85,34 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
         </button>
 
         {selected && (
+          <div className="mt-3 flex flex-wrap items-start gap-2">
+            <button
+              type="button"
+              onClick={onPractice}
+              className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 font-marker text-paper-light hover:-rotate-1"
+            >
+              🎹 Practice this move
+            </button>
+            <button
+              type="button"
+              onClick={onDrill}
+              className="cursor-pointer rounded-full border-2 border-ink px-4 py-1 font-marker hover:-rotate-1 hover:bg-paper-shade"
+              title="The Comping Coach: play the voicing on your keyboard, get red-pen feedback"
+            >
+              ✍ Drill the voicing
+            </button>
+            <button
+              type="button"
+              aria-expanded={why}
+              onClick={() => setWhy(!why)}
+              className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-1 font-marker text-ink-soft hover:border-ink hover:text-ink"
+            >
+              Why it works <span aria-hidden>{why ? "▾" : "▸"}</span>
+            </button>
+          </div>
+        )}
+
+        {selected && why && (
           <div className="mt-3 space-y-4">
             <SketchRule seed={seedOf(move.id + "r")} />
             <p className="text-[15px] leading-relaxed">{move.text.theory}</p>
@@ -124,43 +158,26 @@ export function MoveCard({ tuneId, move, selected, alternatives, onSelect, onPic
               </p>
             )}
 
-            <div className="flex flex-wrap items-start gap-2">
-              <button
-                type="button"
-                onClick={onPractice}
-                className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 font-marker text-paper-light hover:-rotate-1"
-              >
-                🎹 Practice this move
-              </button>
-              <button
-                type="button"
-                onClick={onDrill}
-                className="cursor-pointer rounded-full border-2 border-ink px-4 py-1 font-marker hover:-rotate-1 hover:bg-paper-shade"
-                title="The Comping Coach: play the voicing on your keyboard, get red-pen feedback"
-              >
-                ✍ Drill the voicing
-              </button>
-            </div>
             <DeepDive key={tuneId} tuneId={tuneId} move={move} />
-
-            {alternatives.length > 0 && (
-              <section>
-                <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Also works here</h4>
-                <div className="mt-1 flex flex-wrap gap-2">
-                  {alternatives.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => onPick(a)}
-                      className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm hover:bg-paper-shade"
-                    >
-                      {a.title} · L{a.level}
-                    </button>
-                  ))}
-                </div>
-              </section>
-            )}
           </div>
+        )}
+
+        {selected && alternatives.length > 0 && (
+          <section className="mt-3">
+            <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Also works here</h4>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {alternatives.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  onClick={() => onPick(a)}
+                  className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm hover:bg-paper-shade"
+                >
+                  {a.title} · L{a.level}
+                </button>
+              ))}
+            </div>
+          </section>
         )}
       </article>
     </SketchBox>

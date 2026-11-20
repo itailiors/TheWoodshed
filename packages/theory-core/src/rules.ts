@@ -397,7 +397,7 @@ export const upperStructureII: Rule = {
       text: {
         summary: `Stack a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell for ${ps(newChord)}.`,
         theory:
-          `The left hand plays the ${pn(chord.root)}7 guide-tone shell (${lh.map(pn).join("–")}). ` +
+          `The left hand plays the root–3rd–♭7 shell (${lh.map(pn).join("–")}). ` +
           `The right hand plays a plain ${pn(tr)} major triad (${rh.map(pn).join(" ")}), a whole step above ${pn(chord.root)}, ` +
           `which automatically supplies the 9th (${pn(rh[0])}), ♯11th (${pn(rh[1])}), and 13th (${pn(rh[2])}) — the signature Lydian dominant polychord.`,
         recreateRule:

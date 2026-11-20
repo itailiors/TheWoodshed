@@ -52,6 +52,26 @@ test("Study: the reference tune is on the stand and the dial changes the moves",
   await expect(page).toHaveURL(/[?&]level=4\b/);
 });
 
+test("Study: first load shows headlines; the rest is one click away", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
+  const open = tricks(page).locator("[data-move-id]").first();
+  await expect(open.getByRole("button", { name: /Practice this move/ })).toBeVisible();
+  // the open card is a headline: its explanation waits behind "Why it works"
+  const why = open.getByRole("button", { name: /Why it works/ });
+  await expect(why).toHaveAttribute("aria-expanded", "false");
+  await expect(open.getByText("Recreate it")).toHaveCount(0);
+  await why.click();
+  await expect(open.getByText("Recreate it")).toBeVisible();
+  // secondary panels are folded, and a folded heatmap isn't mounted (so it can't grade)
+  await expect(page.getByRole("button", { name: /Edit chord by chord/ })).toHaveAttribute("aria-expanded", "false");
+  await expect(page.getByRole("heading", { name: "Improv heatmap" })).toHaveCount(0);
+  await expect(tricks(page).getByRole("button", { name: /^\d+ considered & rejected/ })).toHaveAttribute("aria-expanded", "false");
+  await page.getByRole("button", { name: /Solo over it/ }).click();
+  await expect(page.getByRole("heading", { name: "Improv heatmap" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Trade 2s/ })).toHaveCount(0);
+});
+
 test("Fake MIDI: a chord is registered, released, and an unplug leaves no stuck notes", async ({ page }) => {
   await page.addInitScript(installFakeMidi);
   await page.goto("/");
