@@ -4,8 +4,10 @@ import { chordTones, guideTones, symbol } from "../src/chords";
 import { conceptDrillSteps, diffStrike, diffVoiceLeading, drillSteps } from "../src/coach";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
+import { BUNDLED_TUNES } from "../src/index";
+import { ARTICLE_BEFORE_NOTE } from "../src/learn/lesson";
 import { chordAtBeat, evaluateLineNote, isOnBeat, isPassingTone } from "../src/lineEval";
-import { chroma, midiOf, mod, spellMidi } from "../src/pitch";
+import { chroma, midiOf, mod, prettySymbol, spellMidi } from "../src/pitch";
 import { RULES } from "../src/ruleset";
 import { suggestScales } from "../src/scales";
 import { KEYS, transposeTune } from "../src/transpose";
@@ -148,6 +150,66 @@ describe("comping coach diff", () => {
         }
       }
     }
+  });
+
+  describe("step cues", () => {
+    const BANNED = /\b(simply|just|of course|obviously|basically|magical|lush|sophisticated|spice up|jazzy|game-changer|secret|unlock|let's dive in|it's important to note)\b/i;
+    const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const NOTE = /(?<![\p{L}\p{N}])[A-G][♭♯]*(?![\p{L}\p{N}])/gu;
+
+    /** Every drill a player can open: the 17 canonical concept drills and every bundled tune's moves, in 12 keys. */
+    const drills = () =>
+      KEYS.flatMap((k) => [
+        ...RULES.map((r) => {
+          const res = conceptDrillSteps(r.id, k);
+          return { where: `${r.id} in ${k}`, move: res.move!, steps: [...res] };
+        }),
+        ...BUNDLED_TUNES.flatMap((tune) => {
+          const t = transposeTune(tune, k);
+          return generateMoves(t).accepted.map((m) => ({ where: `${tune.id} ${m.id} in ${k}`, move: m, steps: drillSteps(t, m) }));
+        }),
+      ]);
+    let cached: ReturnType<typeof drills> | undefined;
+    const allDrills = () => (cached ??= drills());
+
+    it("no rule falls through to the generic cue", () => {
+      const all = allDrills();
+      const ruled = new Set(all.map((d) => d.move.ruleId));
+      expect(ruled.size).toBe(17);
+      for (const { where, steps } of all) {
+        for (const s of steps) expect(s.stepCue.whyHere, `${where} ${s.symbol}`).not.toMatch(/^Voice-lead guide tones/);
+      }
+    });
+
+    it("cues are ≤ 25 words, display-spelled, with no hype and no article before a note", () => {
+      for (const { where, steps } of allDrills()) {
+        for (const s of steps) {
+          const at = `${where} ${s.symbol}: "${s.stepCue.whyHere}"`;
+          expect(words(s.stepCue.whyHere), at).toBeLessThanOrEqual(25);
+          for (const text of [s.stepCue.whyHere, s.stepCue.role]) {
+            expect(text, at).not.toMatch(BANNED);
+            expect(text, at).not.toMatch(/#|undefined|NaN|\?/);
+            expect(text, at).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/);
+            expect(text, at).not.toMatch(ARTICLE_BEFORE_NOTE);
+          }
+        }
+      }
+    });
+
+    it("every note a cue names is in the chord under your hands (its tones or the engine's voicing), in 12 keys", () => {
+      for (const { where, move, steps } of allDrills()) {
+        const symbols = [...steps.map((s) => s.chord), ...move.original]
+          .map((c) => prettySymbol(symbol(c)))
+          .sort((a, b) => b.length - a.length);
+        for (const s of steps) {
+          const held = new Set([...chordTones(s.chord).map((t) => chroma(t.note)), ...[s.target.bass, ...s.target.upper].map((m) => mod(m, 12))]);
+          const text = symbols.reduce((t, sym) => t.split(sym).join(" "), s.stepCue.whyHere);
+          for (const n of text.match(NOTE) ?? []) {
+            expect(held.has(chroma(n.replace(/♭/g, "b").replace(/♯/g, "#"))), `${where} ${s.symbol}: ${n} in "${s.stepCue.whyHere}"`).toBe(true);
+          }
+        }
+      }
+    });
   });
 
   it("drills the 3 new curriculum moves (rootlessTwoFiveOne, upperStructureII, minorLineCliche)", () => {

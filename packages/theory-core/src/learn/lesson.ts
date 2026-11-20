@@ -94,6 +94,13 @@ export function moves(m: VoiceMotion): string {
   return `${pn(m.from)} ${m.semitones > 0 ? "rises" : "falls"} to ${pn(m.to)}`;
 }
 
+/** A motion without its landing note: "holds", "falls a half step", "rises a whole step". */
+export function motionVerb(m: VoiceMotion): string {
+  if (m.semitones === 0) return "holds";
+  const n = Math.abs(m.semitones);
+  return `${m.semitones > 0 ? "rises" : "falls"} ${n === 1 ? "a half step" : n === 2 ? "a whole step" : `${n} half steps`}`;
+}
+
 export const hl = (note: string, label: string, dir?: "up" | "down"): Highlight => (dir ? { note, label, dir } : { note, label });
 
 /** The key a motion lands on, placed the way it moves from the key listed just before it. */
