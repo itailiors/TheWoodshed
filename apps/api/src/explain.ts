@@ -62,7 +62,7 @@ function lessonGlossary(lesson: Lesson): { term: string; gloss: string }[] {
 }
 
 /** A note or chord symbol in engine spelling ("Bb", "Gb9", "Ebm7", "C7(b9)"), not a word that starts with A–G ("Above"). */
-const ENGINE_SYMBOL = /^[A-G][b#]*(?:$|[^a-z\s]|m|maj|dim|aug|sus|add)\S*$/;
+const ENGINE_SYMBOL = /^[A-G][b#]*(?:$|[^a-z\s]|m(?![a-z])|maj|dim|aug|sus|add)\S*$/;
 
 /** A chord degree in engine spelling ("b9", "#11", "bb7"). */
 const DEGREE_CODE = /^(?:bb|b|#)\d{1,2}$/;
@@ -84,7 +84,7 @@ export function buildFacts(tune: Tune, move: ReharmMove) {
   const lesson = lessonForMove(move);
   const pedagogy = RULES.find((r) => r.id === move.ruleId)?.pedagogy;
   return {
-    tune: { title: tune.title, key: `${tune.key.tonic} ${tune.key.mode}`, meter: tune.meter.join("/"), feel: tune.feel },
+    tune: { title: tune.title, key: `${pn(tune.key.tonic)} ${tune.key.mode}`, meter: tune.meter.join("/"), feel: tune.feel },
     move: {
       name: move.title,
       ruleId: move.ruleId,
