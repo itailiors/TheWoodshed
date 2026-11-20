@@ -66,7 +66,7 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("Lydian dominant", "Melodic minor's 4th mode: a dominant with ♯11.", undefined),
   e("altered", "Dominant scale with every tension altered.", undefined, ["altered scale"]),
   e("half-diminished", "m7♭5: a minor 7th with a flat 5th.", undefined),
-  e("avoid note", "A note that clashes with the chord.", undefined),
+  e("avoid note", "Clashes: a half step above a chord tone.", undefined),
   e("upper structure", "A triad on top that supplies the tensions.", "voicing.upperStructureBVI"),
   e("rootless", "Voiced without the root; the bass has it.", "voicing.rootlessTwoFiveOne"),
   e("Close (rootless)", "No root: 3rd, 7th, colours within an octave.", "voicing.rootlessTwoFiveOne"),
@@ -77,7 +77,7 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("constant structure", "One chord shape moved to new roots.", "chromatic.constantStructure", ["planing"]),
   e("appoggiatura", "A leaning note that resolves by step.", undefined),
   e("enclosure", "Notes above and below a target, then it.", undefined),
-  e("the Family", "Four dominants a minor third apart.", "dominant.mediantDominant"),
+  e("the Family", "Four dominants, minor thirds apart, sharing one °7.", "dominant.mediantDominant"),
   // terms the remaining lessons use (spec §D/§E)
   e("tensions", "Notes above the 7th: 9th, 11th, 13th.", "basics:extensions", ["tension", "extensions"]),
   e("diminished 7th", "Four notes stacked in minor 3rds.", "basics:dim7"),

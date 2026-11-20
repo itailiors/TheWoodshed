@@ -66,9 +66,10 @@ export const CONCEPTS: readonly ConceptNode[] = [
   node("basics:guideTones", 0, ["basics:sevenths"], [], ["shape:shell:*"]),
   node("basics:dominantResolution", 0, ["basics:guideTones"], [], [earRuleId("landing")]),
   node("basics:twoFiveOne", 0, ["basics:dominantResolution"], [], [earRuleId("setup")]),
-  node("basics:extensions", 0),
+  // soft edges where a step leans on another basic: "past G7's F", "G7's ♭9", "pulls into C like G7 does"
+  node("basics:extensions", 0, [], ["basics:sevenths"]),
   node("basics:parallelMinor", 0),
-  node("basics:dim7", 0),
+  node("basics:dim7", 0, [], ["basics:dominantResolution", "basics:extensions"]),
   node("basics:symmetricOctave", 0),
 
   node("functional.secondaryTwoFive", 1, ["functional.secondaryDominant", "basics:twoFiveOne"]),
@@ -88,8 +89,9 @@ export const CONCEPTS: readonly ConceptNode[] = [
   node("chromatic.commonToneDiminished", 3, ["basics:dim7"], ["chromatic.passingDiminished"]),
   node("symmetric.coltraneSubstitution", 4, ["functional.secondaryTwoFive", "basics:symmetricOctave"], ["dominant.tritoneSub"]),
   node("chromatic.constantStructure", 4, [], ["dominant.tritoneSub"]),
-  node("chromatic.minorLineCliche", 2, [], ["basics:guideTones"]),
-  node("melody.oneNoteOnTop", 4, ["basics:extensions"], ["chromatic.constantStructure"]),
+  // the stops are named maj7, 7 and 6 chords; a walk chord like D♭7(♯11) is the tritone sub
+  node("chromatic.minorLineCliche", 2, [], ["basics:guideTones", "basics:sevenths"]),
+  node("melody.oneNoteOnTop", 4, ["basics:extensions"], ["chromatic.constantStructure", "dominant.tritoneSub"]),
 ];
 
 const BY_ID = new Map(CONCEPTS.map((c) => [c.id, c]));

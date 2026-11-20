@@ -287,7 +287,8 @@ function dim7(T: string): Lesson {
         term: "diminished 7th",
       },
       {
-        text: `Past ${pn(ab)}, the next minor 3rd is ${twin(next, b)}, so only three different diminished 7ths exist.`,
+        // the missing step: the shape repeats every minor 3rd, which is why there are only three
+        text: `Past ${pn(ab)} comes ${twin(next, b)}: the shape repeats every minor 3rd, so only three diminished 7ths exist.`,
         highlight: [hl(ab, "°7"), hl(next, "root", "up")],
         play: "interval",
       },

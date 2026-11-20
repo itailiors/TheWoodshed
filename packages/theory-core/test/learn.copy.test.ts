@@ -1013,7 +1013,7 @@ describe("shipped-copy fixes (teacher's notes)", () => {
     expect(ext.steps[2].text).toBe("Raise it to C♯, or drop B so C replaces the 3rd.");
     expect(ext.steps[3].text).toBe("A dominant may bend the 9th or flatten the 13th: A♭ or A♯, and E♭.");
     expect(basicsLesson("basics:symmetricOctave", "C")!.steps[0].text).toBe("C up a major 3rd is E. E up a major 3rd is G♯; we spell it A♭, C's ♭6.");
-    expect(basicsLesson("basics:dim7", "C")!.steps[1].text).toBe("Past A♭, the next minor 3rd is C♭ (same key as B), so only three different diminished 7ths exist.");
+    expect(basicsLesson("basics:dim7", "C")!.steps[1].text).toBe("Past A♭ comes C♭ (same key as B): the shape repeats every minor 3rd, so only three diminished 7ths exist."); // P6: the missing step named
     expect(basicsLesson("basics:dim7", "C")!.deeper).toBe("So four dominants, G7, B♭7, D♭7 and E7, share Bdim7 once they take the ♭9.");
   });
 });

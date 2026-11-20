@@ -71,7 +71,7 @@ function tritoneSub(f: TritoneSubLearn): Lesson {
     rule: "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
     deeper:
       `Every note of ${sub} is a tone or tension of ${orig}: ${pn(f.subRoot)} is the ♭5, ${pn(f.subFifth)} the ♭9, ${pn(f.subNinth)} the ♭13. ` +
-      `So ${pn(f.subRoot)} Lydian dominant and ${pn(f.originalRoot)} altered share all seven notes: both are modes of ${pn(f.parentMelodicMinor)} melodic minor.`,
+      `And ${pn(f.subRoot)} Lydian dominant and ${pn(f.originalRoot)} altered share all seven notes: both are modes of ${pn(f.parentMelodicMinor)} melodic minor.`,
   };
 }
 
@@ -153,7 +153,7 @@ function secondaryTwoFive(f: SecondaryTwoFiveLearn): Lesson {
       },
       ...(f.related ? [] : [{ text: `The trade: ${orig}'s colour goes, and ${pn(f.VRoot)} to ${pn(f.targetRoot)} makes a stronger arrival on ${target}.`, highlight: [hl(f.VRoot, "V"), hl(f.targetRoot, "target", "down")], play: "ab" as const }]),
     ],
-    rule: "Before any major or minor chord, go up a fifth for the V and another fifth for the ii.",
+    rule: "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
     deeper: `${V}'s ♭9, ${pn(f.flatNine[0])}, falls a half step to ${pn(f.flatNine[1])}, the 5th of ${target}.`,
   };
 }
