@@ -55,9 +55,10 @@ export function coachLesson(conceptId: string, key: string, tuneMove?: { tune: T
   if (tuneMove) {
     const { tune, move } = tuneMove;
     const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
-    // move ids are positional, so the same id is the same move in another key
-    const dmove = generateMoves(dtune).accepted.find((m) => m.id === move.id) ?? move;
-    return fromMove(dtune, dmove);
+    // move ids are positional, so the same id is the same move in another key. Not there: no lesson
+    // (the ladder starts at Study it), never the old key's move on the new key's chart
+    const dmove = generateMoves(dtune).accepted.find((m) => m.id === move.id);
+    return dmove ? fromMove(dtune, dmove) : null;
   }
   const drill = canonicalDrill(conceptId, key);
   return drill?.move ? fromMove(drill.tune, drill.move) : null;
