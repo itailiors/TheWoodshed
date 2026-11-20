@@ -101,6 +101,24 @@ async function openPathAgain(page: Page) {
   await page.getByRole("dialog", { name: /Concept passport/i }).getByRole("tab", { name: "Path" }).click();
 }
 
+test("the passport's tabs move with the arrow keys (roving tabindex, Enter picks)", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /^(My progress \(concept passport\)|📒 Progress)$/ }).locator("visible=true").first().click();
+  const dialog = page.getByRole("dialog", { name: /Concept passport/i });
+  const today = dialog.getByRole("tab", { name: "Today's practice" });
+  const path = dialog.getByRole("tab", { name: "Path" });
+  await expect(path).toHaveAttribute("tabindex", "-1");
+  await today.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(path).toBeFocused();
+  await page.keyboard.press("Home");
+  await expect(today).toBeFocused();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await expect(path).toHaveAttribute("aria-selected", "true");
+  await expect(path).toHaveAttribute("tabindex", "0");
+});
+
 test("the deep link #coach/<conceptId> opens the Coach on that concept", async ({ page }) => {
   await page.goto(`/#coach/${TRITONE_SUB}`);
   await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();

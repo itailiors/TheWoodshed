@@ -9,6 +9,7 @@ import { forgetLocalPractice, type DueItem, type ImprovRun, type Progress, type 
 import { progressSnapshot, refreshProgress, subscribeProgress } from "../../learn/progressStore";
 
 import type { PractiseRequest } from "./KeyMatrix";
+import { onTabListKey } from "../tabKeys";
 export type { PractiseRequest } from "./KeyMatrix";
 
 interface Props {
@@ -118,7 +119,7 @@ export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props)
               </button>
             </header>
 
-            <div role="tablist" aria-label="Passport views" className="flex flex-wrap gap-2 font-marker">
+            <div role="tablist" aria-label="Passport views" onKeyDown={onTabListKey} className="flex flex-wrap gap-2 font-marker">
               {(
                 [
                   ["today", "Today's practice"],
@@ -131,6 +132,7 @@ export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props)
                   type="button"
                   role="tab"
                   aria-selected={tab === id}
+                  tabIndex={tab === id ? 0 : -1}
                   aria-controls={`passport-panel-${id}`}
                   onClick={() => pickTab(id)}
                   className={`tap-lg cursor-pointer rounded-full border-2 border-ink px-4 py-0.5 ${tab === id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
@@ -175,15 +177,18 @@ export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props)
                         .map((group) => (
                           <div key={group.title} className="space-y-1.5">
                             <p className="font-hand text-sm uppercase tracking-wider text-ink-soft">{group.title}</p>
-                            <div role="tablist" aria-label={group.title} className="flex flex-wrap gap-2 font-marker">
-                              {group.items.map((c) => {
+                            <div role="tablist" aria-label={group.title} onKeyDown={onTabListKey} className="flex flex-wrap gap-2 font-marker">
+                              {group.items.map((c, i) => {
                                 const clean = (data.cleanKeys[c.id] ?? []).length;
+                                // roving tabindex: the selected tab, or the group's first when its pick is in another group
+                                const here = group.items.some((x) => x.id === shown?.id);
                                 return (
                                   <button
                                     key={c.id}
                                     type="button"
                                     role="tab"
                                     aria-selected={shown?.id === c.id}
+                                    tabIndex={shown?.id === c.id || (!here && i === 0) ? 0 : -1}
                                     onClick={() => setRule(c.id)}
                                     className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm ${shown?.id === c.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
                                   >

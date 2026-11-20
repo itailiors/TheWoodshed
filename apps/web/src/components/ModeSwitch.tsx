@@ -1,4 +1,5 @@
 import { SettingsMenu } from "./SettingsMenu";
+import { onTabListKey } from "./tabKeys";
 
 export type AppMode = "study" | "practice" | "coach" | "changes" | "voicings";
 
@@ -27,13 +28,14 @@ export function ModeSwitch({ mode, onMode }: { mode: AppMode; onMode: (m: AppMod
 
 function ModeTabs({ mode, onMode }: { mode: AppMode; onMode: (m: AppMode) => void }) {
   return (
-    <div role="tablist" aria-label="Mode" className="flex rounded-full border-2 border-ink p-0.5 font-marker">
+    <div role="tablist" aria-label="Mode" onKeyDown={onTabListKey} className="flex rounded-full border-2 border-ink p-0.5 font-marker">
       {MODES.map((m) => (
         <button
           key={m.id}
           type="button"
           role="tab"
           aria-selected={mode === m.id}
+          tabIndex={mode === m.id ? 0 : -1}
           title={m.title}
           onClick={() => onMode(m.id)}
           className={`cursor-pointer whitespace-nowrap rounded-full px-2.5 py-0.5 sm:px-3 ${mode === m.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}

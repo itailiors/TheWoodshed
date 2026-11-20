@@ -42,6 +42,7 @@ import { conceptLevel, nextUpReason, pathOrder, recommendedFirstLabel, tierBands
 import { FirstRunHint } from "../learn/FirstRunHint";
 import { DueDot, PathChip } from "../learn/PathChip";
 import { useEscapeCapture } from "../learn/useEscapeCapture";
+import { onTabListKey } from "../tabKeys";
 import { countOpen } from "../../usage/panelOpens";
 
 /** Phones (spec §A "Layout"): the rail becomes a "Your path ▾" sheet plus a row of Next up chips. */
@@ -478,7 +479,12 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
         {!touchFirst && <QwertyToggle compact />}
       </header>
 
-      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[270px_minmax(0,1fr)_330px]">
+      {/* a lesson needs the width more than the passport (practice evidence, not lesson content): below xl, Learn drops the aside */}
+      <div
+        className={`grid grid-cols-1 items-start gap-5 ${
+          stage === "learn" && learn ? "lg:grid-cols-[270px_minmax(0,1fr)] xl:grid-cols-[270px_minmax(0,1fr)_330px]" : "lg:grid-cols-[270px_minmax(0,1fr)_330px]"
+        }`}
+      >
         {/* ── Zone 1 (Left Rail): Scope Toggle + Concept Curriculum / Tune Moves ── */}
         {/* on a phone the rail is a bottom sheet ("Your path ▾"); elsewhere these wrappers are display: contents */}
         <div className={phone ? (sheetOpen ? "fixed inset-0 z-40 bg-ink/20" : "hidden") : "contents"} onClick={phone ? closeSheet : undefined}>
@@ -504,11 +510,12 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
           </div>
         )}
         <nav id="coach-moves" aria-label="What to drill" className="order-2 scroll-mt-4 space-y-4 lg:sticky lg:top-4 lg:order-none">
-          <div role="tablist" aria-label="Coach drill scope" className="grid grid-cols-2 gap-1.5 rounded-lg border-2 border-ink bg-paper-base p-1 font-marker text-xs">
+          <div role="tablist" aria-label="Coach drill scope" onKeyDown={onTabListKey} className="grid grid-cols-2 gap-1.5 rounded-lg border-2 border-ink bg-paper-base p-1 font-marker text-xs">
             <button
               type="button"
               role="tab"
               aria-selected={scope === "concept"}
+              tabIndex={scope === "concept" ? 0 : -1}
               onClick={() => setScope("concept")}
               className={`cursor-pointer rounded px-2 py-1.5 text-center transition-colors ${
                 scope === "concept" ? "bg-ink text-paper-light" : "text-ink hover:bg-paper-shade"
@@ -520,6 +527,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               type="button"
               role="tab"
               aria-selected={scope === "tune"}
+              tabIndex={scope === "tune" ? 0 : -1}
               onClick={() => setScope("tune")}
               className={`cursor-pointer rounded px-2 py-1.5 text-center transition-colors ${
                 scope === "tune" ? "bg-ink text-paper-light" : "text-ink hover:bg-paper-shade"
@@ -892,7 +900,11 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
 
         {/* ── Zone 3 (Right Rail): Concept Passport Page ── */}
         {/* a basic has no keys of its own to stamp: its practice is filed under Changes and Voicings */}
-        <aside aria-labelledby="coach-passport-h" hidden={basics} className="order-3 space-y-3 lg:sticky lg:top-4 lg:order-none">
+        <aside
+          aria-labelledby="coach-passport-h"
+          hidden={basics}
+          className={`order-3 space-y-3 lg:sticky lg:top-4 lg:order-none ${stage === "learn" && learn ? "lg:max-xl:hidden" : ""}`}
+        >
           <SketchBox seed={seedOf("coach-passport")} fill={paper.light}>
             <div className="space-y-3 p-4">
               <div>
