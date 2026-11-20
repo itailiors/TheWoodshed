@@ -2,8 +2,8 @@ import { useRevealState } from "../Reveal";
 import { FIRST_RUN_HINTS, type HintScreen } from "./hints";
 
 /*
- * One dismissible line per screen (spec §D "First-run hints"); Study keeps its own inline one
- * (`hint.study`). Stored as `reharm.reveal.hint.<screen>` through `useRevealState`, whose `hint.*`
+ * One dismissible line per screen (spec §D "First-run hints"), Study's included (`hint.study`;
+ * the demo swaps in a line that says what the app is). Stored as `reharm.reveal.hint.<screen>` through `useRevealState`, whose `hint.*`
  * keys skip the panel-open counter. If storage throws, the hint just shows each session.
  */
 
@@ -28,7 +28,7 @@ export function FirstRunHint({ screen, hidden = false, text, className = "" }: P
       <button
         type="button"
         onClick={() => setDismissed(true)}
-        className="cursor-pointer font-marker text-xs underline decoration-dotted hover:text-ink pointer-coarse:min-h-11"
+        className="cursor-pointer font-marker text-xs underline decoration-dotted hover:text-ink pointer-coarse:min-h-11 pointer-coarse:min-w-11"
         aria-label="Got it: dismiss this tip"
       >
         ✕ Got it

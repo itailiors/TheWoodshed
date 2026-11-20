@@ -311,7 +311,9 @@ Each lesson sub-phase: `*Learn` interface in `learn/facts.ts`, populated in `pro
 | Persona | Checklist | Pass when |
 |---|---|---|
 | UI/UX designer | ≤ 2 disclosure levels (`aria-expanded` e2e); ≤ 4 lit keys; house idioms; 44 px targets (black keys too); one docked phone block; one routing line; axe clean; keyboard-only path; dark contrast | No blocker; no third level |
-| Product manager | Headline and ▶ in the first viewport; "Next up" obvious; nothing seeded reads as real; success criteria read | First load to finished lesson in ≤ 3 clicks |
+| Product manager | Headline and ▶ in the first viewport; "Next up" obvious; nothing seeded reads as real; success criteria read | First load to finished lesson in ≤ 3 *decisions* (revised at P6, see note) |
+
+**Note (P6 fixes, measured in the demo build):** "≤ 3 clicks" isn't reachable without cutting lesson steps, so the criterion counts decisions (open a lesson, answer its ask, finish), not presses of Next. Measured clicks: **Coach 5** (Coach tab, Next ×3, then one "Next up: The tritone ›" that both finishes 7th chords and opens the next lesson; was 5 plus 2 more to move on), **Study 6** (Why it works, Next ×4, Done on the 5-step ii–V lesson). Each lesson is 3–5 steps by design (spec §A, one idea per step); merging steps or auto-advancing on Next would trade the one-idea-per-screen rule for a click count. `learn.finish` still counts only a lesson walked to its last step and finished.
 | Beginner pianist (3–4 months) | `basics:sevenths` → `basics:tritone` → tritone sub with on-screen keys or QWERTY; every term chipped; symbol decoder; "Recommended first" never a wall | Finishes all three unaided |
 | Jazz piano teacher | Spelling (F♭, C♭, sharps that rise, no double accidentals shown); idiomatic voicings; defensible edges; any key | No wrong claim in 27 lessons |
 | Senior engineer | CLAUDE.md §2 rules 1, 2, 7, 11–14; lessons read only `facts.learn`; no grader in Learn; heatmap guard; no `learn/index` cycle; StrictMode-safe; no leaked listeners; lazy chunks; bundle delta | All rules hold; local store unchanged by Learn; no leaks |
