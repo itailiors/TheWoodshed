@@ -50,7 +50,8 @@ export function symbolIn(token: string): string | null {
 
 /** The first use of `form` in `text` as a whole word (any case; "borrows" counts for "borrow"), or null. */
 function wordAt(text: string, form: string): { at: number; len: number } | null {
-  const m = new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|ed|ing)?(?![\\p{L}])`, "iu").exec(text);
+  // "d" for a term ending in e ("tonicize" → "tonicized")
+  const m = new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|d|ed|ing)?(?![\\p{L}])`, "iu").exec(text);
   return m ? { at: m.index, len: m[0].length } : null;
 }
 

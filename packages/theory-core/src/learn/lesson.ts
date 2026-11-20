@@ -30,6 +30,11 @@ export interface LessonStep {
    * inner list is one chord, engine-spelled pitch classes from `transpose()`/`chordTones()`.
    */
   sound?: string[][];
+  /**
+   * A key-centre map drawn beside the text (Coltrane): engine-spelled notes in the order they're
+   * visited, placed on a ring of the 12 keys, so three centres a major 3rd apart show as a triangle.
+   */
+  map?: string[];
   /** Predict, then reveal: tap these keys (any octave, any spelling of the same key). */
   ask?: { kind: "tapNotes"; prompt: string; answer: string[] };
   /** The one new term this step introduces (a glossary term, used in `text`). */
@@ -63,6 +68,7 @@ const DEGREE_WORD: Record<string, string> = {
   "4": "sus 4th",
   b5: "♭5",
   "5": "5th",
+  "#5": "♯5",
   "6": "6th",
   b7: "7th",
   "7": "7th",

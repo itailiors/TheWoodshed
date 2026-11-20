@@ -1,4 +1,14 @@
-import type { BackdoorLearn, BorrowedIvLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "../facts";
+import type { PathStop } from "../../voiceLeading";
+import type {
+  BackdoorLearn,
+  BorrowedIvLearn,
+  ColtraneLearn,
+  ConstantStructureLearn,
+  OneNoteOnTopLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+} from "../facts";
 import { degreeWord, hl, hlTo, moves, pn, ps, twin, type Lesson } from "../lesson";
 
 /*
@@ -201,6 +211,146 @@ function backdoor(f: BackdoorLearn): Lesson {
   };
 }
 
+/** "A, A♭, then G". */
+const walkList = (ns: string[]) => (ns.length < 2 ? ns.map(pn).join("") : `${ns.slice(0, -1).map(pn).join(", ")}, then ${pn(ns[ns.length - 1])}`);
+
+function coltrane(f: ColtraneLearn): Lesson {
+  const [ii, V, target] = [ps(f.ii), ps(f.V), ps(f.target)];
+  const [c1, c2, home] = f.centres;
+  const [d1, d2, d3] = f.dominantRoots;
+  const stop = (s: PathStop) => (s.respelled ? `${pn(s.note)} (held, respelled ${pn(s.respelled)})` : s.holds ? `${pn(s.note)} (held)` : pn(s.note));
+  return {
+    conceptId: "symmetric.coltraneSubstitution",
+    headline: `Over ${ii} → ${V} → ${target}, tour three keys a major 3rd apart before landing on ${pn(f.targetRoot)}.`,
+    steps: [
+      {
+        // the map first: where the tour goes, before how it gets there
+        text: `The map first: three key centres, ${pn(c1)}, ${pn(c2)} and ${pn(home)}, a major 3rd apart.`,
+        highlight: [hl(c1, "♭VI"), hl(c2, "III", "down"), hl(home, "home", "down")],
+        map: [...f.centres],
+        play: "interval",
+        term: "key centre",
+        prereqLink: "basics:symmetricOctave",
+      },
+      {
+        text: `Each key is tonicized by its own V7: ${f.dominants.map((d, k) => `${ps(d)} → ${ps(f.centreChords[k])}`).join(", ")}.`,
+        highlight: [hl(d1, "V7"), hl(d2, "V7"), hl(d3, "V7")],
+        ask: { kind: "tapNotes", prompt: `Each key gets its own V7. Tap the root a fifth above ${pn(c1)}.`, answer: [d1] },
+        term: "tonicize",
+        prereqLink: "functional.secondaryTwoFive",
+      },
+      {
+        // a descending single voice (the ii's 3rd), its holds folded: not a guide-tone line
+        text: `One voice carries it: ${f.line.map(stop).join(", ")}.`,
+        highlight: f.line.slice(0, 4).map((s) => hl(s.note, s.holds ? "held" : pn(s.note))),
+        play: "after",
+      },
+      {
+        text: `Then ${ps(f.dominants[2])} → ${target}, the V–I you started with, lands home on time.`,
+        highlight: [hl(d3, "V"), hl(f.targetRoot, "home")],
+        play: "ab",
+      },
+    ],
+    rule: "Over a ii–V–I, tonicize the keys a major 3rd apart: V7–I into ♭VI, V7–I into III, then V7–I home.",
+    deeper: `The three dominants, ${f.dominants.slice(0, 2).map(ps).join(", ")} and ${ps(f.dominants[2])}, form a major-3rd cycle of their own.`,
+  };
+}
+
+function constantStructure(f: ConstantStructureLearn): Lesson {
+  const target = ps(f.target);
+  const approach = ps(f.planed[f.planed.length - 1]);
+  const lit = <T>(xs: T[]) => f.lit.map((k) => xs[k]);
+  const twoStep = f.planed.length > 1;
+  // a shape of up to 4 keys is asked whole; a bigger one by its 3rd and 7th, since only 4 keys light
+  const ask =
+    f.approachTones.length <= 4
+      ? { prompt: `Move the whole shape up a half step. Tap ${approach}.`, answer: f.approachTones }
+      : { prompt: `Move the whole shape up a half step. Tap the 3rd and 7th of ${approach}.`, answer: [...f.approachGuide] };
+  return {
+    conceptId: "chromatic.constantStructure",
+    headline: `Slide into ${target} with its own shape: ${[...f.planed.map(ps), target].join(" → ")}, the whole hand moving together.`,
+    steps: [
+      {
+        text: `${target}'s shape is ${f.shapeTones.map(pn).join(", ")}. Constant structure keeps that shape and moves it.`,
+        highlight: lit(f.shapeTones).map((n) => hl(n, pn(n))),
+        play: "interval",
+        term: "constant structure",
+      },
+      {
+        text: `Up a half step it's ${approach}: ${f.approachTones.map(pn).join(", ")}. Same shape, new root.`,
+        highlight: lit(f.approachTones).map((n) => hl(n, pn(n))),
+        ask: { kind: "tapNotes", ...ask },
+      },
+      {
+        text: `Slide down: ${lit(f.slide)
+          .map((m) => `${pn(m.from)} to ${pn(m.to)}`)
+          .join(", ")}. Every voice moves together.`,
+        highlight: lit(f.slide).map((m) => hl(m.to, pn(m.to))),
+        play: "after",
+      },
+      {
+        text: `The ear follows the moving shape, not the key, so ${f.planed.map(ps).join(" and ")} lead${twoStep ? "" : "s"} into ${target}.`,
+        highlight: f.planedRoots.map((n, k) => hl(n, pn(n), k ? "down" : undefined)),
+        play: "ab",
+      },
+    ],
+    rule: "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
+    deeper: twoStep
+      ? `With room for two, start a whole step above, as here: ${ps(f.planed[0])}, ${approach}, then ${target}.`
+      : "With a longer chord, start a whole step above and slide down twice.",
+  };
+}
+
+function oneNoteOnTop(f: OneNoteOnTopLearn): Lesson {
+  const T = pn(f.heldNote);
+  const [orig, target] = [ps(f.original), ps(f.target)];
+  const walk = [...f.basses, f.targetBass];
+  const three = f.basses.length > 2;
+  // over a walk bass, "the 3rd" or "the 7th" could be either quality, and the ask must name one bass: say which
+  const role = (d: string) => (d === "7" ? "major 7th" : d === "b3" ? "minor 3rd" : degreeWord(d));
+  const over = (k: number, it: string) => `${pn(f.basses[k])}, ${it} the ${role(f.roles[k])} of ${ps(f.walkChords[k])}`;
+  const land = f.landing ? `Into ${target}, ${T} lands as the ${degreeWord(f.landing)}.` : `Then ${target} arrives under it.`;
+  const top = hl(f.heldNote, "top");
+  const shared = !f.fromMelody && f.heldIn && f.landing;
+  // the ask: the second walk chord's role, which no other walk chord shares (each bass sits a different distance under the top)
+  return {
+    conceptId: "melody.oneNoteOnTop",
+    headline: `Hold ${T} on top while the bass walks ${walk.map(pn).join(", ")}: one note, new colours under it.`,
+    steps: [
+      {
+        text: shared
+          ? `${T} is ${orig}'s ${degreeWord(f.heldIn!)} and ${target}'s ${degreeWord(f.landing!)}: it can stay on top through the change.`
+          : f.fromMelody
+            ? `The melody holds ${T}, so keep it as the top voice.`
+            : `Keep ${T} on top through the change.`,
+        highlight: [top],
+        play: "before",
+      },
+      {
+        text: `Under it, the bass walks down by half steps: ${walkList(walk)}.`,
+        // a 3-chord walk has four basses: they fill the keyboard, and step 1 already lit the top
+        highlight: [...(three ? [] : [top]), ...walk.map((n, k) => hl(n, pn(n), k ? "down" : three ? undefined : "down"))],
+        play: "after",
+        prereqLink: "basics:extensions",
+      },
+      {
+        text: `Over ${over(0, `${T} is`)}; over ${over(1, "it's")}.`,
+        highlight: [top, hl(f.basses[0], pn(f.basses[0]), "down"), hl(f.basses[1], pn(f.basses[1]), "down")],
+        ask: { kind: "tapNotes", prompt: `${T} is the ${role(f.roles[1])} of one walk chord. Tap its bass.`, answer: [f.basses[1]] },
+      },
+      {
+        text: three ? `Over ${over(2, `${T} is`)}. ${land}` : `${land} The top never moved; the colour under it did.`,
+        highlight: [top, ...(three ? [hl(f.basses[2], pn(f.basses[2]), "down")] : []), hl(f.targetBass, pn(f.targetBass), "down")],
+        play: "ab",
+      },
+    ],
+    rule: "Under a held top note, walk the bass down by half steps and build each chord to contain that note.",
+    deeper: three
+      ? "The top never moved; the colour under it did. A half step above the bass suggests 7(♭9), a tritone 7(♯11)."
+      : "The interval from bass to top note suggests the chord: a half step above the bass gives 7(♭9), a tritone 7(♯11).",
+  };
+}
+
 /** Rule lessons by rule id, each reading its rule's `facts.learn`. */
 export const RULE_LESSONS = {
   "dominant.tritoneSub": tritoneSub,
@@ -208,4 +358,7 @@ export const RULE_LESSONS = {
   "functional.secondaryTwoFive": secondaryTwoFive,
   "modal.borrowedIv": borrowedIv,
   "modal.backdoorTwoFive": backdoor,
+  "symmetric.coltraneSubstitution": coltrane,
+  "chromatic.constantStructure": constantStructure,
+  "melody.oneNoteOnTop": oneNoteOnTop,
 } as const satisfies Record<string, (f: never) => Lesson>;

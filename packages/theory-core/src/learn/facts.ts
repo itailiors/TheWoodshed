@@ -1,4 +1,5 @@
 import type { VoiceMotion } from "../types";
+import type { PathStop } from "../voiceLeading";
 
 /*
  * What a rule hands its lesson: `Proposal.facts.learn`. Notes are engine-spelled ("Bb", "Fb"),
@@ -97,4 +98,60 @@ export interface BackdoorLearn {
   targetFifth: string;
   /** ♭VII7's 9th: the target's root, already sounding. */
   bVIINinth: string;
+}
+
+export interface ColtraneLearn {
+  ii: string;
+  V: string;
+  target: string;
+  targetRoot: string;
+  /** ♭VI, III and I of the target: three key centres a major 3rd apart, in the order they're toured. */
+  centres: [string, string, string];
+  /** The chords that land on them: ♭VImaj7, IIImaj7 and the target. */
+  centreChords: [string, string, string];
+  /** Each centre's own V7, in the same order. */
+  dominants: [string, string, string];
+  dominantRoots: [string, string, string];
+  /**
+   * The ii's 3rd followed by nearest motion through the tour into the target, runs of holds
+   * collapsed (F, E♭ held as D♯, D, C in C). A single descending voice, not a guide-tone line.
+   */
+  line: PathStop[];
+}
+
+export interface ConstantStructureLearn {
+  /** The chart's chord, which keeps the downbeat. */
+  from: string;
+  target: string;
+  targetRoot: string;
+  /** The target's shape a whole step (when there's room) and a half step above it. */
+  planed: string[];
+  /** Their roots, then the target's: D, D♭, C. */
+  planedRoots: string[];
+  /** The target's tones, and the same shape a half step above (double accidentals respelled). */
+  shapeTones: string[];
+  approachTones: string[];
+  /** The half-step shape's 3rd and 7th (or sus 4th and 7th). */
+  approachGuide: [string, string];
+  /** Voice k of the half-step shape sliding into voice k of the target (all −1). */
+  slide: VoiceMotion[];
+  /** Which voices a 4-key keyboard lights, as indices into the three lists above (all of them up to 4). */
+  lit: number[];
+}
+
+export interface OneNoteOnTopLearn {
+  heldNote: string;
+  fromMelody: boolean;
+  original: string;
+  target: string;
+  /** The held note's degree in the chart's chord (null when the melody holds a note outside it). */
+  heldIn: string | null;
+  /** The walk's bass notes, then the target's bass. */
+  basses: string[];
+  targetBass: string;
+  walkChords: string[];
+  /** The held note's degree in each walk chord, as a code ("4", "#11"). */
+  roles: string[];
+  /** Its degree in the target, or null when the target doesn't contain it. */
+  landing: string | null;
 }

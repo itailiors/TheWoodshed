@@ -1,13 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { chordChromas, guideTones } from "../src/chords";
+import { chordChromas, chordTones, guideTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
-import { BUNDLED_TUNES } from "../src/index";
+import { BUNDLED_TUNES, canonicalMove } from "../src/index";
 import { basicsLesson, CONCEPTS, hasRuleLesson, isBasicsId, lessonForMove, type Lesson } from "../src/learn";
-import type { BackdoorLearn, BorrowedIvLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "../src/learn/facts";
-import { chroma, mod, transpose } from "../src/pitch";
+import type {
+  BackdoorLearn,
+  BorrowedIvLearn,
+  ColtraneLearn,
+  ConstantStructureLearn,
+  OneNoteOnTopLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+} from "../src/learn/facts";
+import { degreeWord } from "../src/learn/lesson";
+import { chroma, mod, prettyNote, transpose } from "../src/pitch";
+import { RULES } from "../src/ruleset";
 import { KEYS, transposeTune } from "../src/transpose";
-import type { Quality } from "../src/types";
+import type { Quality, ReharmMove } from "../src/types";
 
 /*
  * Predict, then reveal: an ask must have exactly one right answer set. A prompt like "Which key
@@ -20,11 +31,11 @@ import type { Quality } from "../src/types";
 const shape = (root: string, quality: Quality, extensions: string[] = [], alterations: string[] = []) => ({ root, quality, extensions, alterations });
 const pcs = (notes: Iterable<string>) => [...new Set([...notes].map((n) => chroma(n)))].sort((a, b) => a - b);
 const sorted = (xs: Iterable<number>) => [...new Set(xs)].sort((a, b) => a - b);
-const guide = (c: ReturnType<typeof shape>) => guideTones(c).map((t) => t.note);
+const guide = (c: Parameters<typeof guideTones>[0]) => guideTones(c).map((t) => t.note);
 const MAJOR = [0, 2, 4, 5, 7, 9, 11];
 
 /** What the ask's prompt allows, as pitch classes, computed from the chords (not from the lesson). */
-type Allowed = (lesson: Lesson, ctx: { tonic?: string; learn?: unknown }) => number[];
+type Allowed = (lesson: Lesson, ctx: { tonic?: string; learn?: unknown; move?: ReharmMove }) => number[];
 
 const RULE_ASKS: Record<string, Allowed> = {
   // "G♭9 keeps C7's guide tones. Tap them."
@@ -57,7 +68,36 @@ const RULE_ASKS: Record<string, Allowed> = {
     const bVII = chordChromas(shape(f.bVIIRoot, "7", ["9"]));
     return [chroma(f.targetRoot)].filter((pc) => bVII.has(pc));
   },
+  // "Each key gets its own V7. Tap the root a fifth above A♭.": A♭ is the first key centre, and its V7 is in the tour
+  "symmetric.coltraneSubstitution": (l, { learn, move }) => {
+    const f = learn as ColtraneLearn;
+    expect(l.steps.find((s) => s.ask)!.ask!.prompt).toContain(`above ${prettyNote(f.centres[0])}.`);
+    const fifthAbove = mod(chroma(f.centres[0]) + 7, 12);
+    expect(move!.chords.some((c) => c.quality === "7" && chroma(c.root) === fifthAbove)).toBe(true);
+    return [fifthAbove];
+  },
+  // "Move the whole shape up a half step. Tap D♭maj7." (every key of it), or, for a shape of 5+ keys, "Tap the 3rd and 7th of E♭7(♭9)."
+  "chromatic.constantStructure": (l, { learn, move }) => {
+    const f = learn as ConstantStructureLearn;
+    const approach = move!.chords[move!.chords.length - 1];
+    expect(chroma(approach.root)).toBe(mod(chroma(f.targetRoot) + 1, 12));
+    const whole = !/3rd and 7th/.test(l.steps.find((s) => s.ask)!.ask!.prompt);
+    return whole ? pcs(chordTones(approach).map((t) => t.note)) : pcs(guide(approach));
+  },
+  // "G is the ♯11 of one walk chord. Tap its bass.": the walk basses that sit that far under the held note
+  "melody.oneNoteOnTop": (l, { learn, move }) => {
+    const f = learn as OneNoteOnTopLearn;
+    const prompt = l.steps.find((s) => s.ask)!.ask!.prompt;
+    const word = (d: string) => (d === "7" ? "major 7th" : d === "b3" ? "minor 3rd" : degreeWord(d));
+    const role = Object.keys(DEGREE_SEMIS).find((d) => prompt.includes(` the ${word(d)} of one`))!;
+    expect(role, prompt).toBeDefined();
+    const walk = move!.chords.slice(1);
+    return walk.map((c) => chroma(c.root)).filter((b) => mod(chroma(f.heldNote) - b, 12) === DEGREE_SEMIS[role]);
+  },
 };
+
+/** Semitones above the root for each degree a held top note can take (independent of the rule's tables). */
+const DEGREE_SEMIS: Record<string, number> = { "1": 0, b3: 3, b9: 1, "9": 2, "#9": 3, "3": 4, "4": 5, "#11": 6, "5": 7, b13: 8, "13": 9, b7: 10, "7": 11 };
 
 const BASICS_ASKS: Record<string, Allowed> = {
   // "Make it Gm7: lower one key. Tap the new 3rd."
@@ -100,6 +140,9 @@ const PROMPTS: Record<string, RegExp> = {
   "functional.secondaryTwoFive": /^Which of \S+'s guide tones stays for \S+\? Tap it\.$/,
   "modal.borrowedIv": /^Lower \S+'s 3rd a half step\. Tap the new key\.$/,
   "modal.backdoorTwoFive": /^Which key of \S+ is already \S+'s root\? Tap it\.$/,
+  "symmetric.coltraneSubstitution": /^Each key gets its own V7\. Tap the root a fifth above \S+\.$/,
+  "chromatic.constantStructure": /^Move the whole shape up a half step\. Tap (the 3rd and 7th of )?\S+\.$/,
+  "melody.oneNoteOnTop": /^\S+ is the \S+( \S+)? of one walk chord\. Tap its bass\.$/,
   "basics:sevenths": /^Make it \S+: lower one key\. Tap the new 3rd\.$/,
   "basics:numerals": /^V is the chord on step 5\. Tap its root\.$/,
   "basics:tritone": /^Tap the key a tritone above \S+\.$/,
@@ -112,13 +155,15 @@ const PROMPTS: Record<string, RegExp> = {
   "basics:symmetricOctave": /^Tap the key a major 3rd above \S+\.$/,
 };
 
-const ruleLessons = [...BUNDLED_TUNES, someday].flatMap((t) =>
-  KEYS.flatMap((k) =>
-    generateMoves(transposeTune(t, k))
-      .accepted.filter((m) => hasRuleLesson(m.ruleId))
-      .map((m) => ({ where: `${t.id} in ${k}: ${m.id}`, lesson: lessonForMove(m)!, ctx: { learn: (m.facts as { learn?: unknown }).learn } })),
+const ruleLessons = [
+  ...[...BUNDLED_TUNES, someday].flatMap((t) =>
+    KEYS.flatMap((k) => generateMoves(transposeTune(t, k)).accepted.map((m) => ({ where: `${t.id} in ${k}: ${m.id}`, m }))),
   ),
-);
+  // and every rule on its canonical progression (Coach's Learn stage), in 12 keys
+  ...RULES.flatMap((r) => KEYS.flatMap((k) => canonicalMove(r.id, k) ?? []).map((m) => ({ where: `canonical ${m.ruleId} in ${m.id}`, m }))),
+]
+  .filter(({ m }) => hasRuleLesson(m.ruleId))
+  .map(({ where, m }) => ({ where, lesson: lessonForMove(m)!, ctx: { learn: (m.facts as { learn?: unknown }).learn, move: m } }));
 const basicsLessons = CONCEPTS.map((c) => c.id)
   .filter(isBasicsId)
   .flatMap((id) => KEYS.map((k) => ({ where: `${id} in ${k}`, lesson: basicsLesson(id, k)!, ctx: { tonic: k } })));

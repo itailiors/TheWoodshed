@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import { chordTones, guideTones, triadTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
-import { BUNDLED_TUNES } from "../src/index";
+import { BUNDLED_TUNES, canonicalMove } from "../src/index";
 import {
   basicsLesson,
   categoryEntry,
+  type ColtraneLearn,
+  type ConstantStructureLearn,
+  type OneNoteOnTopLearn,
   CONCEPTS,
   conceptNode,
   conceptStates,
@@ -23,8 +26,10 @@ import {
 } from "../src/learn";
 import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
 import { chroma, mod, transpose } from "../src/pitch";
+import { chainMotions as chainMotionsOf, type Rule } from "../src/ruleKit";
 import { secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
-import { backdoorTwoFive, borrowedIv } from "../src/rulesAdvanced";
+import { backdoorTwoFive, borrowedIv, coltraneSubstitution, constantStructure } from "../src/rulesAdvanced";
+import { oneNoteOnTop } from "../src/rulesOneNote";
 import { KEYS, transposeTune } from "../src/transpose";
 import type { ChordEvent, MoveCategory, Quality, Tune } from "../src/types";
 import { nearestMotion } from "../src/voiceLeading";
@@ -47,7 +52,16 @@ const BASICS = [
   "basics:dim7",
   "basics:symmetricOctave",
 ];
-const SLICE = ["dominant.tritoneSub", "functional.secondaryDominant", "functional.secondaryTwoFive", "modal.borrowedIv", "modal.backdoorTwoFive"];
+const SLICE = [
+  "dominant.tritoneSub",
+  "functional.secondaryDominant",
+  "functional.secondaryTwoFive",
+  "modal.borrowedIv",
+  "modal.backdoorTwoFive",
+  "symmetric.coltraneSubstitution",
+  "chromatic.constantStructure",
+  "melody.oneNoteOnTop",
+];
 const BANNED = BANNED_PHRASES;
 
 const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
@@ -62,23 +76,33 @@ const tuneIn = (tonic: string): Tune => ({ ...someday, key: { tonic, mode: "majo
 
 function edgeCases(T: string) {
   const at = (d: string) => transpose(T, d);
-  const ctx = (chord: ChordEvent, next: ChordEvent) => ({ tune: tuneIn(T), index: 0, chord, next });
-  return [
-    tritoneSub.propose(ctx(ch(at("5"), "7"), ch(T, "maj7"))),
-    secondaryDominant.propose(ctx(ch(at("6"), "m7"), ch(at("2"), "m7"))), // raised 3rd, minor target
-    secondaryDominant.propose(ctx(ch(T, "maj7"), ch(at("4"), "maj7"))), // lowered 7th
-    secondaryDominant.propose(ctx(ch(at("2"), "m7"), ch(at("5"), "7"))), // kept ♭7
-    secondaryDominant.propose(ctx(ch(T, "6"), ch(at("4"), "maj7"))), // added ♭7
-    secondaryTwoFive.propose(ctx(ch(at("4"), "7"), ch(T, "maj7"))),
-    secondaryTwoFive.propose(ctx(ch(at("5"), "7"), ch(T, "maj7"))), // related ii
-    secondaryTwoFive.propose(ctx(ch(at("4"), "maj7"), ch(at("6"), "m7"))), // minor target
-    borrowedIv.propose(ctx(ch(at("4"), "maj7"), ch(T, "maj7"))),
-    borrowedIv.propose(ctx(ch(at("4"), "maj7", 1), ch(T, "maj7"))), // no room to keep IV
-    backdoorTwoFive.propose(ctx(ch(at("5"), "7"), ch(T, "maj7"))),
-    backdoorTwoFive.propose(ctx(ch(at("5"), "7", 1), ch(T, "maj7"))), // ♭VII7 alone
-  ]
-    .filter((p): p is NonNullable<typeof p> => !!p)
-    .map((p, i) => ({ ruleId: [SLICE[0], SLICE[1], SLICE[1], SLICE[1], SLICE[1], SLICE[2], SLICE[2], SLICE[2], SLICE[3], SLICE[3], SLICE[4], SLICE[4]][i], facts: p.facts, where: `${T} edge ${i}` }));
+  const ctx = (chord: ChordEvent, next: ChordEvent, afterNext?: ChordEvent) => ({ tune: tuneIn(T), index: 0, chord, next, afterNext });
+  // one note on top reads the melody, so its edge cases run on a changes-only chart
+  const bare = (chord: ChordEvent, next: ChordEvent) => ({ ...ctx(chord, next), tune: { ...tuneIn(T), melody: [] } as Tune });
+  const flatNine = { ...ch(at("2"), "7"), alterations: ["b9"] } as ChordEvent;
+  const cases: [Rule, ReturnType<Rule["propose"]>][] = [
+    [tritoneSub, tritoneSub.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))],
+    [secondaryDominant, secondaryDominant.propose(ctx(ch(at("6"), "m7"), ch(at("2"), "m7")))], // raised 3rd, minor target
+    [secondaryDominant, secondaryDominant.propose(ctx(ch(T, "maj7"), ch(at("4"), "maj7")))], // lowered 7th
+    [secondaryDominant, secondaryDominant.propose(ctx(ch(at("2"), "m7"), ch(at("5"), "7")))], // kept ♭7
+    [secondaryDominant, secondaryDominant.propose(ctx(ch(T, "6"), ch(at("4"), "maj7")))], // added ♭7
+    [secondaryTwoFive, secondaryTwoFive.propose(ctx(ch(at("4"), "7"), ch(T, "maj7")))],
+    [secondaryTwoFive, secondaryTwoFive.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))], // related ii
+    [secondaryTwoFive, secondaryTwoFive.propose(ctx(ch(at("4"), "maj7"), ch(at("6"), "m7")))], // minor target
+    [borrowedIv, borrowedIv.propose(ctx(ch(at("4"), "maj7"), ch(T, "maj7")))],
+    [borrowedIv, borrowedIv.propose(ctx(ch(at("4"), "maj7", 1), ch(T, "maj7")))], // no room to keep IV
+    [backdoorTwoFive, backdoorTwoFive.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))],
+    [backdoorTwoFive, backdoorTwoFive.propose(ctx(ch(at("5"), "7", 1), ch(T, "maj7")))], // ♭VII7 alone
+    [coltraneSubstitution, coltraneSubstitution.propose(ctx(ch(at("2"), "m7"), ch(at("5"), "7"), ch(T, "maj7")))],
+    [constantStructure, constantStructure.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))], // two-step plane
+    [constantStructure, constantStructure.propose(ctx(ch(at("5"), "7", 2), ch(T, "maj7")))], // one step
+    [constantStructure, constantStructure.propose(ctx(ch(at("6"), "m7"), flatNine))], // a 5-note shape
+    [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("5"), "7"), ch(T, "maj7")))], // 2-chord walk
+    [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("2"), "m7"), ch(at("5"), "7")))], // ii → V
+    [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("5"), "7", 6), ch(T, "maj7")))], // 3-chord walk
+    [oneNoteOnTop, oneNoteOnTop.propose(bare(ch(at("5"), "7", 8), ch(T, "maj7")))], // 3-chord walk, two beats each
+  ];
+  return cases.flatMap(([r, p], i) => (p ? [{ ruleId: r.id, facts: p.facts, where: `${T} edge ${i}` }] : []));
 }
 
 const fromTunes = [...BUNDLED_TUNES, someday].flatMap((t) =>
@@ -287,6 +311,66 @@ describe("lesson notes are the engine's notes, in every key", () => {
     );
   });
 
+  const moveIn = (id: string, k: string) => canonicalMove(id, k)!;
+
+  it("Coltrane: the map's three centres are 4 semitones apart and come home; each V7 sits a fifth above its centre; the line is the ii's 3rd, holds folded", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("symmetric.coltraneSubstitution", T);
+        const f = m.facts.learn as ColtraneLearn;
+        const l = lessonForMove(m)!;
+        const map = l.steps[0].map!;
+        expect(map).toEqual(f.centres);
+        expect([...map, map[0]].slice(1).map((n, i) => mod(chroma(map[i]) - chroma(n), 12))).toEqual([4, 4, 4]);
+        expect(chroma(map[2])).toBe(chroma(T));
+        f.dominantRoots.forEach((d, i) => expect(mod(chroma(d) - chroma(f.centres[i]), 12)).toBe(7));
+        expect(l.steps[1].ask!.answer).toEqual([f.dominantRoots[0]]);
+        // the line: the ii's 3rd through the tour by nearest motion, every hold run folded into one stop
+        const ii = m.original[0];
+        const raw = [guideTones(ii)[0].note, ...chainMotionsOf([guideTones(ii)[0].note], [...m.chords.slice(1), { root: T, quality: "maj7", extensions: [], alterations: [] }])[0].map((x) => x.to)];
+        const pcsRun = raw.map(chroma).filter((pc, i, xs) => i === 0 || pc !== xs[i - 1]);
+        expect(f.line.map((s) => chroma(s.note))).toEqual(pcsRun);
+        expect(l.steps[2].highlight.map((h) => chroma(h.note))).toEqual(pcsRun.slice(0, 4));
+      }),
+    );
+  });
+
+  it("constant structure: the half-step shape is the target's, every voice slides −1, and the ask lights the shape (or its 3rd and 7th)", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("chromatic.constantStructure", T);
+        const f = m.facts.learn as ConstantStructureLearn;
+        const l = lessonForMove(m)!;
+        const approach = m.chords[m.chords.length - 1];
+        expect(f.approachTones.map(chroma)).toEqual(chordTones(approach).map((t) => chroma(t.note)));
+        expect(f.approachTones.map((n) => mod(chroma(n) - 1, 12))).toEqual(f.shapeTones.map(chroma));
+        expect(f.slide.map((s) => s.semitones)).toEqual(f.shapeTones.map(() => -1));
+        expect(l.steps[1].ask!.answer).toEqual(f.approachTones);
+        expect(f.planedRoots.slice(1).map((r, i) => mod(chroma(f.planedRoots[i]) - chroma(r), 12))).toEqual(f.planedRoots.slice(1).map(() => 1));
+        for (const n of [...f.shapeTones, ...f.approachTones]) expect(n).not.toMatch(/bb|##/);
+      }),
+    );
+    // a 5-note shape lights 4 keys and asks for the 3rd and 7th
+    const five = ruleLessons.filter((r) => r.lesson.conceptId === "chromatic.constantStructure" && /3rd and 7th/.test(r.lesson.steps[1].ask!.prompt));
+    expect(five.length).toBeGreaterThan(0);
+  });
+
+  it("one note on top: the walk descends by half steps into the target, and a 3-chord walk splits its roles across steps 3 and 4", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("melody.oneNoteOnTop", T);
+        const f = m.facts.learn as OneNoteOnTopLearn;
+        const walk = [...f.basses, f.targetBass];
+        expect(walk.slice(1).map((b, i) => mod(chroma(walk[i]) - chroma(b), 12))).toEqual(walk.slice(1).map(() => 1));
+        m.chords.slice(1).forEach((c) => expect(chordTones(c).some((t) => chroma(t.note) === chroma(f.heldNote))).toBe(true));
+        expect(lessonForMove(m)!.steps[2].ask!.answer).toEqual([f.basses[1]]);
+      }),
+    );
+    const three = ruleLessons.filter((r) => r.lesson.conceptId === "melody.oneNoteOnTop" && r.lesson.steps[1].highlight.length === 4 && !r.lesson.steps[1].highlight.some((h) => h.label === "top"));
+    expect(three.length).toBeGreaterThan(0);
+    for (const { lesson } of three) expect(lesson.steps[3].text).toMatch(/^Over .+\. Into .+ lands as the /);
+  });
+
   it("basics: guide tones and dominant resolution light exactly guideTones() and transpose(), and agree with the engine's voice motion", () => {
     fc.assert(
       fc.property(fc.constantFrom(...KEYS), (T) => {
@@ -388,6 +472,22 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     expect(l?.steps[2].text).toBe("C7's guide tones: E and B♭. G♭9 swaps them: B♭ is its 3rd, F♭ (same key as E) its 7th.");
     expect(l?.steps[3].text).toBe("Both pull the same way: E rises to F, B♭ falls to A. That's the resolution into F6.");
     expect(l?.steps[4].text).toContain("G♭ slides down a half step to F, not C falling a fifth");
+  });
+
+  it("the teacher's wording for Coltrane, constant structure and one note on top, in C", () => {
+    const col = lessonForMove(canonicalMove("symmetric.coltraneSubstitution", "C")!)!;
+    expect(col.steps[0].text).toBe("The map first: three key centres, A♭, E and C, a major 3rd apart.");
+    expect(col.steps[0].map).toEqual(["Ab", "E", "C"]);
+    expect(col.steps[1].ask!.prompt).toBe("Each key gets its own V7. Tap the root a fifth above A♭.");
+    // one descending voice with its hold run folded: not called a guide-tone line
+    expect(col.steps[2].text).toBe("One voice carries it: F, E♭ (held, respelled D♯), D, C.");
+    expect(col.steps.map((s) => s.text).join(" ")).not.toMatch(/guide/);
+    const cs = lessonForMove(canonicalMove("chromatic.constantStructure", "C")!)!;
+    expect(cs.headline).toBe("Slide into Cmaj7 with its own shape: Dmaj7 → D♭maj7 → Cmaj7, the whole hand moving together.");
+    expect(cs.steps[2].text).toBe("Slide down: D♭ to C, F to E, A♭ to G, C to B. Every voice moves together.");
+    const top = lessonForMove(canonicalMove("melody.oneNoteOnTop", "C")!)!;
+    expect(top.steps[2].text).toBe("Over D, G is the sus 4th of D7sus4; over D♭, it's the ♯11 of D♭7(♯11).");
+    expect(top.deeper).toBe("The interval from bass to top note suggests the chord: a half step above the bass gives 7(♭9), a tritone 7(♯11).");
   });
 
   it("the backdoor names the missing leading tone, not a missing tritone", () => {

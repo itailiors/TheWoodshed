@@ -232,7 +232,8 @@ describe("rule: one note on top", () => {
     expect(m.chords[2].alterations).toEqual(["#11"]);
     // degree codes (5a): the words are the text's business ("the sus 4th of D7sus4")
     expect(m.facts.roles).toEqual(["4", "#11"]);
-    expect(m.text.theory).toContain("the sus 4th of D7sus4, the ♯11 of D♭7(♯11)");
+    // the text is the lesson's (5b): one role per walk chord, over its own bass
+    expect(m.text.theory).toContain("Over D, G is the sus 4th of D7sus4; over D♭, it's the ♯11 of D♭7(♯11).");
     expect(new Set(m.chords.map((c) => c.topVoice))).toEqual(new Set(["G4"]));
   });
 

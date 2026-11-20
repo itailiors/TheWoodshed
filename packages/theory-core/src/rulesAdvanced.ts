@@ -6,10 +6,11 @@
  */
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
-import type { BackdoorLearn, BorrowedIvLearn } from "./learn/facts";
-import { chain, dimTones, distribute, mk, planeMotion, pn, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type { BackdoorLearn, BorrowedIvLearn, ColtraneLearn, ConstantStructureLearn } from "./learn/facts";
+import { readable } from "./learn/lesson";
+import { chain, chainMotions, dimTones, distribute, mk, planeMotion, pn, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
-import { nearestMotion } from "./voiceLeading";
+import { collapseHolds, nearestMotion } from "./voiceLeading";
 
 const UP_SEMITONE: Interval = { steps: 0, semis: 1 };
 const DOWN_SEMITONE: Interval = { steps: 0, semis: -1 };
@@ -305,7 +306,25 @@ export const coltraneSubstitution: Rule = {
     const roots = [chord.root, tidy(transpose(T, "b3")), tidy(transpose(T, "b6")), tidy(transpose(T, "7")), tidy(transpose(T, "3")), next.root];
     const qualities = ["m7", "7", "maj7", "7", "maj7", "7"] as const;
     const chords = roots.map((r, i) => mk(r, qualities[i], beats[i]));
-    const centres = [roots[2], roots[4], T];
+    const centres: [string, string, string] = [roots[2], roots[4], T];
+    // one voice, the ii's 3rd, through the tour into the target; its holds folded (F, E♭ held as D♯, D, C)
+    const iiThird = guideTones(chord)[0].note;
+    const line = collapseHolds({ from: iiThird, motions: chainMotions([iiThird], [...chords.slice(1), afterNext])[0] }).map((s) => {
+      const note = readable(s.note);
+      const re = s.respelled && readable(s.respelled);
+      return re && re !== note ? { note, holds: s.holds, respelled: re } : { note, holds: s.holds };
+    });
+    const learn: ColtraneLearn = {
+      ii: symbol(chord),
+      V: symbol(next),
+      target: symbol(afterNext),
+      targetRoot: T,
+      centres,
+      centreChords: [symbol(chords[2]), symbol(chords[4]), symbol(afterNext)],
+      dominants: [symbol(chords[1]), symbol(chords[3]), symbol(chords[5])],
+      dominantRoots: [roots[1], roots[3], roots[5]],
+      line,
+    };
     return {
       replaceCount: 2,
       title: "Coltrane substitution",
@@ -313,16 +332,8 @@ export const coltraneSubstitution: Rule = {
       category: "symmetric",
       styleTags: ["coltrane", "modern"],
       chords,
-      facts: { target: ps(afterNext), keyCentres: centres, dominants: [roots[1], roots[3], roots[5]] },
-      text: {
-        summary: `Turn ${ps(chord)} → ${ps(next)} → ${ps(afterNext)} into a tour of three keys a major 3rd apart: ${chords.map(ps).join(" → ")} → ${ps(afterNext)}.`,
-        theory:
-          `Coltrane's substitution divides the octave into three equal parts. ${centres.map(pn).join(", ")} are a major 3rd apart (an augmented triad), ` +
-          `and each is reached from its own dominant (${ps(chords[1])}, ${ps(chords[3])}, ${ps(chords[5])}). ` +
-          `You pass through three key centres in the time of one ii–V and still land on ${ps(afterNext)}. Practise the guide tones first: ` +
-          `${chain(guideTones(chords[0]).map((g) => g.note), [...chords.slice(1), afterNext])}.`,
-        recreateRule: "Over ii–V–I, tonicize the keys a major 3rd apart: V7–I into ♭VI, V7–I into III, then the real V7–I.",
-      },
+      facts: { target: ps(afterNext), keyCentres: centres, dominants: [roots[1], roots[3], roots[5]], learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -350,23 +361,41 @@ export const constantStructure: Rule = {
     const planed = twoStep ? [a, b] : [b];
     const chords = [keep(chord, chord.beats - planed.length), ...planed];
     const path = [...planed.map((c) => c.root), next.root];
+    // planing is parallel: each voice slides to its own counterpart (nearest motion would hold D♭maj7's C into Cmaj7)
+    const slideGrid = planeMotion(chordTones(b), chordTones(next));
+    const shapeTones = chordTones(next).map((t) => readable(t.note));
+    const approach = chordTones(b);
+    const approachTones = approach.map((t) => readable(t.note));
+    const [g3, g7] = guideTones(b).map((t) => readable(t.note));
+    // up to 4 keys to light: the guide tones, the root, then the colours; the 5th goes first when there are more
+    const byPriority = approach
+      .map((t, k) => ({ k, p: readable(t.note) === g3 || readable(t.note) === g7 ? 0 : t.degree === "1" ? 1 : t.degree === "5" ? 3 : 2 }))
+      .sort((x, y) => x.p - y.p || x.k - y.k);
+    const lit = byPriority
+      .slice(0, 4)
+      .map((x) => x.k)
+      .sort((x, y) => x - y);
+    const learn: ConstantStructureLearn = {
+      from: symbol(chord),
+      target: symbol(next),
+      targetRoot: next.root,
+      planed: planed.map(symbol),
+      planedRoots: path,
+      shapeTones,
+      approachTones,
+      approachGuide: [g3, g7],
+      slide: planeMotion(approachTones, chordTones(next).map((t, k) => ({ ...t, note: shapeTones[k] }))),
+      lit,
+    };
     return {
       title: "Constant structure",
       level: 4,
       category: "chromatic",
       styleTags: ["modern", "planing"],
       chords,
-      // planing is parallel: each voice slides to its own counterpart (nearest motion would hold D♭maj7's C into Cmaj7)
-      voiceLeading: planeMotion(chordTones(b), chordTones(next)),
-      facts: { target: ps(next), shape, planedRoots: path },
-      text: {
-        summary: `Plane into ${ps(next)} with its own shape from above: ${chords.map(ps).join(" → ")} → ${ps(next)}.`,
-        theory:
-          `Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. ` +
-          `${ps(chord)} keeps the downbeat, then ${ps(next)}'s exact shape slides down by half steps (${path.map(pn).join(" → ")}). ` +
-          `Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.`,
-        recreateRule: "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
-      },
+      voiceLeading: slideGrid,
+      facts: { target: ps(next), shape, planedRoots: path, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

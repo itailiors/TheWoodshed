@@ -10,9 +10,10 @@
  * on every long chord.
  * Everything is interval-relative to the held note and the target's bass.
  */
-import { chordChromas, chordTones, resolvesDownFifth } from "./chords";
+import { chordChromas, chordTones, resolvesDownFifth, symbol } from "./chords";
+import type { OneNoteOnTopLearn } from "./learn/facts";
 import { chroma, midiOf, mod, pitchClass, transpose } from "./pitch";
-import { mk, pn, ps, tidy, type NewChord, type Rule } from "./ruleKit";
+import { mk, ps, tidy, type NewChord, type Rule } from "./ruleKit";
 import { eventSpan, melodyIn, sortedHarmony } from "./time";
 import type { ChordEvent, NoteEvent, Quality } from "./types";
 
@@ -181,9 +182,19 @@ export const oneNoteOnTop: Rule = {
     /** The held note's degree in a walk chord, as a code ("b9", "#11"). */
     const role = (c: Shape & { root: string }) =>
       chordTones({ extensions: [], alterations: [], ...c }).find((x) => chroma(x.note) === tc)?.degree ?? "?";
-    const roles = walk.map((c) => `the ${roleWord(role(c))} of ${ps(c)}`);
     const landing = chordTones(next).find((x) => chroma(x.note) === tc);
-    const lands = landing ? `, and lands as the ${roleWord(landing.degree)} of ${ps(next)}` : `, then moves on as ${ps(next)} arrives`;
+    const learn: OneNoteOnTopLearn = {
+      heldNote: T,
+      fromMelody: tune.melody.length > 0,
+      original: symbol(chord),
+      target: symbol(next),
+      heldIn: chordTones(chord).find((x) => chroma(x.note) === tc)?.degree ?? null,
+      basses,
+      targetBass: target,
+      walkChords: walk.map(symbol),
+      roles: walk.map(role),
+      landing: landing?.degree ?? null,
+    };
 
     return {
       title: "One note on top",
@@ -191,16 +202,8 @@ export const oneNoteOnTop: Rule = {
       category: "chromatic",
       styleTags: ["bill-evans", "pedal", "ballad", "modern"],
       chords,
-      facts: { heldNote: T, fromMelody: tune.melody.length > 0, bassWalk: [...basses, target], roles: walk.map(role), target: ps(next) },
-      text: {
-        summary: `Hold ${pn(T)} on top while the bass walks ${[...basses, target].map(pn).join(" → ")}: ${chords.map(ps).join(" → ")} → ${ps(next)}.`,
-        theory:
-          `${tune.melody.length ? `The melody sits on ${pn(T)}` : `${pn(T)} is in both ${ps(chord)} and ${ps(next)}`}, so keep it as the top voice and let the harmony move underneath. ` +
-          `Over the walking bass ${pn(T)} becomes ${roles.join(", ")}${lands}. ` +
-          `Nothing moves in the line you hear on top; the colour under it changes on every beat. That's the Bill Evans and Shaun Martin pedal-top sound.`,
-        recreateRule:
-          "Under a held top note, walk the bass down by half steps into the next chord, and on each bass note play the chord that contains the held note (as ♭9, 9, 3rd, sus 4th, ♯11, 5th, ♭13, 13 or ♭7).",
-      },
+      facts: { heldNote: T, fromMelody: tune.melody.length > 0, bassWalk: [...basses, target], roles: walk.map(role), target: ps(next), learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

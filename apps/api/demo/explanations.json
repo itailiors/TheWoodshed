@@ -1,13 +1,13 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T16:56:21.133Z",
+  "generatedAt": "2026-11-20T17:20:56.087Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
-      "summary": "Plane into B♭7 with its own shape from above: F6 → C7 → B7 → B♭7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then B♭7's exact shape slides down by half steps (C → B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into B♭7 with its own shape: C7 → B7 → B♭7, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: C7, B7, then B♭7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "functional.secondaryTwoFive@2.1": {
@@ -17,27 +17,27 @@
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@4.1": {
-      "summary": "Plane into F7 with its own shape from above: Cm7 → G♭7 → F7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Cm7 keeps the downbeat, then F7's exact shape slides down by half steps (G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F7 with its own shape: G♭7 → F7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@4.3": {
-      "summary": "Plane into B♭7 with its own shape from above: F7 → B7 → B♭7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F7 keeps the downbeat, then B♭7's exact shape slides down by half steps (B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into B♭7 with its own shape: B7 → B♭7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@6.1": {
-      "summary": "Plane into F6 with its own shape from above: Bdim7 → G6 → G♭6 → F6.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Bdim7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@8.1": {
-      "summary": "Plane into D7(♭9) with its own shape from above: Am7♭5 → E♭7(♭9) → D7(♭9).",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Am7♭5 keeps the downbeat, then D7(♭9)'s exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into D7(♭9) with its own shape: E♭7(♭9) → D7(♭9), the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@8.3": {
@@ -53,9 +53,9 @@
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@9.1": {
-      "summary": "Plane into C7 with its own shape from above: Gm7 → D7 → D♭7 → C7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D → D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into C7 with its own shape: D7 → D♭7 → C7, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: D7, D♭7, then C7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@10.1": {
@@ -83,15 +83,15 @@
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@10.1": {
-      "summary": "Plane into F6 with its own shape from above: C7 → G6 → G♭6 → F6.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. C7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@11.1": {
-      "summary": "Plane into D7 with its own shape from above: F6 → E♭7 → D7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then D7's exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into D7 with its own shape: E♭7 → D7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "functional.secondaryTwoFive@11.3": {
@@ -107,9 +107,9 @@
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@12.1": {
-      "summary": "Plane into C7 with its own shape from above: Gm7 → D♭7 → C7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into C7 with its own shape: D♭7 → C7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     }
   }

@@ -10,6 +10,7 @@ import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
 import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
 import { lessonChips } from "./chipText";
 import { GlossText } from "./GlossText";
+import { KeyCentreMap } from "./KeyCentreMap";
 import { placeHighlights, playStep, type LessonAudioContext } from "./lessonAudio";
 import { askIsOpen, pressKey } from "./stepperInput";
 import { inRange, inSentence, keyEventOf, keyRange, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
@@ -451,6 +452,7 @@ function Stepper({
             <p>
               <GlossText segments={chips.steps[at]} onLearn={onLearn} />
             </p>
+            {step.map && <KeyCentreMap centres={step.map} />}
             {revealed[at] === "answered" && step.ask && (
               <p className="mt-1 font-marker text-base text-sage-ink">✓ {listOf(step.ask.answer.map(prettyNote))}</p>
             )}

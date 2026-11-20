@@ -86,12 +86,15 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("line cliché", "One voice moving by half steps, chord held.", "chromatic.minorLineCliche"),
   e("dominant 7th", "Major 3rd plus ♭7: wants to resolve.", "basics:sevenths"),
   e("roman numerals", "Chords named by their root's scale step.", "basics:numerals"),
+  e("key centre", "The note a passage treats as home.", "basics:symmetricOctave", ["key center"]),
   // roman numerals the lessons print
   e("V", "The chord built on the key's 5th.", "basics:numerals", [], "numeral"),
   e("♭II", "Chord on the lowered 2nd: tritone-sub root.", "basics:numerals", [], "numeral"),
   e("ii", "Minor chord on the key's 2nd step.", "basics:numerals", [], "numeral"),
   e("♭VII7", "Dominant on the lowered 7th: the backdoor.", "basics:numerals", [], "numeral"),
   e("iv", "Minor chord on the 4th, borrowed from minor.", "basics:numerals", [], "numeral"),
+  e("♭VI", "Major chord on the lowered 6th step.", "basics:numerals", [], "numeral"),
+  e("III", "Major chord on the key's 3rd step.", "basics:numerals", [], "numeral"),
   ...Object.values(CATEGORY),
   ...LEVEL,
 ];

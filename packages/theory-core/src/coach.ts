@@ -1,6 +1,15 @@
 import { chordTones, guideTones, symbol, type ChordTone } from "./chords";
 import { canonicalDrill } from "./learn/canonical";
-import type { BackdoorLearn, BorrowedIvLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "./learn/facts";
+import type {
+  BackdoorLearn,
+  BorrowedIvLearn,
+  ColtraneLearn,
+  ConstantStructureLearn,
+  OneNoteOnTopLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+} from "./learn/facts";
 import { degreeWord as lessonDegree, motionVerb, readable, twin } from "./learn/lesson";
 import { classifyNote } from "./melody";
 import { chroma, mod, prettyNote, prettySymbol, spellChroma } from "./pitch";
@@ -162,17 +171,19 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "melody.oneNoteOnTop": {
-      const held = String(move.facts.heldNote ?? "");
+      const L = learn as OneNoteOnTopLearn | undefined;
+      if (!L) break;
+      const held = prettyNote(L.heldNote);
       if (i === 0) {
         return {
           role: `Pin the top (${sym})`,
-          whyHere: `Put ${prettyNote(held)} on top with your 5th finger and keep it there; only the bass and inner voices move from here.`,
+          whyHere: `Put ${held} on top with your 5th finger: it can stay there through the change. Under it, the bass walks down by half steps.`,
         };
       }
-      const roles = (move.facts.roles as string[] | undefined) ?? [];
+      const role = L.roles[i - 1];
       return {
         role: `Bass walks: ${sym}`,
-        whyHere: `${prettyNote(held)} stays on top as the ${roles[i - 1] ? roleWord(roles[i - 1]) : "colour"} of ${sym}, while the bass steps down a half step${nextSym ? ` toward ${nextSym}` : ""}.`,
+        whyHere: `Over ${nn(c.root)}, ${held} is the ${role ? roleWord(role) : "colour"} of ${sym}. The top never moves; the bass walks down a half step${into}.`,
       };
     }
     case "gospel.halfStepTurnaround":
@@ -261,18 +272,22 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "symmetric.coltraneSubstitution": {
-      const target = String(facts.target);
+      const L = learn as ColtraneLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
       if (i === 0) {
-        const [centre1, centre2] = [chords[2], chords[4]].map((x) => (x ? prettySymbol(symbol(x)) : "?"));
+        const [centre1, centre2] = L.centreChords.map(prettySymbol);
         return {
           role: `ii, the tour starts (${sym})`,
-          whyHere: `${sym} starts a tour of three keys a major 3rd apart: ${centre1}, ${centre2}, then ${target}.`,
+          whyHere: `${sym} starts the tour: three key centres a major 3rd apart, ${centre1}, ${centre2}, then home on ${target}.`,
         };
       }
       if (c.quality === "7") {
         return {
           role: `V7 of ${nextSym ?? target} (${sym})`,
-          whyHere: `${sym} ${last ? "is the real V7 of" : "tonicizes"} ${nextSym ?? target}: its 3rd, ${g3}, rises a half step; its 7th, ${g7}, falls a half step.`,
+          whyHere: last
+            ? `${sym} → ${target}, the V–I you started with, lands home on time: its 3rd, ${g3}, rises; its 7th, ${g7}, falls.`
+            : `${sym} tonicizes ${nextSym ?? target}: its 3rd, ${g3}, rises a half step; its 7th, ${g7}, falls a half step.`,
         };
       }
       const n = i === 2 ? 1 : 2;
@@ -282,18 +297,20 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "chromatic.constantStructure": {
-      const target = String(facts.target);
-      const planed = ((facts.planedRoots as string[] | undefined)?.length ?? 2) - 1;
+      const L = learn as ConstantStructureLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
+      const planed = L.planed.length;
       const above = (half: number) => (half === 2 ? "a whole step" : half === 1 ? "a half step" : `${half} half steps`);
       if (i === 0) {
         return {
           role: `Downbeat (${sym})`,
-          whyHere: `${sym} keeps the downbeat. Then take ${target}'s exact shape ${above(planed)} above and slide the whole hand down.`,
+          whyHere: `${sym} keeps the downbeat. Then play ${target}'s exact shape ${above(planed)} above it and slide the whole hand down.`,
         };
       }
       return {
         role: `Planing ${i} of ${planed} (${sym})`,
-        whyHere: `${sym} is ${target}'s shape ${above(planed - i + 1)} up: constant structure. Every voice slides down a half step${into}.`,
+        whyHere: `${sym} is ${target}'s shape ${above(planed - i + 1)} up: same shape, new root. Every voice moves together, down a half step${into}.`,
       };
     }
   }

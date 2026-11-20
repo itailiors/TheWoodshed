@@ -183,7 +183,7 @@ export const PROOFS: Proof[] = [
           const spelled = factNotes(m.facts.learn);
           const shown = new Set([...spelled].map(prettyNote));
           for (const s of lesson.steps) {
-            for (const n of [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? [])]) must(spelled.has(n), `${m.id}: lights ${n}, which the engine never computed`);
+            for (const n of [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.map ?? [])]) must(spelled.has(n), `${m.id}: lights ${n}, which the engine never computed`);
             for (const text of [s.text, s.ask?.prompt ?? "", ...s.highlight.map((h) => h.label)])
               for (const n of textNotes(text)) must(shown.has(n), `${m.id}: "${text}" names ${n}, which the engine never computed`);
           }
