@@ -629,6 +629,18 @@ describe("lesson notes are the engine's notes, in every key", () => {
     }
   });
 
+  it("secondary dominant: raising the 3rd makes the plain 7th; the ♭9 is named only once it's added", () => {
+    const c = lessonForMove(canonicalMove("functional.secondaryDominant", "C")!)!;
+    expect(c.steps[2].text).toBe("Its ♭7, G, stays: with C♯ it's A7.");
+    expect(c.steps[2].ask!.prompt).toBe("Tap the 3rd and 7th of A7.");
+    expect(c.steps[4].text).toBe("Dm7 is minor, so add the ♭9, B♭, for A7(♭9): B♭ falls a half step into Dm7.");
+    for (const k of KEYS) {
+      const l = lessonForMove(canonicalMove("functional.secondaryDominant", k)!)!;
+      const before = l.steps.slice(0, 4).flatMap((s) => [s.text, s.ask?.prompt ?? ""]);
+      expect(before.join(" "), k).not.toMatch(/♭9/);
+    }
+  });
+
   it("common-tone °7: the leaning tones are spelled as they rise (♯2, ♯4; no double sharps) and each rises a half step into the 3rd and 5th", () => {
     fc.assert(
       fc.property(fc.constantFrom(...KEYS), (T) => {

@@ -132,6 +132,7 @@ export const secondaryDominant: Rule = {
     const learn: SecondaryDominantLearn = {
       original: symbol(chord),
       dominant: symbol(dom),
+      dominantPlain: symbol(mk(chord.root, "7", 1)),
       target: symbol(next),
       root: chord.root,
       targetRoot: next.root,

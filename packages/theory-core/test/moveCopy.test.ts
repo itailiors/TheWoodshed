@@ -111,14 +111,18 @@ describe("one name per chord, every rule (5f)", () => {
     for (const { where, m } of moves) {
       const chart = new Set([...m.original, ...m.chords].map(nameOf));
       if (m.targetSymbol) chart.add(prettySymbol(m.targetSymbol));
-      const declared = new Set([...chart, ...strings((m.facts as { learn?: unknown }).learn).filter((s) => /^[A-G]/.test(s)).map(prettySymbol)]);
+      const learn = (m.facts as { learn?: Record<string, unknown> }).learn;
+      const declared = new Set([...chart, ...strings(learn).filter((s) => /^[A-G]/.test(s)).map(prettySymbol)]);
+      // a lesson that builds the chord in stages names the plain 7th before the ♭9 arrives (the secondary
+      // dominant's "with C♯ it's A7", then "add the ♭9 … for A7(♭9)"): only a stage its facts declare as `…Plain`
+      const staged = new Set(Object.entries(learn ?? {}).flatMap(([k, v]) => (k.endsWith("Plain") && typeof v === "string" ? [prettySymbol(v)] : [])));
       const l = lessonForMove(m);
       const texts = [m.title, m.text.summary, m.text.theory, m.text.recreateRule, m.text.insight ?? "", ...(l ? [l.headline, l.deeper ?? "", ...l.steps.flatMap((s) => [s.text, s.ask?.prompt ?? ""])] : [])];
       for (const text of texts)
         for (const [tok] of text.matchAll(SYMBOL)) {
           if (!declared.has(tok)) misses.add(`${m.ruleId} (${where}, ${m.id}): "${tok}" names no chord of the move in "${text}"`);
           for (const n of chart)
-            if (n.startsWith(`${tok}(`) && /^\([^)]*[♭♯]/.test(n.slice(tok.length)) && !chart.has(tok)) misses.add(`${m.ruleId} (${where}, ${m.id}): "${tok}" is ${n} with its alterations dropped, in "${text}"`);
+            if (n.startsWith(`${tok}(`) && /^\([^)]*[♭♯]/.test(n.slice(tok.length)) && !chart.has(tok) && !staged.has(tok)) misses.add(`${m.ruleId} (${where}, ${m.id}): "${tok}" is ${n} with its alterations dropped, in "${text}"`);
         }
     }
     expect([...misses].slice(0, 10)).toEqual([]);

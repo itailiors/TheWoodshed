@@ -35,7 +35,9 @@ export interface TritoneSubLearn {
 
 export interface SecondaryDominantLearn {
   original: string;
+  /** The move's chord ("A7(♭9)", "C9"), and the plain dominant 7th the 3rd and ♭7 make on their own ("A7"). */
   dominant: string;
+  dominantPlain: string;
   target: string;
   root: string;
   targetRoot: string;

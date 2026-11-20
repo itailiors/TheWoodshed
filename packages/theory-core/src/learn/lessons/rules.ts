@@ -77,6 +77,8 @@ function tritoneSub(f: TritoneSubLearn): Lesson {
 
 function secondaryDominant(f: SecondaryDominantLearn): Lesson {
   const [orig, dom, target] = [ps(f.original), ps(f.dominant), ps(f.target)];
+  // the 3rd and ♭7 make the plain 7th chord: its ♭9 (A7(♭9)) or 9 (C9) only comes later, if at all
+  const plain = ps(f.dominantPlain);
   const [r3, r7] = f.resolution;
   const third = f.raised
     ? { text: `Raise its 3rd: ${pn(f.raised[0])} becomes ${pn(f.raised[1])}, the leading tone of ${pn(f.targetRoot)}.`, highlight: [hl(f.raised[0], "♭3"), hl(f.raised[1], "3rd", "up"), hl(f.targetRoot, "target", "up")] }
@@ -84,24 +86,24 @@ function secondaryDominant(f: SecondaryDominantLearn): Lesson {
   // the ask is "the 3rd and 7th", so both answer keys are lit on the reveal
   const seventh =
     f.seventhChange === "lowered" && f.lowered
-      ? { text: `Flatten its 7th: ${pn(f.lowered[0])} drops to ${pn(f.lowered[1])}. Now it's ${dom}.`, highlight: [hl(f.lowered[0], "7"), hl(f.lowered[1], "♭7", "down"), hl(f.third, "3rd")] }
+      ? { text: `Flatten its 7th: ${pn(f.lowered[0])} drops to ${pn(f.lowered[1])}. Now it's ${plain}.`, highlight: [hl(f.lowered[0], "7"), hl(f.lowered[1], "♭7", "down"), hl(f.third, "3rd")] }
       : f.seventhChange === "kept"
-        ? { text: `Its ♭7, ${pn(f.seventh)}, stays, and ${pn(f.third)} makes it ${dom}.`, highlight: [hl(f.seventh, "♭7"), hl(f.third, "3rd")] }
-        : { text: `Add the ♭7, ${pn(f.seventh)}, over ${pn(f.root)}. Now it's ${dom}.`, highlight: [hl(f.root, "root"), hl(f.seventh, "♭7", "up"), hl(f.third, "3rd")] };
+        ? { text: `Its ♭7, ${pn(f.seventh)}, stays: with ${pn(f.third)} it's ${plain}.`, highlight: [hl(f.seventh, "♭7"), hl(f.third, "3rd")] }
+        : { text: `Add the ♭7, ${pn(f.seventh)}, over ${pn(f.root)}. Now it's ${plain}.`, highlight: [hl(f.root, "root"), hl(f.seventh, "♭7", "up"), hl(f.third, "3rd")] };
   return {
     conceptId: "functional.secondaryDominant",
     headline: `Play ${orig} as ${dom}. Its 3rd, ${pn(f.third)}, now leans a half step up into ${target}.`,
     steps: [
       { text: `${orig} already falls a fifth to ${target}: ${pn(f.root)} down to ${pn(f.targetRoot)}.`, highlight: [hl(f.root, "root"), hl(f.targetRoot, "target", "down")], play: "before" },
       { ...third, term: "leading tone", prereqLink: "basics:dominantResolution" },
-      { ...seventh, ask: { kind: "tapNotes", prompt: `Tap the 3rd and 7th of ${dom}.`, answer: [f.third, f.seventh] } },
+      { ...seventh, ask: { kind: "tapNotes", prompt: `Tap the 3rd and 7th of ${plain}.`, answer: [f.third, f.seventh] } },
       {
         text: `Into ${target}, ${moves(r3)} and ${moves(r7)}.`,
         highlight: [hl(r3.from, "↑"), hlTo(r3, pn(r3.to)), hl(r7.from, r7.semitones ? "↓" : "holds"), hlTo(r7, pn(r7.to))],
         play: "ab",
       },
       ...(f.targetMinor && f.flatNine
-        ? [{ text: `${target} is minor, so add the ♭9, ${pn(f.flatNine)}: ${pn(f.flatNine)} falls a half step into ${target}.`, highlight: [hl(f.flatNine, "♭9")] }]
+        ? [{ text: `${target} is minor, so add the ♭9, ${pn(f.flatNine)}, for ${dom}: ${pn(f.flatNine)} falls a half step into ${target}.`, highlight: [hl(f.flatNine, "♭9")] }]
         : []),
     ],
     rule: "If a chord's root falls a fifth to the next chord, keep the root and make it a dominant 7th.",
