@@ -25,7 +25,7 @@ export const secondaryTwoFive: Rule = {
     whyItWorks: "Splitting one chord into a fifth-falling ii–V doubles harmonic momentum and creates a smooth 7th → 3rd guide-tone chain.",
     bandstandCue: "From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
   },
-  propose({ chord, prev, next }) {
+  propose({ tune, chord, prev, next }) {
     if (!next) return null;
     const tMajor = isMajorQ(next.quality);
     const tMinor = isMinorQ(next.quality);
@@ -71,6 +71,7 @@ export const secondaryTwoFive: Rule = {
     }
 
     const r = romanName(next);
+    const intoTonic = chroma(next.root) === chroma(tune.key.tonic);
     return {
       title: r ? `ii–V into the ${r}` : `ii–V into ${ps(next)}`,
       level: 2,
@@ -81,7 +82,9 @@ export const secondaryTwoFive: Rule = {
       text: {
         summary: `Replace ${ps(chord)} with the target's own ii–V: ${ps(iiChord)} → ${ps(vChord)} → ${ps(next)}.`,
         theory:
-          `${ps(next)}${r ? ` is the ${r} chord.` : "."} Putting its own ii–V in front briefly makes it sound like home: ` +
+          (intoTonic
+            ? `${ps(next)} is the tonic, home. Its own ii–V is the strongest way back there: `
+            : `${ps(next)}${r ? ` is the ${r} chord.` : "."} Putting its own ii–V in front briefly makes it sound like home: `) +
           `${pn(V)} is a perfect 5th above ${pn(next.root)}, and ${pn(ii)} is a 5th above that. ` +
           `The guide tones barely move: ${gtChain}. ` +
           `You give up the colour of ${ps(chord)} and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.`,
@@ -164,6 +167,9 @@ export const secondaryDominant: Rule = {
 };
 
 // ── Rule 2: tritone substitution ───────────────────────────────────────
+/** " (spelled F♭ there)" when the shared key changes spelling between the two chords, else "". */
+const respell = (from: string, to: string) => (pn(from) === pn(to) ? "" : ` (spelled ${pn(to)} there)`);
+
 export const tritoneSub: Rule = {
   id: "dominant.tritoneSub",
   name: "Tritone substitution",
@@ -190,9 +196,10 @@ export const tritoneSub: Rule = {
       text: {
         summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a tritone away.`,
         theory:
-          `${ps(chord)} and ${ps(sub)} share the same tritone: ${pn(o3)}–${pn(o7)} (3rd and ♭7 of ${pn(chord.root)}7) ` +
-          `are ${pn(s7)}–${pn(s3)} (♭7 and 3rd of ${pn(subRoot)}7), the same keys spelled differently. ` +
-          `That interval is what makes a dominant want to resolve, so the substitute still lands on ${ps(next)}. ` +
+          `${ps(chord)} and ${ps(sub)} share the same two guide tones, a tritone apart, with the roles swapped. ` +
+          `${pn(o3)}, the 3rd of ${ps(chord)}, is the ♭7 of ${ps(sub)}${respell(o3, s7)}; ` +
+          `${pn(o7)}, the ♭7 of ${ps(chord)}, is the 3rd of ${ps(sub)}${respell(o7, s3)}. ` +
+          `That tritone is what makes a dominant want to resolve, so the substitute still lands on ${ps(next)}. ` +
           `The difference is the bass, which now slides down a half step (${pn(subRoot)} → ${pn(next.root)}) instead of falling a 5th.`,
         recreateRule:
           "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
@@ -285,7 +292,7 @@ export const gospelTurnaround: Rule = {
         summary: `${ps(chord)} → ${ps(next)} becomes ${prettySymbol(sus.display!)} → ${ps(approach)} → ${prettySymbol(targetSym)}.`,
         theory:
           `${prettySymbol(sus.display!)} is a ${pn(chord.root)}9sus: a ${pn(susTop)} triad over ${pn(chord.root)}. It's the gospel way to sound the dominant ` +
-          `while holding back the 3rd. ${ps(approach)} is the tritone sub of ${pn(chord.root)}7, voiced as a 13(♯11) cluster ` +
+          `while holding back the 3rd. ${ps(approach)} is the tritone sub of ${ps(chord)}, voiced as a 13(♯11) cluster ` +
           `a half step above ${pn(next.root)}. Each voice either slides down a half step or stays put as it lands on ${prettySymbol(targetSym)}.`,
         recreateRule:
           "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",

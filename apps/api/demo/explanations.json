@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-19T06:33:55.348Z",
+  "generatedAt": "2026-11-20T12:21:30.900Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -12,7 +12,7 @@
     },
     "functional.secondaryTwoFive@2.1": {
       "summary": "Replace B♭7 with the target's own ii–V: Gm9 → C7(♭9) → F6.",
-      "deepDive": "F6 is the I chord. Putting its own ii–V in front briefly makes it sound like home: C is a perfect 5th above F, and G is a 5th above that. The guide tones barely move: B♭ → B♭ → A, F → E → F. You give up the colour of B♭7 and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.",
+      "deepDive": "F6 is the tonic, home. Its own ii–V is the strongest way back there: C is a perfect 5th above F, and G is a 5th above that. The guide tones barely move: B♭ → B♭ → A, F → E → F. You give up the colour of B♭7 and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.",
       "recreateRule": "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
       "model": "Reharm Lab engine"
     },
@@ -42,7 +42,7 @@
     },
     "dominant.tritoneSub@8.3": {
       "summary": "Swap D7(♭9) for A♭9, the dominant a tritone away.",
-      "deepDive": "D7(♭9) and A♭9 share the same tritone: F♯–C (3rd and ♭7 of D7) are G♭–C (♭7 and 3rd of A♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "deepDive": "D7(♭9) and A♭9 share the same two guide tones, a tritone apart, with the roles swapped. F♯, the 3rd of D7(♭9), is the ♭7 of A♭9 (spelled G♭ there); C, the ♭7 of D7(♭9), is the 3rd of A♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
       "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
       "model": "Reharm Lab engine"
     },
@@ -60,7 +60,7 @@
     },
     "dominant.tritoneSub@10.1": {
       "summary": "Swap C7 for G♭9, the dominant a tritone away.",
-      "deepDive": "C7 and G♭9 share the same tritone: E–B♭ (3rd and ♭7 of C7) are F♭–B♭ (♭7 and 3rd of G♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on F6. The difference is the bass, which now slides down a half step (G♭ → F) instead of falling a 5th.\n\nG♭ Lydian dominant uses exactly the same 7 notes as C altered: both are modes of D♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "deepDive": "C7 and G♭9 share the same two guide tones, a tritone apart, with the roles swapped. E, the 3rd of C7, is the ♭7 of G♭9 (spelled F♭ there); B♭, the ♭7 of C7, is the 3rd of G♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on F6. The difference is the bass, which now slides down a half step (G♭ → F) instead of falling a 5th.\n\nG♭ Lydian dominant uses exactly the same 7 notes as C altered: both are modes of D♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
       "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
       "model": "Reharm Lab engine"
     },
@@ -72,7 +72,7 @@
     },
     "modal.backdoorTwoFive@10.1": {
       "summary": "Come in through the back door: B♭m7 → E♭9 → F6, instead of C7 → F6.",
-      "deepDive": "B♭m7 and E♭9 are borrowed from F minor (iv and ♭VII7). E♭9 has no leading tone. Its ♭7 (D♭) falls a half step to C, the 5th of F, its 3rd (G) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than C7 → F6, with no tritone resolving.",
+      "deepDive": "B♭m7 and E♭9 are borrowed from F minor (iv and ♭VII7). E♭9 has no leading tone. Its ♭7 (D♭) falls a half step to C, the 5th of F, its 3rd (G) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than C7 → F6, where E rises into F.",
       "recreateRule": "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
       "model": "Reharm Lab engine"
     },
@@ -102,7 +102,7 @@
     },
     "dominant.tritoneSub@11.3": {
       "summary": "Swap D7 for A♭9, the dominant a tritone away.",
-      "deepDive": "D7 and A♭9 share the same tritone: F♯–C (3rd and ♭7 of D7) are G♭–C (♭7 and 3rd of A♭7), the same keys spelled differently. That interval is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
+      "deepDive": "D7 and A♭9 share the same two guide tones, a tritone apart, with the roles swapped. F♯, the 3rd of D7, is the ♭7 of A♭9 (spelled G♭ there); C, the ♭7 of D7, is the 3rd of A♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
       "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
       "model": "Reharm Lab engine"
     },

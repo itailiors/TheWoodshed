@@ -50,6 +50,8 @@ export const backdoorTwoFive: Rule = {
     const bVII = mk(bVIIRoot, "7", split ? split[1] : chord.beats, ["9"]);
     const chords = split ? [mk(ivRoot, "m7", split[0]), bVII] : [bVII];
     const [b7third, b7seventh] = guideTones(bVII).map((g) => g.note);
+    // the original dominant's 3rd, spelled as the chart spells it (D♭7 → F♯ gives F, not E♯)
+    const leadingTone = guideTones(chord)[0].note;
     return {
       title: "Backdoor ii–V",
       level: 3,
@@ -63,7 +65,7 @@ export const backdoorTwoFive: Rule = {
           `${split ? `${ps(chords[0])} and ` : ""}${ps(bVII)} are borrowed from ${pn(T)} minor (iv and ♭VII7). ` +
           `${ps(bVII)} has no leading tone. Its ♭7 (${pn(b7seventh)}) falls a half step to ${pn(transpose(T, "5"))}, the 5th of ${pn(T)}, ` +
           `its 3rd (${pn(b7third)}) moves a step into the tonic chord, and the root rises a whole step home. ` +
-          `It's a darker, bluesier cadence than ${ps(chord)} → ${ps(next)}, with no tritone resolving.`,
+          `It's a darker, bluesier cadence than ${ps(chord)} → ${ps(next)}, where ${pn(leadingTone)} rises into ${pn(T)}.`,
         recreateRule: "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
       },
     };
