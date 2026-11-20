@@ -72,7 +72,7 @@ export function chordSpelling(c: ChordShape, note: string): string {
   return hit && !/(bb|##|x)$/.test(hit.note) ? hit.note : pc;
 }
 
-export const chordChromas =(c: ChordShape) => new Set(chordTones(c).map((t) => chroma(t.note)));
+export const chordChromas = (c: ChordShape) => new Set(chordTones(c).map((t) => chroma(t.note)));
 
 /** Root, 3rd and 5th only: what a resolution lands on (into Cmaj7, B rises to C rather than holding as the 7th). */
 export const triadTones = (c: ChordShape): ChordTone[] => chordTones(c).filter((t) => ["1", "3", "b3", "5", "b5", "#5"].includes(t.degree));
