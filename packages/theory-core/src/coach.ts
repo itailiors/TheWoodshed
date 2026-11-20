@@ -4,7 +4,7 @@ import { classifyNote } from "./melody";
 import { chroma, mod, prettyNote, prettySymbol, spellChroma } from "./pitch";
 import { sortedHarmony } from "./time";
 import type { ChordEvent, ReharmMove, Tune } from "./types";
-import { voiceChord, voiceProgression, type Voicing } from "./voicing";
+import { voiceChord, type Voicing } from "./voicing";
 
 export interface StepCue {
   /** Short functional role badge, e.g. "Tritone sub (♭II7)" or "Resolution target". */
