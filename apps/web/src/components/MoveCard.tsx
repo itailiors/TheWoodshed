@@ -1,7 +1,7 @@
-import { chordTones, guideTones, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
-import { useEffect, useRef, useState } from "react";
+import { chordTones, guideTones, lessonForMove, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { player } from "../audio/player";
-import { countOpen } from "../usage/panelOpens";
+import { countLearning, countOpen } from "../usage/panelOpens";
 import { SketchBox, SketchRule } from "../design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "../design/tokens";
 import { ChordName } from "./ChordName";
@@ -21,7 +21,17 @@ interface Props {
   onPractice: () => void;
   /** Open the Comping Coach on this move's voicing. */
   onDrill: () => void;
+  /**
+   * The lesson's predict-then-reveal asks. App passes false while "Solo over it" (the improv
+   * heatmap, which saves what it hears) is open, so lesson keys never reach the note bus then.
+   */
+  asksEnabled: boolean;
+  /** A MIDI keyboard is connected (the lesson drops its "tap the keys, or press M" line). */
+  midiConnected?: boolean;
 }
+
+/** The lesson stepper and its folder load on the first "Why it works" that needs them. */
+const LessonStepper = lazy(() => import("./learn/LessonStepper").then((m) => ({ default: m.LessonStepper })));
 
 const signed = (n: number) => (n === 0 ? "holds" : `${n > 0 ? "+" : "−"}${Math.abs(n)}`);
 
@@ -100,18 +110,148 @@ function BeforeAfter({ move, target }: { move: ReharmMove; target?: ChordEvent }
   );
 }
 
-export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill }: Props) {
+function MelodyCheck({ move }: { move: ReharmMove }) {
+  return (
+    <section aria-label="Melody check" className="flex flex-wrap gap-2 text-sm">
+      {move.checks.melody.map((m, i) => (
+        <span key={i} className="rounded-full border border-dashed border-ink-soft px-2 py-0.5">
+          melody {prettyNote(m.note)} = {prettyNote(m.role)} ✓
+        </span>
+      ))}
+      {!move.checks.melodyVerified && (
+        <span className="rounded-full border border-dashed border-wash-brick px-2 py-0.5 text-wash-brick">
+          ⚠ no melody entered here, so check it against your lead sheet
+        </span>
+      )}
+    </section>
+  );
+}
+
+function VoiceLeadingGrid({ move }: { move: ReharmMove }) {
+  if (move.voiceLeading.length === 0) return null;
+  return (
+    <section>
+      <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Voice leading</h4>
+      <ul className="mt-1 grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-3">
+        {move.voiceLeading.map((v, i) => (
+          <li key={i}>
+            {prettyNote(v.from)} → {prettyNote(v.to)} <span className="text-ink-faint">({signed(v.semitones)})</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Insight({ text }: { text?: string }) {
+  if (!text) return null;
+  return (
+    <p className="border-l-4 pl-3 text-[15px] leading-snug" style={{ borderColor: wash.blue }}>
+      💡 {text}
+    </p>
+  );
+}
+
+export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill, asksEnabled, midiConnected = false }: Props) {
   const color = CATEGORY_WASH[move.category];
   const bar = move.span.from.bar;
-  // Level 2 of the card: theory, melody check, voice leading, keys, rule, Deep Dive. Closes with the card.
+  // Level 2 of the card: the lesson's steps (or, for a rule without a lesson yet, theory, melody
+  // check, voice leading, keys, rule, Deep Dive). Closes with the card. It is the last level:
+  // nothing inside it folds (an e2e fails at a third aria-expanded level).
   const [why, setWhy] = useState(false);
   useEffect(() => {
     if (!selected) setWhy(false);
   }, [selected]);
+  const lesson = useMemo(() => lessonForMove(move), [move]);
+  // ▶ Hear's before/after cues: the written chords, then the move, both landing on the target (as the card face's audition)
+  const audio = useMemo(
+    () => ({ before: [...move.original, ...(target ? [target] : [])], after: [...move.chords, ...(target ? [target] : [])] }),
+    [move, target],
+  );
+  const bodyId = useId();
+  const whyId = useId();
+  const whyBtn = useRef<HTMLButtonElement>(null);
+  const toggleWhy = () => {
+    if (!why) {
+      countOpen("study.why"); // the Gate-0 baseline keeps counting
+      countLearning("why.open");
+    }
+    setWhy(!why);
+  };
+  const doneWithLesson = () => {
+    setWhy(false);
+    whyBtn.current?.focus();
+  };
+
+  const whyBody = lesson ? (
+    <div id={whyId} className="mt-3 space-y-3">
+      <SketchRule seed={seedOf(move.id + "r")} />
+      <Suspense fallback={<p className="font-hand text-ink-soft">Opening the steps…</p>}>
+        <LessonStepper
+          lesson={lesson}
+          variant="inline"
+          audio={audio}
+          asksEnabled={asksEnabled}
+          midiConnected={midiConnected}
+          ruleLabel="Recreate it"
+          onFinish={doneWithLesson}
+          deeper={
+            <>
+              <MelodyCheck move={move} />
+              <VoiceLeadingGrid move={move} />
+              <Insight text={move.text.insight} />
+              <DeepDive key={tuneId} tuneId={tuneId} move={move} />
+            </>
+          }
+        />
+      </Suspense>
+    </div>
+  ) : (
+    // a rule without a lesson yet: today's body, unchanged
+    <div id={whyId} className="mt-3 space-y-4">
+      <SketchRule seed={seedOf(move.id + "r")} />
+      <p className="text-[15px] leading-relaxed">{move.text.theory}</p>
+
+      <MelodyCheck move={move} />
+      <VoiceLeadingGrid move={move} />
+
+      <MoveKeyboard move={move} />
+
+      <SketchBox seed={seedOf(move.id + "note")} fill={wash.mustard} fillStyle="hachure" className="-rotate-1">
+        <div className="bg-paper-light/80 m-1.5 p-3">
+          <h4 className="font-marker text-sm font-bold uppercase tracking-wider">Recreate it</h4>
+          <p className="text-[15px] leading-snug">{move.text.recreateRule}</p>
+        </div>
+      </SketchBox>
+
+      <Insight text={move.text.insight} />
+
+      <DeepDive key={tuneId} tuneId={tuneId} move={move} />
+    </div>
+  );
+
+  const alsoWorks = alternatives.length > 0 && (
+    <section className="mt-3">
+      <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Also works here</h4>
+      <div className="mt-1 flex flex-wrap gap-2">
+        {alternatives.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onPick(a)}
+            className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm hover:bg-paper-shade"
+          >
+            {a.title} · L{a.level}
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+
   return (
     <SketchBox seed={seedOf(move.id)} fill={selected ? paper.light : undefined} className="text-ink" roughness={selected ? 1.6 : 1.2}>
       <article className="p-4" data-move-id={move.id}>
-        <button type="button" onClick={onSelect} className="w-full cursor-pointer text-left" aria-expanded={selected}>
+        <button type="button" onClick={onSelect} className="w-full cursor-pointer text-left" aria-expanded={selected} aria-controls={selected ? bodyId : undefined}>
           <header className="flex items-start gap-3">
             <span aria-hidden className="mt-1 inline-block h-4 w-4 shrink-0 rotate-3 rounded-[3px] opacity-80" style={{ background: color }} />
             <div className="min-w-0 flex-1">
@@ -149,102 +289,38 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
         <BeforeAfter move={move} target={target} />
 
         {selected && (
-          <div className="mt-3 flex flex-wrap items-start gap-2">
-            <button
-              type="button"
-              onClick={onPractice}
-              className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 font-marker text-paper-light hover:-rotate-1"
-            >
-              🎹 Practice this move
-            </button>
-            <button
-              type="button"
-              onClick={onDrill}
-              className="cursor-pointer rounded-full border-2 border-ink px-4 py-1 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              title="The Comping Coach: play the voicing on your keyboard, get red-pen feedback"
-            >
-              ✍ Drill the voicing
-            </button>
-            <button
-              type="button"
-              aria-expanded={why}
-              onClick={() => {
-                if (!why) countOpen("study.why");
-                setWhy(!why);
-              }}
-              className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-1 font-marker text-ink-soft hover:border-ink hover:text-ink"
-            >
-              Why it works <span aria-hidden>{why ? "▾" : "▸"}</span>
-            </button>
-          </div>
-        )}
-
-        {selected && why && (
-          <div className="mt-3 space-y-4">
-            <SketchRule seed={seedOf(move.id + "r")} />
-            <p className="text-[15px] leading-relaxed">{move.text.theory}</p>
-
-            <section aria-label="Melody check" className="flex flex-wrap gap-2 text-sm">
-              {move.checks.melody.map((m, i) => (
-                <span key={i} className="rounded-full border border-dashed border-ink-soft px-2 py-0.5">
-                  melody {prettyNote(m.note)} = {prettyNote(m.role)} ✓
-                </span>
-              ))}
-              {!move.checks.melodyVerified && (
-                <span className="rounded-full border border-dashed border-wash-brick px-2 py-0.5 text-wash-brick">
-                  ⚠ no melody entered here, so check it against your lead sheet
-                </span>
-              )}
-            </section>
-
-            {move.voiceLeading.length > 0 && (
-              <section>
-                <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Voice leading</h4>
-                <ul className="mt-1 grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-3">
-                  {move.voiceLeading.map((v, i) => (
-                    <li key={i}>
-                      {prettyNote(v.from)} → {prettyNote(v.to)} <span className="text-ink-faint">({signed(v.semitones)})</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <MoveKeyboard move={move} />
-
-            <SketchBox seed={seedOf(move.id + "note")} fill={wash.mustard} fillStyle="hachure" className="-rotate-1">
-              <div className="bg-paper-light/80 m-1.5 p-3">
-                <h4 className="font-marker text-sm font-bold uppercase tracking-wider">Recreate it</h4>
-                <p className="text-[15px] leading-snug">{move.text.recreateRule}</p>
-              </div>
-            </SketchBox>
-
-            {move.text.insight && (
-              <p className="border-l-4 pl-3 text-[15px] leading-snug" style={{ borderColor: wash.blue }}>
-                💡 {move.text.insight}
-              </p>
-            )}
-
-            <DeepDive key={tuneId} tuneId={tuneId} move={move} />
-          </div>
-        )}
-
-        {selected && alternatives.length > 0 && (
-          <section className="mt-3">
-            <h4 className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">Also works here</h4>
-            <div className="mt-1 flex flex-wrap gap-2">
-              {alternatives.map((a) => (
-                <button
-                  key={a.id}
-                  type="button"
-                  onClick={() => onPick(a)}
-                  className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm hover:bg-paper-shade"
-                >
-                  {a.title} · L{a.level}
-                </button>
-              ))}
+          <div id={bodyId}>
+            <div className="mt-3 flex flex-wrap items-start gap-2">
+              <button
+                type="button"
+                onClick={onPractice}
+                className="cursor-pointer rounded-full border-2 border-ink bg-ink px-4 py-1 font-marker text-paper-light hover:-rotate-1"
+              >
+                🎹 Practice this move
+              </button>
+              <button
+                type="button"
+                onClick={onDrill}
+                className="cursor-pointer rounded-full border-2 border-ink px-4 py-1 font-marker hover:-rotate-1 hover:bg-paper-shade"
+                title="The Comping Coach: play the voicing on your keyboard, get red-pen feedback"
+              >
+                ✍ Drill the voicing
+              </button>
+              <button
+                ref={whyBtn}
+                type="button"
+                aria-expanded={why}
+                aria-controls={why ? whyId : undefined}
+                onClick={toggleWhy}
+                className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-1 font-marker text-ink-soft hover:border-ink hover:text-ink"
+              >
+                Why it works
+                {lesson && <span className="font-hand text-sm"> ({lesson.steps.length} steps)</span>} <span aria-hidden>{why ? "▾" : "▸"}</span>
+              </button>
             </div>
-          </section>
+            {why && whyBody}
+            {alsoWorks}
+          </div>
         )}
       </article>
     </SketchBox>

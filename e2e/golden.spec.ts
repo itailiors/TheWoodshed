@@ -67,6 +67,11 @@ test("Study: first load shows headlines; the rest is one click away", async ({ p
   await expect(why).toHaveAttribute("aria-expanded", "false");
   await expect(open.getByText("Recreate it")).toHaveCount(0);
   await why.click();
+  // the reference move has a lesson: it steps through, and "Recreate it" (the rule) closes the last step
+  const heading = open.locator("[data-step-heading]");
+  await expect(heading).toHaveText(/^Step 1 of \d+$/);
+  const steps = Number((await heading.textContent())!.match(/of (\d+)/)![1]);
+  for (let i = 1; i < steps; i++) await open.getByRole("button", { name: "Next ›" }).click();
   await expect(open.getByText("Recreate it")).toBeVisible();
   // secondary panels are folded, and a folded heatmap isn't mounted (so it can't grade)
   await expect(page.getByRole("button", { name: /Edit chord by chord/ })).toHaveAttribute("aria-expanded", "false");

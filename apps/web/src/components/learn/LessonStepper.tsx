@@ -1,15 +1,16 @@
-import { chroma, learnName, prettyNote, spellChroma, type Lesson, type LessonStep } from "@reharm/theory-core";
-import { useEffect, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
-import { player } from "../../audio/player";
+import { chroma, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
+import { useEffect, useId, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
+import { SketchBox } from "../../design/rough";
+import { seedOf, wash } from "../../design/tokens";
 import { useNarrow } from "../../device/media";
 import { readLessonFlags, updateLessonFlag } from "../../learn/lessonFlags";
-import { noteBus } from "../../midi/noteBus";
 import { useQwerty } from "../../midi/qwerty";
 import { countLearning } from "../../usage/panelOpens";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
 import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
 import { GlossaryChip } from "./GlossaryChip";
 import { placeHighlights, playStep, type LessonAudioContext } from "./lessonAudio";
+import { askIsOpen, pressKey } from "./stepperInput";
 import { inRange, inSentence, keyEventOf, keyRange, splitOnTerm, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
 import { notLine, useTapAnswer } from "./useTapAnswer";
 
@@ -45,6 +46,8 @@ export interface LessonStepperProps {
   autoPlay?: boolean;
   /** The last step's "Go deeper" section, after the lesson's own `deeper` line (Study: melody check, grid, Deep Dive). */
   deeper?: ReactNode;
+  /** The label on the rule box. Default "The rule"; Study keeps its "Recreate it". */
+  ruleLabel?: string;
 }
 
 /**
@@ -61,14 +64,6 @@ export function LessonStepper(props: LessonStepperProps) {
 type Reveal = "answered" | "shown";
 const PULSE_MS = 1200;
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
-
-/** On-screen keys: out on the note bus (only while an ask listens) with a guaranteed note-off, and sounded by the app's piano. */
-function pressKey(m: number, toBus: boolean) {
-  void player.playNotes([m], 0.5);
-  if (!toBus) return;
-  noteBus.emit({ type: "on", note: m, velocity: 0.7, source: "virtual" });
-  setTimeout(() => noteBus.emit({ type: "off", note: m, velocity: 0, source: "virtual" }), 150);
-}
 
 /** The marks a step puts on the keyboard. Pure. */
 function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean, hits: number[], wrong: number | null) {
@@ -106,6 +101,7 @@ function Stepper({
   asksEnabled = true,
   autoPlay = true,
   deeper,
+  ruleLabel = "The rule",
 }: LessonStepperProps) {
   const steps = lesson.steps;
   const last = steps.length - 1;
@@ -116,6 +112,7 @@ function Stepper({
   const [status, setStatus] = useState("");
   const [help, setHelp] = useState(false);
   const narrow = useNarrow();
+  const deeperId = useId();
   const qwertyOn = useQwerty().enabled;
   const heading = useRef<HTMLHeadingElement>(null);
   const showMe = useRef<HTMLButtonElement>(null);
@@ -123,7 +120,7 @@ function Stepper({
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const step = steps[at];
-  const askOpen = !!step.ask && asksEnabled && !revealed[at];
+  const askOpen = askIsOpen(step, asksEnabled, revealed[at]);
 
   // seen on open: idempotent (only the first open stamps it), so StrictMode's second run is harmless
   useEffect(() => {
@@ -239,7 +236,6 @@ function Stepper({
   const placed = placeHighlights(step.highlight.map((h) => h.note));
   const { low, high } = keyRange(placed, narrow ? 12 : 24);
   const { lit, ghost } = keyMarks(step, low, high, askOpen, tap.hits, tap.wrong);
-  const wrongMark = ghost !== null && tap.wrong !== null ? [{ midi: ghost, label: prettyNote(spellChroma(tap.wrong)) }] : [];
 
   const name = learnName(lesson.conceptId);
   const nextLabel = at === last ? (finishLabel ?? (variant === "full" ? "Study it ›" : "Done")) : "Next ›";
@@ -254,7 +250,7 @@ function Stepper({
         ‹ Back
       </button>
       <button type="button" onClick={hear} className={`${navBtn} border-ink-soft hover:border-ink`} aria-label="Hear this step">
-        <span aria-hidden>▶ </span>Hear
+        <span aria-hidden className="mr-1">▶</span>Hear
       </button>
       <span className="ml-auto inline-flex items-center gap-2">
         {askOpen && (
@@ -280,13 +276,15 @@ function Stepper({
         low={low}
         high={high}
         showSplit={false}
+        // a wrong key is a dashed ghost on the key and its name in red pen above the keyboard (in the
+        // text, not over the keys), so the keyboard never grows label room and jumps under a finger
         slim
         short={narrow}
         pending={lit.map((l) => l.midi)}
         keyLabels={lit}
         target={ghost !== null ? [ghost] : []}
-        wrong={wrongMark}
-        ticks={revealed[at] === "answered" ? lit.map((l) => l.midi) : []}
+        // the tick goes on the keys that answered the ask, not on every lit key
+        ticks={revealed[at] === "answered" && step.ask ? lit.map((l) => l.midi).filter((m) => step.ask!.answer.some((n) => chroma(n) === m % 12)) : []}
         onKey={(m) => pressKey(m, askOpen)}
       />
     </div>
@@ -306,18 +304,24 @@ function Stepper({
           Step {at + 1} of {steps.length}
         </h3>
         <nav aria-label="Steps" className="ml-auto">
-          <ol className="flex items-center gap-1.5">
+          <ol className="flex items-center">
             {steps.map((_, i) => (
               <li key={i}>
+                {/* the button is the tap target (44px tall on touch); the dot inside is what you see */}
                 <button
                   type="button"
                   aria-label={`Step ${i + 1}`}
                   aria-current={i === at ? "step" : undefined}
                   onClick={() => go(i)}
-                  className={`block h-3 w-3 cursor-pointer rounded-full border-2 border-ink transition-transform motion-reduce:transition-none ${
-                    i === at ? "scale-125 bg-ink" : i <= furthest ? "bg-ink-soft" : "bg-transparent"
-                  }`}
-                />
+                  className="group grid cursor-pointer place-items-center p-[3px] pointer-coarse:min-h-11 pointer-coarse:min-w-7"
+                >
+                  <span
+                    aria-hidden
+                    className={`block h-3 w-3 rounded-full border-2 border-ink transition-transform group-hover:scale-110 motion-reduce:transition-none ${
+                      i === at ? "scale-125 bg-ink group-hover:scale-125" : i <= furthest ? "bg-ink-soft" : "bg-transparent"
+                    }`}
+                  />
+                </button>
               </li>
             ))}
           </ol>
@@ -328,8 +332,14 @@ function Stepper({
         {askOpen ? (
           <>
             <p className="font-marker">{step.ask!.prompt}</p>
-            <p aria-hidden className="mt-1 border-b-2 border-dashed border-ink-faint text-ink-faint">
-              ?
+            {/* the answer's dashed line; a wrong key is crossed out on it in red pen (announced by the status line) */}
+            <p aria-hidden className="mt-1 flex items-baseline justify-between border-b-2 border-dashed border-ink-faint text-ink-faint">
+              <span>?</span>
+              {tap.wrong !== null && (
+                <span key={tap.wrong} data-wrong-key className="font-marker text-base text-pen motion-safe:animate-[pulse_0.6s_ease-out_1]">
+                  ✗ {notLine(tap.wrong)}
+                </span>
+              )}
             </p>
             {noInput && <p className="mt-1 text-sm text-ink-soft">Tap the keys, or press M to use your computer keys.</p>}
           </>
@@ -379,19 +389,27 @@ function Stepper({
       )}
 
       {at === last && (
-        <section aria-label="The rule" className="space-y-2 pt-1">
-          <p className="rounded-md border-2 border-ink px-3 py-2 font-hand text-lg">
-            <span className="font-marker text-sm uppercase text-ink-soft">The rule · </span>
-            {lesson.rule}
-          </p>
+        <>
+          <section aria-label={ruleLabel} className="pt-1">
+            {/* the rule on a mustard wash, like Study's old "Recreate it" note: the one line to take away */}
+            <SketchBox seed={seedOf(lesson.conceptId + "rule")} fill={wash.mustard} fillStyle="hachure" className="-rotate-1 motion-reduce:rotate-0">
+              <div className="m-1.5 bg-paper-light/80 p-3">
+                <h4 className="font-marker text-sm font-bold uppercase tracking-wider">{ruleLabel}</h4>
+                <p className="font-hand text-lg leading-snug">{lesson.rule}</p>
+              </div>
+            </SketchBox>
+          </section>
           {(lesson.deeper || deeper) && (
-            <div className="space-y-2">
-              <h4 className="font-marker text-sm uppercase text-ink-soft">Go deeper</h4>
-              {lesson.deeper && <p className="font-hand">{lesson.deeper}</p>}
+            // a plain section, never a fold: the stepper is the card's second disclosure level and its last
+            <section aria-labelledby={deeperId} className="space-y-3" data-go-deeper>
+              <h4 id={deeperId} className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">
+                Go deeper
+              </h4>
+              {lesson.deeper && <p className="font-hand text-base leading-snug">{lesson.deeper}</p>}
               {deeper}
-            </div>
+            </section>
           )}
-        </section>
+        </>
       )}
 
       <p role="status" className="sr-only">

@@ -250,9 +250,17 @@ export function PenKeyboard({
             x={k.x + (k.black ? BW : WW) / 2}
             y={TOP + (k.black ? BH : WH) - 6}
             textAnchor="middle"
-            fontSize={k.black ? 8 : 10}
+            fontSize={k.black ? 9 : 10}
             fontWeight={700}
-            className={`pointer-events-none font-marker ${k.black ? "fill-paper-light" : "fill-ink"}`}
+            // key colours, not page ink (a dark theme keeps cream keys): a lit key is washed mustard, so its
+            // label is the black-key colour, like a white key's; an unlit black key gets the white-key colour
+            fill={k.black && !pending.includes(mk.midi) ? keyTone.white : keyTone.black}
+            // a halo in the key's own colour keeps the word readable over the hachure wash
+            stroke={k.black && !pending.includes(mk.midi) ? keyTone.black : k.black ? wash.mustard : keyTone.white}
+            strokeWidth={3}
+            paintOrder="stroke"
+            strokeLinejoin="round"
+            className="pointer-events-none font-marker"
           >
             {mk.label}
           </text>

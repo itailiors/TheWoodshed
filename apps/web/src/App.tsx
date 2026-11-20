@@ -916,6 +916,9 @@ export function App() {
                 onPractice={() => practiceMove(m.id)}
                 onDrill={() => openCoach(m.id)}
                 alternatives={accepted.filter((a) => a.id !== m.id && overlaps(a, m))}
+                // the heatmap behind "Solo over it" saves what it hears: lesson asks stay off while it's mounted
+                asksEnabled={!soloOpen}
+                midiConnected={midi.status === "connected"}
               />
             ))}
 
