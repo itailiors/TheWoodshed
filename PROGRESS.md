@@ -7,6 +7,20 @@ One row per sub-phase, newest last. Status: done · parked · blocked (reverted)
 
 **Final verification (orchestrator, end of Phase 6):** `npm run typecheck` clean; `tsc --noUnusedLocals` clean in theory-core, web and api; `npm test` 1138 core + 51 api + 178 web, all green; `npm run e2e` 71/71 (chromium + Pixel 5); real database checksum unchanged (`3c7bbe3f…77e6`); `main` untouched at 8d8d832; branch not pushed (no upstream). Not done by design: 3f test-out (parked, decision 8), og-card re-render (hard stop), any live Claude call (hard stop). Process notes: commit a32b88d was committed with the API sha pin failing (re-pinned in fb94ab8); one P6 fix appended a test block to `pitch.test.ts` via a shell heredoc instead of the Edit tool (content reviewed and correct).
 
+**Code review fixes (after Phase 6, high-effort `/code-review` of `main...HEAD`, all 10 fixed):**
+1. The stepper's audio stop cuts only its own cue: `player.playScore` returns its audition token and `player.currentAudition()` exposes the current one, so closing a lesson never silences a move card's ▶ Before/After that took over (`lessonAudioStop.test.ts`, which fails on the old code).
+2. The audio engine failing to start no longer leaves an unhandled rejection (CLAUDE.md rule 14).
+3. Regenerate (`fresh`) lifts the explain negative cache and pays for a new answer. The old test that pinned the opposite was rewritten.
+4. One term matcher, `termAt`/`numeralAt` in theory-core's glossary, is shared by the UI chips and the Deep Dive glossary. "tonicized" now finds "tonicize" in both.
+5. The Deep Dive cache key no longer hashes the reference material (glossary glosses, pedagogy, prerequisite names), so rewording those buys no new calls. The draft and the lesson's steps stay in the key. This rolls every cache key once; no API key is configured, so the roll is free. The facts pin is unchanged.
+6. A chart move that doesn't fire in the drill's key shows "doesn't work on this chart in X" with "Back to <home key>", never the old key's chords graded under the new key (`tuneMoveInKey` is shared by `coachLesson`, `CoachDrill` and `CoachPage`).
+7. The "Learn that first" return stack clears whenever the open concept leaves the trip (‹ Prev / Next ›, a due review, the move list), not only on a rail pick.
+8. "Erase runs" (`clearLessonFlags`) leaves a newer version's lesson flags alone, as `write` does.
+9. `markLessonSeen` is the store's effect-safe first-open stamp; the stepper uses it in place of a guarded `updateLessonFlag` in an effect.
+10. Spacing fixed in `romanName =(` and `motionCost =(`.
+
+Checks: typecheck clean; `--noUnusedLocals` clean; `npm test` 1138 core + 54 api + 183 web; e2e 71/71; database checksum unchanged. The "not in this key" notice is covered by unit tests only, not checked in the browser.
+
 | Sub-phase | Status | Commit | Checks | Notes |
 |---|---|---|---|---|
 | plan | done | (this commit) | n/a | PLAN.md, spec and this file; Gate 0 answered by Itai |

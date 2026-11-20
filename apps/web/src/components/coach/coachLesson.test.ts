@@ -1,6 +1,6 @@
 import { chroma, generateMoves, referenceTune } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
-import { coachLesson } from "./coachLesson";
+import { coachLesson, tuneMoveInKey } from "./coachLesson";
 
 describe("Coach's Learn-stage lesson for a tune move", () => {
   const move = generateMoves(referenceTune).accepted.find((m) => m.ruleId === "dominant.tritoneSub")!;
@@ -18,5 +18,13 @@ describe("Coach's Learn-stage lesson for a tune move", () => {
   it("never pairs the old key's move with the new key's chart: a move the key doesn't have gets no lesson", () => {
     const ghost = { ...move, id: "dominant.tritoneSub@99.1" };
     expect(coachLesson(move.ruleId, "Ab", { tune: referenceTune, move: ghost })).toBeNull();
+  });
+
+  it("tuneMoveInKey: the transposed chart and the same move on it, or null (what the page checks before mounting a drill)", () => {
+    const there = tuneMoveInKey(referenceTune, move.id, "Ab");
+    expect(there.tune.key.tonic).toBe("Ab");
+    expect(there.move!.id).toBe(move.id);
+    expect(tuneMoveInKey(referenceTune, move.id, referenceTune.key.tonic).tune).toBe(referenceTune);
+    expect(tuneMoveInKey(referenceTune, "dominant.tritoneSub@99.1", "Ab").move).toBeNull();
   });
 });

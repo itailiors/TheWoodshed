@@ -1,4 +1,4 @@
-import { GLOSSARY, glossaryEntry, parseSymbol } from "@reharm/theory-core";
+import { GLOSSARY, glossaryEntry, parseSymbol, termAt } from "@reharm/theory-core";
 
 /*
  * Where the chips go in a line of copy (spec §D), as one pure function: glossary terms the
@@ -48,13 +48,6 @@ export function symbolIn(token: string): string | null {
   return null;
 }
 
-/** The first use of `form` in `text` as a whole word (any case; "borrows" counts for "borrow"), or null. */
-function wordAt(text: string, form: string): { at: number; len: number } | null {
-  // "d" for a term ending in e ("tonicize" → "tonicized")
-  const m = new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|d|ed|ing)?(?![\\p{L}])`, "iu").exec(text);
-  return m ? { at: m.index, len: m[0].length } : null;
-}
-
 /** Split a line into plain text and chips. Pure. */
 export function chipSegments(text: string, opts: ChipOptions = {}): Segment[] {
   const seen = opts.seen ?? new Set<string>();
@@ -64,7 +57,7 @@ export function chipSegments(text: string, opts: ChipOptions = {}): Segment[] {
     const entry = t ? glossaryEntry(t) : undefined;
     if (!entry) continue;
     for (const form of [t!, entry.term, ...entry.aliases]) {
-      const hit = entry.kind === "numeral" ? (text.includes(form) ? { at: text.indexOf(form), len: form.length } : null) : wordAt(text, form);
+      const hit = entry.kind === "numeral" ? (text.includes(form) ? { at: text.indexOf(form), len: form.length } : null) : termAt(text, form);
       if (!hit) continue;
       hits.push({ start: hit.at, end: hit.at + hit.len, seg: { kind: "term", text: text.slice(hit.at, hit.at + hit.len), term: entry.term }, key: `term:${entry.term}` });
       break;

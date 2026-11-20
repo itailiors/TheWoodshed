@@ -5,13 +5,11 @@ import {
   chroma,
   conceptDrillSteps,
   drillSteps,
-  generateMoves,
   mod,
   prettyNote,
   prettySymbol,
   randomKey,
   symbol,
-  transposeTune,
   voiceMotion,
   type DrillAttempt,
   type DrillRun,
@@ -36,6 +34,7 @@ import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
 import { PenKeyboard, type PenKeyboardProps, type PenMark } from "../practice/PenKeyboard";
 import { useNarrow } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
+import { tuneMoveInKey } from "./coachLesson";
 import { modeForStage, type CoachInput, type SelfVerdict } from "./gradingMode";
 import { SelfCheckPanel } from "./SelfCheckPanel";
 import { GlossaryChip } from "../learn/GlossaryChip";
@@ -162,8 +161,11 @@ export function CoachDrill({
         activeTune: res.tune!,
       };
     }
-    const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
-    const found = generateMoves(dtune).accepted.find((m) => m.id === move.id) ?? move;
+    // the page mounts the drill only where the move fires in this key (`tuneMoveInKey`): never the
+    // old key's chords on the new key's chart, graded and saved under the new key
+    const { tune: dtune, move: inKey } = tuneMoveInKey(tune, move.id, key);
+    if (!inKey) throw new Error(`${move.id} doesn't fire in ${key}: the Coach page must not mount a drill for it`);
+    const found = inKey;
     const matchedRule = RULES.find((r) => r.id === found.ruleId);
     return {
       dmove: found,

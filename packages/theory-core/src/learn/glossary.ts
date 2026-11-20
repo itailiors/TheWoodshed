@@ -120,3 +120,24 @@ export const categoryEntry = (category: MoveCategory): GlossaryEntry => CATEGORY
 
 /** The glossary entry for a level-dial position, 0–4. */
 export const levelEntry = (level: number): GlossaryEntry | undefined => LEVEL[level];
+
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Where text uses a term: start and length, or null. */
+export type TermHit = { at: number; len: number };
+
+/**
+ * The first use of a plain term in `text`, as a whole word, any case, with its inflections:
+ * "borrows" for "borrow", "tonicized" for "tonicize" (the "d" after an e). The UI's chips and the
+ * Deep Dive's glossary both find terms with this, so they always agree.
+ */
+export function termAt(text: string, form: string): TermHit | null {
+  const m = new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|d|ed|ing)?(?![\\p{L}])`, "iu").exec(text);
+  return m ? { at: m.index, len: m[0].length } : null;
+}
+
+/** The first use of a roman numeral in `text`, exact case, standing alone ("V7", "IV" and "♭VII" aren't "V"). */
+export function numeralAt(text: string, form: string): TermHit | null {
+  const m = new RegExp(`(?<![\\p{L}\\p{N}♭♯])${esc(form)}(?![\\p{L}\\p{N}])`, "u").exec(text);
+  return m ? { at: m.index, len: m[0].length } : null;
+}

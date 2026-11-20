@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { clearLessonFlags, LESSONS_STORE, onLessonFlagsChanged, parseLessonFlags, readLessonFlags, updateLessonFlag } from "./lessonFlags";
+import { clearLessonFlags, LESSONS_STORE, markLessonSeen, onLessonFlagsChanged, parseLessonFlags, readLessonFlags, updateLessonFlag } from "./lessonFlags";
 import { memoryStorage, throwingStorage } from "./testStorage";
 
 const doc = (flags: unknown, v: unknown = 1) => JSON.stringify({ v, flags });
@@ -58,6 +58,18 @@ describe("lesson flags in reharm.lessons", () => {
     expect(readLessonFlags()).toEqual({});
     updateLessonFlag("basics:dim7", { seenAt: "2026-11-20T11:00:00Z" });
     expect(localStorage.getItem(LESSONS_STORE)).toBe(newer);
+    clearLessonFlags(); // "Erase runs" in this older build leaves the newer app's flags alone too
+    expect(localStorage.getItem(LESSONS_STORE)).toBe(newer);
+  });
+
+  it("markLessonSeen stamps the first open only: a repeat (StrictMode, a remount) writes and notifies nothing", () => {
+    const fn = vi.fn();
+    const off = onLessonFlagsChanged(fn);
+    markLessonSeen("basics:tritone", new Date("2026-11-20T10:00:00Z"));
+    markLessonSeen("basics:tritone", new Date("2026-11-21T10:00:00Z"));
+    off();
+    expect(readLessonFlags()).toEqual({ "basics:tritone": { seenAt: "2026-11-20T10:00:00.000Z" } });
+    expect(fn).toHaveBeenCalledOnce();
   });
 
   it("refuses an update that would store a malformed entry", () => {

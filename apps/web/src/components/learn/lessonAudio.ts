@@ -100,7 +100,17 @@ export function stepScore(a: StepAudio) {
 
 // bumped by every play and every stop: a play still waiting on the audio engine checks it's still the latest
 let stepGen = 0;
-let sounding = false;
+/**
+ * The player's audition token for the cue now ringing, or null. A stop cuts the player only while
+ * that token is still the player's current one: once another audition (a move card's ▶
+ * Before/After) has taken over, a stepper closing never silences it.
+ */
+let ourAudition: number | null = null;
+
+/** Cut the cue `token` names, only if it's still the one playing. */
+function stopIfOurs(token: number | null) {
+  if (token !== null && player.currentAudition() === token) player.stopScore();
+}
 
 /** Play a step through the player's audition path; `onDone` once it has rung (not if another audition took over). */
 export function playStep(step: LessonStep, ctx: LessonAudioContext = {}, onDone?: () => void): boolean {
@@ -108,15 +118,22 @@ export function playStep(step: LessonStep, ctx: LessonAudioContext = {}, onDone?
   if (!a) return false;
   const gen = ++stepGen;
   const { events, steps } = stepScore(a);
-  void player.init().then(() => {
-    if (gen !== stepGen) return;
-    sounding = true;
-    return player.playScore(events, steps, (i) => {
-      if (i !== null) return;
-      if (gen === stepGen) sounding = false;
-      onDone?.();
+  player
+    .init()
+    .then(async () => {
+      if (gen !== stepGen) return;
+      const token = await player.playScore(events, steps, (i) => {
+        if (i !== null) return;
+        if (ourAudition === token) ourAudition = null;
+        onDone?.();
+      });
+      // stopped (or replaced) while the score was starting: cut it now
+      if (gen !== stepGen) return stopIfOurs(token);
+      ourAudition = token;
+    })
+    .catch(() => {
+      // no audio engine (blocked or failed to load): the step simply stays silent
     });
-  });
   return true;
 }
 
@@ -131,7 +148,7 @@ export const stepAudioGen = () => stepGen;
 export function stopStepAudio(onlyGen?: number) {
   if (onlyGen !== undefined && onlyGen !== stepGen) return;
   stepGen++;
-  if (!sounding) return;
-  sounding = false;
-  player.stopScore();
+  const token = ourAudition;
+  ourAudition = null;
+  stopIfOurs(token);
 }

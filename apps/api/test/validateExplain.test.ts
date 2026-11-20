@@ -1,7 +1,7 @@
-import { generateMoves, referenceTune } from "@reharm/theory-core";
+import { generateMoves, lessonForMove, referenceTune } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
 import { templateExplanation } from "../src/demo";
-import { buildFacts, DEV, explainMove, keyOf, MODEL, NEGATIVE_TTL_MS, type ExplainCache, type ExplainClient, type ParseResult } from "../src/explain";
+import { buildFacts, DEV, explainMove, keyOf, lessonGlossary, MODEL, NEGATIVE_TTL_MS, type ExplainCache, type ExplainClient, type ParseResult } from "../src/explain";
 import { EXPLAIN_SYSTEM_PROMPT, PROMPT_EXAMPLES } from "../src/prompt";
 import { noteTokens, validateExplanation, words, type CheckId, type ExplanationText, type ValidationFacts } from "../src/validateExplain";
 
@@ -165,7 +165,7 @@ describe("explainMove: validate, retry at most once, then the template and the n
     expect(negative.get(keyOf(buildFacts(referenceTune, move)))).toBe(1_000 + NEGATIVE_TTL_MS);
   });
 
-  it("the negative cache skips the call within the TTL (fresh too) and lets it through after", async () => {
+  it("the negative cache skips the call within the TTL and lets it through after", async () => {
     const { client, calls } = stub([BAD, BAD]);
     const { cache } = memoryCache();
     const negative = new Map<string, number>();
@@ -176,12 +176,35 @@ describe("explainMove: validate, retry at most once, then the template and the n
 
     t = NEGATIVE_TTL_MS - 1;
     expect(await explainMove(referenceTune, move, {}, deps)).toMatchObject({ source: "template" });
-    expect(await explainMove(referenceTune, move, { fresh: true }, deps)).toMatchObject({ source: "template" });
     expect(calls).toHaveLength(2);
 
     t = NEGATIVE_TTL_MS;
     await explainMove(referenceTune, move, {}, deps);
     expect(calls).toHaveLength(4); // expired: one more try, and its retry
+  });
+
+  it("Regenerate (fresh) lifts the block: the player asked for a new answer, so it is paid for", async () => {
+    const { client, calls } = stub([BAD, BAD, GOOD]);
+    const negative = new Map<string, number>();
+    const deps = { client, cache: memoryCache().cache, negative, now: () => 0, log: () => {} };
+    await explainMove(referenceTune, move, {}, deps);
+    expect(calls).toHaveLength(2);
+    expect(await explainMove(referenceTune, move, { fresh: true }, deps)).toMatchObject({ ...GOOD, cached: false });
+    expect(calls).toHaveLength(3);
+    expect(negative.size).toBe(0);
+  });
+
+  it("rewording a gloss, the pedagogy or a prerequisite's name keeps the cache key; the lesson's own words roll it", () => {
+    const facts = buildFacts(referenceTune, move);
+    const key = keyOf(facts);
+    expect(keyOf({ ...facts, glossary: [{ term: "tritone", gloss: "Reworded." }] })).toBe(key);
+    expect(keyOf({ ...facts, pedagogy: null, prereqs: [] })).toBe(key);
+    expect(keyOf({ ...facts, lesson: { ...facts.lesson!, rule: "Reworded." } })).not.toBe(key);
+  });
+
+  it("the glossary for Claude finds an inflected term the way the chips do (\"tonicized\" for \"tonicize\")", () => {
+    const lesson = { ...lessonForMove(move)!, steps: [{ text: "Here D7 is tonicized for a beat.", highlight: [] }] };
+    expect(lessonGlossary(lesson).map((g) => g.term)).toContain("tonicize");
   });
 
   it("logs through the given logger; the default logs only with the API's dev flag (off in tests and production)", async () => {

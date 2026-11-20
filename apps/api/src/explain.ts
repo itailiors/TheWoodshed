@@ -6,11 +6,13 @@ import {
   improvMap,
   learnName,
   lessonForMove,
+  numeralAt,
   prettyNote as pn,
   prettySymbol,
   realize,
   RULES,
   symbol,
+  termAt,
   type Lesson,
   type ReharmMove,
   type Tune,
@@ -44,20 +46,15 @@ export class ExplainError extends Error {
   }
 }
 
-const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-// plain terms match as whole words, any case, with "borrows"/"tonicized" counting; numerals match exactly and stand alone
-const termRe = (form: string) => new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|ed|ing)?(?![\\p{L}])`, "iu");
-const numeralRe = (form: string) => new RegExp(`(?<![\\p{L}\\p{N}♭♯])${esc(form)}(?![\\p{L}\\p{N}])`, "u");
-
 /** The glossary entries a lesson's words use (its steps' new terms, other terms and the numerals), in glossary order. */
-function lessonGlossary(lesson: Lesson): { term: string; gloss: string }[] {
+export function lessonGlossary(lesson: Lesson): { term: string; gloss: string }[] {
   const text = [lesson.headline, ...lesson.steps.map((s) => s.text), lesson.rule].join("\n");
   const named = new Set(lesson.steps.map((s) => s.term).filter(Boolean));
   return GLOSSARY.filter((g) => {
     if (g.kind === "category" || g.kind === "level") return false;
     if (named.has(g.term)) return true;
-    const forms = [g.term, ...g.aliases];
-    return forms.some((f) => (g.kind === "numeral" ? numeralRe(f) : termRe(f)).test(text));
+    // the same matcher the UI's chips use, so Claude is given exactly the terms the player sees chipped
+    return [g.term, ...g.aliases].some((f) => (g.kind === "numeral" ? numeralAt(text, f) : termAt(text, f)) !== null);
   }).map((g) => ({ term: g.term, gloss: g.gloss }));
 }
 
@@ -69,7 +66,8 @@ const DEGREE_CODE = /^(?:bb|b|#)\d{1,2}$/;
 
 /** Everything the model may talk about, and nothing else. No raw tune data. */
 export function buildFacts(tune: Tune, move: ReharmMove) {
-  // `learn` (the lesson layer's fields) stays out: it is for the UI, and adding it would roll every cache key.
+  // `learn` (the lesson layer's keyboard data: highlights, asks, voice paths) stays out: it is for the UI, and
+  // the lesson's prose below already says everything in it the model needs.
   const { learn: _learn, ...engineFacts } = move.facts;
   const chords = realize(tune, [move]);
   const scales = improvMap(tune, chords)
@@ -146,7 +144,19 @@ const fileCache: ExplainCache = {
   },
 };
 
-export const keyOf = (facts: unknown) => createHash("sha256").update(`${PROMPT_VERSION}|${MODEL}|${JSON.stringify(facts)}`).digest("hex");
+/**
+ * What a cached answer depends on: the facts minus their reference material (the glossary's
+ * glosses, the rule's pedagogy, the prerequisites' names). Rewording a gloss or a cue doesn't
+ * make a cached Deep Dive wrong, so it doesn't buy a new call. The move's own words (the draft and
+ * the lesson's steps) stay in: the answer must not repeat steps the player now reads differently.
+ */
+export function cacheFacts(facts: ReturnType<typeof buildFacts>) {
+  const { glossary: _glossary, pedagogy: _pedagogy, prereqs: _prereqs, ...rest } = facts;
+  return rest;
+}
+
+export const keyOf = (facts: ReturnType<typeof buildFacts>) =>
+  createHash("sha256").update(`${PROMPT_VERSION}|${MODEL}|${JSON.stringify(cacheFacts(facts))}`).digest("hex");
 
 // ── the client, narrowed to the one call this file makes (tests pass a stub; no network in tests) ──
 type ParseParams = Parameters<Anthropic["beta"]["messages"]["parse"]>[0];
@@ -204,9 +214,10 @@ export async function explainMove(tune: Tune, move: ReharmMove, { fresh = false 
   if (hit) return { ...hit, cached: true };
 
   const template = () => ({ ...templateExplanation(move), cached: false, source: "template" as const });
+  // a regenerate (`fresh`) is the player asking for a new answer: it lifts the block and pays for it
   const blockedUntil = negative.get(key);
   if (blockedUntil !== undefined) {
-    if (now() < blockedUntil) return template();
+    if (!fresh && now() < blockedUntil) return template();
     negative.delete(key);
   }
 

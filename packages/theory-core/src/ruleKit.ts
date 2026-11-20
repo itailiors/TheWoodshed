@@ -100,7 +100,7 @@ export function planeMotion(from: ReadonlyArray<string | ChordTone>, to: readonl
   return from.map((f, k) => nearestMotion(typeof f === "string" ? f : f.note, [to[k]]));
 }
 
-export const romanName =(c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|ø7|°7|m7|m6|7|6)$/, "");
+export const romanName = (c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|ø7|°7|m7|m6|7|6)$/, "");
 
 /** Each voice followed by nearest motion through a chord list: one motion per chord, per voice. */
 export function chainMotions(voices: string[], chords: Array<Parameters<typeof chordTones>[0]>): VoiceMotion[][] {

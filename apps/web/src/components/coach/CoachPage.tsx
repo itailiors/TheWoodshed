@@ -32,7 +32,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill, nextCircleKey, type KeyFlow } from "./CoachDrill";
-import { coachLesson } from "./coachLesson";
+import { coachLesson, tuneMoveInKey } from "./coachLesson";
 import { coachInput, openingStage, retireGradingStore, stagesFor } from "./gradingMode";
 import { LearnStage } from "./LearnStage";
 import { StageLadder } from "./StageLadder";
@@ -204,6 +204,9 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   // every rule fires on its canonical progression in all 12 keys (theory-core's learn.canonical test), so `.move` is set
   const conceptFallback = useMemo(() => conceptDrillSteps(activeRule.id, key), [activeRule.id, key]);
   const move = inTune ? tuneMove : conceptFallback.move!;
+  // a chart's move can drop out in another key (the melody rules it out there): then there is
+  // nothing to drill in that key, never the old key's chords graded under the new one
+  const missingInKey = useMemo(() => inTune && !tuneMoveInKey(tune, tuneMove!.id, key).move, [inTune, tune, tuneMove, key]);
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
   // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done.
@@ -281,6 +284,13 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const learnFirst = (prereqId: string) => learnFirstFor({ id: activeRuleId, scope }, prereqId);
   const top = returnStack[returnStack.length - 1];
   const returning = top && top.forId === activeRuleId ? top : null;
+  // on a trip the open concept is always the top entry's: anything else (‹ Prev / Next ›, a due
+  // review, a move in the list) left the trip, so its stale "from …" never comes back later
+  useEffect(() => {
+    if (top && top.forId !== activeRuleId) setReturnStack([]);
+    // only when the concept changes: the stack and the concept are set together in one batch
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRuleId]);
   // a basic's finishing press goes straight on: Next up as it will be once this lesson counts as finished
   const nextAfter = useMemo(() => {
     if (!basics) return null;
@@ -862,6 +872,20 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                     ) : null
                   }
                 />
+              ) : missingInKey ? (
+                <div className="space-y-3" data-not-in-key>
+                  {ladder}
+                  <p className="font-hand text-lg">
+                    {move.title} doesn't work on this chart in {prettyNote(key)}: the melody rules it out there.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setKey(tune.key.tonic)}
+                    className="tap-lg cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker text-sm hover:bg-paper-shade"
+                  >
+                    Back to {prettyNote(tune.key.tonic)} ›
+                  </button>
+                </div>
               ) : basics ? (
                 // a basic without a lesson: nothing to drill here (every node Next up returns has one, so this is a fallback)
                 <div className="space-y-3">

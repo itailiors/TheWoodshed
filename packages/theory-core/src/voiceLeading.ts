@@ -49,4 +49,4 @@ export function collapseHolds(path: VoicePath): PathStop[] {
   return out.map((s) => (s.respelled ? s : { note: s.note, holds: s.holds }));
 }
 
-export const motionCost =(ms: VoiceMotion[]) => ms.reduce((s, m) => s + Math.abs(m.semitones), 0);
+export const motionCost = (ms: VoiceMotion[]) => ms.reduce((s, m) => s + Math.abs(m.semitones), 0);

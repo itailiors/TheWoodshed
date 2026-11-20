@@ -299,11 +299,11 @@ class Player {
    * Notes are handed to the engine a fraction of a second ahead, not all at once, so
    * `stopScore` can cut it off: a sampler can't take back an attack it has already been given.
    */
-  async playScore(events: { midis: number[]; at: number; seconds: number; vel?: number }[], steps: number[] = [], onStep?: (i: number | null) => void) {
+  async playScore(events: { midis: number[]; at: number; seconds: number; vel?: number }[], steps: number[] = [], onStep?: (i: number | null) => void): Promise<number | null> {
     await this.init();
     this.stopScore();
     const eng = this.engine;
-    if (!eng) return;
+    if (!eng) return null;
     const token = ++this.auditionToken;
     const step = (i: number | null) => () => token === this.auditionToken && onStep?.(i);
     const start = eng.clock() + 0.1;
@@ -331,6 +331,12 @@ class Player {
     };
     pump();
     if (ni < notes.length || mi < marks.length) this.scoreTimer = setInterval(pump, 100);
+    return token;
+  }
+
+  /** The audition in progress (bumped by every start and stop): `playScore`'s token is still current while this equals it. */
+  currentAudition() {
+    return this.auditionToken;
   }
 
   /** Stop a `playScore`: nothing more is scheduled, what's ringing is let go, and its steps stop reporting. */

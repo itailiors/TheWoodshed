@@ -107,7 +107,8 @@ function write(flags: LessonFlags) {
 
 /**
  * Merge `patch` into one concept's flag. A field set to `undefined` is removed; an entry left
- * empty is deleted. Call from event handlers, never from an effect body (StrictMode runs those twice).
+ * empty is deleted. Call from event handlers, never from an effect body (StrictMode runs those twice);
+ * an effect that stamps a first open uses `markLessonSeen`.
  */
 export function updateLessonFlag(conceptId: string, patch: Partial<LessonFlag>) {
   const all = readLessonFlags();
@@ -120,8 +121,19 @@ export function updateLessonFlag(conceptId: string, patch: Partial<LessonFlag>) 
   write(all);
 }
 
-/** Forget every lesson flag, test-outs included (the demo's "Erase runs"). */
+/**
+ * Stamp `seenAt` the first time a lesson opens, and never again. Idempotent, so unlike
+ * `updateLessonFlag` it is safe from an effect (a stepper mounting, StrictMode's second run): a
+ * repeat call writes nothing and notifies nobody.
+ */
+export function markLessonSeen(conceptId: string, now = new Date()) {
+  if (readLessonFlags()[conceptId]?.seenAt) return;
+  updateLessonFlag(conceptId, { seenAt: now.toISOString() });
+}
+
+/** Forget every lesson flag, test-outs included (the demo's "Erase runs"). A newer app's document is left alone, as `write` leaves it. */
 export function clearLessonFlags() {
+  if (storedIsNewer()) return;
   try {
     localStorage.removeItem(LESSONS_STORE);
   } catch {

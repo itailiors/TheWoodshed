@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as RKey
 import { SketchBox } from "../../design/rough";
 import { seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
-import { readLessonFlags, updateLessonFlag } from "../../learn/lessonFlags";
+import { markLessonSeen, updateLessonFlag } from "../../learn/lessonFlags";
 import { QWERTY_LABELS, useQwerty } from "../../midi/qwerty";
 import { countLearning } from "../../usage/panelOpens";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
@@ -246,11 +246,8 @@ function Stepper({
   const step = steps[at];
   const askOpen = askIsOpen(step, asksEnabled, revealed[at]);
 
-  // seen on open: idempotent (only the first open stamps it), so StrictMode's second run is harmless
-  useEffect(() => {
-    if (readLessonFlags()[lesson.conceptId]?.seenAt) return;
-    updateLessonFlag(lesson.conceptId, { seenAt: new Date().toISOString() });
-  }, [lesson.conceptId]);
+  // seen on open: `markLessonSeen` is the store's effect-safe write (only the first open stamps it)
+  useEffect(() => markLessonSeen(lesson.conceptId), [lesson.conceptId]);
 
   // step 1's cue sounds once on open; the ref survives StrictMode's second effect run
   const autoPlayed = useRef(false);
