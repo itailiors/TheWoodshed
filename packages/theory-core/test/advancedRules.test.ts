@@ -230,7 +230,10 @@ describe("rule: one note on top", () => {
     expect(m.chords.map((c) => c.root + c.quality)).toEqual(["G7", "D7sus4", "Db7"]);
     expect(m.chords.map((c) => c.beats)).toEqual([2, 1, 1]);
     expect(m.chords[2].alterations).toEqual(["#11"]);
-    expect(m.facts.roles).toEqual(["sus 4th", "♯11"]);
+    // degree codes (5a): the words are the text's business ("the sus 4th of D7sus4")
+    expect(m.facts.roles).toEqual(["4", "#11"]);
+    // the text is the lesson's (5b): one role per walk chord, over its own bass
+    expect(m.text.theory).toContain("Over D, G is the sus 4th of D7sus4; over D♭, it's the ♯11 of D♭7(♯11).");
     expect(new Set(m.chords.map((c) => c.topVoice))).toEqual(new Set(["G4"]));
   });
 
@@ -326,10 +329,10 @@ describe("rule: secondary dominant", () => {
   });
 
   it("has a 12-key concept drill: vi7 → ii7 becomes VI7(♭9) → ii7", () => {
-    const d = conceptDrillSteps(RULE, "Eb");
-    expect(d.move.ruleId).toBe(RULE);
-    expect(d.move.chords.map(symbol)).toEqual(["C7(b9)"]);
-    expect(d.move.targetSymbol).toBe("Fm7");
+    const move = conceptDrillSteps(RULE, "Eb").move!;
+    expect(move.ruleId).toBe(RULE);
+    expect(move.chords.map(symbol)).toEqual(["C7(b9)"]);
+    expect(move.targetSymbol).toBe("Fm7");
   });
 });
 

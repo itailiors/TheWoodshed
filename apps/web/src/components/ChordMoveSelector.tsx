@@ -2,6 +2,8 @@ import { prettySymbol, RULES, symbol, type ChordEvent, type HarmonicFunction, ty
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { CATEGORY_WASH, pen } from "../design/tokens";
 import { ChordName } from "./ChordName";
+import { chipLines, SCREEN_TERMS, termForConcept } from "./learn/chipText";
+import { GlossText } from "./learn/GlossText";
 
 /*
  * Chord by chord: one dropdown per chord change of the tune. Each lists what you can do there:
@@ -12,13 +14,14 @@ import { ChordName } from "./ChordName";
 
 const RULE = new Map(RULES.map((r) => [r.id, r]));
 
+/** The chord's job in the key, after its numeral. "Tension" is not used: in this app it means the 9th, 11th and 13th. */
 export const FUNCTION_WORD: Partial<Record<HarmonicFunction, string>> = {
-  T: "home: the chord at rest",
-  PD: "pre-dominant: leads toward the V",
-  D: "tension: wants to resolve",
-  passing: "passing: connects two chords",
-  chromatic: "chromatic colour",
-  modal: "borrowed / modal colour",
+  T: "tonic: home, at rest",
+  PD: "pre-dominant: leads to the V",
+  D: "dominant: pulls toward home",
+  passing: "passing: links two chords",
+  chromatic: "chromatic: colour from a half step",
+  modal: "borrowed from the parallel minor",
 };
 
 type Choice = { kind: "dial" } | { kind: "kept" } | { kind: "move"; move: ReharmMove };
@@ -68,14 +71,36 @@ const route = (m: ReharmMove) => (
   </>
 );
 
-/** The logic behind a move, for the tooltip and the line under it. */
+/** The logic behind a move, for the teaching line under it. */
 function logicOf(m: ReharmMove) {
   const p = RULE.get(m.ruleId)?.pedagogy;
   return {
     formula: p?.formula ?? "",
     why: p?.whyItWorks ?? m.text.summary,
-    tip: [p?.formula, p?.whyItWorks, p?.whenToUse ? `When to use: ${p.whenToUse}` : ""].filter(Boolean).join("\n"),
+    when: p?.whenToUse ?? "",
   };
+}
+
+/**
+ * The move's teaching line (formula · why · when to use), with glossary chips (spec §D): it sits
+ * beside the option's button, not inside it, so the chips are real buttons on touch too. Was a
+ * native `title` tooltip, which touch never shows and which can't hold a link.
+ */
+function Teaching({ m }: { m: ReharmMove }) {
+  const logic = logicOf(m);
+  const own = termForConcept(m.ruleId);
+  const [why, when] = chipLines([logic.why, logic.when], { terms: own ? [own, ...SCREEN_TERMS.chordByChord] : SCREEN_TERMS.chordByChord, numerals: true });
+  return (
+    <span className="block font-hand text-xs leading-snug text-ink-soft">
+      {logic.formula && <span className="font-marker text-ink">{logic.formula} · </span>}
+      <GlossText segments={why} />
+      {logic.when && (
+        <span className="block">
+          When to use: <GlossText segments={when} />
+        </span>
+      )}
+    </span>
+  );
 }
 
 export function ChordMoveSelector({
@@ -275,7 +300,6 @@ function ChordRow({
         <button
           ref={trigger}
           type="button"
-          aria-haspopup="listbox"
           aria-expanded={open}
           aria-controls={listId}
           aria-label={`Move for ${prettySymbol(sym)} in bar ${chord.at.bar}: ${current ? current.title : "as written"}${choice.kind === "dial" ? " (the dial's choice)" : ""}`}
@@ -296,9 +320,10 @@ function ChordRow({
       </div>
 
       {open && (
+        // a plain list of pressable choices (not a listbox): each move carries a teaching line with
+        // glossary chips beside its button, and a listbox option can't hold controls
         <ul
           id={listId}
-          role="listbox"
           aria-label={`Moves for ${prettySymbol(sym)}`}
           className="absolute left-0 right-0 z-30 mt-1 max-h-[70vh] space-y-1 overflow-y-auto rounded-lg border-2 border-ink bg-paper-light p-1.5 shadow-[3px_3px_0_var(--color-ink-faint)]"
         >
@@ -318,10 +343,9 @@ function ChordRow({
               </>
             }
             sub={fn ?? "The tune's own chord."}
-            tip={`Keep ${prettySymbol(sym)} as the tune has it, whatever the dial says.${fn ? `\n${fn}` : ""}`}
+            tip={`Keep ${prettySymbol(sym)} as the tune has it, whatever the dial says.`}
           />
           {options.map((m) => {
-            const logic = logicOf(m);
             const alsoReplaces = m.original.filter((c) => c.id !== chord.id).map((c) => prettySymbol(symbol(c)));
             return (
               <Option
@@ -340,17 +364,15 @@ function ChordRow({
                 }
                 sub={
                   <>
-                    {logic.formula && <span className="font-marker text-ink">{logic.formula} · </span>}
-                    {logic.why}
                     {alsoReplaces.length > 0 && <span className="block text-ink-faint">Also replaces {alsoReplaces.join(", ")}.</span>}
                     {m.level > level && (
                       <span className="block" style={{ color: pen.red }}>
-                        Spicier than the dial (L{level}): it goes in because you picked it.
+                        Above the dial (L{level}): it goes in because you picked it.
                       </span>
                     )}
                   </>
                 }
-                tip={logic.tip}
+                teaching={<Teaching m={m} />}
               />
             );
           })}
@@ -367,23 +389,26 @@ function Option({
   sub,
   tip,
   swatch,
+  teaching,
 }: {
   selected: boolean;
   onChoose: () => void;
   title: ReactNode;
   sub: ReactNode;
-  tip: string;
+  /** A short UI hint (not teaching text) for the dial / as-written choices. */
+  tip?: string;
   swatch?: string;
+  /** The move's teaching line with its chips, outside the button. */
+  teaching?: ReactNode;
 }) {
   return (
-    <li role="option" aria-selected={selected}>
+    <li className={`rounded-md border-2 ${selected ? "border-ink bg-wash-mustard/25" : "border-transparent hover:border-ink-faint"}`}>
       <button
         type="button"
         title={tip}
+        aria-pressed={selected}
         onClick={onChoose}
-        className={`flex w-full cursor-pointer items-start gap-2 rounded-md border-2 px-2 py-1.5 text-left ${
-          selected ? "border-ink bg-wash-mustard/25" : "border-transparent hover:border-ink-faint"
-        }`}
+        className="flex w-full cursor-pointer items-start gap-2 px-2 pt-1.5 pb-0.5 text-left"
       >
         <span className="mt-1 h-3 w-3 shrink-0 -rotate-6 rounded-sm" style={{ background: swatch ?? "transparent" }} />
         <span className="min-w-0 flex-1">
@@ -394,6 +419,7 @@ function Option({
           <span className="block font-hand text-xs leading-snug text-ink-soft">{sub}</span>
         </span>
       </button>
+      {teaching && <div className="pr-2 pb-1.5 pl-7">{teaching}</div>}
     </li>
   );
 }

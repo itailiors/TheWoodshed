@@ -2,11 +2,14 @@ import fc from "fast-check";
 import { walkingBass } from "../band";
 import { generateMoves, generateMovesTraced } from "../engine";
 import { buildPathway, buildPathwayTraced, DENSITY, overlaps } from "../pathway";
-import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, transpose } from "../pitch";
+import { hasRuleLesson, lessonForMove, readable } from "../learn";
+import { canonicalMove } from "../learn/canonical";
+import { RULES } from "../ruleset";
+import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, prettyNote, transpose } from "../pitch";
 import { sortedHarmony, absBeat } from "../time";
 import { KEYS, transposeTune } from "../transpose";
 import type { Tune } from "../types";
-import { progressionArb, SPELLED } from "./arbitraries";
+import { chordPairArb, progressionArb, SPELLED } from "./arbitraries";
 
 /*
  * The engine's claims, as executable properties. CI runs every one of these (see
@@ -30,6 +33,22 @@ export interface Proof {
 function must(cond: unknown, why: string): asserts cond {
   if (!cond) throw new Error(why);
 }
+
+/** Every engine-spelled note ("Bb", "F#") anywhere inside a facts object. */
+function factNotes(v: unknown, out = new Set<string>()): Set<string> {
+  if (typeof v === "string" && /^[A-G](b{1,2}|#{1,2})?$/.test(v)) out.add(v);
+  else if (Array.isArray(v)) v.forEach((x) => factNotes(x, out));
+  else if (v && typeof v === "object") Object.values(v).forEach((x) => factNotes(x, out));
+  return out;
+}
+
+/** Bare note names in display text ("B♭", "F♯"), not chord symbols ("G♭9", "Dm7"), a sentence's opening "A" or a grip's name ("grip B", "Type A"). */
+const NOTE_IN_TEXT = /(?<![\p{L}\p{N}♭♯])[A-G][♭♯]{0,2}(?![\p{L}\p{N}♭♯(])/gu;
+const textNotes = (s: string) =>
+  [...s.matchAll(NOTE_IN_TEXT)]
+    .filter((m) => !(m[0] === "A" && (m.index === 0 || /[.!?]\s$/.test(s.slice(0, m.index)))))
+    .filter((m) => !/^[AB]$/.test(m[0]) || !/\b(grip|type) $/i.test(s.slice(0, m.index)))
+    .map((m) => m[0]);
 
 /** A 4-bar progression repeated to 16 bars, so phrase windows have competition. */
 function repeated(tune: Tune): Tune {
@@ -85,7 +104,7 @@ export const PROOFS: Proof[] = [
   {
     id: "pathway",
     title: "Respects the dial",
-    claim: "A pathway never overlaps itself, never goes spicier than the dial, and never exceeds the phrase quota.",
+    claim: "A pathway never overlaps itself, never goes above the dial's level, and never exceeds the phrase quota.",
     property: () =>
       fc.property(progressionArb, fc.integer({ min: 1, max: 4 }), (tune, level) => {
         const long = repeated(tune);
@@ -121,14 +140,14 @@ export const PROOFS: Proof[] = [
           const isIn = chosen.some((c) => c.id === m.id);
           must(isIn === (d.kind === "chosen" || d.kind === "forced"), `${m.id}: "${d.kind}" but ${isIn ? "in" : "out of"} the pathway`);
           if (d.kind === "overlaps") must(chosen.some((c) => c.id === d.by && overlaps(c, m)), `${m.id} blamed on ${d.by}, which doesn't overlap it`);
-          if (d.kind === "above-dial") must(m.level > level, `${m.id} called too spicy at L${m.level}`);
+          if (d.kind === "above-dial") must(m.level > level, `${m.id} called above the dial at L${m.level}`);
         }
       }),
   },
   {
     id: "transposition",
     title: "Key-independent",
-    claim: "Move a tune to any of the 12 keys and the engine finds exactly the same moves, just spelled in the new key.",
+    claim: "Move a tune to any of the 12 keys and the engine finds exactly the same moves, spelled in the new key.",
     property: () =>
       fc.property(progressionArb, fc.constantFrom(...KEYS), (tune, key) => {
         const ids = (t: Tune) => generateMoves(t).accepted.map((m) => `${m.id}:${m.ruleId}`).sort();
@@ -144,6 +163,37 @@ export const PROOFS: Proof[] = [
         const out = transpose(note, iv);
         must(chroma(out) === mod(chroma(note) + INTERVALS[iv].semis, 12), `${note} + ${iv} = ${out}: wrong pitch`);
         must(letterIndex(out) === mod(letterIndex(note) + INTERVALS[iv].steps, 7), `${note} + ${iv} = ${out}: wrong letter`);
+      }),
+  },
+  {
+    id: "lessons-honest",
+    title: "Lessons are the engine",
+    claim: "Every note a lesson names, lights on the keyboard or asks you to tap is a note the engine computed for that move, in any key.",
+    property: () =>
+      // whole tunes through the engine, plus each lesson rule straight on a random chord pair
+      // (random ii–V–Is never reach the secondary dominant or the borrowed iv)
+      fc.property(progressionArb, fc.constantFrom(...KEYS), chordPairArb, (tune, key, { chord, next }) => {
+        const moved = transposeTune(tune, key);
+        const ctx = { tune: { ...moved, key: { tonic: next.root, mode: "major" as const } }, index: 0, chord, next };
+        const direct = RULES.filter((r) => hasRuleLesson(r.id)).flatMap((r) => {
+          const p = r.propose(ctx);
+          return p ? [{ id: `${r.id} on ${chord.root}${chord.quality} → ${next.root}${next.quality}`, ruleId: r.id, facts: p.facts }] : [];
+        });
+        // and each lesson rule on its canonical progression in this key (what Coach's Learn stage teaches)
+        const canonical = RULES.filter((r) => hasRuleLesson(r.id)).flatMap((r) => canonicalMove(r.id, key) ?? []);
+        for (const m of [...generateMoves(moved).accepted, ...direct, ...canonical]) {
+          const lesson = lessonForMove(m);
+          if (!lesson) continue;
+          const spelled = factNotes(m.facts.learn);
+          // as a reader sees it: a computed B♭♭ is printed A (`readable`), the same key respelled, never a new note
+          const shown = new Set([...spelled].map((n) => prettyNote(readable(n))));
+          for (const s of lesson.steps) {
+            for (const n of [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.map ?? [])]) must(spelled.has(n), `${m.id}: lights ${n}, which the engine never computed`);
+            for (const text of [s.text, s.ask?.prompt ?? "", ...s.highlight.map((h) => h.label)])
+              for (const n of textNotes(text)) must(shown.has(n), `${m.id}: "${text}" names ${n}, which the engine never computed`);
+          }
+          for (const text of [lesson.headline, lesson.deeper ?? ""]) for (const n of textNotes(text)) must(shown.has(n), `${m.id}: "${text}" names ${n}`);
+        }
       }),
   },
   {

@@ -11,78 +11,82 @@ interface ScaleDef {
 }
 
 export const SCALES: Record<string, ScaleDef> = {
-  ionian: { name: "Ionian", degrees: ["1", "2", "3", "4", "5", "6", "7"], why: "Home key, plain and simple. Treat the 4th as a passing note." },
+  ionian: { name: "Ionian", degrees: ["1", "2", "3", "4", "5", "6", "7"], why: "The major scale on the chord's root. The 4th rubs against the 3rd, so pass through it." },
   lydian: {
     name: "Lydian",
     degrees: ["1", "2", "3", "#4", "5", "6", "7"],
     parent: { scale: "major", from: "5" },
-    why: "♯11 instead of the avoid-note 4th. It's the diatonic sound of a IV chord.",
+    why: "The ♯11 replaces the 4th, which rubs against the 3rd. In a major key, it's the IV chord's own scale.",
   },
   dorian: {
     name: "Dorian",
     degrees: ["1", "2", "b3", "4", "5", "6", "b7"],
     parent: { scale: "major", from: "b7" },
-    why: "The ii chord's own scale. The natural 6th gives it the jazz-minor colour.",
+    why: "The ii chord's own scale. Its natural 6th keeps the minor sound bright.",
   },
   aeolian: {
     name: "Aeolian",
     degrees: ["1", "2", "b3", "4", "5", "b6", "b7"],
     parent: { scale: "major", from: "b3" },
-    why: "Darker minor (♭6). Fits vi chords and minor tonics.",
+    why: "Minor with a ♭6, darker than Dorian. It fits the vi chord and minor tonics.",
   },
   "locrian-nat2": {
     name: "Locrian ♮2",
     degrees: ["1", "2", "b3", "4", "b5", "b6", "b7"],
     parent: { scale: "melodic minor", from: "b3" },
-    why: "Half-diminished with a usable natural 9.",
+    why: "Half-diminished with a natural 9 you can hold.",
   },
   locrian: {
     name: "Locrian",
     degrees: ["1", "b2", "b3", "4", "b5", "b6", "b7"],
     parent: { scale: "major", from: "b2" },
-    why: "Half-diminished, diatonic version (♭9 is rub-heavy).",
+    why: "Half-diminished from the key itself. The ♭9 rubs against the root, so pass through it.",
   },
-  "melodic-minor": { name: "melodic minor", degrees: ["1", "2", "b3", "4", "5", "6", "7"], why: "Minor-major colour with no avoid notes." },
+  "melodic-minor": { name: "melodic minor", degrees: ["1", "2", "b3", "4", "5", "6", "7"], why: "Minor with a major 6th and 7th. No avoid notes: every note can land." },
   "lydian-augmented": {
     name: "Lydian augmented",
     degrees: ["1", "2", "3", "#4", "#5", "6", "7"],
     parent: { scale: "melodic minor", from: "6" },
-    why: "maj7♯5 colour: Lydian with a raised 5th.",
+    why: "Lydian with a raised 5th: the maj7♯5 chord's own scale.",
   },
   mixolydian: {
     name: "Mixolydian",
     degrees: ["1", "2", "3", "4", "5", "6", "b7"],
     parent: { scale: "major", from: "4" },
-    why: "The inside dominant sound. Lean on 3 and ♭7, pass through the 4th.",
+    why: "The plain dominant sound. Lean on the 3rd and ♭7; pass through the 4th.",
   },
   "lydian-dominant": {
     name: "Lydian dominant",
     degrees: ["1", "2", "3", "#4", "5", "6", "b7"],
     parent: { scale: "melodic minor", from: "5" },
-    why: "For dominants that don't resolve down a 5th (tritone subs, ♭VII7, IV7). The ♯11 replaces the avoid-note 4th.",
+    why: "For dominants that don't fall a 5th: tritone subs, ♭VII7, IV7. The ♯11 replaces the 4th, an avoid note.",
   },
   altered: {
     name: "altered",
     degrees: ["1", "b2", "#2", "3", "#4", "b6", "b7"],
     parent: { scale: "melodic minor", from: "b2" },
-    why: "Every tension altered (♭9 ♯9 ♯11 ♭13). Maximum pull into the next chord, especially a minor one.",
+    why: "Every tension is altered: ♭9, ♯9, ♯11, ♭13. They lean hardest into a minor target.",
   },
   "phrygian-dominant": {
     name: "Phrygian dominant",
     degrees: ["1", "b2", "3", "4", "5", "b6", "b7"],
     parent: { scale: "harmonic minor", from: "4" },
-    why: "V of a minor key: ♭9 and ♭13 point straight at the minor target.",
+    why: "The V of a minor key: its ♭9 and ♭13 are notes of the minor key it resolves to.",
   },
   "hw-diminished": {
     name: "half-whole diminished",
     degrees: ["1", "b2", "#2", "3", "#4", "5", "6", "b7"],
-    why: "♭9 with a natural 13. Symmetric, so it repeats every minor 3rd.",
+    why: "A ♭9 with a natural 13. The scale repeats every minor 3rd, so four dominants share it.",
   },
-  "wh-diminished": { name: "whole-half diminished", degrees: ["1", "2", "b3", "4", "b5", "#5", "6", "7"], why: "The dim7 chord's own scale." },
+  "wh-diminished": {
+    name: "whole-half diminished",
+    degrees: ["1", "2", "b3", "4", "b5", "#5", "6", "7"],
+    why: "The diminished 7th's own scale: each chord tone, then a note a whole step above it.",
+  },
   "whole-tone": {
     name: "whole tone",
     degrees: ["1", "2", "3", "#4", "#5", "b7"],
-    why: "The augmented (♯5) dominant sound: dreamy and symmetric.",
+    why: "The ♯5 dominant's scale: six notes, each a whole step from the next, with ♯11 and ♯5.",
   },
 };
 

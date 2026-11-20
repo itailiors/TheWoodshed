@@ -54,6 +54,10 @@ export interface PenKeyboardProps {
   guides?: number[];
   /** Wash these keys by hand: LH brick with a square tag, RH blue with a dot. */
   hands?: HandMark[];
+  /** Labels written ON the keys (a lesson step's lit keys: "3rd", "♭9"), at the foot of each key. */
+  keyLabels?: PenMark[];
+  /** The computer key that plays each key (QWERTY on), small, near the top of the key. */
+  keyLetters?: PenMark[];
 }
 
 function layout(low: number, high: number) {
@@ -87,6 +91,8 @@ export function PenKeyboard({
   guides = [],
   hands = [],
   short = false,
+  keyLabels = [],
+  keyLetters = [],
 }: PenKeyboardProps) {
   const WH = short ? 60 : WH_FULL;
   const BH = short ? 38 : BH_FULL;
@@ -121,7 +127,10 @@ export function PenKeyboard({
       const base = { stroke: keyTone.line, strokeWidth: 1.1, roughness: 0.7 };
       const pend = new Set(pending);
       for (const k of keys.filter((k) => !k.black)) {
-        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
+        // a lit key's hachure sits on the key's own colour, not on the page (dark in Northgate, where the gaps read as brown)
+        if (pend.has(k.midi)) add(rc.rectangle(k.x, TOP, WW, WH, { stroke: "none", seed: seedOf("pwb" + k.midi), fill: keyTone.white, fillStyle: "solid", roughness: 0 }));
+        // a lit key also gets a heavier outline, so lit vs unlit never rests on the wash's colour alone (WCAG 1.4.11; faint in Northgate)
+        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, ...(pend.has(k.midi) ? { strokeWidth: 2.6 } : {}), seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
         // a watercolour wash on the visible part of the key (below the black keys)
         const fill = pend.has(k.midi) ? null : handWash(k.midi);
         if (fill) add(rc.rectangle(k.x + 2, TOP + BH + 2, WW - 4, WH - BH - 4, { stroke: "none", seed: seedOf("pwf" + k.midi), fill, fillStyle: "hachure", hachureGap: 3, fillWeight: 1.6, roughness: 0.9 }));
@@ -238,6 +247,51 @@ export function PenKeyboard({
         </g>
       )}
       <g ref={marks} />
+      {keyLetters.filter(here).map((mk) => {
+        const k = pos.get(mk.midi)!;
+        return (
+          <text
+            key={`kq${mk.midi}`}
+            data-key-letter={mk.label}
+            x={k.x + (k.black ? BW : WW) / 2}
+            // black keys: near their top; white keys: just below the black keys, clear of the foot labels
+            y={TOP + (k.black ? 11 : BH + 11)}
+            textAnchor="middle"
+            fontSize={9}
+            fill={k.black && !pending.includes(mk.midi) ? keyTone.white : keyTone.soft}
+            className="pointer-events-none font-hand"
+            aria-hidden
+          >
+            {mk.label}
+          </text>
+        );
+      })}
+      {keyLabels.filter(here).map((mk) => {
+        const k = pos.get(mk.midi)!;
+        return (
+          <text
+            key={`kl${mk.midi}`}
+            data-key-label={mk.midi}
+            x={k.x + (k.black ? BW : WW) / 2}
+            y={TOP + (k.black ? BH : WH) - 6}
+            textAnchor="middle"
+            // short labels (a note name, "3rd", "home") at a size that reads; long ones spill, so lessons keep them short
+            fontSize={k.black ? 11 : 12}
+            fontWeight={700}
+            // key colours, not page ink (a dark theme keeps cream keys): a lit key is washed mustard, so its
+            // label is the black-key colour, like a white key's; an unlit black key gets the white-key colour
+            fill={k.black && !pending.includes(mk.midi) ? keyTone.white : keyTone.black}
+            // a halo in the key's own colour keeps the word readable over the hachure wash
+            stroke={k.black && !pending.includes(mk.midi) ? keyTone.black : k.black ? wash.mustard : keyTone.white}
+            strokeWidth={3}
+            paintOrder="stroke"
+            strokeLinejoin="round"
+            className="pointer-events-none font-marker"
+          >
+            {mk.label}
+          </text>
+        );
+      })}
       {missing.map((mk, i) => {
         const c = center(mk.midi);
         return c ? (

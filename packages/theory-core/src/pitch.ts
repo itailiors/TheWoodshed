@@ -102,6 +102,40 @@ export function simplifyNote(name: string): string {
   return name;
 }
 
+const FIFTHS: Record<Letter, number> = { F: -1, C: 0, G: 1, D: 2, A: 3, E: 4, B: 5 };
+
+/** The key signature of `tonic` major or minor: sharps positive, flats negative (E♭ major −3, D♯ major +9, D♭ minor −8). */
+export function keySignature(tonic: string, mode: "major" | "minor" = "major"): number {
+  const s = parseNote(tonic);
+  return FIFTHS[s.letter] + 7 * s.alter - (mode === "minor" ? 3 : 0);
+}
+
+/**
+ * The key spelled as players chart it: of the tonic's single-accidental spellings, the one whose
+ * signature has the fewest accidentals; a tie keeps `tonic` (F♯ and G♭). D♯ → E♭, G♯ → A♭, C♯ → D♭ (major).
+ */
+export function fewestAccidentals(tonic: string, mode: "major" | "minor" = "major"): string {
+  const c = chroma(tonic);
+  let best = tonic;
+  let bestCount = Math.abs(keySignature(tonic, mode));
+  LETTERS.forEach((letter, i) => {
+    let alter = mod(c - NATURAL_CHROMA[i], 12);
+    if (alter > 6) alter -= 12;
+    if (Math.abs(alter) > 1) return;
+    const name = noteName({ letter, alter });
+    const count = Math.abs(keySignature(name, mode));
+    if (count < bestCount) [best, bestCount] = [name, count];
+  });
+  return best;
+}
+
+/**
+ * A key a reader can find on paper: a signature of more than 7 accidentals doesn't exist, so
+ * D♭ minor (8 flats) is written C♯ minor and G♭ minor F♯ minor; every real key keeps its name (A♭ minor stays).
+ */
+export const playableKey = (tonic: string, mode: "major" | "minor" = "major") =>
+  Math.abs(keySignature(tonic, mode)) > 7 ? fewestAccidentals(tonic, mode) : tonic;
+
 /** Fallback spelling for a bare pitch class (flats, as on most jazz charts). */
 export const spellChroma = (c: number) => FLAT_NAMES[mod(c, 12)];
 

@@ -1,5 +1,6 @@
 import {
   conceptKind,
+  conceptNode,
   editorPathway,
   editorPicks,
   liveChordCursor,
@@ -23,7 +24,7 @@ import {
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { prefetchAudio } from "./audio/player";
 import { fetchTune, LibraryError } from "./library/api";
@@ -43,13 +44,22 @@ import type { PractiseRequest } from "./components/progress/PracticeDashboard";
 import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
-import { LevelDial } from "./components/LevelDial";
+import { LevelDial, PedalLink } from "./components/LevelDial";
+import { MoreMenu } from "./components/MoreMenu";
+import { FirstRunHint } from "./components/learn/FirstRunHint";
+import { DEMO_STUDY_HINT } from "./components/learn/hints";
 import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
 import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
+import { useExplainSetting } from "./learn/explainDepth";
+import { useOwnProgress } from "./learn/usePathStates";
+import { readLessonFlags } from "./learn/lessonFlags";
+import { freshStart } from "./learn/pathStates";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
+import { GlossaryChip } from "./components/learn/GlossaryChip";
+import { GlossText } from "./components/learn/GlossText";
 import { Reveal, useRevealState } from "./components/Reveal";
 import { countOpen } from "./usage/panelOpens";
 import { SideRail } from "./components/SideRail";
@@ -202,6 +212,13 @@ export function App() {
   const shownChords = view === "reharm" ? realized : original;
   const improv = useMemo(() => improvMap(tune, shownChords), [tune, shownChords]);
 
+  /** The written chord a move resolves into (the engine's `targetSymbol`): its Before / After both land there. */
+  const targetOf = (m: ReharmMove) => {
+    if (!m.targetSymbol) return undefined;
+    const i = original.findIndex((c) => c.id === m.replaces[m.replaces.length - 1]);
+    return i >= 0 ? original[i + 1] : undefined;
+  };
+
   const selected = pathway.find((m) => m.id === selectedId) ?? pathway[0] ?? null;
   const improvForSelected = selected
     ? improv.filter((e) =>
@@ -235,7 +252,6 @@ export function App() {
   const [chordsOpen, setChordsOpen] = useRevealState("study.chordByChord");
   const [soloOpen, setSoloOpen] = useRevealState("study.solo");
   const [rejectedOpen, setRejectedOpen] = useRevealState("study.rejected");
-  const [hintSeen, setHintSeen] = useRevealState("hint.study");
   const stepChordBy = (dir: 1 | -1) => {
     const next = stepChord(original, pathway, chordCursor, selectedId, dir);
     if (!next) return;
@@ -282,6 +298,9 @@ export function App() {
   useWakeLock(playback.status === "playing");
   const narrow = useNarrow();
   const midi = useMidi();
+  // how much the move cards' lessons explain: the ⚙ setting, then the player's own runs (never the demo's sample)
+  const explain = useExplainSetting();
+  const { own, progress: ownHistory, loading: historyLoading } = useOwnProgress();
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem("reharm.mode");
@@ -345,6 +364,8 @@ export function App() {
     ruleId?: string | null;
     key?: string;
     scope?: "concept" | "tune";
+    /** Opened from a Path card or link: focus goes to the lesson (the drawer that had it is gone). */
+    focus?: boolean;
   } | null>(null);
   const openCoach = (id?: string) => {
     const targetMoveId = id ?? selected?.id ?? null;
@@ -390,6 +411,30 @@ export function App() {
     });
     void setMode("coach");
   };
+  /**
+   * A Path card (or the `#coach/<conceptId>` deep link): the Coach on that concept, opening on the
+   * stage its state calls for (a Recommended-first concept shows its note; a basic opens its Learn).
+   */
+  const openConcept = (conceptId: string) => {
+    setPassportOpen(false);
+    setCoachTarget({ moveId: null, ruleId: conceptId, scope: "concept", focus: true });
+    void setMode("coach");
+  };
+  const openConceptRef = useRef(openConcept);
+  openConceptRef.current = openConcept;
+  useEffect(() => {
+    const fromHash = () => {
+      const m = /^#coach\/(.+)$/.exec(window.location.hash);
+      const id = m ? decodeURIComponent(m[1]) : null;
+      if (!id || !conceptNode(id)) return;
+      // consumed once: a reload later opens where the app normally does
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      openConceptRef.current(id);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
   /**
    * "Practice this move": select it, loop it (one bar of run-up through its resolution),
    * go to Practice Mode, and start the band if it isn't already playing. If it is, the
@@ -548,6 +593,9 @@ export function App() {
   }
 
   if (mode === "coach") {
+    // a fresh visitor (no runs of their own, no lesson flags) opening the tab starts on the path's first
+    // foundation, not on a gated rule; anyone else opens where the Coach always did
+    const start = !coachTarget && !historyLoading ? freshStart(ownHistory, readLessonFlags(), new Date()) : null;
     return (
       <Suspense fallback={<Inking label="Opening the Coach" />}>
         <Toaster />
@@ -557,12 +605,17 @@ export function App() {
             tune={tune}
             accepted={accepted}
             pathway={pathway}
-            initial={{
-              moveId: coachTarget?.moveId ?? selected?.id ?? null,
-              ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
-              key: coachTarget?.key,
-              scope: coachTarget?.scope,
-            }}
+            initial={
+              start
+                ? { moveId: null, ruleId: start, scope: "concept" }
+                : {
+                    moveId: coachTarget?.moveId ?? selected?.id ?? null,
+                    ruleId: coachTarget?.ruleId ?? selected?.ruleId ?? null,
+                    key: coachTarget?.key,
+                    scope: coachTarget?.scope,
+                    focus: coachTarget?.focus,
+                  }
+            }
             midi={midi}
             onMode={setMode}
             onPractise={(r) => practiseConcept(r)}
@@ -628,7 +681,7 @@ export function App() {
       )}
       {passportOpen && (
         <PanelBoundary onClose={() => setPassportOpen(false)}>
-          <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onClose={() => setPassportOpen(false)} />
+          <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onOpenConcept={openConcept} onClose={() => setPassportOpen(false)} />
         </PanelBoundary>
       )}
       {xrayOpen && (
@@ -668,6 +721,9 @@ export function App() {
           </header>
         </SketchBox>
 
+        {/* the demo is a portfolio link: one line says what this is, before any control (one hint per view) */}
+        {DEMO && <FirstRunHint screen="study" text={DEMO_STUDY_HINT} className="-mt-3 mb-3 text-base" />}
+
         {/* ── toolbar ── */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -697,37 +753,70 @@ export function App() {
               📒 Progress
             </button>
             <ModeSwitch mode="study" onMode={setMode} />
-            <button
-              type="button"
-              onClick={() => openDrawer("xray")}
-              onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
-              className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              title="See how the engine decided, bar by bar, and run its proofs live"
-            >
-              🔬 Engine X-ray
-            </button>
-            <button
-              type="button"
-              onClick={() => void shareLink()}
-              className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade"
-              title="Copy a link to this reharm: the tune, key, dial level and your picks. It opens ready to play."
-            >
-              🔗 Share
-            </button>
-            {!touchFirst && (
-              <button
-                type="button"
-                onClick={() => setHelpOpen(true)}
-                className="cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
-                title="Keyboard shortcuts"
-                aria-label="Keyboard shortcuts"
-              >
-                ⌨ <Kbd k="?" />
-              </button>
-            )}
+            {/* the occasional tools wait behind one pill, so the first view leads with the dial and the moves */}
+            <MoreMenu>
+              {(close) => (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      openDrawer("xray");
+                    }}
+                    onPointerEnter={() => void EngineXRay.preload().catch(() => {})}
+                    className="cursor-pointer rounded-full border-2 border-dashed border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade pointer-coarse:min-h-11"
+                    title="See how the engine decided, bar by bar, and run its proofs live"
+                  >
+                    🔬 Engine X-ray
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      close();
+                      void shareLink();
+                    }}
+                    className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:-rotate-1 hover:bg-paper-shade pointer-coarse:min-h-11"
+                    title="Copy a link to this reharm: the tune, key, dial level and your picks. It opens ready to play."
+                  >
+                    🔗 Share
+                  </button>
+                  {!touchFirst && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        close();
+                        setHelpOpen(true);
+                      }}
+                      className="cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
+                      title="Keyboard shortcuts"
+                      aria-label="Keyboard shortcuts"
+                    >
+                      ⌨ <Kbd k="?" />
+                    </button>
+                  )}
+                  {/* a pedal needs MIDI: phones in practice have none, so it's a desktop-only tool */}
+                  {!touchFirst && <PedalLink />}
+                </>
+              )}
+            </MoreMenu>
             <KeyPicker {...keyControl} />
-            <LevelDial level={level} onChange={changeLevel} />
+            <LevelDial level={level} onChange={changeLevel} pedalLink={false} />
           </div>
+          {/* phones: the moves sit 2+ screens below the lead sheet; one tap jumps there (same DOM and tab order) */}
+          {pathway.length > 0 && (
+            <a
+              href="#tricks-h"
+              data-jump-to-moves
+              onClick={(e) => {
+                e.preventDefault();
+                document.getElementById("tricks-h")?.scrollIntoView({ block: "start" });
+                document.querySelector<HTMLElement>("[data-move-id] button")?.focus({ preventScroll: true });
+              }}
+              className="tap-lg rounded-full border-2 border-ink bg-paper-light px-3 font-marker lg:hidden"
+            >
+              {pathway.length} move{pathway.length === 1 ? "" : "s"} ↓
+            </a>
+          )}
           <div className="flex items-center gap-1 font-marker" role="group" aria-label="Show chords">
             {(["original", "reharm"] as const).map((v) => (
               <button
@@ -791,7 +880,8 @@ export function App() {
                     {usedCategories.map((c) => (
                       <span key={c} className="flex items-center gap-2">
                         <span className="inline-block h-3 w-6 -rotate-2 rounded-sm opacity-70" style={{ background: CATEGORY_WASH[c] }} />
-                        {CATEGORY_LABEL[c]}
+                        {/* the category's label is its glossary term (spec §D: Study chips the category labels) */}
+                        <GlossaryChip term={CATEGORY_LABEL[c]} />
                       </span>
                     ))}
                   </div>
@@ -805,19 +895,6 @@ export function App() {
                           ? `${tune.rights.note} No melody, so moves aren't melody-checked. `
                           : "No melody on this chart (iReal charts carry chords only), so moves aren't melody-checked. "
                         : ""}
-                    {!hintSeen && (
-                      <>
-                        Click a coloured wash to open its move. Flip Original/Reharm or turn the dial while it plays: the chords swap in on the next beat.{" "}
-                        <button
-                          type="button"
-                          onClick={() => setHintSeen(true)}
-                          className="cursor-pointer underline decoration-dotted hover:text-ink"
-                          aria-label="Dismiss this tip"
-                        >
-                          Got it
-                        </button>
-                      </>
-                    )}
                   </p>
                   {tune.rights?.kind === "original" && <OriginalStamp rights={tune.rights} className="ml-auto" />}
                 </div>
@@ -852,6 +929,12 @@ export function App() {
             )}
 
             <Reveal label="🎹 Solo over it" open={soloOpen} onToggle={setSoloOpen} className="mt-4">
+              {/* the scale card is for soloing, so it waits in here with the heatmap rather than crowding first load */}
+              {!bareFacts && selected && improvForSelected.length > 0 && (
+                <div className="mt-3">
+                  <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}${view === "original" ? " (original)" : ""}`} />
+                </div>
+              )}
               <div className="mt-3">
                 <ImprovHeatmap
                   key={tune.id}
@@ -867,16 +950,7 @@ export function App() {
               </div>
             </Reveal>
 
-            {bareFacts ? (
-              <div className="mt-6 lg:hidden">{bareFacts}</div>
-            ) : (
-              selected &&
-              improvForSelected.length > 0 && (
-                <div className="mt-6 lg:hidden">
-                  <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}`} />
-                </div>
-              )
-            )}
+            {bareFacts && <div className="mt-6 lg:hidden">{bareFacts}</div>}
           </section>
 
           {/* ── right: reharm & tricks ── */}
@@ -894,6 +968,8 @@ export function App() {
               )}
             </div>
 
+            {!DEMO && pathway.length > 0 && <FirstRunHint screen="study" />}
+
             {bareFacts && <div className="hidden lg:block">{bareFacts}</div>}
 
             {pathway.length === 0 && (
@@ -905,20 +981,20 @@ export function App() {
                 key={m.id}
                 tuneId={tune.id}
                 move={m}
+                target={targetOf(m)}
                 selected={m.id === selected?.id}
                 onSelect={() => setSelectedId(m.id)}
                 onPick={pick}
                 onPractice={() => practiceMove(m.id)}
                 onDrill={() => openCoach(m.id)}
                 alternatives={accepted.filter((a) => a.id !== m.id && overlaps(a, m))}
+                // the heatmap behind "Solo over it" saves what it hears: lesson asks stay off while it's mounted
+                asksEnabled={!soloOpen}
+                midiConnected={midi.status === "connected"}
+                explain={explain}
+                own={own}
               />
             ))}
-
-            {!bareFacts && selected && improvForSelected.length > 0 && (
-              <div className="hidden lg:block">
-                <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}${view === "original" ? " (original)" : ""}`} />
-              </div>
-            )}
 
             {rejected.length > 0 && (
               <Reveal
@@ -935,7 +1011,10 @@ export function App() {
                         <span className="font-marker">
                           Bar {r.move.span.from.bar}: {r.move.chords.map((c) => prettySymbol(symbol(c))).join(" · ")}
                         </span>{" "}
-                        <span className="text-ink-soft">({r.reasons[0]})</span>
+                        {/* every rejection is an avoid note under the melody: say so once per line, with its chip */}
+                        <span className="text-ink-soft">
+                          (<GlossText text={/avoid note/.test(r.reasons[0]) ? r.reasons[0] : `avoid note: ${r.reasons[0]}`} terms={["avoid note"]} />)
+                        </span>
                       </li>
                     ))}
                   </ul>

@@ -147,7 +147,8 @@ export const MOTIONS: Record<EarMotionId, MotionRule> = {
     id: "landing",
     model: "the landing",
     pull: 5,
-    hint: (s) => `${ps(s.to)}, home: ${ps(s.from)} is full of tension and wants to land here.`,
+    // "pull", not "tension": in this app tensions are the 9th, 11th and 13th (one term per concept)
+    hint: (s) => `${ps(s.to)}, home: ${ps(s.from)} pulls hard and wants to land here.`,
     right: (s) => `Landed it. ${ps(s.from)} to ${ps(s.to)}, the V coming home.`,
     wrong: (s) => `From ${ps(s.from)} the pull goes home to ${pn(s.to.root)}. That's the landing.`,
     why: (s) =>
@@ -158,7 +159,7 @@ export const MOTIONS: Record<EarMotionId, MotionRule> = {
     id: "setup",
     model: "the setup",
     pull: 4,
-    hint: (s) => `${ps(s.to)}, the V: the tension that wants to land on ${pn(s.tonic)}.`,
+    hint: (s) => `${ps(s.to)}, the V: the pull that wants to land on ${pn(s.tonic)}.`,
     right: (s) => `That's the setup. ${ps(s.from)} to ${ps(s.to)}, the ii walking to the V.`,
     wrong: (s) => `From ${ps(s.from)} the pull goes to ${pn(s.to.root)}, the V. Down a fifth, and the 7th slides down to the 3rd.`,
     why: (s) =>

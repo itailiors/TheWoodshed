@@ -42,6 +42,10 @@ import { keys, paper, seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
 import { useChordStrikes } from "../../midi/noteBus";
 import type { MidiStatus } from "../../midi/useMidi";
+import { SCREEN_TERMS } from "../learn/chipText";
+import { FirstRunHint } from "../learn/FirstRunHint";
+import { GlossaryChip } from "../learn/GlossaryChip";
+import { GlossText } from "../learn/GlossText";
 import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
@@ -156,6 +160,8 @@ function chordsFor(s: Settings, head: Tune | null = null): Chord[] {
 const pretty = (c: Chord) => prettySymbol(symbol(c));
 const degreeLabel = (d: string) => (d === "1" ? "R" : prettyNote(d));
 const styleName = (id: VoicingStyle) => VOICING_STYLES.find((s) => s.id === id)?.label ?? id;
+/** Shapes that leave the root to the bass: they point back at Shells ("Recommended first", spec §D). */
+const ROOTLESS_STYLES: readonly VoicingStyle[] = ["close", "drop2", "drop3"];
 const isGuide = (d: string) => ["3", "b3", "4", "7", "b7", "bb7", "6"].includes(d);
 /** Pitch names of a form's notes, by hand ("LH: C · RH: E G B D"). */
 const byHand = (f: VoicingForm, hand: "L" | "R") =>
@@ -516,6 +522,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
 
       <SketchBox seed={seedOf("voicings-stage")} fill={paper.light} strokeWidth={2} className="mx-auto max-w-5xl">
         <div className="space-y-4 p-4 md:p-6">
+          <FirstRunHint screen="voicings" />
           {/* ── what to voice ── */}
           <div className="flex flex-wrap items-center gap-2 font-hand">
             <Pills
@@ -559,7 +566,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               <button
                 type="button"
                 onClick={() => void startDrill()}
-                title="This chord and shape through all 12 keys: keys due for review and keys you've missed in come first"
+                title="This chord and shape through all 12 keys: keys due for review and keys you've missed come first"
                 className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:bg-paper-shade"
               >
                 Drill 12 keys →
@@ -621,7 +628,22 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                 {settings.more ? "Fewer shapes" : "More shapes ▾"}
               </button>
             </div>
-            <p className="mt-1 font-hand text-sm text-ink-soft">{VOICING_STYLES.find((s) => s.id === settings.style)?.hint}</p>
+            {/* the shape's name and hint, with its glossary chips (the radios themselves are buttons, so no chips inside them) */}
+            <p className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-hand text-sm text-ink-soft">
+              <span>
+                <GlossText text={`${styleName(settings.style)}: ${VOICING_STYLES.find((s) => s.id === settings.style)?.hint ?? ""}`} terms={SCREEN_TERMS.voicings} />
+              </span>
+              {ROOTLESS_STYLES.includes(settings.style) && (
+                // rootless grips assume the shell underneath: point at it, never lock it
+                <button
+                  type="button"
+                  onClick={() => pick({ style: START_HERE })}
+                  className="cursor-pointer whitespace-nowrap rounded-full border-2 border-dashed border-ink-soft px-2 font-marker text-xs leading-5 text-ink-soft hover:border-ink hover:text-ink pointer-coarse:min-h-11"
+                >
+                  Recommended first: {styleName(START_HERE)} →
+                </button>
+              )}
+            </p>
           </div>
 
           {/* ── the chord(s) ── */}
@@ -629,7 +651,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
             <>
               <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), session.goToRun(i)) : session.goToRun(i))} />
               <p className="font-hand text-sm text-ink-soft">
-                Bar {head.harmony[step]?.at.bar}: {formName(step, current)}
+                Bar {head.harmony[step]?.at.bar}: <GlossText text={formName(step, current)} terms={["rootless"]} />
                 {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
               </p>
             </>
@@ -667,7 +689,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               </ol>
               {narrow && (
                 <p className="font-hand text-sm text-ink-soft">
-                  {formName(step, current)}
+                  <GlossText text={formName(step, current)} terms={["rootless"]} />
                   {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
                 </p>
               )}
@@ -718,7 +740,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               <HandTag hand="L" /> <span className="font-marker">LH</span> {byHand(current, "L")} <span className="mx-2 text-ink-faint">|</span> <HandTag hand="R" />{" "}
               <span className="font-marker">RH</span> {byHand(current, "R")}
               <span className="ml-2 whitespace-nowrap text-ink-soft">
-                · <GuideTag /> guide tones ({current.notes.filter((n) => isGuide(n.degree)).map((n) => degreeLabel(n.degree)).join(", ")})
+                · <GuideTag /> <GlossaryChip term="guide tones" /> ({current.notes.filter((n) => isGuide(n.degree)).map((n) => degreeLabel(n.degree)).join(", ")})
               </span>
             </p>
           )}
@@ -779,7 +801,7 @@ function DrillRibbon({ drill, chord, style, onAgain, onStop }: { drill: Drill; c
         <span className="font-marker">
           {finished ? `All 12 keys done: ${clean} clean first time.` : `12-key drill · ${style} · key ${drill.at + 1} of 12: ${chord}`}
         </span>
-        <span className="text-sm text-ink-soft">{finished ? "Each key is filed in the passport." : "Due keys and keys you've missed in come first."}</span>
+        <span className="text-sm text-ink-soft">{finished ? "Each key is filed in the passport." : "Due keys and keys you've missed come first."}</span>
         <span className="ml-auto flex gap-3 font-marker text-sm">
           {finished && (
             <button type="button" onClick={onAgain} className="cursor-pointer underline">

@@ -1,4 +1,4 @@
-import { chroma, mod, transpose } from "./pitch";
+import { chroma, mod, pitchClass, transpose } from "./pitch";
 import type { ChordEvent, PitchName, Quality } from "./types";
 
 export const QUALITY_FORMULA: Record<Quality, string[]> = {
@@ -61,7 +61,21 @@ export function chordTones(c: ChordShape): ChordTone[] {
   return chordDegrees(c).map((degree) => ({ degree, note: transpose(c.root, degree) }));
 }
 
+/**
+ * A note as the chord spells it, for display: the melody's E over G♭9 is the chord's F♭ (its 7th).
+ * A note the chord doesn't hold, or holds only as a double accidental (B♭♭ in a °7), keeps its
+ * own spelling. Pitch class in, pitch class out.
+ */
+export function chordSpelling(c: ChordShape, note: string): string {
+  const pc = pitchClass(note);
+  const hit = chordTones(c).find((t) => chroma(t.note) === chroma(pc));
+  return hit && !/(bb|##|x)$/.test(hit.note) ? hit.note : pc;
+}
+
 export const chordChromas = (c: ChordShape) => new Set(chordTones(c).map((t) => chroma(t.note)));
+
+/** Root, 3rd and 5th only: what a resolution lands on (into Cmaj7, B rises to C rather than holding as the 7th). */
+export const triadTones = (c: ChordShape): ChordTone[] => chordTones(c).filter((t) => ["1", "3", "b3", "5", "b5", "#5"].includes(t.degree));
 
 /** 3rd (or sus 4th) followed by the 7th: the two notes that define the chord. */
 export function guideTones(c: ChordShape): ChordTone[] {
@@ -86,6 +100,10 @@ export function symbol(c: Omit<ChordShape, never> & { display?: string; bass?: s
     base = base.replace(/7$/, highest);
   } else if ((c.quality === "maj" || c.quality === "m") && c.extensions.includes("9")) {
     base += c.quality === "m" ? "(add9)" : "add9";
+  } else if (c.quality === "6" && c.extensions.includes("9")) {
+    // ♭VII6/9 and one-note-on-top's 6/9 voice the 9th, so the symbol says so (the line cliché's
+    // m6 stop keeps its plain name: there the 9th is the held colour, not part of the stop)
+    base += "/9";
   }
   const alts = c.alterations.length ? `(${c.alterations.join(",")})` : "";
   return `${c.root}${base}${alts}${c.bass ? "/" + c.bass : ""}`;

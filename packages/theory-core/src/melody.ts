@@ -1,4 +1,4 @@
-import { ALTERATION_EXCLUDES, chordTones, isDominant, symbol } from "./chords";
+import { ALTERATION_EXCLUDES, chordSpelling, chordTones, isDominant, symbol } from "./chords";
 import { chroma, intervalName, mod, pitchClass, prettyNote, prettySymbol, transpose } from "./pitch";
 import type { ChordEvent, Verdict } from "./types";
 
@@ -32,6 +32,16 @@ export interface NoteClass {
 }
 
 type ChordLike = Pick<ChordEvent, "root" | "quality" | "extensions" | "alterations" | "display">;
+
+/**
+ * A melody note for display beside the chord it sits in: the chord's own spelling first, the
+ * written note as its twin ("F♭ (same key as E)" for E over G♭9), else the note as written.
+ */
+export function melodyNoteLabel(chord: Pick<ChordEvent, "root" | "quality" | "extensions" | "alterations">, note: string): string {
+  const written = pitchClass(note);
+  const spelled = chordSpelling(chord, written);
+  return spelled === written ? prettyNote(written) : `${prettyNote(spelled)} (same key as ${prettyNote(written)})`;
+}
 
 /**
  * Chord tone, available tension, or avoid note?

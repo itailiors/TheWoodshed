@@ -4,8 +4,10 @@ import { chordTones, guideTones, symbol } from "../src/chords";
 import { conceptDrillSteps, diffStrike, diffVoiceLeading, drillSteps } from "../src/coach";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
+import { BUNDLED_TUNES } from "../src/index";
+import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
 import { chordAtBeat, evaluateLineNote, isOnBeat, isPassingTone } from "../src/lineEval";
-import { chroma, midiOf, mod, spellMidi } from "../src/pitch";
+import { chroma, midiOf, mod, prettySymbol, spellMidi } from "../src/pitch";
 import { RULES } from "../src/ruleset";
 import { suggestScales } from "../src/scales";
 import { KEYS, transposeTune } from "../src/transpose";
@@ -138,7 +140,7 @@ describe("comping coach diff", () => {
       expect(r.pedagogy!.whyItWorks.length).toBeGreaterThan(0);
       for (const k of KEYS) {
         const res = conceptDrillSteps(r.id, k);
-        expect(res.move.ruleId).toBe(r.id);
+        expect(res.move?.ruleId).toBe(r.id);
         expect(res.length).toBeGreaterThanOrEqual(2);
         for (const s of res) {
           expect(s.stepCue.role.length).toBeGreaterThan(0);
@@ -150,18 +152,80 @@ describe("comping coach diff", () => {
     }
   });
 
+  describe("step cues", () => {
+    const BANNED = BANNED_PHRASES;
+    const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
+    const NOTE = /(?<![\p{L}\p{N}])[A-G][♭♯]*(?![\p{L}\p{N}])/gu;
+
+    /** Every drill a player can open: the 17 canonical concept drills and every bundled tune's moves, in 12 keys. */
+    const drills = () =>
+      KEYS.flatMap((k) => [
+        ...RULES.map((r) => {
+          const res = conceptDrillSteps(r.id, k);
+          return { where: `${r.id} in ${k}`, move: res.move!, steps: [...res] };
+        }),
+        ...BUNDLED_TUNES.flatMap((tune) => {
+          const t = transposeTune(tune, k);
+          return generateMoves(t).accepted.map((m) => ({ where: `${tune.id} ${m.id} in ${k}`, move: m, steps: drillSteps(t, m) }));
+        }),
+      ]);
+    let cached: ReturnType<typeof drills> | undefined;
+    const allDrills = () => (cached ??= drills());
+
+    it("no rule falls through to the generic cue", () => {
+      const all = allDrills();
+      const ruled = new Set(all.map((d) => d.move.ruleId));
+      expect(ruled.size).toBe(17);
+      for (const { where, steps } of all) {
+        for (const s of steps) expect(s.stepCue.whyHere, `${where} ${s.symbol}`).not.toMatch(/^Voice-lead guide tones/);
+      }
+    });
+
+    it("cues are ≤ 25 words, display-spelled, with no hype and no article before a note", () => {
+      for (const { where, steps } of allDrills()) {
+        for (const s of steps) {
+          const at = `${where} ${s.symbol}: "${s.stepCue.whyHere}"`;
+          expect(words(s.stepCue.whyHere), at).toBeLessThanOrEqual(25);
+          for (const text of [s.stepCue.whyHere, s.stepCue.role]) {
+            expect(text, at).not.toMatch(BANNED);
+            expect(text, at).not.toMatch(/#|undefined|NaN|\?/);
+            expect(text, at).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/);
+            expect(text, at).not.toMatch(ARTICLE_BEFORE_NOTE);
+            // the lessons' rule: no double flat or sharp a reader has to decode (B♭♭ reads A)
+            expect(text, `${at}: double accidental`).not.toMatch(/♭♭|♯♯|𝄫|𝄪/u);
+          }
+        }
+      }
+    });
+
+    it("every note a cue names is in the chord under your hands (its tones or the engine's voicing), in 12 keys", () => {
+      for (const { where, move, steps } of allDrills()) {
+        const symbols = [...steps.map((s) => s.chord), ...move.original]
+          .map((c) => prettySymbol(symbol(c)))
+          .sort((a, b) => b.length - a.length);
+        for (const s of steps) {
+          const held = new Set([...chordTones(s.chord).map((t) => chroma(t.note)), ...[s.target.bass, ...s.target.upper].map((m) => mod(m, 12))]);
+          const text = symbols.reduce((t, sym) => t.split(sym).join(" "), s.stepCue.whyHere);
+          for (const n of text.match(NOTE) ?? []) {
+            expect(held.has(chroma(n.replace(/♭/g, "b").replace(/♯/g, "#"))), `${where} ${s.symbol}: ${n} in "${s.stepCue.whyHere}"`).toBe(true);
+          }
+        }
+      }
+    });
+  });
+
   it("drills the 3 new curriculum moves (rootlessTwoFiveOne, upperStructureII, minorLineCliche)", () => {
     const rootless = conceptDrillSteps("voicing.rootlessTwoFiveOne", "C");
-    expect(rootless.move.voicingHints).toHaveLength(3);
+    expect(rootless.move!.voicingHints).toHaveLength(3);
     expect(rootless.map((s) => s.symbol)).toEqual(["Dm9", "G13", "Cmaj7"]);
     // Dm9 Type A (F A C E) -> G13 Type B (F A B E): 3 common tones held, C drops 1 semitone to B
-    expect(rootless.move.voicingHints![0]).toEqual({ lh: ["F", "A"], rh: ["C", "E"] });
-    expect(rootless.move.voicingHints![1]).toEqual({ lh: ["F", "A"], rh: ["B", "E"] });
-    expect(rootless.move.voicingHints![2]).toEqual({ lh: ["E", "G"], rh: ["B", "D"] });
+    expect(rootless.move!.voicingHints![0]).toEqual({ lh: ["F", "A"], rh: ["C", "E"] });
+    expect(rootless.move!.voicingHints![1]).toEqual({ lh: ["F", "A"], rh: ["B", "E"] });
+    expect(rootless.move!.voicingHints![2]).toEqual({ lh: ["E", "G"], rh: ["B", "D"] });
 
     const usII = conceptDrillSteps("voicing.upperStructureII", "C");
     expect(usII.map((s) => s.symbol)).toEqual(["G13(#11)", "Cmaj7"]);
-    expect(usII.move.voicingHint).toEqual({ lh: ["G", "B", "F"], rh: ["A", "C#", "E"] });
+    expect(usII.move!.voicingHint).toEqual({ lh: ["G", "B", "F"], rh: ["A", "C#", "E"] });
 
     const cliche = conceptDrillSteps("chromatic.minorLineCliche", "C");
     expect(cliche.map((s) => s.symbol)).toEqual(["Cm(add9)", "Cm(maj7)", "Cm9", "Cm6", "Fm7"]);

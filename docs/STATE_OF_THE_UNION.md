@@ -2,6 +2,7 @@
 
 > Reference doc: file tree, design system, what works, commands. No need to paste it anymore: the working rules (§0) and architectural rules (§2) now live in the root `CLAUDE.md`, and the latest session handoff is `docs/HANDOFF.md`, loaded automatically at session start.
 > Updated 2026-11-11, end of the "Co-op Blues + Expression Pedal" session.
+> **Learning-UX update, 2026-11-20** (branch `feat/learn-ux-phases-2-6`, phases 2–5 of `PLAN.md`; per-commit log in `PROGRESS.md`): §1 lists the lesson layer and its UI, §4 opens with "The learning system", §5 opens with what's left of that plan. Older sections below are kept as they were.
 >
 > **Git state when this was written:** the Must-Be floor is committed as `7834922` on `main`. The Co-op Blues swap and the Expression Pedal (§4) were in the **working tree, uncommitted**. Run `git status` and `git log --oneline -5` first. If those files still show as modified or untracked, they still need committing (Itai commits and pushes himself).
 >
@@ -56,9 +57,21 @@ packages/theory-core/             THE ENGINE: pure, deterministic TypeScript, no
   src/fixtures/someday.ts         Someday My Prince Will Come, bars 1–8 (copyrighted melody): golden-test fixture only, no longer shipped in the app
   src/control.ts                ★ DIAL_CONTROLLERS {modWheel: 1, expression: 11}, pedalToLevel (hysteresis, PEDAL_MARGIN 6), levelBand
   src/testing/arbitraries.ts      fast-check generators
-  src/testing/proofs.ts           PROOFS: 8 claims as executable properties, run by CI AND by the app's Proof tab
+  src/learn/                      the lesson layer (no pitches of its own; formats facts.learn), exported from the package root
+    graph.ts                      27 concepts (17 rules + 10 basics), hard/soft prerequisite edges, conceptStates, nextUp, LESSON_STAGES
+    glossary.ts                   ≤ 8-word glosses: rule terms, categories, dial levels L0–L4, roman numerals, "Self-check"
+    lesson.ts  facts.ts           Lesson/LessonStep types, display helpers, BANNED_PHRASES; the *Learn fields each rule's propose() fills
+    ruleLesson.ts                 barrel-free lessonForMove/hasRuleLesson (engine.ts imports this one: MoveText = the lesson)
+    lessons/rules.ts              all 17 rule lessons, 3–5 steps: hear → see on the keys → name → the rule (+ one predict-then-reveal ask)
+    lessons/basics.ts             10 basics lessons (7th chords, tritone, numerals, guide tones, resolution, ii–V–I, extensions, parallel minor, dim7, major-3rd cycles)
+    canonical.ts                  canonical progressions/moves per rule (anyLesson, canonicalLesson, canonicalDrill): Coach's Learn stage
+    decoder.ts                    parseSymbol/decodeSymbol: the chord-symbol chip (root, quality, extensions, alterations, bass)
+    index.ts                      barrel: graph, glossary, lessons, decoder (never import it from engine.ts/ruleKit.ts: cycle)
+  src/explainTemplate.ts          templateDeepDive(move): demo/fallback Deep Dive from the lesson's deeper line, never its steps
+  src/testing/proofs.ts           PROOFS: 9 claims as executable properties (incl. "Lessons are the engine"), run by CI AND by the app's Proof tab
   src/testing/index.ts
-  test/*.test.ts                  pitch, rules.property, advancedRules, someday.golden, coopBlues.golden ★, control ★, voicing, practice, ireal, band, proofs
+  test/*.test.ts                  pitch, rules.property, advancedRules, someday.golden, coopBlues.golden, control, voicing, practice, ireal, band, proofs,
+                                  learn.* (copy budgets + jargon scan, asks, canonical, decoder, graph), moveCopy (one name per chord), engineHelpers
   test/arbitraries.ts             re-export shim
 
 apps/api/                         Hono on Node (tsx), SQLite via Drizzle on sql.js
@@ -69,7 +82,9 @@ apps/api/                         Hono on Node (tsx), SQLite via Drizzle on sql.
   src/index.ts                    loads .env; --demo flag; serve(createApp())
   src/app.ts                    ★ createApp({demo, dbFile?}): /health /tunes /setlists /import/ireal /explain /practice/*; seeds referenceTune into an empty DB;
                                   getTune falls back to the built-in referenceTune, so a library seeded before the swap still serves Co-op Blues
-  src/explain.ts  src/prompt.ts   buildFacts → Claude structured output, disk cache; ExplainError codes no_key | bad_key | rate_limited
+  src/explain.ts  src/prompt.ts   buildFacts (lesson as prose, pedagogy, prereqs, glossary; no raw facts.learn) → Claude structured output, disk cache;
+                                  ExplainError codes no_key | bad_key | rate_limited
+  src/validateExplain.ts          the 8 output checks; one retry, then the template (uncached) + a 6 h negative cache
   src/demo.ts                     demo explanations (transposed tunes get the engine's text)
   src/db/client.ts                openDb/persist (writes ONLY to the opened file; temp file + rename)
   src/db/schema.ts                tunes, setlists, setlist_tunes, practice_sessions, coach_attempts, improv_runs, concept_reviews
@@ -114,19 +129,31 @@ apps/web/                         React 19, Vite 6, Tailwind v4, Rough.js, Tone.
   src/library/demoHistory.ts    ★ hydrates the fixture relative to now → Progress (same rules as the API: clean = cleanRuns > 0, due = dueAt ≤ now)
   src/library/demoHistory.json  ★ Co-op Blues: 31 reviews across 6 rules (5 due), 20 improv runs (45% → 75% chord tones), places → move ids
   src/components/
-    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  ImprovCard.tsx  MoveCard.tsx  DeepDive.tsx
+    LeadSheet.tsx  ChordName.tsx  DoodleKeyboard.tsx  DeepDive.tsx
+    MoveCard.tsx ★ face: headline, chords, summary, ▶ Before / ▶ After (voiceProgression → player.playSequence, both land on the target)
+    ImprovCard.tsx ★ the scale card; in Study it sits inside "🎹 Solo over it" with the heatmap, folded on first load
     OriginalStamp.tsx ★ Rough.js rubber stamp "ORIGINAL COMPOSITION © 2026 ITAI LIOR // SOFTWARE & JAZZ CO-OP", shown in Study's
                        lead-sheet footer when tune.rights.kind === "original" (not in Practice: it would cover the staff)
-    LevelDial.tsx ★ the dial + PedalLink toggle ("🦶 Link to mod wheel / pedal"); red ink needle tracks the raw CC value, .dial-snap on level change
+    LevelDial.tsx ★ the dial, L0 Original · L1 Inside · L2 Colour · L3 Bold · L4 Out (words from levelEntry(n), hidden below sm;
+                    tooltip "L2 Colour: up to 1 move per 4 bars" from densityLabel/DENSITY) + PedalLink toggle ("🦶 Link to mod wheel / pedal"); red ink needle tracks the raw CC value, .dial-snap on level change
     TransportBar.tsx ★ (+QwertyToggle)  TrioMixer.tsx  BeatPulse.tsx  KeyPicker.tsx  ModeSwitch.tsx  SideRail.tsx
     QwertyToggle.tsx ★ the ⌨ pill: "No MIDI? Play with your keyboard (M)" / "Keys on · A = C4", Z−/X+ buttons, held notes, tooltip map
     LoadingLine.tsx  Toaster.tsx  OfflineBanner.tsx  PanelBoundary.tsx
     library/LibraryDrawer.tsx
     practice/PracticeMode.tsx ★ (+QwertyToggle when no MIDI; "M" in the legend; hides A/L while QWERTY is on)
     practice/ChordHUD.tsx  practice/ImprovHeatmap.tsx  practice/PenKeyboard.tsx
-    coach/CoachPage.tsx ★ (+QwertyToggle; loads progress in the demo too)   coach/CoachDrill.tsx
+    coach/CoachPage.tsx (rail: Your path → Next up → All concepts; phone sheet)   coach/CoachDrill.tsx (Study it / Self-check / Play it, Why card)
+    coach/StageLadder.tsx  coach/LearnStage.tsx  coach/coachLesson.ts  coach/gradingMode.ts (modeForStage, openingStage)  coach/SelfCheckPanel.tsx
+    learn/LessonStepper.tsx (inline in Study, full in Coach)  learn/PrereqNote.tsx  learn/GlossaryChip.tsx  learn/GlossText.tsx  learn/chipText.ts
+    learn/PathView.tsx (passport's Path tab)  learn/PathChip.tsx  learn/FirstRunHint.tsx  learn/hints.ts  learn/KeyCentreMap.tsx
+    learn/lessonAudio.ts  learn/stepperKeys.ts  learn/stepperInput.ts (the stepper's only noteBus emitter)  learn/useTapAnswer.ts  learn/useEscapeCapture.ts
     progress/PracticeDashboard.tsx ★ (red-pen "Sample notebook" notice in the demo)   progress/KeyMatrix.tsx
     xray/EngineXRay.tsx  xray/XRayPipeline.tsx  xray/ProofPanel.tsx  xray/proofs.worker.ts
+  src/learn/                      client-side learning state, all localStorage (no /api): lessonFlags.ts ("reharm.lessons" {v: 1, flags}),
+                                  pathStates.ts (ownProgressOnly: the seeded sample never counts), usePathStates.ts, pathModel.ts, explainDepth.ts
+  src/usage/panelOpens.ts         local counters shown in ⚙ (learn.step, learn.finish, prereq.*, why.open, …)
+
+e2e/                              Playwright against the demo build: golden, learn, coach, path, chips (chromium + a Pixel 5 project)
 ```
 
 ---
@@ -177,6 +204,18 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 ## 4. What works now (verified)
 
+### The learning system (2026-11-20)
+
+- **One lesson source.** Every rule (17) and basics node (10) has a 3–5-step lesson in theory-core, in all 12 keys. A move's card text *is* its lesson (`buildMove`), the Coach cues read the same facts, and the Deep Dive prompt gets the lesson as prose. The `lessons-honest` proof checks every note a lesson names is the engine's.
+- **Study:** "Why it works (n steps)" walks the lesson inline (▶ per step, keys lit and labelled, one predict-then-reveal ask). ⚙ "Explanations": Step by step (default) or Just the rule; fading waits for a clean graded key.
+- **Coach:** a ladder per concept, Learn → Study it → Self-check → Play it. Learn mounts no grader. A rail shows Your path, Next up and all 27 concepts. Prerequisites recommend, never lock ("Learn that first" / "Continue anyway").
+- **Path tab** in the passport: five tiers, state chips, `#coach/<id>` deep links. It ignores the seeded sample.
+- **Glossary chips** on every screen, a chord-symbol decoder chip, and one dismissible first-run hint per screen.
+- **Copy is held to the style guide by tests:** word budgets, banned hype, one name per chord across every move in 12 keys, and no undeclared jargon in lesson steps.
+- **Checks at the end of 5f:** 1101 theory-core + 49 API + 166 web tests; e2e green (chromium + mobile). The demo still makes zero `/api` requests.
+
+### Before the learning UX
+
 - **131/131 tests** (115 theory-core + 16 API) and a clean typecheck across all three workspaces. CI was green at `d81764b`; the Must-Be floor commit `7834922` and later work have not been checked in CI here.
 - **Engine:** 17 rules (L1–L4), melody filter with reasons, voice-leading scores, density-capped pathways, scale map, voicings, Roman analysis.
 - **Study, Practice and Coach modes** with continuity, which is unchanged from before.
@@ -218,6 +257,13 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 ---
 
 ## 5. Exact next steps (in this order)
+
+### Next: the learning UX (from `PLAN.md`)
+
+1. **Phase 6:** the five-persona review on the demo build (desktop + phone, light + dark, fresh and returning state), then polish.
+2. **Read the ⚙ counters** after a week of real use (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
+3. **Waiting on Itai:** pushing the branch; Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
+4. **Known gaps:** on a 375 px phone, Study's first move card sits below the lead sheet. Some rule-chord spellings follow the engine, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9.
 
 ### Done in the last session (verify, then commit if needed)
 

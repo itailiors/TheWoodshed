@@ -1,11 +1,31 @@
 import { chordTones, guideTones, symbol, type ChordTone } from "./chords";
-import { generateMoves } from "./engine";
+import { canonicalDrill } from "./learn/canonical";
+import type {
+  BackdoorLearn,
+  BorrowedIvLearn,
+  ColtraneLearn,
+  CommonToneDiminishedLearn,
+  ConstantStructureLearn,
+  FlatSixFlatSevenLearn,
+  GospelTurnaroundLearn,
+  MediantDominantLearn,
+  MinorLineClicheLearn,
+  OneNoteOnTopLearn,
+  PassingDiminishedLearn,
+  RootlessTwoFiveOneLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+  UpperStructureBVILearn,
+  UpperStructureIILearn,
+} from "./learn/facts";
+import { degreeWord as lessonDegree, motionVerb, readable, twin } from "./learn/lesson";
 import { classifyNote } from "./melody";
-import { chroma, mod, prettyNote, prettySymbol, simplifyNote, spellChroma, transpose } from "./pitch";
-import { RULES } from "./ruleset";
+import { chroma, mod, prettyNote, prettySymbol, spellChroma } from "./pitch";
+import { roleWord } from "./rulesOneNote";
 import { sortedHarmony } from "./time";
-import type { ChordEvent, HarmonicFunction, Quality, ReharmMove, Tune } from "./types";
-import { voiceChord, voiceProgression, type Voicing } from "./voicing";
+import type { ChordEvent, ReharmMove, Tune, VoiceMotion } from "./types";
+import { voiceChord, type Voicing } from "./voicing";
 
 export interface StepCue {
   /** Short functional role badge, e.g. "Tritone sub (♭II7)" or "Resolution target". */
@@ -29,143 +49,309 @@ export interface DrillStep {
   stepCue: StepCue;
 }
 
-function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordEvent[], resolution: boolean, target?: ChordEvent): StepCue {
+/*
+ * Step cues are said BEFORE the strike, so `whyHere` names only notes of the chord in your hands
+ * (its tones or the reference voicing); other chords are named by symbol. Every note comes from
+ * the engine: a lessoned rule's `facts.learn`, the move's other facts, or `guideTones()`. ≤ 25
+ * words, display spelling, the lessons' house voice. `practice.test.ts` holds all of it in 12 keys,
+ * and checks that no rule falls through to the generic cue at the bottom of the switch.
+ */
+
+/** Display spelling a reader can take in: B♭♭ shows as A (lesson.ts `readable`). */
+const nn = (n: string) => prettyNote(readable(n));
+
+/** "rises a half step to the 3rd", "holds as the 7th". */
+const toDegree = (m: VoiceMotion) => `${motionVerb(m)} ${m.semitones === 0 ? "as" : "to"} the ${lessonDegree(m.toDegree)}`;
+
+function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordEvent[], resolution: boolean): StepCue {
   const sym = prettySymbol(symbol(c));
   const nextSym = chords[i + 1] ? prettySymbol(symbol(chords[i + 1])) : undefined;
-  const orig0 = move.original[0] ? prettySymbol(symbol(move.original[0])) : undefined;
-  const gts = guideTones(c).map((g) => prettyNote(g.note)).join(" & ");
+  const into = nextSym ? ` into ${nextSym}` : "";
+  const [g3, g7] = guideTones(c).map((g) => nn(g.note));
+  const gts = [g3, g7].filter(Boolean).join(" and ");
+  const last = i === move.chords.length - 1;
+  const facts = move.facts;
+  const learn = facts.learn;
 
   if (resolution) {
-    if (move.ruleId === "voicing.rootlessTwoFiveOne" && move.voicingHints?.[i]) {
-      const h = move.voicingHints[i];
+    if (move.ruleId === "voicing.rootlessTwoFiveOne" && learn) {
+      const L = learn as RootlessTwoFiveOneLearn;
+      const holds = L.toI.filter((m) => m.semitones === 0).map((m) => nn(m.to));
       return {
         role: `Type A resolution (${sym})`,
-        whyHere: `Resolve into the 3–5–7–9 rootless grip (${[...h.lh, ...h.rh].map(prettyNote).join("–")}) on ${sym}.`,
+        whyHere: `${L.iGrip.map(nn).join(", ")}: ${sym}'s 3rd, 5th, 7th and 9th, no root. ${holds.join(" and ")} hold${holds.length === 1 ? "s" : ""}; the rest step down.`,
       };
     }
     return {
       role: `Resolution (${sym})`,
-      whyHere: `Land smoothly by resolving the guide tones by step into ${sym} (${gts}).`,
+      whyHere: `Land on ${sym}: its guide tones, ${gts}, sit a step or less from where your hand is.`,
     };
   }
 
   switch (move.ruleId) {
-    case "dominant.tritoneSub":
+    case "dominant.tritoneSub": {
+      const L = learn as TritoneSubLearn | undefined;
+      if (!L) break;
+      const [o3, o7] = L.guideTones;
+      const [s3, s7] = L.subGuideTones;
       return {
         role: `Tritone sub (♭II7 · ${sym})`,
-        whyHere: `Shares the exact 3rd & ♭7 tritone (${gts}) with ${orig0 ?? "the V7"}, while the bass ${prettyNote(c.root)} slides down a half step${nextSym ? ` into ${nextSym}` : ""}.`,
+        whyHere: `${prettySymbol(L.original)}'s guide tones stay: ${twin(s3, o7)} is ${sym}'s 3rd, ${twin(s7, o3)} its 7th. The bass slides down a half step${into}.`,
       };
-    case "functional.secondaryTwoFive":
+    }
+    case "functional.secondaryTwoFive": {
+      const L = learn as SecondaryTwoFiveLearn | undefined;
+      if (!L) break;
+      const [s7toV, s7toT] = L.iiSeventh.motions;
+      const [s3toV, s3toT] = L.iiThird.motions;
       if (i === 0) {
         return {
-          role: `Related ii (${sym})`,
-          whyHere: `Sets up the dominant a 5th below (${nextSym ?? "V7"}); lock in guide tones ${gts}.`,
+          // the related ii goes in front of an existing V7; the full ii–V brings its own
+          role: `${L.related ? "Related ii" : "ii"} (${sym})`,
+          whyHere: `${sym} sets up ${prettySymbol(L.V)}: its 7th, ${nn(L.iiSeventh.from)}, ${toDegree(s7toV)}; its 3rd, ${nn(L.iiThird.from)}, ${toDegree(s3toV)}.`,
         };
       }
+      const flatNine = c.alterations.includes("b9") ? `; the ♭9, ${nn(L.flatNine[0])}, falls too` : "";
       return {
         role: `Secondary V7 (${sym})`,
-        whyHere: `The 7th of ${prettySymbol(symbol(chords[0]))} drops a half step to become the 3rd of ${sym} (${gts}), pulling into ${nextSym ?? "the target"}.`,
+        whyHere:
+          `Into ${prettySymbol(L.target)}: the ${lessonDegree(s7toV.toDegree)}, ${nn(s7toT.from)}, ${motionVerb(s7toT)}; ` +
+          `the ${lessonDegree(s3toV.toDegree)}, ${nn(s3toT.from)}, ${motionVerb(s3toT)}${flatNine}.`,
       };
+    }
     case "functional.secondaryDominant": {
-      const raised = move.facts.raised as string[] | undefined;
-      const lowered = move.facts.lowered as string[] | undefined;
-      const change = raised
-        ? `raise ${prettyNote(raised[0])} to ${prettyNote(raised[1])}`
-        : lowered
-          ? `drop ${prettyNote(lowered[0])} to ${prettyNote(lowered[1])}`
-          : "play it as a dominant";
+      const L = learn as SecondaryDominantLearn | undefined;
+      if (!L) break;
+      const changes = [
+        L.raised && `raise its 3rd to ${nn(L.third)}`,
+        L.seventhChange === "lowered" && `flatten its 7th to ${nn(L.seventh)}`,
+        L.seventhChange === "added" && `add the ♭7, ${nn(L.seventh)}`,
+      ].filter(Boolean);
+      const lean = L.raised ? `${nn(L.third)} now rises` : `its 3rd, ${nn(L.third)}, rises`;
+      const flatNine = L.flatNine && c.alterations.includes("b9") ? ` The ♭9, ${nn(L.flatNine)}, falls into it.` : "";
       return {
         role: `Secondary V7 (${sym})`,
-        whyHere: `Same root as ${orig0 ?? "before"}: ${change}. That ${prettyNote(String(move.facts.leadingTone))} is the leading tone into ${nextSym ?? (move.targetSymbol ? prettySymbol(move.targetSymbol) : "the target")}.`,
+        whyHere: `Keep ${prettySymbol(L.original)}'s root${changes.length ? `, ${changes.join(", ")}` : ""}: ${lean} a half step into ${prettySymbol(L.target)}.${flatNine}`,
       };
     }
     case "dominant.mediantDominant": {
-      const dim = (move.facts.sharedDiminished as string[] | undefined) ?? [];
+      const L = learn as MediantDominantLearn | undefined;
+      if (!L) break;
+      const [r3] = L.resolution;
       return {
         role: `Mediant dominant (III7 · ${sym})`,
-        whyHere: `Hands on the ${dim.map(prettyNote).join("–")} diminished 7th, the same shape as ${orig0 ? `${orig0}(♭9)` : "the V7(♭9)"}; only the bass moves to ${prettyNote(c.root)}. Its 3rd then falls a half step${nextSym ? ` into ${nextSym}` : ""}.`,
+        whyHere: `Keep ${prettySymbol(L.original)}(♭9)'s ${L.dim.map(nn).join(", ")} on top and put ${nn(L.subRoot)} in the bass. Into ${prettySymbol(L.target)}, ${nn(r3.from)} ${toDegree(r3)}.`,
       };
     }
     case "voicing.rootlessTwoFiveOne": {
-      const h = move.voicingHints?.[i];
+      const L = learn as RootlessTwoFiveOneLearn | undefined;
+      if (!L) break;
       if (i === 0) {
+        const moving = L.toV.find((m) => m.semitones !== 0)!;
         return {
           role: `Type A rootless ii (${sym})`,
-          whyHere: h
-            ? `Stack ♭3–5–♭7–9 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}) with no root in the bass.`
-            : `Stack ♭3–5–♭7–9 in close rootless position.`,
+          whyHere: `${L.iiGrip.map(nn).join(", ")}: its 3rd, 5th, 7th and 9th, no root. Next, only ${nn(moving.from)} moves.`,
         };
       }
+      const moving = L.toV.find((m) => m.semitones !== 0)!;
       return {
         role: `Type B rootless V (${sym})`,
-        whyHere: h
-          ? `Hold common tones and drop the ♭7 of ii a half step to the 3rd of V for ♭7–9–3–13 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}).`
-          : `Drop only the ♭7 of ii a half step to form the ♭7–9–3–13 Type B grip.`,
+        whyHere: `${L.vGrip.map(nn).join(", ")}: the ${L.vDegrees.map(lessonDegree).join(", ")}. Only ${nn(moving.to)} is new, a half step below ${prettySymbol(L.ii)}'s 7th.`,
       };
     }
-    case "voicing.upperStructureBVI":
+    case "voicing.upperStructureBVI": {
+      const L = learn as UpperStructureBVILearn | undefined;
+      if (!L) break;
       return {
         role: `Upper-structure ♭VI (${sym})`,
-        whyHere: move.voicingHint
-          ? `LH holds the ${move.voicingHint.lh.map(prettyNote).join("–")} shell; RH stacks a ${prettyNote(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(prettyNote).join("–")}) for ♭13, 1, and ♯9.`
-          : `Stack the ♭VI major triad in RH over the root–♭7–3 shell in LH.`,
+        whyHere: `Left hand ${L.shell.map(nn).join(", ")}: root, ♭7, 3rd. Right hand the ${nn(L.triadRoot)} triad: ♭13, root, ♯9.`,
       };
-    case "voicing.upperStructureII":
+    }
+    case "voicing.upperStructureII": {
+      const L = learn as UpperStructureIILearn | undefined;
+      if (!L) break;
       return {
         role: `Upper-structure II (${sym})`,
-        whyHere: move.voicingHint
-          ? `LH holds the ${move.voicingHint.lh.map(prettyNote).join("–")} shell; RH plays a ${prettyNote(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(prettyNote).join("–")}) for 9, ♯11, and 13.`
-          : `Stack the II major triad in RH over the root–3–♭7 shell in LH.`,
+        whyHere: `Left hand ${L.shell.map(nn).join(", ")}: root, 3rd, ♭7. Right hand the ${nn(L.triadRoot)} triad: 9th, ♯11, 13th.`,
       };
+    }
     case "chromatic.minorLineCliche": {
-      const degs = ["1 (root)", "♮7 (major 7th)", "♭7 (minor 7th)", "6 (sixth)"];
+      const L = learn as MinorLineClicheLearn | undefined;
+      if (!L) break;
+      const [third, fifth] = [nn(L.third), nn(L.fifth)];
       return {
-        role: `Line cliché step ${i + 1} (${sym})`,
-        whyHere: `Keep the ${prettyNote(c.root)} minor triad anchored while the moving voice steps to ${degs[i] ?? "the next degree"}.`,
+        role: `Line cliché ${i + 1} of 4 (${sym})`,
+        whyHere:
+          i === 0
+            ? `Hold ${third} and ${fifth} still. The root voice, ${nn(L.line[0])}, starts the walk down by half steps.`
+            : // the drill's chord keeps its added 9th (Cm9), so the cue names the step's degree, not the stop's name (Cm7)
+              `Hold ${third} and ${fifth}; the root voice steps down to ${nn(L.line[i])}, ${["", "the major 7th", "the ♭7", "the 6th"][i]}.`,
       };
     }
     case "melody.oneNoteOnTop": {
-      const held = String(move.facts.heldNote ?? "");
+      const L = learn as OneNoteOnTopLearn | undefined;
+      if (!L) break;
+      const held = prettyNote(L.heldNote);
       if (i === 0) {
         return {
           role: `Pin the top (${sym})`,
-          whyHere: `Put ${prettyNote(held)} on top with your 5th finger and keep it there; only the bass and inner voices move from here.`,
+          whyHere: `Put ${held} on top with your 5th finger: it can stay there through the change. Under it, the bass walks down by half steps.`,
         };
       }
-      const roles = (move.facts.roles as string[] | undefined) ?? [];
+      const role = L.roles[i - 1];
       return {
         role: `Bass walks: ${sym}`,
-        whyHere: `${prettyNote(held)} stays on top as the ${roles[i - 1] ?? "colour"} of ${sym}, while the bass steps down a half step${nextSym ? ` toward ${nextSym}` : ""}.`,
+        whyHere: `Over ${nn(c.root)}, ${held} is the ${role ? roleWord(role) : "colour"} of ${sym}. The top never moves; the bass walks down a half step${into}.`,
       };
     }
-    case "gospel.halfStepTurnaround":
+    case "gospel.halfStepTurnaround": {
+      const L = learn as GospelTurnaroundLearn | undefined;
+      if (!L) break;
       if (i === 0) {
         return {
-          role: `IV/V gospel sus (${sym})`,
-          whyHere: `Suspends the leading tone by stacking a major triad a whole step below the dominant root before the chromatic approach.`,
+          role: `IV/V, the sus (${sym})`,
+          whyHere: `The ${nn(L.susTriad[0])} triad over ${nn(L.susRoot)} in the bass: no 3rd, so nothing leans into ${prettySymbol(L.target)} yet.`,
         };
       }
+      // only keys of the chord in your hands: a rising voice is said without its landing
+      const holds = L.gripMotions.filter((m) => m.semitones === 0).map((m) => nn(m.from));
+      const rises = L.gripMotions.filter((m) => m.semitones > 0).map((m) => `${nn(m.from)} rises a half step; `);
       return {
-        role: `♭II13(♯11) approach (${sym})`,
-        whyHere: `Tritone-sub cluster a half step above ${nextSym ?? "home"}; every upper voice slides down by semitone or holds common tones.`,
+        role: `♭II13(♯11), tritone sub (${sym})`,
+        whyHere:
+          `Left hand ${L.grip.lh.map(nn).join(", ")}; right hand the ${nn(L.grip.rh[0])} triad. Into ${prettySymbol(L.landing)}, ` +
+          `${holds.join(" and ")} hold${holds.length === 1 ? "s" : ""}; ${rises.join("")}the rest fall a half step.`,
       };
-    case "modal.backdoorTwoFive":
-      if (i === 0 && move.chords.length > 1) {
+    }
+    case "modal.backdoorTwoFive": {
+      const L = learn as BackdoorLearn | undefined;
+      if (!L) break;
+      if (i === 0 && L.iv) {
         return {
           role: `Borrowed iv (${sym})`,
-          whyHere: `Minor iv borrowed from the parallel minor; prepares the ♭VII7 backdoor dominant (${nextSym ?? "♭VII7"}).`,
+          whyHere: `Borrowed from ${nn(L.minorKey)} minor, ${sym} is the ii of ${prettySymbol(L.bVII)}: the backdoor's own ii–V.`,
         };
       }
       return {
         role: `Backdoor ♭VII7 (${sym})`,
-        whyHere: `Whole step below ${nextSym ?? "I"}; its ♭7 falls a half step to the 5th of the tonic while the root steps up a whole tone.`,
+        whyHere: `${sym}'s ${nn(L.bVIISeventh)} falls a half step into ${prettySymbol(L.target)}; its root, ${nn(L.bVIIRoot)}, climbs a whole step. The 9th, ${nn(L.bVIINinth)}, is home already.`,
       };
-    default:
+    }
+    case "chromatic.passingDiminished": {
+      const L = learn as PassingDiminishedLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
+      if (c.quality !== "dim7") {
+        return {
+          role: `Before the °7 (${sym})`,
+          whyHere: `${sym} keeps the downbeat. Then the bass, ${nn(c.root)}, ${L.ascending ? "climbs" : "falls"} a half step${into}.`,
+        };
+      }
+      if (L.ascending && L.pull) {
+        const [lead, flatNine] = L.pull;
+        return {
+          role: `Passing °7 (${sym})`,
+          whyHere: `${sym} works as ${target}'s V7(♭9) with no root: ${nn(lead.from)} rises to its root, ${nn(flatNine.from)} falls to its 5th.`,
+        };
+      }
       return {
-        role: move.chords.length > 1 ? `${move.title} (${i + 1} of ${move.chords.length})` : move.title,
-        whyHere: `Voice-lead guide tones (${gts}) smoothly${nextSym ? ` toward ${nextSym}` : ""}.`,
+        role: `Passing °7 (${sym})`,
+        whyHere: `${sym} already holds ${L.shared.map((s) => nn(s.note)).join(" and ")}, ${target}'s ${L.shared.map((s) => lessonDegree(s.degree)).join(" and ")}. The other keys step into it.`,
       };
+    }
+    case "modal.flatSixFlatSeven": {
+      const L = learn as FlatSixFlatSevenLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
+      if (i === 0) {
+        return {
+          role: `♭VI, borrowed (${sym})`,
+          whyHere: `Borrowed from ${nn(L.minorKey)} minor, its ♭6: the bass, ${nn(L.bVIRoot)}, starts a climb by whole steps into ${target}.`,
+        };
+      }
+      return {
+        role: `♭VII, borrowed (${sym})`,
+        whyHere: `The bass, ${nn(L.bVIIRoot)}, climbs another whole step into ${target}. Its 9th, ${twin(L.bVIINinth, L.targetRoot)}, is home already: no leading tone pulls.`,
+      };
+    }
+    case "modal.borrowedIv": {
+      const L = learn as BorrowedIvLearn | undefined;
+      if (!L) break;
+      const [six, flatSix] = L.line;
+      if (!last) {
+        return {
+          role: `IV, about to turn minor (${sym})`,
+          whyHere: `${sym} keeps its 3rd, ${nn(six)}, for now. Next that note drops a half step and the chord turns minor.`,
+        };
+      }
+      return {
+        role: `Borrowed iv (${sym})`,
+        whyHere: `Borrowed from ${nn(L.minorKey)} minor: the 3rd is now ${nn(flatSix)}, and it falls ${L.kept ? "another" : "a"} half step to ${prettySymbol(L.target)}'s 5th.`,
+      };
+    }
+    case "chromatic.commonToneDiminished": {
+      const L = learn as CommonToneDiminishedLearn | undefined;
+      if (!L) break;
+      const [l3, l5] = L.leans;
+      if (c.quality === "dim7") {
+        return {
+          role: `Common-tone °7 (${sym})`,
+          whyHere: `${nn(L.root)} is the common tone. ${nn(l3.from)} and ${nn(l5.from)} are appoggiaturas: each rises a half step into ${prettySymbol(L.chord)}.`,
+        };
+      }
+      return {
+        role: `Arrival (${sym})`,
+        whyHere: `${nn(l3.to)} and ${nn(l5.to)}, the 3rd and 5th, arrive: the °7 dissolves into the chord you were already on.`,
+      };
+    }
+    case "symmetric.coltraneSubstitution": {
+      const L = learn as ColtraneLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
+      if (i === 0) {
+        const [centre1, centre2] = L.centreChords.map(prettySymbol);
+        return {
+          role: `ii, the tour starts (${sym})`,
+          whyHere: `${sym} starts the tour: three key centres a major 3rd apart, ${centre1}, ${centre2}, then home on ${target}.`,
+        };
+      }
+      if (c.quality === "7") {
+        return {
+          role: `V7 of ${nextSym ?? target} (${sym})`,
+          whyHere: last
+            ? `${sym} → ${target}, the V–I you started with, lands home on time: its 3rd, ${g3}, rises; its 7th, ${g7}, falls.`
+            : `${sym} tonicizes ${nextSym ?? target}: its 3rd, ${g3}, rises a half step; its 7th, ${g7}, falls a half step.`,
+        };
+      }
+      const n = i === 2 ? 1 : 2;
+      return {
+        role: `Key centre ${n} of 3 (${sym})`,
+        whyHere: `${sym} is key centre ${n} of 3, a major 3rd above the next one. Land on its 3rd, ${g3}, and 7th, ${g7}.`,
+      };
+    }
+    case "chromatic.constantStructure": {
+      const L = learn as ConstantStructureLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
+      const planed = L.planed.length;
+      const above = (half: number) => (half === 2 ? "a whole step" : half === 1 ? "a half step" : `${half} half steps`);
+      if (i === 0) {
+        return {
+          role: `Downbeat (${sym})`,
+          whyHere: `${sym} keeps the downbeat. Then play ${target}'s exact shape ${above(planed)} above it and slide the whole hand down.`,
+        };
+      }
+      return {
+        role: `Planing ${i} of ${planed} (${sym})`,
+        whyHere: `${sym} is ${target}'s shape ${above(planed - i + 1)} up: same shape, new root. Every voice moves together, down a half step${into}.`,
+      };
+    }
   }
+  // Generic: only for a rule with no cue of its own yet (practice.test.ts fails if any rule lands here).
+  return {
+    role: move.chords.length > 1 ? `${move.title} (${i + 1} of ${move.chords.length})` : move.title,
+    whyHere: `Voice-lead guide tones (${gts}) smoothly${nextSym ? ` toward ${nextSym}` : ""}.`,
+  };
 }
 
 /** Turn a hint like {lh:[G,F,B], rh:[Eb,G,Bb]} into MIDI: LH from the bass register up, RH stacked above. */
@@ -208,99 +394,28 @@ export function drillSteps(tune: Tune, move: ReharmMove): DrillStep[] {
       required: guideTones(c),
       colors: tones.filter((t) => !["1", "3", "b3", "4", "5", "b7", "7", "bb7", "6"].includes(t.degree) && upperPcs.has(chroma(t.note))),
       resolution,
-      stepCue: buildStepCue(move, c, i, chords, resolution, target),
+      stepCue: buildStepCue(move, c, i, chords, resolution),
     };
   });
 }
 
 export type ConceptDrillResult = DrillStep[] & {
-  tune: Tune;
-  move: ReharmMove;
+  /** The canonical chart; null for an unknown rule. */
+  tune: Tune | null;
+  /** The rule's own move on it; null (and no steps) when it doesn't fire, never another rule's move. */
+  move: ReharmMove | null;
   steps: DrillStep[];
 };
 
 /**
- * Build a pure, tune-independent canonical cadence for any rule in `targetKey`
- * and return its `DrillStep[]` (also carrying `.tune`, `.move`, and `.steps`).
+ * The rule's canonical progression (`CANONICAL_PROGRESSIONS`, shared with the Learn stage) in
+ * `targetKey`, and its `DrillStep[]` (also carrying `.tune`, `.move`, and `.steps`).
  */
 export function conceptDrillSteps(ruleId: string, targetKey: string): ConceptDrillResult {
-  const T = simplifyNote(targetKey);
-  const ii = simplifyNote(transpose(T, "2"));
-  const IV = simplifyNote(transpose(T, "4"));
-  const V = simplifyNote(transpose(T, "5"));
-
-  const ev = (
-    id: string,
-    bar: number,
-    root: string,
-    quality: Quality,
-    roman: string,
-    func: HarmonicFunction,
-    alterations: string[] = [],
-  ): ChordEvent => ({
-    id,
-    at: { bar, beat: 1 },
-    beats: 4,
-    root,
-    quality,
-    extensions: [],
-    alterations,
-    analysis: { roman, func },
-  });
-
-  let harmony: ChordEvent[];
-  let mode: "major" | "minor" = "major";
-
-  switch (ruleId) {
-    case "chromatic.passingDiminished":
-      harmony = [ev("c1", 1, T, "maj7", "Imaj7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
-      break;
-    case "chromatic.commonToneDiminished":
-      harmony = [ev("c0", 1, V, "7", "V7", "D"), ev("c1", 2, T, "maj7", "Imaj7", "T"), ev("c2", 3, IV, "maj7", "IVmaj7", "PD")];
-      break;
-    case "modal.borrowedIv":
-      harmony = [ev("c1", 1, IV, "maj7", "IVmaj7", "PD"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
-      break;
-    case "voicing.upperStructureBVI":
-      mode = "minor";
-      harmony = [ev("c1", 1, V, "7", "V7", "D", ["b13"]), ev("c2", 2, T, "m6", "im6", "T")];
-      break;
-    case "functional.secondaryDominant":
-      harmony = [ev("c1", 1, simplifyNote(transpose(T, "6")), "m7", "vim7", "T"), ev("c2", 2, ii, "m7", "iim7", "PD")];
-      break;
-    case "chromatic.minorLineCliche":
-      mode = "minor";
-      harmony = [ev("c1", 1, T, "m7", "im7", "T"), ev("c2", 2, IV, "m7", "ivm7", "PD")];
-      break;
-    case "symmetric.coltraneSubstitution":
-    case "voicing.rootlessTwoFiveOne":
-      harmony = [ev("c1", 1, ii, "m7", "iim7", "PD"), ev("c2", 2, V, "7", "V7", "D"), ev("c3", 3, T, "maj7", "Imaj7", "T")];
-      break;
-    default:
-      // All V7 → Imaj7 rules (secondaryTwoFive, tritoneSub, upperStructureII, gospelTurnaround, backdoorTwoFive, flatSixFlatSeven, constantStructure)
-      harmony = [ev("c1", 1, V, "7", "V7", "D"), ev("c2", 2, T, "maj7", "Imaj7", "T")];
-      break;
-  }
-
-  const rule = RULES.find((r) => r.id === ruleId) ?? RULES[0];
-  const tune: Tune = {
-    id: `concept:${rule.id}`,
-    title: `${rule.name} (12-Key Concept Drill)`,
-    key: { tonic: T, mode },
-    meter: [4, 4],
-    feel: "swing",
-    tempo: 120,
-    sections: [{ id: "A", label: "A", startBar: 1, bars: harmony.length }],
-    formOrder: ["A"],
-    harmony,
-    melody: [],
-    melodyCoverage: "none",
-    source: { kind: "manual", personalUseOnly: true },
-  };
-
-  const generated = generateMoves(tune, [rule]).accepted[0] ?? generateMoves(tune).accepted[0];
-  const steps = drillSteps(tune, generated);
-  return Object.assign(steps, { tune, move: generated, steps });
+  const drill = canonicalDrill(ruleId, targetKey);
+  const move = drill?.move && drill.move.ruleId === ruleId ? drill.move : null;
+  const steps = drill && move ? drillSteps(drill.tune, move) : [];
+  return Object.assign(steps, { tune: drill?.tune ?? null, move, steps });
 }
 
 export interface ToneCheck {

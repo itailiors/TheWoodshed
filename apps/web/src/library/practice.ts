@@ -1,6 +1,7 @@
 import { conceptFamily, conceptKind } from "@reharm/theory-core";
 import { DEMO } from "../demo";
 import { toast } from "../components/Toaster";
+import { clearLessonFlags } from "../learn/lessonFlags";
 import { localStore, type ChangesSessionRecord } from "./localPractice";
 import { apiHistory } from "./historyApi";
 import { browserHistory } from "./historyBrowser";
@@ -126,9 +127,13 @@ const where: PracticeHistory = DEMO
   ? browserHistory({ store: localStore, sample: () => import("./demoHistory").then((m) => m.demoProgress()), onTabOnly: tabOnly })
   : apiHistory({ onOffline: couldntSave });
 
-/** Erase every run this browser has saved (demo only). The passport goes back to the sample notebook. */
+/**
+ * Erase every run this browser has saved (demo only). The passport goes back to the sample
+ * notebook, and the lesson flags (test-outs included) go too: a clean slate, never a half-reset.
+ */
 export async function forgetLocalPractice(): Promise<void> {
   await (await localStore()).clear();
+  clearLessonFlags();
   saved();
 }
 

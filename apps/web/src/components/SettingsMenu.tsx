@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { PANEL_LABEL, readPanelOpens, resetPanelOpens } from "../usage/panelOpens";
+import { learningSummary, PANEL_LABEL, readPanelOpens, resetPanelOpens } from "../usage/panelOpens";
+import { EXPLAIN_LABEL, useExplainSetting, writeExplainSetting, type ExplainSetting } from "../learn/explainDepth";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 /** The panel-open tally: which folded panels you actually open. Read fresh each time the menu opens. */
@@ -10,7 +11,13 @@ function PanelUse() {
     .sort((a, b) => b[1].opens - a[1].opens);
   return (
     <section aria-label="Panel use" className="mt-3 border-t-2 border-dashed border-ink-faint pt-2 text-sm">
-      <h3 className="font-marker">Panels you open</h3>
+      <h3 className="font-marker">Learning</h3>
+      <ul className="mt-0.5 space-y-0.5 text-xs" data-learning-summary>
+        {learningSummary(counts).map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+      <h3 className="mt-2 font-marker">Panels you open</h3>
       <p className="text-xs text-ink-faint">Counted in this browser only, never sent.</p>
       {rows.length === 0 ? (
         <p className="mt-1 text-xs text-ink-soft">Nothing opened yet.</p>
@@ -37,6 +44,26 @@ function PanelUse() {
         </>
       )}
     </section>
+  );
+}
+
+/** Explanations: Step by step · Just the rule. Per browser (`reharm.explain`); overrides the per-concept fading. */
+function ExplainChoice() {
+  const setting = useExplainSetting();
+  const name = useId();
+  return (
+    <fieldset className="mt-3 border-t-2 border-dashed border-ink-faint pt-2 text-sm">
+      <legend className="float-left mr-3 font-marker">Explanations</legend>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {(Object.keys(EXPLAIN_LABEL) as ExplainSetting[]).map((s) => (
+          <label key={s} className="inline-flex cursor-pointer items-center gap-1.5 pointer-coarse:min-h-11">
+            <input type="radio" name={name} value={s} checked={setting === s} onChange={() => writeExplainSetting(s)} className="accent-ink" />
+            {EXPLAIN_LABEL[s]}
+          </label>
+        ))}
+      </div>
+      <p className="clear-left text-xs text-ink-soft">Step by step folds a move once you've played it clean.</p>
+    </fieldset>
   );
 }
 
@@ -85,7 +112,7 @@ export function SettingsMenu() {
         aria-label="Settings"
         title="Settings"
         onClick={() => setOpen(!open)}
-        className={`grid h-8 w-8 cursor-pointer place-items-center rounded-full border-2 border-ink font-marker hover:bg-paper-shade ${open ? "bg-paper-shade" : ""}`}
+        className={`grid h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 cursor-pointer place-items-center rounded-full border-2 border-ink font-marker hover:bg-paper-shade ${open ? "bg-paper-shade" : ""}`}
       >
         <span aria-hidden>⚙</span>
       </button>
@@ -100,6 +127,8 @@ export function SettingsMenu() {
           <span>Colours</span>
           <ThemeSwitch />
         </div>
+        <ExplainChoice />
+
         {open && <PanelUse />}
       </div>
     </div>

@@ -1,4 +1,4 @@
-import type { ReharmMove } from "@reharm/theory-core";
+import { templateDeepDive, type ReharmMove } from "@reharm/theory-core";
 
 /**
  * Read-only demo build (`vite build --mode demo`): no library, no API calls.
@@ -20,8 +20,9 @@ let file: Promise<DemoFile> | null = null;
 const loadFile = () => (file ??= import("../../api/demo/explanations.json") as Promise<DemoFile>);
 
 /**
- * True when the demo ships Claude-written Deep Dives. A template file only repeats the card's
- * own theory and insight word for word, so the demo hides the button rather than offer an echo.
+ * True when the demo ships Claude-written Deep Dives. A template file holds only the engine's own
+ * words (the lesson's deeper fact, where else, the bandstand cue, or a lessonless card's theory),
+ * all of which the card can already show, so the demo hides the button rather than offer an echo.
  */
 export async function demoHasWrittenDeepDives(): Promise<boolean> {
   return (await loadFile()).source === "claude";
@@ -39,7 +40,7 @@ export async function demoExplanation(tuneId: string, move: ReharmMove): Promise
   return (
     (hit && { ...hit, cached: true }) ?? {
       summary: move.text.summary,
-      deepDive: [move.text.theory, move.text.insight].filter(Boolean).join("\n\n"),
+      deepDive: templateDeepDive(move), // the API's template, so a lessoned move's steps are never repeated
       recreateRule: move.text.recreateRule,
       model: "Reharm Lab engine",
       cached: true,

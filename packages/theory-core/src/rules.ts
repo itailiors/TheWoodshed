@@ -7,9 +7,21 @@ import {
   isMinorQ,
   resolvesDownFifth,
   symbol,
+  triadTones,
 } from "./chords";
-import { chroma, prettySymbol, simplifyNote, transpose } from "./pitch";
-import { chain, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import { chroma, simplifyNote, transpose } from "./pitch";
+import type {
+  GospelTurnaroundLearn,
+  RootlessTwoFiveOneLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+  UpperStructureBVILearn,
+  UpperStructureIILearn,
+} from "./learn/facts";
+import { readable } from "./learn/lesson";
+import { chain, chainMotions, mk, planeMotion, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type { ChordTone } from "./chords";
 import type { Quality } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
@@ -22,10 +34,10 @@ export const secondaryTwoFive: Rule = {
   pedagogy: {
     formula: "V7 → ii7 – V7 → I",
     whenToUse: "Before any major or minor target chord (or solitary V7) with at least 2 beats.",
-    whyItWorks: "Splitting one chord into a fifth-falling ii–V doubles harmonic momentum and creates a smooth 7th → 3rd guide-tone chain.",
+    whyItWorks: "The new ii and V fall in fifths into the target. Each chord's 7th falls a half step to the next chord's 3rd.",
     bandstandCue: "From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
   },
-  propose({ tune, chord, prev, next }) {
+  propose({ chord, prev, next }) {
     if (!next) return null;
     const tMajor = isMajorQ(next.quality);
     const tMinor = isMinorQ(next.quality);
@@ -43,11 +55,25 @@ export const secondaryTwoFive: Rule = {
       return null; // the ii is already there
     }
 
-    const gtChain = chain(
-      guideTones(iiChord).map((t) => t.note),
-      [vChord, next],
-    );
-    const facts = { target: symbol(next), ii: symbol(iiChord), V: symbol(vChord), guideToneChain: gtChain, related: alreadyV };
+    const iiGuides = guideTones(iiChord).map((t) => t.note);
+    const gtChain = chain(iiGuides, [vChord, next]);
+    // the lesson lands the last leg on the target's triad: into Fmaj7, E rises to F rather than holding as the 7th
+    const [thirdPath, seventhPath] = chainMotions(iiGuides, [vChord, { ...next, quality: tMinor ? "m" : "maj", extensions: [], alterations: [] }]);
+    const learn: SecondaryTwoFiveLearn = {
+      original: symbol(chord),
+      ii: symbol(iiChord),
+      V: symbol(vChord),
+      target: symbol(next),
+      iiRoot: ii,
+      VRoot: V,
+      targetRoot: next.root,
+      targetMinor: tMinor,
+      related: alreadyV,
+      iiThird: { from: iiGuides[0], motions: thirdPath },
+      iiSeventh: { from: iiGuides[1], motions: seventhPath },
+      flatNine: [chordTones(vChord).find((t) => t.degree === "b9")!.note, transpose(next.root, "5")],
+    };
+    const facts = { target: symbol(next), ii: symbol(iiChord), V: symbol(vChord), guideToneChain: gtChain, related: alreadyV, learn };
 
     if (alreadyV) {
       return {
@@ -56,22 +82,11 @@ export const secondaryTwoFive: Rule = {
         category: "functional",
         styleTags: ["bebop", "standard"],
         chords: [iiChord, vChord],
-        facts,
-        text: {
-          summary: `Put the related ii in front of the dominant: ${ps(iiChord)} → ${ps(vChord)} → ${ps(next)}.`,
-          theory:
-            `${ps(chord)} already resolves down a 5th to ${ps(next)}. Every dominant has a "related ii", the minor chord a 5th above its root. ` +
-            `Inserting it turns one chord into a full ii–V and doubles the forward motion.` +
-            (tMinor ? ` The target is minor, so the ii is half-diminished (${ps(iiChord)}), borrowed from ${pn(next.root)} harmonic minor.` : "") +
-            ` Guide tones: ${gtChain}.`,
-          recreateRule:
-            "Any dominant can borrow its related ii: the minor 7 chord a 5th above its root (m7♭5 if the target is minor).",
-        },
+        facts, // the words come from the lesson (learn/lessons/rules.ts), in buildMove
       };
     }
 
     const r = romanName(next);
-    const intoTonic = chroma(next.root) === chroma(tune.key.tonic);
     return {
       title: r ? `ii–V into the ${r}` : `ii–V into ${ps(next)}`,
       level: 2,
@@ -79,18 +94,6 @@ export const secondaryTwoFive: Rule = {
       styleTags: ["bebop", "standard"],
       chords: [iiChord, vChord],
       facts,
-      text: {
-        summary: `Replace ${ps(chord)} with the target's own ii–V: ${ps(iiChord)} → ${ps(vChord)} → ${ps(next)}.`,
-        theory:
-          (intoTonic
-            ? `${ps(next)} is the tonic, home. Its own ii–V is the strongest way back there: `
-            : `${ps(next)}${r ? ` is the ${r} chord.` : "."} Putting its own ii–V in front briefly makes it sound like home: `) +
-          `${pn(V)} is a perfect 5th above ${pn(next.root)}, and ${pn(ii)} is a 5th above that. ` +
-          `The guide tones barely move: ${gtChain}. ` +
-          `You give up the colour of ${ps(chord)} and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.`,
-        recreateRule:
-          "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
-      },
     };
   },
 };
@@ -104,8 +107,7 @@ export const secondaryDominant: Rule = {
   pedagogy: {
     formula: "vi7 → VI7(♭9) → ii",
     whenToUse: "Any chord whose root falls a 5th into the next chord, as long as it isn't already a dominant.",
-    whyItWorks:
-      "Keep the root and make the chord a dominant: its 3rd becomes the leading tone of the next chord's root, so a diatonic step turns into a resolution.",
+    whyItWorks: "Same root, now a dominant: its 3rd sits a half step below the next root, and its ♭7 falls into the next 3rd.",
     bandstandCue: "Same bass note, raise the minor 3rd a half step (or flatten the major 7th): you're now playing the V of the next chord.",
   },
   propose({ chord, next, afterNext }) {
@@ -126,6 +128,23 @@ export const secondaryDominant: Rule = {
     const lowered = oldSeventh && oldSeventh.degree === "7" ? [oldSeventh.note, seventh.note] : undefined;
     const gtChain = chain([third.note, seventh.note], [next]);
     const r = romanName(next);
+    const flatNine = tMinor ? chordTones(dom).find((t) => t.degree === "b9")?.note : undefined;
+    const learn: SecondaryDominantLearn = {
+      original: symbol(chord),
+      dominant: symbol(dom),
+      dominantPlain: symbol(mk(chord.root, "7", 1)),
+      target: symbol(next),
+      root: chord.root,
+      targetRoot: next.root,
+      targetMinor: tMinor,
+      third: third.note,
+      seventh: seventh.note,
+      ...(raised ? { raised: [raised[0], raised[1]] as [string, string] } : {}),
+      seventhChange: lowered ? "lowered" : oldSeventh?.note === seventh.note ? "kept" : "added",
+      ...(lowered ? { lowered: [lowered[0], lowered[1]] as [string, string] } : {}),
+      resolution: [nearestMotion(third.note, triadTones(next)), nearestMotion(seventh.note, triadTones(next))],
+      ...(flatNine ? { flatNine } : {}),
+    };
     const facts = {
       original: symbol(chord),
       dominant: symbol(dom),
@@ -134,13 +153,8 @@ export const secondaryDominant: Rule = {
       ...(raised ? { raised } : {}),
       ...(lowered ? { lowered } : {}),
       guideToneChain: gtChain,
+      learn,
     };
-    const change = [
-      raised && `its ${pn(raised[0])} rises to ${pn(raised[1])}`,
-      lowered && `its ${pn(lowered[0])} drops to ${pn(lowered[1])}`,
-    ]
-      .filter(Boolean)
-      .join(" and ");
 
     return {
       title: r ? `Make it the V of ${r}` : `Make it the V of ${ps(next)}`,
@@ -148,35 +162,19 @@ export const secondaryDominant: Rule = {
       category: "functional",
       styleTags: ["standard", "bebop", "gospel"],
       chords: [dom],
-      facts,
-      text: {
-        summary: `Play ${ps(chord)} as ${ps(dom)}, the dominant of ${ps(next)}.`,
-        theory:
-          `${ps(chord)} already sits a 5th above ${ps(next)}, so one change is enough: ${change || `add the ♭7 (${pn(seventh.note)})`}, and it becomes ${ps(next)}'s own dominant. ` +
-          `${pn(third.note)}, the new 3rd, is a half step below ${pn(next.root)}: the leading tone of the chord you're about to land on. ` +
-          `Guide tones: ${gtChain}.` +
-          (tMinor ? ` The target is minor, so the dominant takes the ♭9 (${pn(transpose(chord.root, "b9"))}) from ${pn(next.root)} harmonic minor.` : ""),
-        recreateRule:
-          "If a chord's root falls a 5th into the next chord, you can keep the root and make it a dominant 7: raise a minor 3rd, flatten a major 7th. Add the ♭9 when the target is minor.",
-        insight: tMinor
-          ? `Over ${ps(dom)}, play ${pn(chord.root)} Phrygian dominant: the 5th mode of ${pn(next.root)} harmonic minor.`
-          : `This is the first step of backing up the circle: give the ${ps(dom)} its own related ii and you have the full secondary ii–V.`,
-      },
+      facts, // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
 
 // ── Rule 2: tritone substitution ───────────────────────────────────────
-/** " (spelled F♭ there)" when the shared key changes spelling between the two chords, else "". */
-const respell = (from: string, to: string) => (pn(from) === pn(to) ? "" : ` (spelled ${pn(to)} there)`);
-
 export const tritoneSub: Rule = {
   id: "dominant.tritoneSub",
   name: "Tritone substitution",
   pedagogy: {
     formula: "V7 → ♭II7 → I",
     whenToUse: "Any dominant 7th chord resolving down a perfect 5th.",
-    whyItWorks: "Dominant chords a tritone apart share the exact same 3rd and ♭7 (with roles swapped), so the tritone still resolves while the bass slides down by half step.",
+    whyItWorks: "Both dominants hold the same two guide tones, with the roles swapped. Same pull into I; the bass now slides by half step.",
     bandstandCue: "Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
   },
   propose({ chord, next }) {
@@ -186,27 +184,30 @@ export const tritoneSub: Rule = {
     const [o3, o7] = guideTones({ ...chord, alterations: [] }).map((t) => t.note);
     const [s3, s7] = guideTones(sub).map((t) => t.note);
     const mm = simplifyNote(transpose(subRoot, "5"));
+    const targetTones = triadTones(next);
+    const subTone = (d: string) => chordTones(sub).find((t) => t.degree === d)!.note;
+    const learn: TritoneSubLearn = {
+      original: symbol(chord),
+      sub: symbol(sub),
+      target: symbol(next),
+      originalRoot: chord.root,
+      subRoot,
+      targetRoot: next.root,
+      guideTones: [o3, o7],
+      subGuideTones: [s3, s7],
+      resolution: [nearestMotion(o3, targetTones), nearestMotion(o7, targetTones)],
+      subFifth: subTone("5"),
+      subNinth: subTone("9"),
+      parentMelodicMinor: mm,
+    };
     return {
       title: "Tritone sub",
       level: 2,
       category: "dominant-sub",
       styleTags: ["bebop"],
       chords: [sub],
-      facts: { original: symbol(chord), sub: symbol(sub), sharedTritone: [o3, o7], parentMelodicMinor: mm },
-      text: {
-        summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a tritone away.`,
-        theory:
-          `${ps(chord)} and ${ps(sub)} share the same two guide tones, a tritone apart, with the roles swapped. ` +
-          `${pn(o3)}, the 3rd of ${ps(chord)}, is the ♭7 of ${ps(sub)}${respell(o3, s7)}; ` +
-          `${pn(o7)}, the ♭7 of ${ps(chord)}, is the 3rd of ${ps(sub)}${respell(o7, s3)}. ` +
-          `That tritone is what makes a dominant want to resolve, so the substitute still lands on ${ps(next)}. ` +
-          `The difference is the bass, which now slides down a half step (${pn(subRoot)} → ${pn(next.root)}) instead of falling a 5th.`,
-        recreateRule:
-          "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
-        insight:
-          `${pn(subRoot)} Lydian dominant uses exactly the same 7 notes as ${pn(chord.root)} altered: both are modes of ${pn(mm)} melodic minor. ` +
-          `Soloing over the sub is the same as playing altered over the original.`,
-      },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
+      facts: { original: symbol(chord), sub: symbol(sub), sharedTritone: [o3, o7], parentMelodicMinor: mm, learn },
     };
   },
 };
@@ -218,7 +219,7 @@ export const upperStructure: Rule = {
   pedagogy: {
     formula: "♭VI triad / V7 shell",
     whenToUse: "Any altered dominant 7th (especially V7 resolving to a minor chord).",
-    whyItWorks: "A plain major triad built on ♭13 stacks the ♭13, root, and ♯9 in the right hand over the left hand's root–♭7–3 dominant shell.",
+    whyItWorks: "The triad on the ♭13 puts ♭13, root and ♯9 over the left hand's root, ♭7 and 3rd. One hand shape gives the altered sound.",
     bandstandCue: "Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
   },
   propose({ chord, next }) {
@@ -233,9 +234,18 @@ export const upperStructure: Rule = {
     const lh = [chord.root, transpose(chord.root, "b7"), transpose(chord.root, "3")];
     const targetSet = chordChromas(next);
     const common = rh.filter((n) => targetSet.has(chroma(n)));
-    const commonText = common.length
-      ? ` ${common.map(pn).join(" and ")} ${common.length > 1 ? "are" : "is"} already in ${ps(next)}, so the resolution is effortless.`
-      : "";
+    const learn: UpperStructureBVILearn = {
+      plain: symbol(mk(chord.root, "7", 1)),
+      voiced: symbol(newChord),
+      target: symbol(next),
+      root: chord.root,
+      triadRoot: tr,
+      triad: [rh[0], rh[1], rh[2]],
+      shell: [lh[0], readable(lh[1]), readable(lh[2])],
+      sharpNine: readable(transpose(chord.root, "#9")),
+      common: common.slice(0, 3),
+      thirdResolves: nearestMotion(readable(lh[2]), triadTones(next)),
+    };
     return {
       title: "Upper-structure triad",
       level: 2,
@@ -243,16 +253,8 @@ export const upperStructure: Rule = {
       styleTags: ["modern", "bebop"],
       chords: [newChord],
       voicingHint: { lh, rh },
-      facts: { triad: rh, shell: lh, commonTonesWithTarget: common },
-      text: {
-        summary: `Same chord, new voicing: a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell gives ${ps(newChord)}.`,
-        theory:
-          `The left hand holds only what defines the dominant: the root, the ♭7 (${pn(lh[1])}) and the 3rd (${pn(lh[2])}). ` +
-          `The right hand plays a plain ${pn(tr)} triad (${rh.map(pn).join(" ")}), which over ${pn(chord.root)} reads as ♭13, root and ♯9. ` +
-          `The shape is easy and the tension is high.${commonText}`,
-        recreateRule:
-          "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
-      },
+      facts: { triad: rh, shell: lh, commonTonesWithTarget: common, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -264,7 +266,7 @@ export const gospelTurnaround: Rule = {
   pedagogy: {
     formula: "IV/V → ♭II13(♯11) → I",
     whenToUse: "A V7 resolving to a major tonic with at least 2 beats.",
-    whyItWorks: "The IV/V sus delays the leading tone; the ♭II13(♯11) is a tritone-sub cluster a half step above I where every voice slides down by semitone or holds.",
+    whyItWorks: "The IV/V sus holds back the leading tone. Then ♭II13(♯11) slides into I from a half step above, nearly every voice falling or holding.",
     bandstandCue: "Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
   },
   propose({ chord, next }) {
@@ -277,8 +279,37 @@ export const gospelTurnaround: Rule = {
     const apRoot = simplifyNote(transpose(next.root, "b2"));
     const approach = mk(apRoot, "7", split[1], ["9", "13"], ["#11"]);
     const targetRich = { ...next, extensions: ["9", "13"] };
-    const targetSym = symbol({ ...next, extensions: ["9"] });
     const vl = chordTones(approach).map((t) => nearestMotion(t.note, chordTones(targetRich)));
+    // Name what the voices land on, not a chord they don't reach: B♭ → A is the 13th, so a maj7
+    // target arrives as maj13; over a 6 (or a triad) C♭ rises to the root and the 9th joins: 6/9.
+    const plain = !next.display && !next.bass;
+    const landing = !plain
+      ? symbol(next)
+      : next.quality === "maj7"
+        ? symbol(targetRich)
+        : next.quality === "6" || next.quality === "maj"
+          ? `${next.root}6/9`
+          : symbol(next);
+    const degreeOf = (d: string) => chordTones(approach).find((t) => t.degree === d)!.note;
+    // a playable grip, not a 7-note cluster: root, ♭7, 3rd in the left hand, the major triad on the 9th on top
+    const grip = { lh: [apRoot, degreeOf("b7"), degreeOf("3")] as [string, string, string], rh: [degreeOf("9"), degreeOf("#11"), degreeOf("13")] as [string, string, string] };
+    const gripMotions = [...grip.lh, ...grip.rh].map((n) => vl.find((m) => m.from === n)!);
+    const learn: GospelTurnaroundLearn = {
+      original: symbol(chord),
+      sus: sus.display!,
+      susRoot: chord.root,
+      susTriad: [susTop, transpose(susTop, "3"), transpose(susTop, "5")],
+      approach: symbol(approach),
+      approachRoot: apRoot,
+      target: symbol(next),
+      landing,
+      targetRoot: next.root,
+      grip,
+      gripMotions,
+      held: vl.filter((m) => m.semitones === 0).map((m) => m.from),
+      sharpEleven: degreeOf("#11"),
+      leadingTone: guideTones(chord)[0].note,
+    };
 
     return {
       title: "Gospel turnaround",
@@ -287,16 +318,8 @@ export const gospelTurnaround: Rule = {
       styleTags: ["gospel", "neo-soul"],
       chords: [sus, approach],
       voiceLeading: vl,
-      facts: { sus: sus.display, approach: symbol(approach), target: targetSym, motions: vl },
-      text: {
-        summary: `${ps(chord)} → ${ps(next)} becomes ${prettySymbol(sus.display!)} → ${ps(approach)} → ${prettySymbol(targetSym)}.`,
-        theory:
-          `${prettySymbol(sus.display!)} is a ${pn(chord.root)}9sus: a ${pn(susTop)} triad over ${pn(chord.root)}. It's the gospel way to sound the dominant ` +
-          `while holding back the 3rd. ${ps(approach)} is the tritone sub of ${ps(chord)}, voiced as a 13(♯11) cluster ` +
-          `a half step above ${pn(next.root)}. Each voice either slides down a half step or stays put as it lands on ${prettySymbol(targetSym)}.`,
-        recreateRule:
-          "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
-      },
+      facts: { sus: sus.display, approach: symbol(approach), target: landing, motions: vl, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -308,7 +331,7 @@ export const rootlessTwoFiveOne: Rule = {
   pedagogy: {
     formula: "ii9 (3–5–♭7–9) → V13 (♭7–9–3–13) → Imaj9 (3–5–7–9)",
     whenToUse: "Over any major ii–V–I when comping with a bassist or playing rootless left-hand shells.",
-    whyItWorks: "Alternating Type A (3–5–7–9) and Type B (7–9–3–13) grips keeps common tones anchored while the 7th of each chord drops a half step into the next chord's 3rd.",
+    whyItWorks: "Each chord's 7th falls a half step to the next chord's 3rd while the rest hold or step. Type A and Type B grips alternate.",
     bandstandCue: "Play ♭3–5–♭7–9 on ii; hold 3 fingers and drop only the ♭7 down a half step to 3 for V13; then step down into 3–5–7–9 on I.",
   },
   propose({ chord, next, afterNext }) {
@@ -335,6 +358,30 @@ export const rootlessTwoFiveOne: Rule = {
 
     const b7ii = iiGrip.rh[0];
     const thirdV = vGrip.rh[0];
+    // the lesson spells each grip by its degrees (A♭m9's 3rd is C♭, not the hint's B); the hints keep the engine's keys
+    const four = (root: string, degrees: readonly string[]) => degrees.map((d) => readable(transpose(root, d))) as [string, string, string, string];
+    const vDegrees: [string, string, string, string] = ["b7", "9", "3", "13"];
+    const I_DEGREES = ["3", "5", "7", "9"];
+    const iiTones = four(chord.root, ["b3", "5", "b7", "9"]);
+    const vTones = four(next.root, vDegrees);
+    const iTones = four(afterNext.root, I_DEGREES);
+    const tones = (notes: string[], degrees: readonly string[]): ChordTone[] => notes.map((note, k) => ({ degree: degrees[k], note }));
+    // positional: voice k of one grip into voice k of the next (nearest motion over Cmaj7 ties A between G and B)
+    const toV = planeMotion(iiTones, tones(vTones, vDegrees));
+    const toI = planeMotion(vTones, tones(iTones, I_DEGREES));
+    const learn: RootlessTwoFiveOneLearn = {
+      ii: symbol(iiChord),
+      V: symbol(vChord),
+      // E G B D is what sounds over C: name the I as the grip makes it
+      I: symbol(mk(afterNext.root, "maj7", 1, ["9"])),
+      vRoot: next.root,
+      iiGrip: iiTones,
+      vGrip: vTones,
+      iGrip: iTones,
+      vDegrees,
+      toV,
+      toI,
+    };
     return {
       replaceCount: 2,
       title: "Rootless ii–V–I (Type A → B)",
@@ -349,16 +396,9 @@ export const rootlessTwoFiveOne: Rule = {
         typeB_V: [...vGrip.lh, ...vGrip.rh],
         typeA_I: [...iGrip.lh, ...iGrip.rh],
         movingVoice: `${pn(b7ii)} → ${pn(thirdV)}`,
+        learn,
       },
-      text: {
-        summary: `Voice ${ps(iiChord)} → ${ps(vChord)} → ${ps(afterNext)} with Bill Evans rootless Type A and Type B grips.`,
-        theory:
-          `On ${ps(iiChord)}, stack ♭3–5–♭7–9 (${[...iiGrip.lh, ...iiGrip.rh].map(pn).join("–")}). ` +
-          `To reach ${ps(vChord)}, three voices stay put (${pn(vGrip.lh[0])}, ${pn(vGrip.lh[1])}, ${pn(vGrip.rh[1])}) while only ${pn(b7ii)} drops a half step to ${pn(thirdV)} ` +
-          `to form the ♭7–9–3–13 Type B grip. From there, step down into ${ps(afterNext)} (${[...iGrip.lh, ...iGrip.rh].map(pn).join("–")}).`,
-        recreateRule:
-          "Over ii–V–I, voice ii as ♭3–5–♭7–9 (Type A), drop only the ♭7 a half step to get ♭7–9–3–13 on V (Type B), then resolve into 3–5–7–9 on I.",
-      },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -370,7 +410,7 @@ export const upperStructureII: Rule = {
   pedagogy: {
     formula: "II triad / V7 shell → 13(♯11)",
     whenToUse: "Over any Lydian dominant 7(♯11), backdoor ♭VII7, tritone sub, or bright major-target V7.",
-    whyItWorks: "Stacking a major triad a whole step above the root puts the 9th, ♯11th, and 13th in the right hand over the 1–3–♭7 shell in the left hand.",
+    whyItWorks: "The triad a whole step up adds 9th, ♯11 and 13th over the shell. The ♯11 replaces the 4th, which rubs against the 3rd.",
     bandstandCue: "Play the 1–3–♭7 shell in LH; in RH play a plain major triad built a whole step above the chord root.",
   },
   propose({ chord, next }) {
@@ -385,6 +425,18 @@ export const upperStructureII: Rule = {
     const tr = tidy(transpose(chord.root, "2"));
     const lh = [chord.root, tidy(transpose(chord.root, "3")), tidy(transpose(chord.root, "b7"))];
     const rh = [tr, tidy(transpose(tr, "3")), tidy(transpose(tr, "5"))];
+    // the lesson spells each tone as its degree (E♯ is B's ♯11, C♭ is D♭'s ♭7); the grip above keeps the engine's keys
+    const learn: UpperStructureIILearn = {
+      plain: symbol(mk(chord.root, "7", 1)),
+      voiced: symbol(newChord),
+      target: symbol(next),
+      root: chord.root,
+      triadRoot: tr,
+      triad: [tr, readable(transpose(tr, "3")), readable(transpose(tr, "5"))],
+      shell: [chord.root, readable(transpose(chord.root, "3")), readable(transpose(chord.root, "b7"))],
+      naturalEleven: readable(transpose(chord.root, "4")),
+      parentMelodicMinor: tidy(transpose(chord.root, "5")),
+    };
     return {
       title: "Upper-structure II (13♯11)",
       level: 2,
@@ -393,16 +445,8 @@ export const upperStructureII: Rule = {
       chords: [newChord],
       voicingHint: { lh, rh },
       voicingHints: [{ lh, rh }],
-      facts: { triad: rh, shell: lh, triadRoot: tr },
-      text: {
-        summary: `Stack a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell for ${ps(newChord)}.`,
-        theory:
-          `The left hand plays the root–3rd–♭7 shell (${lh.map(pn).join("–")}). ` +
-          `The right hand plays a plain ${pn(tr)} major triad (${rh.map(pn).join(" ")}), a whole step above ${pn(chord.root)}, ` +
-          `which automatically supplies the 9th (${pn(rh[0])}), ♯11th (${pn(rh[1])}), and 13th (${pn(rh[2])}) — the signature Lydian dominant polychord.`,
-        recreateRule:
-          "Over a dominant 7th, hold the root–3–♭7 shell in the left hand and play the major triad a whole step above the root in the right hand for 13(♯11).",
-      },
+      facts: { triad: rh, shell: lh, triadRoot: tr, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

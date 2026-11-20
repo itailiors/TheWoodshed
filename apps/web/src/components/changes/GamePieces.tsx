@@ -54,6 +54,13 @@ const ALT_NAME: Record<AltMotionId, string> = {
   passingDim: "a passing diminished",
 };
 
+/** The Coach concept that teaches each "real jazz move" alternative: "Learn the tritone sub →" opens it (`#coach/<id>`). */
+const ALT_CONCEPT: Record<AltMotionId, string> = {
+  tritoneSub: "dominant.tritoneSub",
+  backdoor: "modal.backdoorTwoFive",
+  passingDim: "chromatic.passingDiminished",
+};
+
 /** The Guided card's one line: the answer gets the teacher's hint; the others just say what they are. */
 function preview(step: Step, keyTonic: string, c: SpelledChord): string {
   if (c.pc === step.expected.pc) return MOTIONS[step.motion].hint({ tonic: keyTonic, from: step.from, to: step.expected });
@@ -139,6 +146,14 @@ export function FeedbackLine({
           <span className="font-hand">{verdictLine(step, keyTonic, verdict)}</span>
         </span>
       </p>
+      {verdict.kind === "alt" && verdict.move in ALT_CONCEPT && (
+        // the game's line stays as written (ears.motions.test.ts); the lesson is one tap away, in Coach
+        <p className="font-marker text-sm">
+          <a href={`#coach/${ALT_CONCEPT[verdict.move as AltMotionId]}`} className="text-pen underline decoration-dotted underline-offset-4 hover:decoration-solid" data-learn-alt={verdict.move}>
+            Learn {ALT_NAME[verdict.move as AltMotionId].replace(/^a /, "the ")} →
+          </a>
+        </p>
+      )}
       {chip && (
         <p className="font-hand" style={{ color: chip.right ? "var(--color-sage-ink)" : pen.red }}>
           {chip.right

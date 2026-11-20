@@ -1,115 +1,115 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T12:25:48.506Z",
+  "generatedAt": "2026-11-20T18:56:49.915Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
-      "summary": "Plane into B♭7 with its own shape from above: F6 → C7 → B7 → B♭7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then B♭7's exact shape slides down by half steps (C → B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into B♭7 with its own shape: C7 → B7 → B♭7, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: C7, B7, then B♭7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "functional.secondaryTwoFive@2.1": {
-      "summary": "Replace B♭7 with the target's own ii–V: Gm9 → C7(♭9) → F6.",
-      "deepDive": "F6 is the tonic, home. Its own ii–V is the strongest way back there: C is a perfect 5th above F, and G is a 5th above that. The guide tones barely move: B♭ → B♭ → A, F → E → F. You give up the colour of B♭7 and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.",
-      "recreateRule": "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
+      "summary": "Swap B♭7 for Gm9 → C7(♭9): a ii–V that walks you into F6.",
+      "deepDive": "C7(♭9)'s ♭9, D♭, falls a half step to C, the 5th of F6.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
+      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@4.1": {
-      "summary": "Plane into F7 with its own shape from above: Cm7 → G♭7 → F7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Cm7 keeps the downbeat, then F7's exact shape slides down by half steps (G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F7 with its own shape: G♭7 → F7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@4.3": {
-      "summary": "Plane into B♭7 with its own shape from above: F7 → B7 → B♭7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F7 keeps the downbeat, then B♭7's exact shape slides down by half steps (B → B♭). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into B♭7 with its own shape: B7 → B♭7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@6.1": {
-      "summary": "Plane into F6 with its own shape from above: Bdim7 → G6 → G♭6 → F6.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Bdim7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@8.1": {
-      "summary": "Plane into D7(♭9) with its own shape from above: Am7♭5 → E♭7(♭9) → D7(♭9).",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Am7♭5 keeps the downbeat, then D7(♭9)'s exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into D7(♭9) with its own shape: E♭7(♭9) → D7(♭9), the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@8.3": {
-      "summary": "Swap D7(♭9) for A♭9, the dominant a tritone away.",
-      "deepDive": "D7(♭9) and A♭9 share the same two guide tones, a tritone apart, with the roles swapped. F♯, the 3rd of D7(♭9), is the ♭7 of A♭9 (spelled G♭ there); C, the ♭7 of D7(♭9), is the 3rd of A♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "summary": "Play A♭9 instead of D7(♭9). Same two tense notes, but the bass slides down a half step into Gm7.",
+      "deepDive": "Every note of A♭9 is a tone or tension of D7(♭9): A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
     "voicing.upperStructureBVI@8.3": {
-      "summary": "Same chord, new voicing: a B♭ major triad over a D–C–F♯ shell gives D7(♯9,♭13).",
-      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (C) and the 3rd (F♯). The right hand plays a plain B♭ triad (B♭ D F), which over D reads as ♭13, root and ♯9. The shape is easy and the tension is high. B♭ and D and F are already in Gm7, so the resolution is effortless.",
-      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
+      "summary": "Play the B♭ triad over D, C and F♯: one hand shape gives you D7(♯9,♭13).",
+      "deepDive": "All three triad notes sit in D altered, so the right hand can keep going in that scale.\n\nWhere else: Any altered dominant 7th (especially V7 resolving to a minor chord).\n\nOn the bandstand: Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
+      "recreateRule": "Over a dominant 7th, hold root, ♭7 and 3rd in the left hand and play the major triad on its ♭13 above.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@9.1": {
-      "summary": "Plane into C7 with its own shape from above: Gm7 → D7 → D♭7 → C7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D → D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into C7 with its own shape: D7 → D♭7 → C7, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: D7, D♭7, then C7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@10.1": {
-      "summary": "Swap C7 for G♭9, the dominant a tritone away.",
-      "deepDive": "C7 and G♭9 share the same two guide tones, a tritone apart, with the roles swapped. E, the 3rd of C7, is the ♭7 of G♭9 (spelled F♭ there); B♭, the ♭7 of C7, is the 3rd of G♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on F6. The difference is the bass, which now slides down a half step (G♭ → F) instead of falling a 5th.\n\nG♭ Lydian dominant uses exactly the same 7 notes as C altered: both are modes of D♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "summary": "Play G♭9 instead of C7. Same two tense notes, but the bass slides down a half step into F6.",
+      "deepDive": "Every note of G♭9 is a tone or tension of C7: G♭ is the ♭5, D♭ the ♭9, A♭ the ♭13. And G♭ Lydian dominant and C altered share all seven notes: both are modes of D♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
     "gospel.halfStepTurnaround@10.1": {
-      "summary": "C7 → F6 becomes B♭/C → G♭13(♯11) → F6.",
-      "deepDive": "B♭/C is a C9sus: a B♭ triad over C. It's the gospel way to sound the dominant while holding back the 3rd. G♭13(♯11) is the tritone sub of C7, voiced as a 13(♯11) cluster a half step above F. Each voice either slides down a half step or stays put as it lands on F6.",
-      "recreateRule": "Before a tonic, play a 13(♯11) chord a half step above it and slide the whole shape down. Put IV/V in front (a triad on the dominant's ♭7, over its root) for the sus colour.",
+      "summary": "Turn C7 → F6 into B♭/C → G♭13(♯11) → F6/9: a slide into home from a half step above.",
+      "deepDive": "G♭13(♯11)'s ♯11 is C: the sub keeps C7's root inside, as the ♯11.\n\nWhere else: A V7 resolving to a major tonic with at least 2 beats.\n\nOn the bandstand: Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
+      "recreateRule": "Before a major I, play IV/V, then a 13(♯11) chord a half step above I, and slide down into I.",
       "model": "Reharm Lab engine"
     },
     "modal.backdoorTwoFive@10.1": {
-      "summary": "Come in through the back door: B♭m7 → E♭9 → F6, instead of C7 → F6.",
-      "deepDive": "B♭m7 and E♭9 are borrowed from F minor (iv and ♭VII7). E♭9 has no leading tone. Its ♭7 (D♭) falls a half step to C, the 5th of F, its 3rd (G) moves a step into the tonic chord, and the root rises a whole step home. It's a darker, bluesier cadence than C7 → F6, where E rises into F.",
-      "recreateRule": "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
+      "summary": "Come home from below: B♭m7 → E♭9 → F6. Darker than C7, with no E leaning up into F.",
+      "deepDive": "Where else: Replacing a V7 resolving to a major tonic.\n\nOn the bandstand: Play the minor 7th on the 4th degree of the target key, then drop the 7th to make the dominant a whole step below I.",
+      "recreateRule": "For a major I, play the minor 7th a 4th above it, then the dominant 7th a whole step below it.",
       "model": "Reharm Lab engine"
     },
     "dominant.mediantDominant@10.1": {
-      "summary": "Swap C7 for A7(♭9), the dominant a major 3rd above F6.",
-      "deepDive": "C7(♭9) is C under an E–G–B♭–D♭ diminished 7th. A7(♭9) is the same four notes over A, so your right hand doesn't move: only the bass does. Into F6, C♯ (the 3rd) falls a half step to C, G (the ♭7) falls a whole step to F, and A is already the 3rd of F. III7 normally resolves to vi, so the ear expects D minor and gets the major tonic instead: a bright, gospel-tinged arrival.\n\nThe whole Family over the same E°7: C7(♭9), E♭7(♭9), G♭7(♭9), A7(♭9). The tritone sub and the backdoor ♭VII7 are two of its members; this is the fourth.",
-      "recreateRule": "Any V7 → I can become III7(♭9) → I: keep the °7 a half step below I in your hands and put the bass a major 3rd above I.",
+      "summary": "Play A7(♭9) instead of C7: the same diminished shape on top, a new bass under it.",
+      "deepDive": "A7(♭9) usually leads to Dm, so the ear expects D minor and gets F major instead.\n\nWhere else: Replacing a V7 that resolves to a major chord.\n\nOn the bandstand: Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
+      "recreateRule": "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@10.1": {
-      "summary": "Plane into F6 with its own shape from above: C7 → G6 → G♭6 → F6.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. C7 keeps the downbeat, then F6's exact shape slides down by half steps (G → G♭ → F). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
+      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@11.1": {
-      "summary": "Plane into D7 with its own shape from above: F6 → E♭7 → D7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. F6 keeps the downbeat, then D7's exact shape slides down by half steps (E♭ → D). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into D7 with its own shape: E♭7 → D7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     },
     "functional.secondaryTwoFive@11.3": {
-      "summary": "Put the related ii in front of the dominant: Am7♭5 → D7(♭9) → Gm7.",
-      "deepDive": "D7 already resolves down a 5th to Gm7. Every dominant has a \"related ii\", the minor chord a 5th above its root. Inserting it turns one chord into a full ii–V and doubles the forward motion. The target is minor, so the ii is half-diminished (Am7♭5), borrowed from G harmonic minor. Guide tones: C → C → B♭, G → F♯ → F.",
-      "recreateRule": "Any dominant can borrow its related ii: the minor 7 chord a 5th above its root (m7♭5 if the target is minor).",
+      "summary": "Split D7 into Am7♭5 → D7(♭9): its related ii in front, a full ii–V into Gm7.",
+      "deepDive": "D7(♭9)'s ♭9, E♭, falls a half step to D, the 5th of Gm7.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
+      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
       "model": "Reharm Lab engine"
     },
     "dominant.tritoneSub@11.3": {
-      "summary": "Swap D7 for A♭9, the dominant a tritone away.",
-      "deepDive": "D7 and A♭9 share the same two guide tones, a tritone apart, with the roles swapped. F♯, the 3rd of D7, is the ♭7 of A♭9 (spelled G♭ there); C, the ♭7 of D7, is the 3rd of A♭9. That tritone is what makes a dominant want to resolve, so the substitute still lands on Gm7. The difference is the bass, which now slides down a half step (A♭ → G) instead of falling a 5th.\n\nA♭ Lydian dominant uses exactly the same 7 notes as D altered: both are modes of E♭ melodic minor. Soloing over the sub is the same as playing altered over the original.",
-      "recreateRule": "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
+      "summary": "Play A♭9 instead of D7. Same two tense notes, but the bass slides down a half step into Gm7.",
+      "deepDive": "Every note of A♭9 is a tone or tension of D7: A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
+      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@12.1": {
-      "summary": "Plane into C7 with its own shape from above: Gm7 → D♭7 → C7.",
-      "deepDive": "Constant structure keeps one chord shape and moves it in parallel, so the ear follows the shape rather than a key. Gm7 keeps the downbeat, then C7's exact shape slides down by half steps (D♭ → C). Every voice moves a semitone at a time, the smoothest voice leading there is, while the passing chords come from outside the key.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step (or a whole step) above it and slide the whole hand down into it.",
+      "summary": "Slide into C7 with its own shape: D♭7 → C7, the whole hand moving together.",
+      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
+      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
       "model": "Reharm Lab engine"
     }
   }

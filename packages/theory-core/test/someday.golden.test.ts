@@ -31,10 +31,12 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     expect(m.voicingHint).toEqual({ lh: ["G", "F", "B"], rh: ["Eb", "G", "Bb"] });
   });
 
-  it("Move 4: gospel turnaround in bar 8 slides by half steps into B♭maj9", () => {
+  it("Move 4: gospel turnaround in bar 8 slides by half steps into B♭maj13", () => {
     const m = find("gospel.halfStepTurnaround", 8)!;
     expect(m.chords.map(symbol)).toEqual(["Eb/F", "B13(#11)"]);
     expect(m.voiceLeading.map((v) => v.semitones).sort()).toEqual([-1, -1, -1, -1, -1, 0, 0]);
+    // 5c: named for what the voices reach (G♯ → G is the 13th), not B♭maj9
+    expect(m.facts.target).toBe("Bbmaj13");
   });
 
   it("rejects ii–Vs that clash with the melody (b9 over a half-diminished ii)", () => {
@@ -57,6 +59,13 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
       [6, "dominant.tritoneSub"],
       [8, "gospel.halfStepTurnaround"],
     ]);
+  });
+
+  it("L3's common-tone °7 in bar 3 leans by direction of resolution (♯2, ♯4: sharps rise)", () => {
+    const m = find("chromatic.commonToneDiminished", 3)!;
+    expect(m.chords.map(symbol)).toEqual(["Ebdim7", "Ebmaj7"]);
+    expect(m.facts.leaningTones).toEqual(["F#", "A"]);
+    expect(m.voiceLeading.map((v) => `${v.from}→${v.to}`)).toEqual(["F#→G", "A→Bb"]);
   });
 
   it("L4 uses the advanced pack on the ii–V–I in bars 7–8 (Coltrane)", () => {

@@ -15,13 +15,24 @@ function PenCircle({ seed }: { seed: number }) {
 }
 
 /**
- * The "spice dial": how far the engine is allowed to go.
+ * The dial: how far from the written changes the engine is allowed to go (L0 Original ·
+ * L1 Inside · L2 Colour · L3 Bold · L4 Out). Each stop's tooltip adds its density, from
+ * theory-core's `DENSITY` ("L2 Colour: up to 1 move per 4 bars"); phones show only L0–L4.
  *
  * With the pedal linked (CC11 expression or CC1 mod wheel), an ink needle under the dial
  * follows the controller continuously, and the pen circle snaps from stop to stop as the
  * level changes: you can see where your foot is *and* which harmony you're hearing.
  */
-export function LevelDial({ level, onChange }: { level: number; onChange: (l: number) => void }) {
+export function LevelDial({
+  level,
+  onChange,
+  pedalLink = true,
+}: {
+  level: number;
+  onChange: (l: number) => void;
+  /** Show the pedal link beside the dial. Study passes false (it lives in "⋯ More"): the dial then shows it only while linked, as a readout. */
+  pedalLink?: boolean;
+}) {
   const p = usePedal();
   const buttons = useRef<(HTMLButtonElement | null)[]>([]);
   const needle = useRef<HTMLSpanElement>(null);
@@ -56,6 +67,8 @@ export function LevelDial({ level, onChange }: { level: number; onChange: (l: nu
               aria-checked={on}
               onClick={() => onChange(l.level)}
               title={`L${l.level} ${l.label}: ${densityLabel(l.level)}`}
+              // phones hide the word (decision 2), so the name carries it for screen readers on every width
+              aria-label={`L${l.level} ${l.label}`}
               className={`relative cursor-pointer px-3 py-1 font-marker text-base ${on ? "font-bold" : "text-ink-soft hover:text-ink"}`}
             >
               {on && <PenCircle seed={seedOf("lvl" + l.level)} />}
@@ -74,13 +87,13 @@ export function LevelDial({ level, onChange }: { level: number; onChange: (l: nu
           </span>
         )}
       </div>
-      <PedalLink />
+      {(pedalLink || p.linked) && <PedalLink />}
     </div>
   );
 }
 
 /** Opt-in: off by default, because jittery wheels shouldn't change the harmony on their own. */
-function PedalLink() {
+export function PedalLink() {
   const p = usePedal();
   return (
     <button

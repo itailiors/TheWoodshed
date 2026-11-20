@@ -1,18 +1,25 @@
 import { CONCEPT_FAMILIES, conceptKind, conceptName as ruleName, prettyNote } from "@reharm/theory-core";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { countOpen } from "../../usage/panelOpens";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { KeyMatrix } from "./KeyMatrix";
-import { fetchProgress, forgetLocalPractice, onPracticeSaved, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
+import { forgetLocalPractice, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
+import { progressSnapshot, refreshProgress, subscribeProgress } from "../../learn/progressStore";
 
 import type { PractiseRequest } from "./KeyMatrix";
+import { onTabListKey } from "../tabKeys";
 export type { PractiseRequest } from "./KeyMatrix";
 
 interface Props {
   onPractise: (r: PractiseRequest) => void;
+  /** A Path card: open the Coach on that concept (basics open their Learn). */
+  onOpenConcept: (conceptId: string) => void;
   onClose: () => void;
 }
+
+const PathView = lazy(() => import("../learn/PathView").then((m) => ({ default: m.PathView })));
 
 const ms = (t: string | number) => new Date(t).getTime();
 
@@ -56,29 +63,28 @@ function LocalNotice({ storedIn }: { storedIn?: Progress["storedIn"] }) {
  * what's due today (the spaced-repetition queue), a 12-key page per concept with a stamp
  * for every key you've played it clean in, and how your solos have been landing lately.
  */
-export function PracticeDashboard({ onPractise, onClose }: Props) {
-  const [data, setData] = useState<Progress | null>(null);
-  const [failed, setFailed] = useState(false);
+export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props) {
+  // the drawer always opens on "Today's practice"; "Path" is one click away (spec §C)
+  const [tab, setTab] = useState<"today" | "path">("today");
+  const pickTab = (t: "today" | "path") => {
+    if (t === "path" && tab !== "path") countOpen("passport.path");
+    setTab(t);
+  };
+  // the page's one shared passport read (progressStore): already fresh after every saved run
+  const { progress: data, loading } = useSyncExternalStore(subscribeProgress, progressSnapshot);
+  const failed = !loading && !data;
   const [rule, setRule] = useState<string | null>(null);
   const now = Date.now();
 
+  // the last read failed (API down): opening the passport tries again, once
   useEffect(() => {
-    let live = true;
-    const load = () =>
-      void fetchProgress().then((p) => {
-        if (!live) return;
-        setFailed(!p);
-        if (p) setData(p);
-      });
-    load();
-    const off = onPracticeSaved(load);
+    if (!progressSnapshot().loading && !progressSnapshot().progress) refreshProgress();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => {
-      live = false;
-      off();
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   // every concept you've touched, most-practised first
@@ -113,6 +119,37 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
               </button>
             </header>
 
+            <div role="tablist" aria-label="Passport views" onKeyDown={onTabListKey} className="flex flex-wrap gap-2 font-marker">
+              {(
+                [
+                  ["today", "Today's practice"],
+                  ["path", "Path"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  id={`passport-tab-${id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  tabIndex={tab === id ? 0 : -1}
+                  aria-controls={`passport-panel-${id}`}
+                  onClick={() => pickTab(id)}
+                  className={`tap-lg cursor-pointer rounded-full border-2 border-ink px-4 py-0.5 ${tab === id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "path" ? (
+              <div id="passport-panel-path" role="tabpanel" aria-labelledby="passport-tab-path">
+                <Suspense fallback={<p className="font-marker text-ink-soft">Opening your path…</p>}>
+                  <PathView onOpen={onOpenConcept} />
+                </Suspense>
+              </div>
+            ) : (
+            <div id="passport-panel-today" role="tabpanel" aria-labelledby="passport-tab-today" className="space-y-6">
             {failed && !data && (
               <p className="rounded border-2 border-dashed px-4 py-3" style={{ borderColor: pen.red, color: pen.red }}>
                 Can't reach the practice history right now. It lives in the API's database; start the API and this page fills in.
@@ -140,15 +177,18 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
                         .map((group) => (
                           <div key={group.title} className="space-y-1.5">
                             <p className="font-hand text-sm uppercase tracking-wider text-ink-soft">{group.title}</p>
-                            <div role="tablist" aria-label={group.title} className="flex flex-wrap gap-2 font-marker">
-                              {group.items.map((c) => {
+                            <div role="tablist" aria-label={group.title} onKeyDown={onTabListKey} className="flex flex-wrap gap-2 font-marker">
+                              {group.items.map((c, i) => {
                                 const clean = (data.cleanKeys[c.id] ?? []).length;
+                                // roving tabindex: the selected tab, or the group's first when its pick is in another group
+                                const here = group.items.some((x) => x.id === shown?.id);
                                 return (
                                   <button
                                     key={c.id}
                                     type="button"
                                     role="tab"
                                     aria-selected={shown?.id === c.id}
+                                    tabIndex={shown?.id === c.id || (!here && i === 0) ? 0 : -1}
                                     onClick={() => setRule(c.id)}
                                     className={`cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 text-sm ${shown?.id === c.id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
                                   >
@@ -175,6 +215,8 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
 
                 <SoloTrend runs={data.recentImprov} />
               </>
+            )}
+            </div>
             )}
           </div>
         </SketchBox>

@@ -16,6 +16,25 @@ const ch = (id: string, bar: number, root: string, quality: Quality, beats: numb
   alterations,
 });
 
+const PAIR_QUALITIES: Quality[] = ["maj", "maj7", "6", "m", "m7", "m6", "m7b5", "7"];
+
+/**
+ * A chord and the chord after it, the next root a 4th up, a 5th up, a step up or a half step
+ * up: the moves rules look for (V → I, IV → I, vi → ii, …), in any spelling, quality and length.
+ */
+export const chordPairArb = fc
+  .record({
+    root: fc.constantFrom(...ROOTS),
+    quality: fc.constantFrom(...PAIR_QUALITIES),
+    step: fc.constantFrom("4", "5", "2", "b2"),
+    nextQuality: fc.constantFrom(...PAIR_QUALITIES),
+    beats: fc.integer({ min: 1, max: 4 }),
+  })
+  .map(({ root, quality, step, nextQuality, beats }) => ({
+    chord: ch("p1", 1, root, quality, beats),
+    next: ch("p2", 2, simplifyNote(transpose(root, step)), nextQuality, 4),
+  }));
+
 /** ii–V–I–I in a random key and meter, with an optional chord-tone melody. */
 export const progressionArb = fc
   .record({

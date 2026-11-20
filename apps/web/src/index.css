@@ -105,7 +105,8 @@ html {
   --color-paper-shade: #352f29;
   --color-ink: #e2d5bb;
   --color-ink-soft: #bcab8e;
-  --color-ink-faint: #857967;
+  /* 4.5:1 on paper-light (the cards), so small faint text (octave labels, struck chords) still reads */
+  --color-ink-faint: #948875;
   --color-wash-blue: #7f9ac0;
   --color-wash-mustard: #d2a24e;
   --color-wash-brick: #cf7040;

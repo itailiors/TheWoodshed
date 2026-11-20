@@ -19,7 +19,7 @@ export const STUDY_SHORTCUTS: Shortcut[] = [
 
 export const PRACTICE_SHORTCUTS: Shortcut[] = [
   ["Space", "play / stop"],
-  ["← →", "spice"],
+  ["← →", "reharm level"],
   ["A", "A/B"],
   ["L", "loop move"],
   ["T", "trade 2s/4s"],
@@ -29,6 +29,16 @@ export const PRACTICE_SHORTCUTS: Shortcut[] = [
   ["1–4", "pno/bass/dr/click"],
   ["M", "QWERTY keys"],
   ["Esc", "study"],
+  ["?", "this list"],
+];
+
+/** Coach's Learn stage (the LessonStepper). Space/Enter on a focused button press that button instead. */
+export const COACH_LEARN_SHORTCUTS: Shortcut[] = [
+  ["← →", "back / next step"],
+  ["Enter", "next step (on a question: Show me, then reveal)"],
+  ["Space", "▶ hear the step"],
+  ["Esc", "close a word's note"],
+  ["M", "QWERTY keys"],
   ["?", "this list"],
 ];
 
