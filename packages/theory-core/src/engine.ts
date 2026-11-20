@@ -1,10 +1,12 @@
 import { chordTones, guideTones, symbol } from "./chords";
+// barrel-free on purpose: `learn/index` reaches the ruleset through the concept graph (a cycle)
+import { lessonForMove } from "./learn/ruleLesson";
 import { classifyNote } from "./melody";
 import { pitchClass } from "./pitch";
 import type { Proposal, Rule } from "./ruleKit";
 import { RULES } from "./ruleset";
 import { absBeat, eventSpan, melodyIn, posFromAbs, sortedHarmony } from "./time";
-import type { ChordEvent, MelodyCheck, ReharmMove, RejectedMove, Tune } from "./types";
+import type { ChordEvent, MelodyCheck, MoveText, ReharmMove, RejectedMove, Tune } from "./types";
 import { motionCost, nearestMotion } from "./voiceLeading";
 
 export interface GenerateResult {
@@ -127,6 +129,25 @@ function buildMove(tune: Tune, rule: Rule, priority: number, p: Proposal, chords
     },
     voiceLeading: p.voiceLeading ?? gtMotion,
     facts: p.facts,
-    text: p.text,
+    text: moveText(rule, p),
   };
+}
+
+/**
+ * The move's words. A rule with a lesson gets them from the lesson, so the card, the Deep Dive
+ * draft and the lesson can't drift apart: summary = headline, theory = the steps in order,
+ * recreateRule = the rule, insight = the deeper line. Any other rule writes its own `text`.
+ */
+function moveText(rule: Rule, p: Proposal): MoveText {
+  const lesson = lessonForMove({ ruleId: rule.id, facts: p.facts });
+  if (lesson) {
+    return {
+      summary: lesson.headline,
+      theory: lesson.steps.map((s) => s.text).join(" "),
+      recreateRule: lesson.rule,
+      ...(lesson.deeper ? { insight: lesson.deeper } : {}),
+    };
+  }
+  if (!p.text) throw new Error(`Rule ${rule.id} has no lesson for this move and wrote no text`);
+  return p.text;
 }

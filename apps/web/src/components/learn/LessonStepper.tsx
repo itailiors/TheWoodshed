@@ -54,6 +54,11 @@ export interface LessonStepperProps {
    * `audition` and "Step by step ›", which opens the steps. Default false.
    */
   folded?: boolean;
+  /**
+   * Show the headline in the folded view. Default true. Study passes false: since 4a its card face
+   * already prints the move's summary, which IS the lesson headline, right above.
+   */
+  showHeadline?: boolean;
   /** ▶ Before / ▶ After for the folded view. Study leaves it out: its card face already has them. */
   audition?: ReactNode;
   /** One line above the steps, e.g. "A rough run in A♭: the steps are open again." */
@@ -119,9 +124,11 @@ function Depth(props: LessonStepperProps) {
     return (
       <div ref={foldedRoot} data-lesson-folded={lesson.conceptId} data-variant={variant} className={`text-ink ${full ? "space-y-3" : "space-y-2"}`}>
         {full && <p className="font-marker text-lg font-bold">{learnName(lesson.conceptId)}</p>}
-        <p className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`} data-lesson-headline>
-          {lesson.headline}
-        </p>
+        {props.showHeadline !== false && (
+          <p className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`} data-lesson-headline>
+            {lesson.headline}
+          </p>
+        )}
         <RuleBox lesson={lesson} label={props.ruleLabel ?? "The rule"} />
         {audition}
         <button

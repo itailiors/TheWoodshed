@@ -119,6 +119,13 @@ export interface RulePedagogy {
   bandstandCue: string;
 }
 
+/**
+ * A move's words: the card's line, the Deep Dive draft (`buildFacts` sends it as `draft`) and the
+ * demo's template explanation. For a rule with a lesson, `buildMove` assembles it from the lesson,
+ * so there is one source: summary = headline, theory = the steps' text in order, recreateRule = the
+ * rule, insight = the deeper line (absent when the lesson has none). Rules without a lesson write
+ * it by hand in `Proposal.text`.
+ */
 export interface MoveText {
   summary: string;
   theory: string;

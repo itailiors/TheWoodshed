@@ -221,6 +221,8 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
           midiConnected={midiConnected}
           ruleLabel="Recreate it"
           folded={!depth!.open}
+          // the face's summary above is the lesson headline (move.text comes from the lesson): don't print it twice
+          showHeadline={false}
           notice={depth!.rough ? roughRunLine(prettyNote(depth!.rough.keyTonic)) : undefined}
           onFinish={doneWithLesson}
           focusOnOpen
@@ -228,8 +230,7 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
             <>
               <MelodyCheck move={move} />
               <VoiceLeadingGrid move={move} />
-              {/* the lesson's own deeper line already says what the insight says (tritone sub, secondary dominant) */}
-              {!lesson.deeper && <Insight text={move.text.insight} />}
+              {/* no 💡 insight here: for a lessoned move it IS the lesson's deeper line, already shown */}
               <DeepDive key={tuneId} tuneId={tuneId} move={move} />
             </>
           }
@@ -313,7 +314,10 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
             )}
           </div>
 
-          <p className="mt-2 text-[15px] leading-snug">{move.text.summary}</p>
+          {/* for a rule with a lesson this is the lesson's headline (theory-core buildMove) */}
+          <p className="mt-2 text-[15px] leading-snug" data-move-summary>
+            {move.text.summary}
+          </p>
         </button>
 
         <BeforeAfter move={move} target={target} />

@@ -50,7 +50,7 @@ export const backdoorTwoFive: Rule = {
     const split = splitBeats(chord.beats);
     const bVII = mk(bVIIRoot, "7", split ? split[1] : chord.beats, ["9"]);
     const chords = split ? [mk(ivRoot, "m7", split[0]), bVII] : [bVII];
-    const [b7third, b7seventh] = guideTones(bVII).map((g) => g.note);
+    const b7seventh = guideTones(bVII)[1].note;
     // the original dominant's 3rd, spelled as the chart spells it (D♭7 → F♯ gives F, not E♯)
     const leadingTone = guideTones(chord)[0].note;
     const learn: BackdoorLearn = {
@@ -78,15 +78,7 @@ export const backdoorTwoFive: Rule = {
         guideToneChain: chain(guideTones(chords[0]).map((g) => g.note), [...chords.slice(1), next]),
         learn,
       },
-      text: {
-        summary: `Come in through the back door: ${chords.map(ps).join(" → ")} → ${ps(next)}, instead of ${ps(chord)} → ${ps(next)}.`,
-        theory:
-          `${split ? `${ps(chords[0])} and ` : ""}${ps(bVII)} are borrowed from ${pn(T)} minor (iv and ♭VII7). ` +
-          `${ps(bVII)} has no leading tone. Its ♭7 (${pn(b7seventh)}) falls a half step to ${pn(transpose(T, "5"))}, the 5th of ${pn(T)}, ` +
-          `its 3rd (${pn(b7third)}) moves a step into the tonic chord, and the root rises a whole step home. ` +
-          `It's a darker, bluesier cadence than ${ps(chord)} → ${ps(next)}, where ${pn(leadingTone)} rises into ${pn(T)}.`,
-        recreateRule: "For a major I, approach from iv m7 → ♭VII7: the minor chord a 4th above the tonic, then the dominant a whole step below it.",
-      },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -208,15 +200,8 @@ export const borrowedIv: Rule = {
       category: "modal",
       styleTags: ["modal-interchange", "standard", "gospel"],
       chords,
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
       facts: { target: ps(next), iv: ps(iv), chromaticLine: line, learn },
-      text: {
-        summary: `Darken the IV on its way home: ${chords.map(ps).join(" → ")} → ${ps(next)}.`,
-        theory:
-          `${ps(iv)} is the IV chord borrowed from ${pn(next.root)} minor. Its only change is the 3rd: ${pn(line[0])} drops a half step to ${pn(line[1])}, ` +
-          `which then falls again to ${pn(line[2])}, the 5th of ${ps(next)}. That inner line (6 → ♭6 → 5 in the home key) is the sound of the minor plagal cadence, ` +
-          `bittersweet rather than final.`,
-        recreateRule: "When IV goes to I, make it minor (iv6) on the way. The 3rd of IV slides down a half step, then another into the tonic's 5th.",
-      },
     };
   },
 };

@@ -56,6 +56,8 @@ test("Why it works steps through the lesson: one step at a time, the ask waits, 
   const n = lesson.steps.length;
   const ask = askIndex(lesson);
   expect(ask).toBeGreaterThan(0);
+  // one source of words (4a): the card face's line is the lesson's headline
+  await expect(card.locator("[data-move-summary]")).toHaveText(lesson.headline);
 
   const why = card.getByRole("button", { name: /Why it works/ });
   await expect(why).toHaveAccessibleName(new RegExp(`Why it works \\(${n} steps\\)`));
@@ -227,7 +229,7 @@ async function setExplanations(page: Page, label: "Step by step" | "Just the rul
   await expect(gear).toHaveAttribute("aria-expanded", "false");
 }
 
-test('⚙ "Just the rule" folds the Study lesson to headline + rule + "Step by step ›", and survives a reload', async ({ page }) => {
+test('⚙ "Just the rule" folds the Study lesson to rule + "Step by step ›" under the headline, and survives a reload', async ({ page }) => {
   const errors: string[] = [];
   page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -242,7 +244,9 @@ test('⚙ "Just the rule" folds the Study lesson to headline + rule + "Step by s
   const folded = card.locator("[data-lesson-folded]");
   await expect(folded).toBeVisible();
   await expect(card.locator("[data-lesson-stepper]")).toHaveCount(0);
-  await expect(folded.locator("[data-lesson-headline]")).toHaveText(lesson.headline);
+  // the headline is the card face's line (4a: move.text.summary IS the lesson headline), not repeated in the fold
+  await expect(card.locator("[data-move-summary]")).toHaveText(lesson.headline);
+  await expect(folded.locator("[data-lesson-headline]")).toHaveCount(0);
   await expect(folded.getByText("Recreate it")).toBeVisible();
   await expect(folded.getByText(lesson.rule)).toBeVisible();
   // ▶ Before / After stay on the card face, right above

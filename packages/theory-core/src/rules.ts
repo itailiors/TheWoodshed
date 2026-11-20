@@ -27,7 +27,7 @@ export const secondaryTwoFive: Rule = {
     whyItWorks: "Splitting one chord into a fifth-falling ii–V doubles harmonic momentum and creates a smooth 7th → 3rd guide-tone chain.",
     bandstandCue: "From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
   },
-  propose({ tune, chord, prev, next }) {
+  propose({ chord, prev, next }) {
     if (!next) return null;
     const tMajor = isMajorQ(next.quality);
     const tMinor = isMinorQ(next.quality);
@@ -72,22 +72,11 @@ export const secondaryTwoFive: Rule = {
         category: "functional",
         styleTags: ["bebop", "standard"],
         chords: [iiChord, vChord],
-        facts,
-        text: {
-          summary: `Put the related ii in front of the dominant: ${ps(iiChord)} → ${ps(vChord)} → ${ps(next)}.`,
-          theory:
-            `${ps(chord)} already resolves down a 5th to ${ps(next)}. Every dominant has a "related ii", the minor chord a 5th above its root. ` +
-            `Inserting it turns one chord into a full ii–V and doubles the forward motion.` +
-            (tMinor ? ` The target is minor, so the ii is half-diminished (${ps(iiChord)}), borrowed from ${pn(next.root)} harmonic minor.` : "") +
-            ` Guide tones: ${gtChain}.`,
-          recreateRule:
-            "Any dominant can borrow its related ii: the minor 7 chord a 5th above its root (m7♭5 if the target is minor).",
-        },
+        facts, // the words come from the lesson (learn/lessons/rules.ts), in buildMove
       };
     }
 
     const r = romanName(next);
-    const intoTonic = chroma(next.root) === chroma(tune.key.tonic);
     return {
       title: r ? `ii–V into the ${r}` : `ii–V into ${ps(next)}`,
       level: 2,
@@ -95,18 +84,6 @@ export const secondaryTwoFive: Rule = {
       styleTags: ["bebop", "standard"],
       chords: [iiChord, vChord],
       facts,
-      text: {
-        summary: `Replace ${ps(chord)} with the target's own ii–V: ${ps(iiChord)} → ${ps(vChord)} → ${ps(next)}.`,
-        theory:
-          (intoTonic
-            ? `${ps(next)} is the tonic, home. Its own ii–V is the strongest way back there: `
-            : `${ps(next)}${r ? ` is the ${r} chord.` : "."} Putting its own ii–V in front briefly makes it sound like home: `) +
-          `${pn(V)} is a perfect 5th above ${pn(next.root)}, and ${pn(ii)} is a 5th above that. ` +
-          `The guide tones barely move: ${gtChain}. ` +
-          `You give up the colour of ${ps(chord)} and get the strongest pull in tonal harmony instead: the root falls a 5th, twice.`,
-        recreateRule:
-          "Any major or minor chord can get its own ii–V: from the target, go up a 5th for the V and another 5th for the ii.",
-      },
     };
   },
 };
@@ -168,12 +145,6 @@ export const secondaryDominant: Rule = {
       guideToneChain: gtChain,
       learn,
     };
-    const change = [
-      raised && `its ${pn(raised[0])} rises to ${pn(raised[1])}`,
-      lowered && `its ${pn(lowered[0])} drops to ${pn(lowered[1])}`,
-    ]
-      .filter(Boolean)
-      .join(" and ");
 
     return {
       title: r ? `Make it the V of ${r}` : `Make it the V of ${ps(next)}`,
@@ -181,28 +152,12 @@ export const secondaryDominant: Rule = {
       category: "functional",
       styleTags: ["standard", "bebop", "gospel"],
       chords: [dom],
-      facts,
-      text: {
-        summary: `Play ${ps(chord)} as ${ps(dom)}, the dominant of ${ps(next)}.`,
-        theory:
-          `${ps(chord)} already sits a 5th above ${ps(next)}, so one change is enough: ${change || `add the ♭7 (${pn(seventh.note)})`}, and it becomes ${ps(next)}'s own dominant. ` +
-          `${pn(third.note)}, the new 3rd, is a half step below ${pn(next.root)}: the leading tone of the chord you're about to land on. ` +
-          `Guide tones: ${gtChain}.` +
-          (tMinor ? ` The target is minor, so the dominant takes the ♭9 (${pn(transpose(chord.root, "b9"))}) from ${pn(next.root)} harmonic minor.` : ""),
-        recreateRule:
-          "If a chord's root falls a 5th into the next chord, you can keep the root and make it a dominant 7: raise a minor 3rd, flatten a major 7th. Add the ♭9 when the target is minor.",
-        insight: tMinor
-          ? `Over ${ps(dom)}, play ${pn(chord.root)} Phrygian dominant: the 5th mode of ${pn(next.root)} harmonic minor.`
-          : `This is the first step of backing up the circle: give the ${ps(dom)} its own related ii and you have the full secondary ii–V.`,
-      },
+      facts, // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
 
 // ── Rule 2: tritone substitution ───────────────────────────────────────
-/** " (spelled F♭ there)" when the shared key changes spelling between the two chords, else "". */
-const respell = (from: string, to: string) => (pn(from) === pn(to) ? "" : ` (spelled ${pn(to)} there)`);
-
 export const tritoneSub: Rule = {
   id: "dominant.tritoneSub",
   name: "Tritone substitution",
@@ -241,21 +196,8 @@ export const tritoneSub: Rule = {
       category: "dominant-sub",
       styleTags: ["bebop"],
       chords: [sub],
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
       facts: { original: symbol(chord), sub: symbol(sub), sharedTritone: [o3, o7], parentMelodicMinor: mm, learn },
-      text: {
-        summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a tritone away.`,
-        theory:
-          `${ps(chord)} and ${ps(sub)} share the same two guide tones, a tritone apart, with the roles swapped. ` +
-          `${pn(o3)}, the 3rd of ${ps(chord)}, is the ♭7 of ${ps(sub)}${respell(o3, s7)}; ` +
-          `${pn(o7)}, the ♭7 of ${ps(chord)}, is the 3rd of ${ps(sub)}${respell(o7, s3)}. ` +
-          `That tritone is what makes a dominant want to resolve, so the substitute still lands on ${ps(next)}. ` +
-          `The difference is the bass, which now slides down a half step (${pn(subRoot)} → ${pn(next.root)}) instead of falling a 5th.`,
-        recreateRule:
-          "Any dominant 7 can be replaced by the dominant 7 a tritone (♭5) away. The 3rd and ♭7 swap roles, and the bass moves by a half step.",
-        insight:
-          `${pn(subRoot)} Lydian dominant uses exactly the same 7 notes as ${pn(chord.root)} altered: both are modes of ${pn(mm)} melodic minor. ` +
-          `Soloing over the sub is the same as playing altered over the original.`,
-      },
     };
   },
 };

@@ -6,7 +6,8 @@ import { buildFacts } from "../src/explain";
 // The Deep Dive cache key is sha256(PROMPT_VERSION|MODEL|facts), so any change to buildFacts' output rolls every
 // cached explanation. This pin makes that roll deliberate: re-pin it only when the facts are meant to change.
 const TRITONE_SUB = "dominant.tritoneSub@10.1";
-const PINNED_SHA256 = "3330b64541133eb37c136e0b55d3c2e400f064568e5dd68616207c789c4692f8";
+// Re-pinned in 4a (was 3330b645…92f8): the draft (move.text) is now the lesson's words. No API key was configured, so the roll cost nothing.
+const PINNED_SHA256 = "a21b6c389ec47626006c322db39dcba4cec00da600e72a328c0d21d08d26592e";
 
 describe("buildFacts", () => {
   const move = generateMoves(referenceTune).accepted.find((m) => m.id === TRITONE_SUB);
@@ -20,6 +21,11 @@ describe("buildFacts", () => {
     const facts = buildFacts(referenceTune, move!);
     expect(facts.engineFacts).not.toHaveProperty("learn");
     expect(JSON.stringify(facts)).not.toContain('"learn"');
+  });
+
+  it("drafts from the lesson: the draft's summary is the lesson headline", () => {
+    const facts = buildFacts(referenceTune, move!) as { draft: { summary: string } };
+    expect(facts.draft.summary).toBe("Play G♭9 instead of C7. Same two tense notes, but the bass slides down a half step into F6.");
   });
 
   it("is byte-stable for the reference tritone sub (cache keys hold)", () => {

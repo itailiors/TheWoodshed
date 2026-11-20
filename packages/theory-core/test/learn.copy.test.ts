@@ -85,7 +85,7 @@ const fromTunes = [...BUNDLED_TUNES, someday].flatMap((t) =>
   KEYS.flatMap((k) =>
     generateMoves(transposeTune(t, k))
       .accepted.filter((m) => hasRuleLesson(m.ruleId))
-      .map((m) => ({ ruleId: m.ruleId, facts: m.facts, where: `${t.id} in ${k}: ${m.id}` })),
+      .map((m) => ({ ruleId: m.ruleId, facts: m.facts, text: m.text, where: `${t.id} in ${k}: ${m.id}` })),
   ),
 );
 
@@ -175,6 +175,25 @@ describe("lesson copy", () => {
       }
     }
   }, 30_000); // ~3k lessons: seconds alone, longer beside the other suites
+
+  it("a lessoned move's card text is its lesson, so it keeps the same budgets (every bundled tune, 12 keys)", () => {
+    expect(fromTunes.length).toBeGreaterThan(0);
+    for (const { where, text: t, ...m } of fromTunes) {
+      const l = lessonForMove(m)!;
+      expect(t.summary, where).toBe(l.headline);
+      expect(t.recreateRule, where).toBe(l.rule);
+      expect(t.theory, where).toBe(l.steps.map((s) => s.text).join(" "));
+      expect(t.insight, where).toBe(l.deeper);
+      expect(words(t.summary), `${where}: ${t.summary}`).toBeLessThanOrEqual(20);
+      expect(sentences(t.recreateRule), `${where}: ${t.recreateRule}`).toHaveLength(1);
+      for (const text of [t.summary, t.theory, t.recreateRule, t.insight ?? ""].filter(Boolean)) {
+        for (const sentence of sentences(text)) expect(words(sentence), `${where}: ${sentence}`).toBeLessThanOrEqual(25);
+        expect(text, where).not.toMatch(/undefined|NaN|null|\[object|#/);
+        expect(text, where).not.toMatch(BANNED);
+        expect(text, `${where}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/);
+      }
+    }
+  }, 30_000);
 });
 
 describe("the glossary covers what the UI labels", () => {

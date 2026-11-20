@@ -28,7 +28,12 @@ export interface Proposal {
   voicingHints?: Array<{ lh: string[]; rh: string[] }>;
   voiceLeading?: VoiceMotion[];
   facts: Record<string, unknown>;
-  text: MoveText;
+  /**
+   * The move's words, for a rule WITHOUT a lesson. A rule with one (`learn/lessons/rules.ts`, fed
+   * by `facts.learn`) leaves this out: `buildMove` derives the text from the lesson (see `MoveText`).
+   * The engine throws when a lessonless proposal has no text.
+   */
+  text?: MoveText;
 }
 
 export interface Rule {
