@@ -1,6 +1,7 @@
 import { chroma, conceptDrillSteps, conceptKind, KEYS, prettyNote, prettySymbol, RULES, symbol, type ReharmMove, type Tune } from "@reharm/theory-core";
 import { useEffect, useMemo, useState } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
+import { useRevealState } from "../Reveal";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { fetchProgress, onPracticeSaved, type Progress } from "../../library/practice";
@@ -85,6 +86,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   const [ruleId, setRuleId] = useState<string>(initial.ruleId ?? firstTuneMove?.ruleId ?? RULES[0].id);
   const [key, setKey] = useState(initial.key ?? tune.key.tonic);
   const [keyFlow, setKeyFlow] = useState<KeyFlow>("fourths");
+  // the 12-key grid repeats the passport's key matrix, so it waits one click away
+  const [ribbonOpen, setRibbonOpen] = useRevealState("coach.ribbon");
   const touchFirst = useTouchFirst();
 
   const tuneMove = accepted.find((m) => m.id === moveId) ?? firstTuneMove;
@@ -398,10 +401,19 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                   >
                     Next key →
                   </button>
+                  <button
+                    type="button"
+                    aria-expanded={ribbonOpen}
+                    aria-controls="coach-ribbon-keys"
+                    onClick={() => setRibbonOpen(!ribbonOpen)}
+                    className="cursor-pointer rounded-full border border-dashed border-ink-soft px-2.5 py-0.5 text-ink-soft hover:border-ink hover:text-ink"
+                  >
+                    All keys <span aria-hidden>{ribbonOpen ? "▾" : "▸"}</span>
+                  </button>
                 </div>
               </div>
 
-              <ol aria-label="12 keys around the circle" className="grid grid-cols-6 gap-1.5 sm:grid-cols-12">
+              <ol id="coach-ribbon-keys" hidden={!ribbonOpen} aria-label="12 keys around the circle" className="grid grid-cols-6 gap-1.5 sm:grid-cols-12">
                 {ribbonKeys.map((k) => {
                   const isHere = chroma(k) === chroma(key);
                   const isClean = activeCleanSet.has(chroma(k));
@@ -470,11 +482,6 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                 <h3 id="coach-passport-h" className="font-marker text-lg uppercase">
                   {activeRule.name} · passport
                 </h3>
-                {activeRule.pedagogy && (
-                  <p className="mt-0.5 text-xs text-ink-soft">
-                    <span className="font-marker text-ink">{activeRule.pedagogy.formula}</span> · {activeRule.pedagogy.whenToUse}
-                  </p>
-                )}
               </div>
               <KeyMatrix
                 ruleId={activeRuleId}

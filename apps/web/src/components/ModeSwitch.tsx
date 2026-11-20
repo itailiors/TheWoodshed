@@ -1,4 +1,4 @@
-import { ThemeSwitch } from "./ThemeSwitch";
+import { SettingsMenu } from "./SettingsMenu";
 
 export type AppMode = "study" | "practice" | "coach" | "changes" | "voicings";
 
@@ -14,13 +14,13 @@ const MODES: { id: AppMode; label: string; title: string }[] = [
 
 /**
  * Study (Reharm Engine) ↔ Practice (hands on the keys) ↔ Coach (voicing drills) ↔ Changes (the harmony game) ↔ Voicings (the shape library).
- * The colour-scheme slider rides along, so every page that can switch modes can switch themes.
+ * The ⚙ settings menu (colour scheme) rides along, so every page that can switch modes has it.
  */
 export function ModeSwitch({ mode, onMode }: { mode: AppMode; onMode: (m: AppMode) => void }) {
   return (
     <>
       <ModeTabs mode={mode} onMode={onMode} />
-      <ThemeSwitch />
+      <SettingsMenu />
     </>
   );
 }

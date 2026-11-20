@@ -28,6 +28,7 @@ import { useChordStrikes } from "../../midi/noteBus";
 import { useDrillSession } from "../../practice/useDrillSession";
 import { midiName, type MidiStatus } from "../../midi/useMidi";
 import { ChordName } from "../ChordName";
+import { Reveal, useRevealState } from "../Reveal";
 import { phoneKeyboardRows, whiteCount } from "../practice/keyboardRows";
 import { PenKeyboard, type PenKeyboardProps, type PenMark } from "../practice/PenKeyboard";
 import { useNarrow } from "../../device/media";
@@ -102,6 +103,7 @@ export function CoachDrill({
 }: Props) {
   const [transfer, setTransfer] = useState(false);
   const [showHint, setShowHint] = useState(true);
+  const [optionsOpen, setOptionsOpen] = useRevealState("coach.options");
   const [pending, setPending] = useState<number[]>([]);
   /** The step being heard right now ("Hear the move" / "Hear this chord"), or null. */
   const [heard, setHeard] = useState<number | null>(null);
@@ -476,8 +478,9 @@ export function CoachDrill({
         </button>
       </div>
 
-      {/* 12-key transfer controls (the passport beside the drill picks a specific key) */}
-      <div className="flex flex-wrap items-center gap-3 border-t-2 border-dashed border-ink-faint pt-3 text-sm">
+      {/* 12-key transfer controls (the passport beside the drill picks a specific key), one click away */}
+      <Reveal label="Options" open={optionsOpen} onToggle={setOptionsOpen} className="border-t-2 border-dashed border-ink-faint pt-3 text-sm">
+      <div className="mt-2 flex flex-wrap items-center gap-3">
         <button type="button" onClick={() => setKey(randomKey(key))} className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:bg-paper-shade">
           🔀 Random key
         </button>
@@ -498,8 +501,8 @@ export function CoachDrill({
           </label>
         )}
       </div>
+      </Reveal>
       <p className="text-sm text-ink-soft">
-        Think in function, not finger shapes: “{dmove.title}”. The engine has re-spelled every chord and voicing for {keyName(key)}.{" "}
         {studyMode ? (
           "When it sits under your fingers, switch to Play it here or Self-check and run it for real."
         ) : midiStatus === "connected" ? (
@@ -543,6 +546,7 @@ function WhyThisWorksCard({
   keyLabel: string;
   activeStep?: DrillStep;
 }) {
+  const [more, setMore] = useState(false);
   return (
     <aside
       aria-label="Why this move works"
@@ -573,13 +577,23 @@ function WhyThisWorksCard({
 
       <p className="font-medium text-ink">{pedagogy.whyItWorks}</p>
 
-      <p className="text-xs text-ink-soft">
-        <span className="font-marker uppercase text-ink">When to use:</span> {pedagogy.whenToUse}{" "}
-        <span className="text-ink-faint">·</span>{" "}
-        <span className="font-marker uppercase text-ink">Bandstand cue:</span> {pedagogy.bandstandCue}{" "}
-        <span className="text-ink-faint">·</span>{" "}
-        <span className="font-marker uppercase text-ink">In {keyLabel}:</span> {move.text.summary}
-      </p>
+      <button
+        type="button"
+        aria-expanded={more}
+        onClick={() => setMore(!more)}
+        className="cursor-pointer font-marker text-xs text-ink-soft underline decoration-dotted hover:text-ink"
+      >
+        When to use it, and the bandstand cue <span aria-hidden>{more ? "▾" : "▸"}</span>
+      </button>
+      {more && (
+        <p className="text-xs text-ink-soft">
+          <span className="font-marker uppercase text-ink">When to use:</span> {pedagogy.whenToUse}{" "}
+          <span className="text-ink-faint">·</span>{" "}
+          <span className="font-marker uppercase text-ink">Bandstand cue:</span> {pedagogy.bandstandCue}{" "}
+          <span className="text-ink-faint">·</span>{" "}
+          <span className="font-marker uppercase text-ink">In {keyLabel}:</span> {move.text.summary}
+        </p>
+      )}
 
       {activeStep?.stepCue && (
         <div className="mt-1 border-t border-dashed border-ink-faint pt-1.5 text-xs text-ink">
