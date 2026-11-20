@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inRange, inSentence, keyRange, splitOnTerm, stepperKey, type StepperKeyEvent, type StepperKeyState } from "./stepperKeys";
+import { inRange, inSentence, keyRange, lettersFor, splitOnTerm, stepperKey, type StepperKeyEvent, type StepperKeyState } from "./stepperKeys";
 
 const body = (key: string, more: Partial<StepperKeyEvent> = {}): StepperKeyEvent => ({ key, tag: "body", ...more });
 const plain: StepperKeyState = { askOpen: false, showMePulsed: false };
@@ -68,6 +68,18 @@ describe("keyboard range and placement", () => {
     expect(inRange(10, 57, 69)).toBe(58);
     expect(inRange(9, 57, 69)).toBe(57);
     expect(inRange(8, 57, 64)).toBeNull();
+  });
+
+  it("letters the keys the computer keys reach, from the C under A", () => {
+    const labels = { 0: "A", 1: "W", 4: "D", 12: "K" };
+    expect(lettersFor(labels, 60, 59, 72)).toEqual([
+      { midi: 60, label: "A" },
+      { midi: 61, label: "W" },
+      { midi: 64, label: "D" },
+      { midi: 72, label: "K" },
+    ]);
+    // keys outside the range get no letter
+    expect(lettersFor(labels, 60, 62, 70)).toEqual([{ midi: 64, label: "D" }]);
   });
 });
 

@@ -10,6 +10,16 @@
 
 export type StepperAction = "back" | "next" | "hear" | "focusShowMe" | "reveal";
 
+/**
+ * The computer key on each piano key in [low, high]: `labels` maps an offset from `base` (the C
+ * under A) to its letter (qwerty.ts `QWERTY_LABELS`). Pure.
+ */
+export const lettersFor = (labels: Readonly<Record<number, string>>, base: number, low: number, high: number): { midi: number; label: string }[] =>
+  Object.entries(labels).flatMap(([off, label]) => {
+    const midi = base + Number(off);
+    return midi >= low && midi <= high ? [{ midi, label }] : [];
+  });
+
 export interface StepperKeyEvent {
   key: string;
   /** Lower-cased tag name of the focused element ("button", "a", "input", "body", …). */

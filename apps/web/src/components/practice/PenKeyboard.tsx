@@ -56,6 +56,8 @@ export interface PenKeyboardProps {
   hands?: HandMark[];
   /** Labels written ON the keys (a lesson step's lit keys: "3rd", "♭9"), at the foot of each key. */
   keyLabels?: PenMark[];
+  /** The computer key that plays each key (QWERTY on), small, near the top of the key. */
+  keyLetters?: PenMark[];
 }
 
 function layout(low: number, high: number) {
@@ -90,6 +92,7 @@ export function PenKeyboard({
   hands = [],
   short = false,
   keyLabels = [],
+  keyLetters = [],
 }: PenKeyboardProps) {
   const WH = short ? 60 : WH_FULL;
   const BH = short ? 38 : BH_FULL;
@@ -126,7 +129,8 @@ export function PenKeyboard({
       for (const k of keys.filter((k) => !k.black)) {
         // a lit key's hachure sits on the key's own colour, not on the page (dark in Northgate, where the gaps read as brown)
         if (pend.has(k.midi)) add(rc.rectangle(k.x, TOP, WW, WH, { stroke: "none", seed: seedOf("pwb" + k.midi), fill: keyTone.white, fillStyle: "solid", roughness: 0 }));
-        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
+        // a lit key also gets a heavier outline, so lit vs unlit never rests on the wash's colour alone (WCAG 1.4.11; faint in Northgate)
+        add(rc.rectangle(k.x, TOP, WW, WH, { ...base, ...(pend.has(k.midi) ? { strokeWidth: 2.6 } : {}), seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
         // a watercolour wash on the visible part of the key (below the black keys)
         const fill = pend.has(k.midi) ? null : handWash(k.midi);
         if (fill) add(rc.rectangle(k.x + 2, TOP + BH + 2, WW - 4, WH - BH - 4, { stroke: "none", seed: seedOf("pwf" + k.midi), fill, fillStyle: "hachure", hachureGap: 3, fillWeight: 1.6, roughness: 0.9 }));
@@ -243,6 +247,25 @@ export function PenKeyboard({
         </g>
       )}
       <g ref={marks} />
+      {keyLetters.filter(here).map((mk) => {
+        const k = pos.get(mk.midi)!;
+        return (
+          <text
+            key={`kq${mk.midi}`}
+            data-key-letter={mk.label}
+            x={k.x + (k.black ? BW : WW) / 2}
+            // black keys: near their top; white keys: just below the black keys, clear of the foot labels
+            y={TOP + (k.black ? 11 : BH + 11)}
+            textAnchor="middle"
+            fontSize={9}
+            fill={k.black && !pending.includes(mk.midi) ? keyTone.white : keyTone.soft}
+            className="pointer-events-none font-hand"
+            aria-hidden
+          >
+            {mk.label}
+          </text>
+        );
+      })}
       {keyLabels.filter(here).map((mk) => {
         const k = pos.get(mk.midi)!;
         return (

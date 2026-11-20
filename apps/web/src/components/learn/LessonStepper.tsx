@@ -4,7 +4,7 @@ import { SketchBox } from "../../design/rough";
 import { seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
 import { readLessonFlags, updateLessonFlag } from "../../learn/lessonFlags";
-import { useQwerty } from "../../midi/qwerty";
+import { QWERTY_LABELS, useQwerty } from "../../midi/qwerty";
 import { countLearning } from "../../usage/panelOpens";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
 import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
@@ -13,7 +13,7 @@ import { GlossText } from "./GlossText";
 import { KeyCentreMap } from "./KeyCentreMap";
 import { placeHighlights, playStep, stepAudioGen, stopStepAudio, type LessonAudioContext } from "./lessonAudio";
 import { askIsOpen, pressKey } from "./stepperInput";
-import { inRange, inSentence, keyEventOf, keyRange, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
+import { inRange, inSentence, keyEventOf, keyRange, lettersFor, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
 import { notLine, useTapAnswer } from "./useTapAnswer";
 
 /*
@@ -172,6 +172,20 @@ const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -
 /** An answer key as the lesson text prints it: answers stay engine-spelled for matching, but B♭♭ reads A. */
 const answerName =(n: string) => prettyNote(readable(n));
 
+/**
+ * A wrong key, with a reason when the step itself names that note: "Not F, the 7th: close, not this
+ * one." A plausible miss (a real chord tone, just not the asked one) then reads as close, not as the
+ * app being wrong (P6 beginner review). Otherwise plain "Not F". Pure.
+ */
+function wrongLine(step: LessonStep, pc: number): string {
+  const placed = placeHighlights(step.highlight);
+  const i = placed.findIndex((m) => ((m % 12) + 12) % 12 === pc);
+  const label = i >= 0 ? step.highlight[i].label : "";
+  // only a chord role ("7th", "♭9", "root") says why; a note name or "new"/"home" would just repeat the key
+  const role = /^(?:[♭♯]?\d+(?:st|nd|rd|th)?|root)$/.test(label);
+  return role ? `${notLine(pc)}, the ${label}: close, not this one.` : notLine(pc);
+}
+
 /** The marks a step puts on the keyboard. Pure. */
 function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean, hits: number[], wrong: number | null) {
   const placed = placeHighlights(step.highlight);
@@ -222,7 +236,8 @@ function Stepper({
   const narrow = useNarrow();
   const touchFirst = useTouchFirst();
   const deeperId = useId();
-  const qwertyOn = useQwerty().enabled;
+  const qwerty = useQwerty();
+  const qwertyOn = qwerty.enabled;
   const heading = useRef<HTMLHeadingElement>(null);
   const showMe = useRef<HTMLButtonElement>(null);
   const focusAfter = useRef(false);
@@ -304,12 +319,19 @@ function Stepper({
   };
 
   const tap = useTapAnswer(step.ask?.answer, askOpen, () => reveal("answered"), at);
+  // the ghost key fades after a moment; the red-pen line (with its reason) stays until the next key or step
+  const [lastWrong, setLastWrong] = useState<number | null>(null);
   useEffect(() => {
-    if (tap.wrong !== null) setStatus(notLine(tap.wrong));
+    if (tap.wrong === null) return;
+    setLastWrong(tap.wrong);
+    setStatus(wrongLine(step, tap.wrong));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tap.wrong]);
+  useEffect(() => setLastWrong(null), [tap.hits.length]);
 
   const go = (i: number) => {
     if (i < 0 || i > last || i === at) return;
+    setLastWrong(null);
     setAt(i);
     setFurthest((f) => Math.max(f, i));
     setPulsed(false);
@@ -351,6 +373,8 @@ function Stepper({
   useEffect(() => {
     if (variant !== "full") return;
     const onKey = (e: KeyboardEvent) => {
+      // a tablist's arrows (tabKeys.ts) or a popover already used this key
+      if (e.defaultPrevented) return;
       const ke = keyEventOf(e);
       if (e.key === "?" && !ke.altKey && !ke.ctrlKey && !ke.metaKey && !["input", "textarea", "select"].includes(ke.tag)) {
         e.preventDefault();
@@ -433,6 +457,8 @@ function Stepper({
         short={narrow}
         pending={lit.map((l) => l.midi)}
         keyLabels={lit}
+        // computer keys on: each key shows its letter (A = C …), so nobody has to guess which letter is E
+        keyLetters={qwerty.enabled ? lettersFor(QWERTY_LABELS, qwerty.base, low, high) : []}
         target={ghost !== null ? [ghost] : []}
         // the tick goes on the keys that answered the ask, not on every lit key
         ticks={revealed[at] === "answered" && step.ask ? lit.map((l) => l.midi).filter((m) => step.ask!.answer.some((n) => chroma(n) === m % 12)) : []}
@@ -486,9 +512,9 @@ function Stepper({
             {/* the answer's dashed line; a wrong key is crossed out on it in red pen (announced by the status line) */}
             <p aria-hidden className="mt-1 flex items-baseline justify-between border-b-2 border-dashed border-ink-faint text-ink-faint">
               <span>?</span>
-              {tap.wrong !== null && (
-                <span key={tap.wrong} data-wrong-key className="font-marker text-base text-pen motion-safe:animate-[pulse_0.6s_ease-out_1]">
-                  ✗ {notLine(tap.wrong)}
+              {lastWrong !== null && (
+                <span key={lastWrong} data-wrong-key className="font-marker text-base text-pen motion-safe:animate-[pulse_0.6s_ease-out_1]">
+                  ✗ {wrongLine(step, lastWrong)}
                 </span>
               )}
             </p>
