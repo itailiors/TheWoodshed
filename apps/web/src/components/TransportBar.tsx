@@ -1,4 +1,3 @@
-import { useState } from "react";
 import type { PlaybackStatus } from "../audio/usePlayback";
 import { useNarrow, useTouchFirst } from "../device/media";
 import type { CountInBars, CountState, InstrumentSource } from "../audio/player";
@@ -9,6 +8,7 @@ import { BeatPulse, CountInDisplay, CountInPicker } from "./BeatPulse";
 import { LoadingLine } from "./LoadingLine";
 import { MidiMonitorToggle } from "./MidiMonitorToggle";
 import { QwertyToggle } from "./QwertyToggle";
+import { useRevealState } from "./Reveal";
 import { TrioMixer } from "./TrioMixer";
 import { VolumeMixer } from "./VolumeMixer";
 
@@ -42,9 +42,11 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
   const playing = status === "playing";
   const narrow = useNarrow();
   const touchFirst = useTouchFirst();
-  // phones: Play and tempo stay out; the band, count-in, loop and inputs fold away
-  const [more, setMore] = useState(false);
-  const extras = !narrow || more;
+  // Play, tempo and volume stay out. The band mixer, count-in and loop fold behind "Band" on every
+  // width (set once, rarely touched); phones fold the inputs too, desktops keep MIDI and QWERTY out.
+  const [more, setMore] = useRevealState("transport.band");
+  const extras = more;
+  const inputs = !narrow || more;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-2 font-marker">
       <button
@@ -78,16 +80,14 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
 
       <VolumeMixer beatsPerBar={pulse.beatsPerBar} />
 
-      {narrow && (
-        <button
-          type="button"
-          aria-expanded={more}
-          onClick={() => setMore((m) => !m)}
-          className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 text-sm"
-        >
-          {more ? "▴ Fewer controls" : "▾ Band & input"}
-        </button>
-      )}
+      <button
+        type="button"
+        aria-expanded={more}
+        onClick={() => setMore(!more)}
+        className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-0.5 text-sm hover:border-ink"
+      >
+        {more ? "▴ Fewer controls" : narrow ? "▾ Band & input" : "▾ Band"}
+      </button>
 
       {extras && (
         <>
@@ -103,7 +103,11 @@ export function TransportBar({ status, source, bandSource = null, onToggle, temp
             />
             Loop selected move
           </label>
+        </>
+      )}
 
+      {inputs && (
+        <>
           {/* iPhone and iPad Safari have no Web MIDI at all: no button to press in vain */}
           {!(touchFirst && midi.status === "unsupported") && (
           <button
