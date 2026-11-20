@@ -203,11 +203,16 @@ export interface PassingDiminishedLearn {
   impliedV7: string;
   impliedVPlain: string;
   roles: string[];
+  /**
+   * Ascending: the °7's keys spelled as the implied V7(♭9)'s 3rd, 5th, ♭7 and ♭9, in that order (the
+   * °7's own order too), double accidentals respelled: B♯ D♯ F♯ A for Cdim7 over G♯. Null going down.
+   */
+  vTones: [string, string, string, string] | null;
   /** Each dim tone into the target, by nearest motion. */
   motions: VoiceMotion[];
   /**
-   * Ascending, the dominant's pull: its 3rd (the bass, the leading tone) up to the target's root,
-   * its ♭9 down to the target's 5th. Named, not nearest: C♯ is as near to C as to D in Dm7.
+   * Ascending, the dominant's pull (from `vTones`): its 3rd (the bass, the leading tone) up to the target's
+   * root, its ♭9 down to the target's 5th. Named, not nearest: C♯ is as near to C as to D in Dm7.
    */
   pull: [VoiceMotion, VoiceMotion] | null;
   /** The target's tones the °7 already holds (target spelling), with their degree in the target. */

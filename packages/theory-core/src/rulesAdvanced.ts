@@ -260,6 +260,8 @@ export const passingDiminished: Rule = {
     const tones = dimTones(dim).map((t) => t.note);
     const V7 = mk(V, "7", 1, [], ["b9"]);
     const vTones = chordTones(V7);
+    // going up, the °7's keys spelled as the V7(♭9) they are (B♯ D♯ F♯ A over G♯, not C E♭ G♭ A): 3rd, 5th, ♭7, ♭9
+    const upper = vTones.filter((t) => t.degree !== "1").map((t) => readable(t.note));
     const targetTones = chordTones(next);
     const motions = tones.map((n) => nearestMotion(n, targetTones));
     const learn: PassingDiminishedLearn = {
@@ -276,12 +278,13 @@ export const passingDiminished: Rule = {
       impliedVPlain: symbol(mk(V, "7", 1)),
       // going up the °7 is V7(♭9) without its root: its tones are that chord's 3rd, 5th, ♭7 and ♭9
       roles: ascending ? tones.map((n) => vTones.find((t) => chroma(t.note) === chroma(n))!.degree) : [],
+      vTones: ascending ? [upper[0], upper[1], upper[2], upper[3]] : null,
       motions,
       pull: ascending
         ? [
-            nearestMotion(tones[0], targetTones.filter((t) => t.degree === "1")),
+            nearestMotion(upper[0], targetTones.filter((t) => t.degree === "1")),
             // to the target's 5th (the V's root); a target with an altered 5th takes the nearest tone
-            nearestMotion(tones[3], targetTones.some((t) => chroma(t.note) === chroma(V)) ? targetTones.filter((t) => chroma(t.note) === chroma(V)) : targetTones),
+            nearestMotion(upper[3], targetTones.some((t) => chroma(t.note) === chroma(V)) ? targetTones.filter((t) => chroma(t.note) === chroma(V)) : targetTones),
           ]
         : null,
       shared: targetTones.filter((t) => tones.some((n) => chroma(n) === chroma(t.note))).map((t) => ({ note: t.note, degree: t.degree })),

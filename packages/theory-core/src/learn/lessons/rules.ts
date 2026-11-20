@@ -484,14 +484,19 @@ function passingDiminished(f: PassingDiminishedLearn): Lesson {
   if (f.ascending) {
     // going up, the °7 is the target's V7(♭9) without its root: its 3rd rises home, its ♭9 falls to the 5th
     const [lead, flatNine] = f.pull!;
+    const v = f.vTones!;
+    // spelled as the V7(♭9)'s own 3rd, 5th, ♭7 and ♭9, so the intervals match the claim; the first key
+    // that the °7's own spelling names differently gets its twin (B♯, same key as C, under Cdim7)
+    const twinAt = v.findIndex((n, k) => pn(n) !== pn(f.dimTones[k]));
+    const named = v.map((n, k) => (k === twinAt ? twin(n, f.dimTones[k]) : pn(n)));
     return {
       conceptId: "chromatic.passingDiminished",
       headline,
       steps: [
         gap,
         {
-          text: `${f.dimTones.map(pn).join(", ")} are ${ps(f.impliedV7)} without ${pn(f.impliedV)}: its ${listOf(f.roles.map(degreeWord))}.`,
-          highlight: [hl(f.impliedV, "V"), hl(f.dimTones[0], degreeWord(f.roles[0])), hl(f.dimTones[2], degreeWord(f.roles[2])), hl(f.dimTones[3], degreeWord(f.roles[3]))],
+          text: `${named.join(", ")} are ${ps(f.impliedV7)} without ${pn(f.impliedV)}: its ${listOf(f.roles.map(degreeWord))}.`,
+          highlight: [hl(f.impliedV, "V"), hl(v[0], degreeWord(f.roles[0])), hl(v[2], degreeWord(f.roles[2])), hl(v[3], degreeWord(f.roles[3]))],
           ask: { kind: "tapNotes", prompt: `${dim} is a dominant without its root. Tap that root: the V of ${target}.`, answer: [f.impliedV] },
           prereqLink: "functional.secondaryDominant",
         },

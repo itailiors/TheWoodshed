@@ -35,7 +35,7 @@ import {
   type TritoneSubLearn,
 } from "../src/learn";
 import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES, readable } from "../src/learn/lesson";
-import { chroma, mod, transpose } from "../src/pitch";
+import { chroma, intervalName, mod, transpose } from "../src/pitch";
 import { chainMotions as chainMotionsOf, type Rule } from "../src/ruleKit";
 import { gospelTurnaround, rootlessTwoFiveOne, secondaryDominant, secondaryTwoFive, tritoneSub, upperStructure, upperStructureII } from "../src/rules";
 import {
@@ -609,6 +609,13 @@ describe("lesson notes are the engine's notes, in every key", () => {
           [chroma(f.impliedV), -1],
         ]);
         for (const n of f.dimTones) expect(doubled(n), n).toBe(false);
+        // each key named is spelled as its role above the implied V (B♯ is G♯7's 3rd, never C), the same keys as the °7
+        f.vTones!.forEach((n, k) => {
+          expect(intervalName(f.impliedV, n), `${T}: ${n} over ${f.impliedV}`).toBe(f.roles[k] === "b9" ? "b2" : f.roles[k]);
+          expect(chroma(n)).toBe(chroma(f.dimTones[k]));
+          expect(doubled(n), n).toBe(false);
+        });
+        expect(f.pull!.map((p) => p.from)).toEqual([f.vTones![0], f.vTones![3]]);
       }),
     );
     // falling, the °7 is never called a dominant, and its own tones are flat-side (E♭ G♭ A C), with no double accidental
