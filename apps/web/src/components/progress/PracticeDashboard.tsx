@@ -1,11 +1,12 @@
 import { CONCEPT_FAMILIES, conceptKind, conceptName as ruleName, prettyNote } from "@reharm/theory-core";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { countOpen } from "../../usage/panelOpens";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
 import { KeyMatrix } from "./KeyMatrix";
-import { fetchProgress, forgetLocalPractice, onPracticeSaved, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
+import { forgetLocalPractice, type DueItem, type ImprovRun, type Progress, type Review } from "../../library/practice";
+import { progressSnapshot, refreshProgress, subscribeProgress } from "../../learn/progressStore";
 
 import type { PractiseRequest } from "./KeyMatrix";
 export type { PractiseRequest } from "./KeyMatrix";
@@ -68,28 +69,21 @@ export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props)
     if (t === "path" && tab !== "path") countOpen("passport.path");
     setTab(t);
   };
-  const [data, setData] = useState<Progress | null>(null);
-  const [failed, setFailed] = useState(false);
+  // the page's one shared passport read (progressStore): already fresh after every saved run
+  const { progress: data, loading } = useSyncExternalStore(subscribeProgress, progressSnapshot);
+  const failed = !loading && !data;
   const [rule, setRule] = useState<string | null>(null);
   const now = Date.now();
 
+  // the last read failed (API down): opening the passport tries again, once
   useEffect(() => {
-    let live = true;
-    const load = () =>
-      void fetchProgress().then((p) => {
-        if (!live) return;
-        setFailed(!p);
-        if (p) setData(p);
-      });
-    load();
-    const off = onPracticeSaved(load);
+    if (!progressSnapshot().loading && !progressSnapshot().progress) refreshProgress();
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    return () => {
-      live = false;
-      off();
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   // every concept you've touched, most-practised first

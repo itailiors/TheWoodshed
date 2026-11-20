@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchProgress, onPracticeSaved, type Progress } from "../library/practice";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import type { Progress } from "../library/practice";
 import { onLessonFlagsChanged, readLessonFlags, type LessonFlags } from "./lessonFlags";
 import { ownProgressOnly, pathStates, type OwnProgress, type PathStates } from "./pathStates";
+import { progressSnapshot, subscribeProgress } from "./progressStore";
 
 /**
  * This browser's own practice history (never the demo's sample: see `ownProgressOnly`), re-read
@@ -9,27 +10,8 @@ import { ownProgressOnly, pathStates, type OwnProgress, type PathStates } from "
  * no clock (Study reads it for the explanation depth).
  */
 export function useOwnProgress(): { own: OwnProgress; progress: Progress | null; loading: boolean } {
-  const [progress, setProgress] = useState<Progress | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let live = true; // StrictMode runs this twice; only the live run may set state
-    const load = () =>
-      void fetchProgress()
-        .catch(() => null)
-        .then((p) => {
-          if (!live) return;
-          setProgress(p);
-          setLoading(false);
-        });
-    load();
-    const offSaved = onPracticeSaved(load);
-    return () => {
-      live = false;
-      offSaved();
-    };
-  }, []);
-
+  // one shared read for every caller (progressStore): App, Coach and the passport don't each fetch
+  const { progress, loading } = useSyncExternalStore(subscribeProgress, progressSnapshot);
   const own = useMemo(() => ownProgressOnly(progress), [progress]);
   return { own, progress, loading };
 }
