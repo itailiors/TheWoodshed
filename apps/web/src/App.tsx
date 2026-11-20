@@ -474,11 +474,13 @@ export function App() {
 
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
 
-  // The Changes game and the Voicings tab play their own chords: a band carrying on underneath would
-  // clash, so it stops on the way in (it doesn't restart on the way out; Play is one tap away).
+  // The band belongs to Study and Practice (the lead sheet's two screens). Every other tab (Coach,
+  // Changes, Voicings) plays its own chords, so a band carrying on underneath would clash: it stops on
+  // the way in (it doesn't restart on the way out; Play is one tap away). A band still in its count-in
+  // ("loading") is caught when it turns "playing".
   const { status: bandStatus, toggle: toggleBand } = playback;
   useEffect(() => {
-    if ((mode === "changes" || mode === "voicings") && bandStatus === "playing") toggleBand();
+    if (mode !== "study" && mode !== "practice" && bandStatus === "playing") toggleBand();
   }, [mode, bandStatus, toggleBand]);
 
   if (mode === "voicings") {
