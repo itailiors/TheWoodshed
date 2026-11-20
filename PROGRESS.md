@@ -5,6 +5,8 @@ Real database checksum at start (must be unchanged at the end): `3c7bbe3f8c31ca0
 
 One row per sub-phase, newest last. Status: done · parked · blocked (reverted).
 
+**Final verification (orchestrator, end of Phase 6):** `npm run typecheck` clean; `tsc --noUnusedLocals` clean in theory-core, web and api; `npm test` 1138 core + 51 api + 178 web, all green; `npm run e2e` 71/71 (chromium + Pixel 5); real database checksum unchanged (`3c7bbe3f…77e6`); `main` untouched at 8d8d832; branch not pushed (no upstream). Not done by design: 3f test-out (parked, decision 8), og-card re-render (hard stop), any live Claude call (hard stop). Process notes: commit a32b88d was committed with the API sha pin failing (re-pinned in fb94ab8); one P6 fix appended a test block to `pitch.test.ts` via a shell heredoc instead of the Edit tool (content reviewed and correct).
+
 | Sub-phase | Status | Commit | Checks | Notes |
 |---|---|---|---|---|
 | plan | done | (this commit) | n/a | PLAN.md, spec and this file; Gate 0 answered by Itai |
