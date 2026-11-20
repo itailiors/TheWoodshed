@@ -1,44 +1,46 @@
-# Handoff (2026-11-20, session 13)
+# Handoff (2026-11-20, session 14)
 
 ## Goal
-Settle session 12's open design calls with Itai, build them, close the five leftover a11y gaps, then make chords clickable in Study.
+Itai made "less overload, plainer teaching" the #1 product priority. This session researched it, wrote a phased plan, and built phases 0 and 1.
+The plan is `reports/Reharm Lab learning UX plan.md` (Part 3 = per-screen table, Part 4 = phases + tests, end = 12 open decisions). Sources: `research_notes/Reharm Lab learning UX plan/`.
 
-## Done (pushed to `main`, head `41f2dae`)
-- `41f2dae` one commit for the whole session (CI for it not yet checked):
-  - **Study, ⇧ ← →** only highlights and focuses the chord's row in Chord by chord; Enter opens the dropdown.
-  - **Bare chord card:** when the chord cursor is on a chord the reharm leaves alone, the right panel shows `ChordFactsCard.tsx` (roman + function, chord tones, the ImprovCard for that chord) instead of the last move. Works at L0.
-  - **Clickable chords:** lead-sheet chord symbols (`LeadSheet` `onChord`, mouse/touch only, drawn under the move washes) and the chord name in each Chord by chord row (a button) place the cursor. theory-core `placeChordCursor` holds the rule; `stepChord` uses it. A click doesn't move focus or scroll (`cursorFollow` false); stepping does.
-  - **Opening a move clears the cursor** (`setSelectedId` in `App.tsx`). Fixes: move → bare chord → same move left the chord card on top.
-  - **Voicings ear mode:** form names read "form hidden" until that chord is shown (same rule as the motion lines).
-  - **By-ear flag:** `coach_attempts.by_ear` (migration `0003_needy_hellion.sql`), Zod `byEar` default false. Set via `useDrillSession`'s `byEar()` option, read at filing time: true only if played clean while still hidden. Same SM-2 item. The demo's browser store doesn't record it; no UI shows it yet.
-  - **A11y:** lead-sheet moves are Tab stops (one per move, Enter/Space); ImprovKeyboard + its legend carry ● chord tone / ◇ tension; Ghost Master legend explains enclosure, harmony voices, call arc; Voicings tune step selected = bold + inset underline (focus keeps the outline); `scroll-padding: 0.5rem` on `.overflow-*` scrollers so focus rings aren't clipped (measured: 6/12 Progress cards clipped before, 0 after).
-- Checks at `41f2dae`: typecheck clean; tests 309 theory-core + 22 API + 46 web; e2e 6/6 on the demo build. UI verified in the demo build (:4174) with JS hit-tests.
-- **Real DB migrated** (after the commit): the `api` preview started and applied 0003. Row counts unchanged (3 tunes, 14 sessions, 8 attempts all by_ear=0, 60 improv runs, 8 reviews). Pre-migration copy: scratchpad `reharm.before-0003.sqlite` (may be cleared on reboot).
+## Done (on `main`, 6 commits ahead of origin, NOT pushed)
+- `22ca45a` copy bugs: tritone sub respelling + one chord name, backdoor "no tritone" wording, ii–V into the tonic (keyed on the tune's tonic, not the roman string), gospel turnaround name. Pinned by `packages/theory-core/test/moveCopy.test.ts`.
+- `b90e61d` the research notes and the plan report.
+- `ebcb8bc` phase 0 finish (Coltrane/US-II names, readable style tags via `styleLabel` in tokens.ts, 17-rule docs) + phase 1 Study:
+  - Move cards: headline, Practice, Drill, Also works here; details behind "Why it works".
+  - `components/Reveal.tsx` (`Reveal`, `useRevealState`, `reharm.reveal.*`): Chord by chord, Solo over it, rejected list.
+  - Study heatmap has no trading or mixer (`trading`/`mixer` props); dismissible lead-sheet tip; demo hides template Deep Dive.
+- `cd4400d` Coach: duplicate formula line and footer sentence gone; All keys / Options / When-to-use folded. Theme switch → ⚙ `SettingsMenu.tsx`.
+- `ba4c768` transport: band mixer, count-in, loop behind "▾ Band" on all widths; desktop keeps MIDI/QWERTY out.
+- `238c604` `usage/panelOpens.ts`: local-only open counts, listed in ⚙ with reset.
+- Checks at `238c604`: typecheck clean; tests 314 theory-core + 22 API + 46 web; e2e 7/7 (new first-load test). Verified in the demo build (:4174), desktop and phone width.
 
 ## In progress
-Nothing. Only this file is uncommitted. Previews `api` (:8787) and `web-demo-build` (:4174) were left running.
+Nothing. Only this file is uncommitted. Previews `web-demo-build` (:4174) and `api` (:8787) were left running.
 
 ## Next 3 steps
-1. Check GitHub CI went green for `41f2dae`.
-2. Wording pass (Itai's next task): make every phrase in the app plainer and more understandable. Re-run `npm run e2e` (golden tests assert visible text) and bump `PROMPT_VERSION` if the `/api/explain` prompt changes.
-3. Leftovers: the "Start the X on:" row in Voicings still marks the default start form as pressed while hidden (small leak); show `by_ear` somewhere (passport/history); judge the 250 ms ear-mode autoplay by ear; code review (medium+) of `49a75d6..41f2dae`.
+1. Itai pushes (6 commits); check CI.
+2. Phase 2: `packages/theory-core/src/learn/` (concept graph, glossary, lessons) for the first slice: 4 tritone-sub basics + `basics:twoFiveOne`, and tritoneSub, secondaryDominant, secondaryTwoFive, borrowedIv, backdoorTwoFive. Tests: `learn.graph.test.ts`, `learn.copy.test.ts`, 12-key property test, new PROOF. Plan Part 4 has the spec.
+3. Get Itai's calls on the blocking decisions (plan end): #2 rename level labels, #6 explanation depth default, #8 "I know this" test-out, #5 lesson storage.
 
 ## Decisions + why
-- **Highlight-only stepping, Enter opens:** auto-opened dropdowns covered the heatmap (Itai's call).
-- **Bare chord shows a facts card, not an empty panel:** useful for comping study (Itai's call).
-- **By ear = tag on the same SM-2 item,** not a separate schedule (Itai's call). Decided at filing, so Reveal-then-play counts as normal.
-- **Lead-sheet chord targets have no Tab stop:** 45 extra stops would bury the moves; keyboard users have ⇧ ← → and the Chord by chord name buttons.
-- **The chord cursor stays out of the pathwayEditor state** (not in the deep link); only cursor handlers call `edit({type:"select"})` directly.
+- Folded = unmounted (Reveal). A folded heatmap must not grade or save improv passes. Study now records improv only while "Solo over it" is open.
+- The Coach passport's sample-notebook note stays: it labels the seeded demo history (rule 11).
+- Desktop keeps Connect MIDI visible: it's how you play, and the MIDI e2e clicks it.
+- Disclosure before the wording pass: the queued wording pass goes last (phase 5), so it doesn't polish text phases 1–4 hide.
+- Fold states persist per panel in localStorage so panels Itai uses stay open.
 
 ## Gotchas
-- **The API log says `key MISSING`:** no Anthropic key, so new explanations won't generate until one is set.
-- **Synthetic `KeyboardEvent`s on window don't reach the Study shortcuts;** use the chord buttons, or real keys via the browser `computer` tool (that also triggers `:focus-visible`).
-- **Fresh worktrees** need `npm install`, or `@reharm/*` resolves to the main checkout (false typecheck errors).
-- **Heatmap only grades while the loop plays:** in Playwright, click Play and wait ~3 s before notes.
-- **Playwright Chromium** lives in the user-level ms-playwright cache, shared across checkouts.
-- **`npm install` warns about unapproved install scripts** (esbuild); harmless so far.
-- **Exporting a constant from a component file** (`FUNCTION_WORD` in `ChordMoveSelector.tsx`) can make Vite Fast Refresh do a full reload of that module; harmless.
+- `apps/web/scripts/og-card.html` still says "11 rules"; editing it needs the OG PNG re-rendered.
+- Uppercase CSS changes `innerText`: test text with `textContent`.
+- Browser pane tabs can sit on :8787 (the real API); check the tab URL before running page JS.
+- Back-to-back synthetic clicks in one script hit stale React closures; await between clicks.
+- After rule-text edits: `npm run demo:generate -w @reharm/api -- --template`. After UI edits: `npm run build:demo` before checking :4174.
+- No Anthropic key yet (`key MISSING`); Deep Dives won't generate.
 
 ## Suggested skills
-- `code-review` (medium) on `49a75d6..41f2dae`.
+- `mattpocock-skills:tdd` for phase 2 (graph and copy tests first).
+- `mattpocock-skills:codebase-design` for the shape of the `learn/` module.
+- `code-review` (high) on `19ddf67..238c604` before or after pushing.
 - `ship` when Itai says "commit and push".
