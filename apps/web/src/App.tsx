@@ -1,5 +1,6 @@
 import {
   conceptKind,
+  conceptNode,
   editorPathway,
   editorPicks,
   liveChordCursor,
@@ -23,7 +24,7 @@ import {
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { prefetchAudio } from "./audio/player";
 import { fetchTune, LibraryError } from "./library/api";
@@ -405,6 +406,30 @@ export function App() {
     void setMode("coach");
   };
   /**
+   * A Path card (or the `#coach/<conceptId>` deep link): the Coach on that concept, opening on the
+   * stage its state calls for (a Recommended-first concept shows its note; a basic opens its Learn).
+   */
+  const openConcept = (conceptId: string) => {
+    setPassportOpen(false);
+    setCoachTarget({ moveId: null, ruleId: conceptId, scope: "concept" });
+    void setMode("coach");
+  };
+  const openConceptRef = useRef(openConcept);
+  openConceptRef.current = openConcept;
+  useEffect(() => {
+    const fromHash = () => {
+      const m = /^#coach\/(.+)$/.exec(window.location.hash);
+      const id = m ? decodeURIComponent(m[1]) : null;
+      if (!id || !conceptNode(id)) return;
+      // consumed once: a reload later opens where the app normally does
+      window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+      openConceptRef.current(id);
+    };
+    fromHash();
+    window.addEventListener("hashchange", fromHash);
+    return () => window.removeEventListener("hashchange", fromHash);
+  }, []);
+  /**
    * "Practice this move": select it, loop it (one bar of run-up through its resolution),
    * go to Practice Mode, and start the band if it isn't already playing. If it is, the
    * engine jumps straight into the new loop instead of finishing the old pass.
@@ -649,7 +674,7 @@ export function App() {
       )}
       {passportOpen && (
         <PanelBoundary onClose={() => setPassportOpen(false)}>
-          <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onClose={() => setPassportOpen(false)} />
+          <PracticeDashboard onPractise={(r) => void practiseConcept(r)} onOpenConcept={openConcept} onClose={() => setPassportOpen(false)} />
         </PanelBoundary>
       )}
       {xrayOpen && (

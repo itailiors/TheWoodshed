@@ -1,7 +1,8 @@
-import { learnName, voiceProgression, type ChordLike, type ConceptStatus, type LessonFlag } from "@reharm/theory-core";
+import { learnName, prettyNote, voiceProgression, type ChordLike, type ConceptStatus, type LessonFlag } from "@reharm/theory-core";
 import { lazy, Suspense, useEffect, useState, type ReactNode } from "react";
 import { player } from "../../audio/player";
-import { explainFor, useExplainSetting } from "../../learn/explainDepth";
+import { explainFor, roughRunLine, useExplainSetting } from "../../learn/explainDepth";
+import { readLessonFlags, updateLessonFlag } from "../../learn/lessonFlags";
 import type { OwnProgress } from "../../learn/pathStates";
 import type { CoachLesson } from "./coachLesson";
 
@@ -64,7 +65,15 @@ function Audition({ before, after }: { before: ChordLike[]; after: ChordLike[] }
 export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, from, finishLabel, onFinish, onLearn, midiConnected, focus, footer }: Props) {
   const { lesson, audio } = data;
   const explain = useExplainSetting();
-  const depth = explainFor(explain, own, conceptId, flag);
+  // the rough run already spent when this lesson opened: a rough latest run reopens the steps once (spec §D), as in Study
+  const [spentRough] = useState(() => flag?.reopenedFor);
+  const depth = explainFor(explain, own, conceptId, { ...flag, reopenedFor: spentRough });
+  const roughAt = depth.rough?.at;
+  useEffect(() => {
+    // mark this rough run as spent; the steps stay open for this opening (`spentRough` is fixed at mount).
+    // Idempotent (the same ISO both times), so StrictMode's second run writes nothing new.
+    if (roughAt && readLessonFlags()[conceptId]?.reopenedFor !== roughAt) updateLessonFlag(conceptId, { reopenedFor: roughAt });
+  }, [conceptId, roughAt]);
   // "Continue anyway" sets the flag (the state follows); this hides the note at once and focuses step 1
   const [continued, setContinued] = useState(false);
   const noteFor = !continued && status?.state === "recommendedFirst" && status.recommendedFirst.length ? status.recommendedFirst : null;
@@ -92,6 +101,7 @@ export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, 
             onLearn={onLearn}
             midiConnected={midiConnected}
             folded={!depth.open}
+            notice={depth.rough ? roughRunLine(prettyNote(depth.rough.keyTonic)) : undefined}
             audition={audio && <Audition before={audio.before} after={audio.after} />}
             focusOnOpen={focus || continued}
           />

@@ -1,5 +1,6 @@
 import { CONCEPT_FAMILIES, conceptKind, conceptName as ruleName, prettyNote } from "@reharm/theory-core";
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { countOpen } from "../../usage/panelOpens";
 import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
 import { DEMO } from "../../demo";
@@ -11,8 +12,12 @@ export type { PractiseRequest } from "./KeyMatrix";
 
 interface Props {
   onPractise: (r: PractiseRequest) => void;
+  /** A Path card: open the Coach on that concept (basics open their Learn). */
+  onOpenConcept: (conceptId: string) => void;
   onClose: () => void;
 }
+
+const PathView = lazy(() => import("../learn/PathView").then((m) => ({ default: m.PathView })));
 
 const ms = (t: string | number) => new Date(t).getTime();
 
@@ -56,7 +61,13 @@ function LocalNotice({ storedIn }: { storedIn?: Progress["storedIn"] }) {
  * what's due today (the spaced-repetition queue), a 12-key page per concept with a stamp
  * for every key you've played it clean in, and how your solos have been landing lately.
  */
-export function PracticeDashboard({ onPractise, onClose }: Props) {
+export function PracticeDashboard({ onPractise, onOpenConcept, onClose }: Props) {
+  // the drawer always opens on "Today's practice"; "Path" is one click away (spec §C)
+  const [tab, setTab] = useState<"today" | "path">("today");
+  const pickTab = (t: "today" | "path") => {
+    if (t === "path" && tab !== "path") countOpen("passport.path");
+    setTab(t);
+  };
   const [data, setData] = useState<Progress | null>(null);
   const [failed, setFailed] = useState(false);
   const [rule, setRule] = useState<string | null>(null);
@@ -113,6 +124,36 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
               </button>
             </header>
 
+            <div role="tablist" aria-label="Passport views" className="flex flex-wrap gap-2 font-marker">
+              {(
+                [
+                  ["today", "Today's practice"],
+                  ["path", "Path"],
+                ] as const
+              ).map(([id, label]) => (
+                <button
+                  key={id}
+                  id={`passport-tab-${id}`}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === id}
+                  aria-controls={`passport-panel-${id}`}
+                  onClick={() => pickTab(id)}
+                  className={`tap-lg cursor-pointer rounded-full border-2 border-ink px-4 py-0.5 ${tab === id ? "bg-ink text-paper-light" : "hover:bg-paper-shade"}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {tab === "path" ? (
+              <div id="passport-panel-path" role="tabpanel" aria-labelledby="passport-tab-path">
+                <Suspense fallback={<p className="font-marker text-ink-soft">Opening your path…</p>}>
+                  <PathView onOpen={onOpenConcept} />
+                </Suspense>
+              </div>
+            ) : (
+            <div id="passport-panel-today" role="tabpanel" aria-labelledby="passport-tab-today" className="space-y-6">
             {failed && !data && (
               <p className="rounded border-2 border-dashed px-4 py-3" style={{ borderColor: pen.red, color: pen.red }}>
                 Can't reach the practice history right now. It lives in the API's database; start the API and this page fills in.
@@ -175,6 +216,8 @@ export function PracticeDashboard({ onPractise, onClose }: Props) {
 
                 <SoloTrend runs={data.recentImprov} />
               </>
+            )}
+            </div>
             )}
           </div>
         </SketchBox>

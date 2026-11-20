@@ -9,11 +9,12 @@ import {
   prettySymbol,
   RULES,
   symbol,
+  type ConceptStatus,
   type LessonStage,
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { SketchBox, SketchFilters } from "../../design/rough";
 import { useRevealState } from "../Reveal";
 import { CATEGORY_WASH, paper, pen, seedOf, tint, wash } from "../../design/tokens";
@@ -31,8 +32,78 @@ import { coachLesson } from "./coachLesson";
 import { coachInput, openingStage, retireGradingStore, stagesFor } from "./gradingMode";
 import { LearnStage } from "./LearnStage";
 import { StageLadder } from "./StageLadder";
-import { useTouchFirst } from "../../device/media";
+import { useMediaQuery, useTouchFirst } from "../../device/media";
 import { ChordName } from "../ChordName";
+import { conceptLevel, nextUpReason, pathOrder, recommendedFirstLabel, tierBands } from "../../learn/pathModel";
+import { DueDot, PathChip } from "../learn/PathChip";
+import { useEscapeCapture } from "../learn/useEscapeCapture";
+import { countOpen } from "../../usage/panelOpens";
+
+/** Phones (spec §A "Layout"): the rail becomes a "Your path ▾" sheet plus a row of Next up chips. */
+const PHONE = "(max-width: 767.98px)";
+
+/**
+ * One concept on the "Your path" rail: its name, a line (Next up's reason, or the level and
+ * formula) and its state chip; a Recommended-first concept carries a dashed chip that opens the
+ * first unmet prerequisite's Learn (spec §B). States are this browser's own (rule 11).
+ */
+function ConceptItem({
+  id,
+  status,
+  on,
+  line,
+  wash: square,
+  onPick,
+  onLearnFirst,
+  chip = true,
+}: {
+  id: string;
+  status: ConceptStatus | undefined;
+  on: boolean;
+  line: string;
+  /** Show the state chip (Next up's reason line already names the state). */
+  chip?: boolean;
+  wash?: string;
+  onPick: () => void;
+  onLearnFirst: (prereqId: string) => void;
+}) {
+  const unmet = status?.state === "recommendedFirst" ? status.recommendedFirst : [];
+  return (
+    <li className="space-y-0.5" data-rail-concept={id}>
+      <button
+        type="button"
+        aria-current={on || undefined}
+        onClick={onPick}
+        className={`flex w-full cursor-pointer items-center gap-2 rounded-lg border-2 px-2 py-1.5 text-left hover:-rotate-1 motion-reduce:hover:rotate-0 ${
+          on ? "border-ink bg-paper-light" : "border-transparent hover:border-ink-faint"
+        }`}
+      >
+        <span
+          aria-hidden
+          className={`h-3 w-3 shrink-0 -rotate-6 rounded-sm ${square ? "" : "border-2 border-ink-soft"}`}
+          style={square ? { background: square } : undefined}
+        />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-marker text-[15px]">{learnName(id)}</span>
+          <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs text-ink-soft">
+            <span className="min-w-0 truncate">{line}</span>
+            {!unmet.length && chip && <PathChip status={status} />}
+          </span>
+        </span>
+        {status?.due && <DueDot className="shrink-0 self-start" />}
+      </button>
+      {unmet.length > 0 && (
+        <button
+          type="button"
+          onClick={() => onLearnFirst(unmet[0])}
+          className="tap-lg ml-7 cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-2 text-left font-marker text-xs leading-5 text-ink-soft hover:border-ink hover:text-ink"
+        >
+          {recommendedFirstLabel(unmet)}
+        </button>
+      )}
+    </li>
+  );
+}
 
 /**
  * What a move does, in chords: the struck-out original, the new chords and where they resolve
@@ -131,7 +202,7 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
   // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done.
   // The path states (Learn or Play it, the prerequisite note) read only the player's OWN runs (rule 11).
-  const { progress, own, states, flags, loading } = usePathStates();
+  const { progress, own, states, flags, loading, nextUp } = usePathStates();
   const [session, setSession] = useState<Record<string, { clean: string[]; tried: string[] }>>({});
 
   // ── the stage ladder: Learn → Study it → Self-check → Play it (spec §A) ──
@@ -172,14 +243,17 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
 
   /** "Learn that first" (or a step's prerequisite chip): the concept to come back to, shown as "from …". */
   const [returnTo, setReturnTo] = useState<{ forId: string; id: string; scope: CoachScope; moveId: string | null } | null>(null);
-  const learnFirst = (prereqId: string) => {
-    setReturnTo({ forId: prereqId, id: activeRuleId, scope, moveId });
+  /** Open `prereqId`'s Learn, to come back to `from` (the current concept, or a rail item's own chip). */
+  const learnFirstFor = (from: { id: string; scope: CoachScope }, prereqId: string) => {
+    setReturnTo({ forId: prereqId, id: from.id, scope: from.scope, moveId });
     setScope("concept");
     setRuleId(prereqId);
     setPicked((p) => ({ ...p, [prereqId]: "learn" }));
     focusStage.current = true;
     setStageFocus(true);
+    setSheetOpen(false);
   };
+  const learnFirst = (prereqId: string) => learnFirstFor({ id: activeRuleId, scope }, prereqId);
   const returning = returnTo && returnTo.forId === activeRuleId ? returnTo : null;
   const finishLesson = () => {
     if (returning) {
@@ -248,19 +322,75 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accepted, pathway]);
 
-  const conceptSamples = useMemo(
-    () =>
-      RULES.map((r) => {
-        const sample = conceptDrillSteps(r.id, "C").move!;
-        return { rule: r, category: sample.category, level: sample.level };
-      }),
-    [],
+  // each rule's category wash on the rail, from its canonical progression (as the Coach drills it)
+  const categoryOf = useMemo(() => new Map(RULES.map((r) => [r.id, conceptDrillSteps(r.id, "C").move!.category])), []);
+  const bands = useMemo(tierBands, []);
+  const order = useMemo(pathOrder, []);
+
+  // ── "Your path": the rail on a desktop, a sheet on a phone (spec §A "Layout", §B "Next up") ──
+  const phone = useMediaQuery(PHONE);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetBtn = useRef<HTMLButtonElement>(null);
+  const sheet = useRef<HTMLDivElement>(null);
+  const closeSheet = () => {
+    setSheetOpen(false);
+    sheetBtn.current?.focus();
+  };
+  useEscapeCapture(sheetOpen && phone, closeSheet);
+  /** The sheet keeps Tab inside itself while it's open. */
+  const trapFocus = (e: ReactKeyboardEvent) => {
+    if (e.key !== "Tab" || !sheet.current) return;
+    const els = [...sheet.current.querySelectorAll<HTMLElement>("button:not([disabled]), a[href]")].filter((el) => el.offsetParent !== null);
+    if (!els.length) return;
+    const first = els[0];
+    const last = els[els.length - 1];
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  };
+  const openSheet = () => {
+    countOpen("coach.pathSheet");
+    setSheetOpen(true);
+  };
+  useEffect(() => {
+    if (sheetOpen) sheet.current?.querySelector<HTMLElement>("button")?.focus();
+  }, [sheetOpen]);
+  const [allOpen, setAllOpen] = useRevealState("coach.allConcepts");
+  const pickConcept = (id: string) => {
+    setScope("concept");
+    setRuleId(id);
+    setSheetOpen(false);
+    if (!window.matchMedia("(min-width: 1024px)").matches) {
+      document.getElementById("coach-drill")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+  const lineFor = (id: string) => {
+    const level = conceptLevel(id);
+    const formula = RULES.find((r) => r.id === id)?.pedagogy?.formula;
+    return [level === null ? "Foundation" : `L${level}`, formula].filter(Boolean).join(" · ");
+  };
+  const item = (id: string, line: string, chip = true) => (
+    <ConceptItem
+      key={id}
+      chip={chip}
+      id={id}
+      status={states.get(id)}
+      on={scope === "concept" && id === activeRuleId}
+      line={line}
+      wash={categoryOf.has(id) ? CATEGORY_WASH[categoryOf.get(id)!] : undefined}
+      onPick={() => pickConcept(id)}
+      onLearnFirst={(pre) => learnFirstFor({ id, scope: "concept" }, pre)}
+    />
   );
 
   // ‹ Prev / Next ›: step through the list on the left without scrolling to it (on a phone it's far below)
   const stepList: { id: string; pick: () => void }[] =
     scope === "concept"
-      ? conceptSamples.map(({ rule: r }) => ({ id: r.id, pick: () => setRuleId(r.id) }))
+      ? order.map((id) => ({ id, pick: () => setRuleId(id) }))
       : groups.flatMap((g) => g.moves).map((m) => ({ id: m.id, pick: () => (setMoveId(m.id), setRuleId(m.ruleId)) }));
   const stepIdx = stepList.findIndex((s) => s.id === (scope === "concept" ? activeRuleId : move.id));
   const stepTo = (d: -1 | 1) => stepList[stepIdx + d]?.pick();
@@ -300,6 +430,29 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[270px_minmax(0,1fr)_330px]">
         {/* ── Zone 1 (Left Rail): Scope Toggle + Concept Curriculum / Tune Moves ── */}
+        {/* on a phone the rail is a bottom sheet ("Your path ▾"); elsewhere these wrappers are display: contents */}
+        <div className={phone ? (sheetOpen ? "fixed inset-0 z-40 bg-ink/20" : "hidden") : "contents"} onClick={phone ? closeSheet : undefined}>
+        <div
+          ref={sheet}
+          role={phone ? "dialog" : undefined}
+          aria-modal={phone || undefined}
+          aria-label={phone ? "Your path" : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={phone ? trapFocus : undefined}
+          className={
+            phone
+              ? "fixed inset-x-0 bottom-0 max-h-[85dvh] overflow-y-auto rounded-t-xl border-t-2 border-ink bg-paper-light px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] shadow-2xl"
+              : "contents"
+          }
+        >
+        {phone && (
+          <div className="mb-3 flex items-center justify-between">
+            <p className="font-marker text-xl uppercase">Your path</p>
+            <button type="button" onClick={closeSheet} aria-label="Close your path" className="tap-lg cursor-pointer font-marker text-2xl leading-none">
+              ×
+            </button>
+          </div>
+        )}
         <nav id="coach-moves" aria-label="What to drill" className="order-2 scroll-mt-4 space-y-4 lg:sticky lg:top-4 lg:order-none">
           <div role="tablist" aria-label="Coach drill scope" className="grid grid-cols-2 gap-1.5 rounded-lg border-2 border-ink bg-paper-base p-1 font-marker text-xs">
             <button
@@ -360,42 +513,38 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
             </SketchBox>
           )}
 
+          {/* Your path: Next up (due first, then the frontier), from this browser's own runs and lessons */}
+          <section aria-labelledby="coach-next-h" className="space-y-1.5" data-next-up>
+            {!phone && <h2 className="font-marker text-lg uppercase">Your path</h2>}
+            <h3 id="coach-next-h" className="font-marker text-sm uppercase tracking-wider" style={{ color: pen.red }}>
+              Next up
+            </h3>
+            {nextUp.length ? (
+              <ol className="space-y-1">{nextUp.map((id) => item(id, nextUpReason(id, states, own, now), false))}</ol>
+            ) : (
+              <p className="text-sm text-ink-soft">Nothing new is waiting. Pick any concept, or play something due.</p>
+            )}
+          </section>
+
           {scope === "concept" ? (
-            <section className="space-y-1.5">
-              <h3 className="font-marker text-sm uppercase tracking-wider text-ink-soft">All {RULES.length} Jazz Concepts</h3>
-              <ol className="space-y-1">
-                {conceptSamples.map(({ rule: r, category, level }) => {
-                  const clean = cleanFor(r.id).length;
-                  const on = r.id === activeRuleId;
-                  return (
-                    <li key={r.id}>
-                      <button
-                        type="button"
-                        aria-current={on || undefined}
-                        onClick={() => {
-                          setRuleId(r.id);
-                          if (!window.matchMedia("(min-width: 1024px)").matches) {
-                            document.getElementById("coach-drill")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                          }
-                        }}
-                        className={`flex w-full cursor-pointer items-center gap-2 rounded-lg border-2 px-2 py-1.5 text-left hover:-rotate-1 ${
-                          on ? "border-ink bg-paper-light" : "border-transparent hover:border-ink-faint"
-                        }`}
-                      >
-                        <span className="h-3 w-3 shrink-0 -rotate-6 rounded-sm" style={{ background: CATEGORY_WASH[category] }} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-marker text-[15px]">{r.name}</span>
-                          <span className="block truncate text-xs text-ink-soft">
-                            L{level}
-                            {r.pedagogy ? ` · ${r.pedagogy.formula}` : ""}
-                            {clean > 0 && <span style={{ color: pen.red }}> · {clean}/12 clean</span>}
-                          </span>
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ol>
+            <section className="space-y-2" data-all-concepts>
+              <button
+                type="button"
+                aria-expanded={allOpen}
+                aria-controls="coach-all-concepts"
+                onClick={() => setAllOpen(!allOpen)}
+                className="tap-lg flex w-full cursor-pointer items-center justify-between font-marker text-sm uppercase tracking-wider text-ink-soft hover:text-ink"
+              >
+                All concepts <span aria-hidden>{allOpen ? "▾" : "▸"}</span>
+              </button>
+              <div id="coach-all-concepts" hidden={!allOpen} className="space-y-3">
+                {bands.map((b) => (
+                  <section key={b.tier} aria-label={b.heading} className="space-y-1">
+                    <h3 className="font-hand text-sm uppercase tracking-wider text-ink-soft">{b.heading}</h3>
+                    <ol className="space-y-1">{b.nodes.map((n) => item(n.id, lineFor(n.id)))}</ol>
+                  </section>
+                ))}
+              </div>
             </section>
           ) : groups.length === 0 ? (
             <div className="rounded-lg border-2 border-dashed border-ink-faint p-3 text-sm text-ink-soft">
@@ -447,6 +596,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
             ))
           )}
         </nav>
+        </div>
+        </div>
 
         {/* ── Zone 2 (Center Stage): 12-Key Circle-of-Fifths Ribbon + Drill ── */}
         {/* below lg the drill comes first and the ribbon after it (flex order); lg keeps source order */}
@@ -473,11 +624,47 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
             >
               Next ›
             </button>
-            <a href="#coach-moves" className="ml-auto text-ink-soft underline lg:hidden">
-              ↓ All {scope === "concept" ? "concepts" : "moves"}
-              {due.length ? ` · ${due.length} due` : ""}
-            </a>
+            {phone ? (
+              <button
+                ref={sheetBtn}
+                type="button"
+                aria-haspopup="dialog"
+                aria-expanded={sheetOpen}
+                onClick={openSheet}
+                className="tap-lg ml-auto cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 hover:bg-paper-shade"
+              >
+                Your path <span aria-hidden>▾</span>
+                {due.length ? ` · ${due.length} due` : ""}
+              </button>
+            ) : (
+              <a href="#coach-moves" className="ml-auto text-ink-soft underline lg:hidden">
+                ↓ All {scope === "concept" ? "concepts" : "moves"}
+                {due.length ? ` · ${due.length} due` : ""}
+              </a>
+            )}
           </div>
+          {phone && nextUp.length > 0 && (
+            // the 2–4 Next up items as chips, scrolling sideways (spec §A "Layout")
+            <nav aria-label="Next up" className="-mx-1 overflow-x-auto px-1 pb-1">
+              <ol className="flex w-max gap-1.5 font-marker text-sm">
+                {nextUp.map((id) => (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      aria-current={(scope === "concept" && id === activeRuleId) || undefined}
+                      onClick={() => pickConcept(id)}
+                      className={`tap-lg cursor-pointer whitespace-nowrap rounded-full border-2 px-3 py-0.5 ${
+                        scope === "concept" && id === activeRuleId ? "border-ink bg-paper-light" : "border-dashed border-ink-soft text-ink"
+                      }`}
+                    >
+                      {states.get(id)?.due && <DueDot className="mr-1" />}
+                      {learnName(id)}
+                    </button>
+                  </li>
+                ))}
+              </ol>
+            </nav>
+          )}
 
           {/* 12-Key Circle-of-Fifths Ribbon & Key Flow Selector */}
           <div className="order-2 lg:order-none">

@@ -42,11 +42,16 @@ const learnStage = (page: Page) => page.locator("[data-coach-learn]");
 const stepHeading = (page: Page) => page.locator("[data-coach-learn] [data-step-heading]");
 const prereqNote = (page: Page) => page.getByRole("note", { name: "Builds on" });
 
-/** Click a concept in the "What to drill" list (on a phone it's below the drill; the click scrolls back). */
+/** Click a concept under "All concepts" on the "Your path" rail (on a phone, in the "Your path ▾" sheet). */
 async function pickConcept(page: Page, ruleId: string) {
-  const name = RULES.find((r) => r.id === ruleId)!.name;
-  // the concept list's entry ("Tritone substitution L2 · …"), not a due review of it ("Tritone substitution in F")
-  await page.getByRole("navigation", { name: "What to drill" }).getByRole("button", { name: new RegExp(`^${name} L\\d`) }).click();
+  const sheet = page.getByRole("button", { name: /^Your path/ });
+  if (await sheet.isVisible()) await sheet.click();
+  const nav = page.getByRole("navigation", { name: "What to drill" });
+  const all = nav.getByRole("button", { name: /^All concepts/ });
+  if ((await all.getAttribute("aria-expanded")) === "false") await all.click();
+  // the tier list's entry ("Tritone substitution L2 · …"), not a due review of it ("Tritone substitution in F")
+  const name = learnName(ruleId).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  await nav.locator("#coach-all-concepts").getByRole("button", { name: new RegExp(`^${name}(\\s|$)`) }).click();
 }
 
 /** What the browser's practice store holds (IndexedDB `reharm-practice`), or "absent". */
