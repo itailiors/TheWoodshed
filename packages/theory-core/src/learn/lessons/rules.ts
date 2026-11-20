@@ -396,13 +396,14 @@ function mediantDominant(f: MediantDominantLearn): Lesson {
         play: "ab",
       },
       {
-        text: `With a ♭9, ${listOf(f.family.map(ps))} all hold these four keys: the Family.`,
+        // the four dominants by root: "E7" would be a second name for this move's E7(♭9)
+        text: `With a ♭9, the dominants on ${listOf(f.familyRoots.map(pn))} all hold these four keys: the Family.`,
         highlight: f.familyRoots.map((n, k) => hl(n, ["V", "♭VII", "♭II", "III"][k])),
         term: "the Family",
       },
     ],
     rule: "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
-    deeper: `${ps(f.subPlain)} usually leads to ${ps(f.relativeMinorChord)}, so the ear expects ${pn(f.relativeMinor)} minor and gets ${pn(f.targetRoot)} major instead.`,
+    deeper: `${sub} usually leads to ${ps(f.relativeMinorChord)}, so the ear expects ${pn(f.relativeMinor)} minor and gets ${pn(f.targetRoot)} major instead.`,
   };
 }
 
@@ -424,7 +425,8 @@ function gospelTurnaround(f: GospelTurnaroundLearn): Lesson {
     headline: `Turn ${orig} → ${target} into ${sus} → ${approach} → ${landing}: a slide into home from a half step above.`,
     steps: [
       {
-        text: `${sus} is ${pn(f.susRoot)}9sus: the ${pn(f.susTriad[0])} triad over ${pn(f.susRoot)} in the bass. No ${pn(f.leadingTone)}, so nothing leans into ${pn(f.targetRoot)} yet.`,
+        // one name for the chord: F/G, glossed as "a sus chord" rather than renamed G9sus
+        text: `${sus}: the ${pn(f.susTriad[0])} triad over ${pn(f.susRoot)} in the bass, a sus chord. No ${pn(f.leadingTone)}, so nothing leans into ${pn(f.targetRoot)} yet.`,
         highlight: [hl(f.susRoot, "bass"), ...f.susTriad.map((n) => hl(n, pn(n), "up"))],
         play: "after",
         term: "sus",
@@ -631,13 +633,14 @@ function rootlessTwoFiveOne(f: RootlessTwoFiveOneLearn): Lesson {
 }
 
 function upperStructureBVI(f: UpperStructureBVILearn): Lesson {
-  const [plain, voiced, target] = [ps(f.plain), ps(f.voiced), ps(f.target)];
+  const [voiced, target] = [ps(f.voiced), ps(f.target)];
   const [root, seventh, third] = f.shell;
   const [flat13, , sharp9] = f.triad;
   const r = f.thirdResolves;
   return {
     conceptId: "voicing.upperStructureBVI",
-    headline: `Over ${plain}'s shell, play the ${pn(f.triadRoot)} triad: one easy shape gives you ${voiced}.`,
+    // the shell by its notes, not "A7's shell": the chart may call this chord A7(♭9), and the move names it once, as `voiced`
+    headline: `Play the ${pn(f.triadRoot)} triad over ${listOf(f.shell.map(pn))}: one hand shape gives you ${voiced}.`,
     steps: [
       {
         text: `Left hand: ${f.shell.map(pn).join(", ")}. Root, ♭7 and 3rd: the dominant's shell.`,
@@ -672,12 +675,12 @@ function upperStructureBVI(f: UpperStructureBVILearn): Lesson {
 }
 
 function upperStructureII(f: UpperStructureIILearn): Lesson {
-  const [plain, voiced] = [ps(f.plain), ps(f.voiced)];
+  const voiced = ps(f.voiced);
   const [root, third, seventh] = f.shell;
   const [nine, sharp11, thirteen] = f.triad;
   return {
     conceptId: "voicing.upperStructureII",
-    headline: `Over ${plain}'s shell, play the ${pn(f.triadRoot)} major triad: ${voiced}, bright and open.`,
+    headline: `Play the ${pn(f.triadRoot)} major triad over ${listOf(f.shell.map(pn))}: ${voiced}, bright and open.`,
     steps: [
       {
         text: `Left hand: ${f.shell.map(pn).join(", ")}. Root, 3rd and ♭7: the shell.`,

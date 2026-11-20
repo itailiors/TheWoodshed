@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T17:57:01.735Z",
+  "generatedAt": "2026-11-20T18:10:55.053Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -47,7 +47,7 @@
       "model": "Reharm Lab engine"
     },
     "voicing.upperStructureBVI@8.3": {
-      "summary": "Over D7's shell, play the B♭ triad: one easy shape gives you D7(♯9,♭13).",
+      "summary": "Play the B♭ triad over D, C and F♯: one hand shape gives you D7(♯9,♭13).",
       "deepDive": "All three triad notes sit in D altered, so the right hand can keep going in that scale.\n\nWhere else: Any altered dominant 7th (especially V7 resolving to a minor chord).\n\nOn the bandstand: Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
       "recreateRule": "Over a dominant 7th, hold root, ♭7 and 3rd in the left hand and play the major triad on its ♭13 above.",
       "model": "Reharm Lab engine"
@@ -78,7 +78,7 @@
     },
     "dominant.mediantDominant@10.1": {
       "summary": "Play A7(♭9) instead of C7: the same diminished shape on top, a new bass under it.",
-      "deepDive": "A7 usually leads to Dm, so the ear expects D minor and gets F major instead.\n\nWhere else: Replacing a V7 that resolves to a major chord.\n\nOn the bandstand: Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
+      "deepDive": "A7(♭9) usually leads to Dm, so the ear expects D minor and gets F major instead.\n\nWhere else: Replacing a V7 that resolves to a major chord.\n\nOn the bandstand: Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
       "recreateRule": "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
       "model": "Reharm Lab engine"
     },

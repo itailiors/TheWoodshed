@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
+import { symbol } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { coopBlues } from "../src/fixtures/coopBlues";
+import { someday } from "../src/fixtures/someday";
+import { BUNDLED_TUNES, canonicalMove } from "../src/index";
 import { lessonForMove } from "../src/learn/ruleLesson";
+import { prettySymbol } from "../src/pitch";
 import type { Rule } from "../src/ruleKit";
 import { RULES } from "../src/ruleset";
+import { KEYS, transposeTune } from "../src/transpose";
 import { secondaryTwoFive, tritoneSub } from "../src/rules";
 import { backdoorTwoFive } from "../src/rulesAdvanced";
 import { sortedHarmony } from "../src/time";
@@ -80,6 +85,44 @@ describe("move-card copy", () => {
     const t = text("gospel.halfStepTurnaround@10.1");
     expect(t.theory).toContain("the tritone sub of C7,");
   });
+});
+
+describe("one name per chord, every rule (5f)", () => {
+  /*
+   * Style guide rule 6: never call one chord G♭9 in one sentence and G♭7 in the next. Every chord
+   * symbol a move's words print (title, card text, every lesson step and ask) must be the name of a
+   * chord the move declares: on the chart, in the move, its target, or one its lesson facts name
+   * (the line cliché's stops, the gospel landing). And none may be a chart chord with its
+   * alterations dropped ("A7" for the chart's A7(♭9)) unless the chart has that chord too; a
+   * dropped add9 or (maj7) is a different chord (the cliché's stops), not an alteration.
+   */
+  const SYMBOL = /(?<![\p{L}\p{N}♭♯])[A-G][♭♯]?(?:maj|m|dim|sus|aug|ø|°|\+|add|\d|\/)(?:\([^)\s]*\)|[^\s,.;:!?()'’→])*/gu;
+  const strings = (x: unknown): string[] =>
+    typeof x === "string" ? [x] : Array.isArray(x) ? x.flatMap(strings) : x && typeof x === "object" ? Object.values(x).flatMap(strings) : [];
+  const nameOf = (c: ChordEvent) => prettySymbol(symbol(c));
+
+  it("no move names one chord two ways: bundled tunes and every rule's canonical move, in 12 keys", () => {
+    const moves = [
+      ...[...BUNDLED_TUNES, someday].flatMap((t) => KEYS.flatMap((k) => generateMoves(transposeTune(t, k)).accepted.map((m) => ({ where: `${t.id} in ${k}`, m })))),
+      ...RULES.flatMap((r) => KEYS.map((k) => ({ where: `canonical in ${k}`, m: canonicalMove(r.id, k)! }))),
+    ];
+    expect(new Set(moves.map(({ m }) => m.ruleId)).size).toBe(17);
+    const misses = new Set<string>();
+    for (const { where, m } of moves) {
+      const chart = new Set([...m.original, ...m.chords].map(nameOf));
+      if (m.targetSymbol) chart.add(prettySymbol(m.targetSymbol));
+      const declared = new Set([...chart, ...strings((m.facts as { learn?: unknown }).learn).filter((s) => /^[A-G]/.test(s)).map(prettySymbol)]);
+      const l = lessonForMove(m);
+      const texts = [m.title, m.text.summary, m.text.theory, m.text.recreateRule, m.text.insight ?? "", ...(l ? [l.headline, l.deeper ?? "", ...l.steps.flatMap((s) => [s.text, s.ask?.prompt ?? ""])] : [])];
+      for (const text of texts)
+        for (const [tok] of text.matchAll(SYMBOL)) {
+          if (!declared.has(tok)) misses.add(`${m.ruleId} (${where}, ${m.id}): "${tok}" names no chord of the move in "${text}"`);
+          for (const n of chart)
+            if (n.startsWith(`${tok}(`) && /^\([^)]*[♭♯]/.test(n.slice(tok.length)) && !chart.has(tok)) misses.add(`${m.ruleId} (${where}, ${m.id}): "${tok}" is ${n} with its alterations dropped, in "${text}"`);
+        }
+    }
+    expect([...misses].slice(0, 10)).toEqual([]);
+  }, 30_000);
 });
 
 describe("one source for a lessoned move's words (4a)", () => {

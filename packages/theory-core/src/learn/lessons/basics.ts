@@ -237,7 +237,8 @@ function extensions(T: string): Lesson {
         prereqLink: "basics:guideTones",
       },
       {
-        text: `Raise it to ${pn(sharp11)}, or drop ${pn(g3)} and make it sus.`,
+        // the sound is the sus chord; the word "sus" would be a third new term in this lesson
+        text: `Raise it to ${pn(sharp11)}, or drop ${pn(g3)} so ${pn(eleven)} replaces the 3rd.`,
         highlight: [hl(sharp11, degreeWord("#11")), hl(eleven, degreeWord("4"))],
         sound: [[...tones(V7), sharp11], tones(chord(G, "7sus4"))],
       },
@@ -247,7 +248,7 @@ function extensions(T: string): Lesson {
         ask: { kind: "tapNotes", prompt: `Tap the ♭9 and the ♭13 of ${sym(V7)}.`, answer: [flat9, flat13] },
       },
       {
-        text: `Play ${pn(g3)}, ${pn(g7)}, ${pn(nine)} and ${pn(thirteen)} over ${pn(G)}: the guide tones hold the chord, the tensions colour it.`,
+        text: `Play ${pn(g3)}, ${pn(g7)}, ${pn(nine)} and ${pn(thirteen)} over ${pn(G)}: ${pn(g3)} and ${pn(g7)} define the chord; ${pn(nine)} and ${pn(thirteen)} colour it.`,
         highlight: [hl(g3, "3rd"), hl(g7, "♭7", "up"), hl(nine, "9th", "up"), hl(thirteen, "13th", "up")],
         sound: [[G, g3, g7, nine, thirteen]],
       },

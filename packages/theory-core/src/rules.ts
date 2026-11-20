@@ -34,7 +34,7 @@ export const secondaryTwoFive: Rule = {
   pedagogy: {
     formula: "V7 → ii7 – V7 → I",
     whenToUse: "Before any major or minor target chord (or solitary V7) with at least 2 beats.",
-    whyItWorks: "Splitting one chord into a fifth-falling ii–V doubles harmonic momentum and creates a smooth 7th → 3rd guide-tone chain.",
+    whyItWorks: "The new ii and V fall in fifths into the target. Each chord's 7th falls a half step to the next chord's 3rd.",
     bandstandCue: "From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
   },
   propose({ chord, prev, next }) {
@@ -107,8 +107,7 @@ export const secondaryDominant: Rule = {
   pedagogy: {
     formula: "vi7 → VI7(♭9) → ii",
     whenToUse: "Any chord whose root falls a 5th into the next chord, as long as it isn't already a dominant.",
-    whyItWorks:
-      "Keep the root and make the chord a dominant: its 3rd becomes the leading tone of the next chord's root, so a diatonic step turns into a resolution.",
+    whyItWorks: "Same root, now a dominant: its 3rd sits a half step below the next root, and its ♭7 falls into the next 3rd.",
     bandstandCue: "Same bass note, raise the minor 3rd a half step (or flatten the major 7th): you're now playing the V of the next chord.",
   },
   propose({ chord, next, afterNext }) {
@@ -174,7 +173,7 @@ export const tritoneSub: Rule = {
   pedagogy: {
     formula: "V7 → ♭II7 → I",
     whenToUse: "Any dominant 7th chord resolving down a perfect 5th.",
-    whyItWorks: "Dominant chords a tritone apart share the exact same 3rd and ♭7 (with roles swapped), so the tritone still resolves while the bass slides down by half step.",
+    whyItWorks: "Both dominants hold the same two guide tones, with the roles swapped. Same pull into I; the bass now slides by half step.",
     bandstandCue: "Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
   },
   propose({ chord, next }) {
@@ -219,7 +218,7 @@ export const upperStructure: Rule = {
   pedagogy: {
     formula: "♭VI triad / V7 shell",
     whenToUse: "Any altered dominant 7th (especially V7 resolving to a minor chord).",
-    whyItWorks: "A plain major triad built on ♭13 stacks the ♭13, root, and ♯9 in the right hand over the left hand's root–♭7–3 dominant shell.",
+    whyItWorks: "The triad on the ♭13 puts ♭13, root and ♯9 over the left hand's root, ♭7 and 3rd. One hand shape gives the altered sound.",
     bandstandCue: "Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
   },
   propose({ chord, next }) {
@@ -266,7 +265,7 @@ export const gospelTurnaround: Rule = {
   pedagogy: {
     formula: "IV/V → ♭II13(♯11) → I",
     whenToUse: "A V7 resolving to a major tonic with at least 2 beats.",
-    whyItWorks: "The IV/V sus delays the leading tone; the ♭II13(♯11) is a tritone-sub cluster a half step above I where every voice slides down by semitone or holds.",
+    whyItWorks: "The IV/V sus holds back the leading tone. Then ♭II13(♯11) slides into I from a half step above, nearly every voice falling or holding.",
     bandstandCue: "Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
   },
   propose({ chord, next }) {
@@ -331,7 +330,7 @@ export const rootlessTwoFiveOne: Rule = {
   pedagogy: {
     formula: "ii9 (3–5–♭7–9) → V13 (♭7–9–3–13) → Imaj9 (3–5–7–9)",
     whenToUse: "Over any major ii–V–I when comping with a bassist or playing rootless left-hand shells.",
-    whyItWorks: "Alternating Type A (3–5–7–9) and Type B (7–9–3–13) grips keeps common tones anchored while the 7th of each chord drops a half step into the next chord's 3rd.",
+    whyItWorks: "Each chord's 7th falls a half step to the next chord's 3rd while the rest hold or step. Type A and Type B grips alternate.",
     bandstandCue: "Play ♭3–5–♭7–9 on ii; hold 3 fingers and drop only the ♭7 down a half step to 3 for V13; then step down into 3–5–7–9 on I.",
   },
   propose({ chord, next, afterNext }) {
@@ -410,7 +409,7 @@ export const upperStructureII: Rule = {
   pedagogy: {
     formula: "II triad / V7 shell → 13(♯11)",
     whenToUse: "Over any Lydian dominant 7(♯11), backdoor ♭VII7, tritone sub, or bright major-target V7.",
-    whyItWorks: "Stacking a major triad a whole step above the root puts the 9th, ♯11th, and 13th in the right hand over the 1–3–♭7 shell in the left hand.",
+    whyItWorks: "The triad a whole step up adds 9th, ♯11 and 13th over the shell. The ♯11 replaces the 4th, which rubs against the 3rd.",
     bandstandCue: "Play the 1–3–♭7 shell in LH; in RH play a plain major triad built a whole step above the chord root.",
   },
   propose({ chord, next }) {

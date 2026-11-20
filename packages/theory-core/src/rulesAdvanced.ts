@@ -50,7 +50,7 @@ export const backdoorTwoFive: Rule = {
   pedagogy: {
     formula: "iv7 → ♭VII9 → Imaj7",
     whenToUse: "Replacing a V7 resolving to a major tonic.",
-    whyItWorks: "Borrowed from the parallel minor, ♭VII7 replaces the leading-tone tritone pull with a darker whole-step bass rise and common-tone warmth.",
+    whyItWorks: "Borrowed from the parallel minor, ♭VII7 rises a whole step to I with no leading tone pulling up.",
     bandstandCue: "Play the minor 7th on the 4th degree of the target key, then drop the 7th to make the dominant a whole step below I.",
   },
   propose({ chord, next }) {
@@ -101,8 +101,7 @@ export const mediantDominant: Rule = {
   pedagogy: {
     formula: "V7 → III7(♭9) → I",
     whenToUse: "Replacing a V7 that resolves to a major chord.",
-    whyItWorks:
-      "The °7 a half step below the target sits on top of four dominants: V7, ♭VII7, ♭II7 and III7 (all ♭9). Swap the bass and keep the °7: III7's 3rd falls a half step to the tonic's 5th, its ♭7 a whole step to the root, and its root and 5th are already in the tonic chord.",
+    whyItWorks: "The °7 a half step below I sits inside four dominants, the Family. Put III in the bass: its 3rd falls to I's 5th.",
     bandstandCue: "Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
   },
   propose({ chord, next }) {
@@ -164,7 +163,7 @@ export const flatSixFlatSeven: Rule = {
   pedagogy: {
     formula: "♭VImaj7 → ♭VII6/9 → Imaj7",
     whenToUse: "Replacing V7 before a major tonic (especially phrase endings).",
-    whyItWorks: "Borrowed from parallel Aeolian, parallel major chords climb by whole steps into I, creating cadential lift through bass planing rather than tritone tension.",
+    whyItWorks: "Both chords come from the parallel minor. Major chords on ♭VI and ♭VII climb by whole steps into I, with no tritone pulling.",
     bandstandCue: "Build major chords on ♭6 and ♭7 of the target key and walk them up by whole steps into I.",
   },
   propose({ chord, next }) {
@@ -208,7 +207,7 @@ export const borrowedIv: Rule = {
   pedagogy: {
     formula: "IVmaj7 → iv6 → Imaj7",
     whenToUse: "When a major IV chord resolves directly to a major I.",
-    whyItWorks: "Lowering the 3rd of IV creates the classic 6 → ♭6 → 5 inner-voice line into the 5th of I (the minor plagal cadence).",
+    whyItWorks: "IV turns minor: its 3rd falls a half step, then another into I's 5th, the minor plagal line 6, ♭6, 5.",
     bandstandCue: "Keep your IV chord voicing and drop its 3rd down a half step to ♭3 (adding the 6th) before landing on I.",
   },
   propose({ chord, next }) {
@@ -245,7 +244,7 @@ export const passingDiminished: Rule = {
   pedagogy: {
     formula: "X → ♯X°7 → Y (or ♭X°7)",
     whenToUse: "Between any two chords whose roots lie a whole step apart.",
-    whyItWorks: "Ascending, ♯I°7 acts as a rootless V7(♭9) of the target chord; descending, the symmetrical °7 bridges the whole step so every voice moves by semitone.",
+    whyItWorks: "Going up, the °7 is the next chord's V7(♭9) without its root. Going down, it bridges the whole step, sharing keys with the target.",
     bandstandCue: "Fill the whole-step bass gap with a diminished 7th chord on the chromatic note in between.",
   },
   propose({ chord, next }) {
@@ -307,7 +306,7 @@ export const commonToneDiminished: Rule = {
   pedagogy: {
     formula: "I°7 → Imaj7",
     whenToUse: "Extending or leaning into a sustained major chord.",
-    whyItWorks: "Sharing the root as a pedal, the °7's ♭3 and ♭5 act as chromatic appoggiaturas (♯2 and ♯4) that resolve upward by half step into the major 3rd and 5th.",
+    whyItWorks: "The °7 keeps the root. Its ♯2 and ♯4 lean up a half step into the major chord's 3rd and 5th.",
     bandstandCue: "Strike a diminished 7th on the major chord's own root, then slide the middle voices up a half step into the major chord.",
   },
   propose({ chord, prev, next }) {
@@ -352,7 +351,7 @@ export const coltraneSubstitution: Rule = {
   pedagogy: {
     formula: "ii – V/♭VI – ♭VImaj7 – V/III – IIImaj7 – V – I",
     whenToUse: "Over a 2-bar (or 6+ beat) major ii–V–I progression.",
-    whyItWorks: "Divides the octave symmetrically into major 3rds (an augmented triad of tonic centers), tonicizing each center with its own V7 before landing on I.",
+    whyItWorks: "Three key centres a major 3rd apart split the octave evenly. Each gets its own V7, so the tour lands back on I.",
     bandstandCue: "Cycle tonic centers down by major 3rds (I → ♭VI → III → I), preceding each new tonic with the dominant a 5th above it.",
   },
   propose({ chord, next, afterNext }) {
@@ -403,7 +402,7 @@ export const constantStructure: Rule = {
   pedagogy: {
     formula: "[Target]@+2 → [Target]@+1 → Target",
     whenToUse: "Approaching any target chord on the final 1–2 beats of the preceding bar.",
-    whyItWorks: "Keeping an identical chord quality and voicing while planing in parallel half steps creates coherent horizontal ear-leading where every voice moves by 1 semitone.",
+    whyItWorks: "The same chord shape slides down by half steps into the target. Every voice moves the same way, so the ear follows the shape.",
     bandstandCue: "Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
   },
   propose({ chord, next }) {
@@ -465,7 +464,7 @@ export const minorLineCliche: Rule = {
   pedagogy: {
     formula: "im → im(maj7) → im7 → im6 (1–7–♭7–6)",
     whenToUse: "Over any sustained minor chord (4+ beats) to create inner-voice movement.",
-    whyItWorks: "Keeping the minor triad (1–♭3–5) anchored while stepping the octave voice down chromatically (1 → 7 → ♭7 → 6) creates a counterline without leaving the harmony.",
+    whyItWorks: "The minor triad holds while one voice walks down from the root: 1, 7, ♭7, 6. A line moves; the chord stays.",
     bandstandCue: "Hold the minor shell and walk one inner voice down by half steps from the root: 1 → ♮7 → ♭7 → 6.",
   },
   propose({ chord, next }) {

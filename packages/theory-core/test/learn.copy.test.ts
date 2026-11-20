@@ -50,6 +50,7 @@ import {
   passingDiminished,
 } from "../src/rulesAdvanced";
 import { oneNoteOnTop } from "../src/rulesOneNote";
+import { SCALES } from "../src/scales";
 import { KEYS, transposeTune } from "../src/transpose";
 import type { ChordEvent, MoveCategory, Quality, Tune } from "../src/types";
 import { nearestMotion } from "../src/voiceLeading";
@@ -324,6 +325,105 @@ describe("the glossary covers what the UI labels", () => {
     for (const n of ["V", "♭II", "ii", "♭VII7", "iv"]) expect(glossaryEntry(n)?.kind, n).toBe("numeral");
     expect(glossaryEntry("IV")).toBeUndefined(); // the minor iv's gloss must never answer for major IV
     expect(glossaryEntry("v")).toBeUndefined();
+  });
+});
+
+describe("no undeclared jargon in lesson steps (5f)", () => {
+  /*
+   * Words the style guide says to gloss (rule-specific names, scale names, the lessons' own terms).
+   * A step may use one only when the reader has met it: it's this step's term (chipped), an earlier
+   * step's term in the same lesson, the lesson's own concept, or the concept of a hard prerequisite,
+   * all the way down. Chord-quality names the decoder chip already explains (half-diminished) and
+   * the degree word "sus 4th" next to a sus4 symbol aren't on the list.
+   */
+  const JARGON: Record<string, string[]> = {
+    "tritone sub": ["tritone sub", "tritone substitution"],
+    tritone: ["tritone"],
+    tonicize: ["tonicize"],
+    backdoor: ["backdoor"],
+    "upper structure": ["upper structure"],
+    rootless: ["rootless"],
+    "the Family": ["the Family"],
+    "constant structure": ["constant structure", "planing"],
+    appoggiatura: ["appoggiatura"],
+    enclosure: ["enclosure"],
+    "avoid note": ["avoid note"],
+    "modal interchange": ["modal interchange"],
+    "parallel minor": ["parallel minor"],
+    borrowed: ["borrowed", "borrow"],
+    "minor plagal": ["minor plagal"],
+    "related ii": ["related ii"],
+    "secondary dominant": ["secondary dominant"],
+    "leading tone": ["leading tone"],
+    "guide tones": ["guide tones", "guide tone"],
+    "Lydian dominant": ["Lydian dominant"],
+    "Phrygian dominant": ["Phrygian dominant"],
+    "melodic minor": ["melodic minor"],
+    "harmonic minor": ["harmonic minor"],
+    "diminished 7th": ["diminished 7th"],
+    "augmented triad": ["augmented triad"],
+    "line cliché": ["line cliché"],
+    "key centre": ["key centre", "key center"],
+    shell: ["shell", "shells"],
+    "Type A": ["Type A"],
+    "Type B": ["Type B"],
+    sus: ["sus"],
+    tensions: ["tensions", "extensions"], // not "tension": the everyday word ("tension on the beat")
+    "drop 2": ["drop 2"],
+    "roman numerals": ["roman numerals"],
+  };
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const uses = (text: string, form: string) => new RegExp(`(?<![\\p{L}\\p{N}])${esc(form)}(?:s|es|d|ed|ing)?(?![\\p{L}])(?! 4th)`, "iu").test(text);
+  const hardClosure = (id: string, seen = new Set<string>()): Set<string> => {
+    for (const p of conceptNode(id)?.hard ?? []) if (!seen.has(p)) hardClosure(p, seen.add(p));
+    return seen;
+  };
+
+  it("every jargon word resolves to a glossary entry", () => {
+    for (const t of Object.keys(JARGON)) expect(glossaryEntry(t), t).toBeDefined();
+  });
+
+  it("every step (text and ask) uses only jargon the reader has met, in every lesson and key", () => {
+    const misses: string[] = [];
+    for (const { where, lesson: l } of ALL) {
+      const known = new Set([l.conceptId, ...hardClosure(l.conceptId)]);
+      const declared = new Set<string>();
+      l.steps.forEach((s, i) => {
+        if (s.term) declared.add(glossaryEntry(s.term)!.term);
+        for (const [term, forms] of Object.entries(JARGON)) {
+          const g = glossaryEntry(term)!;
+          if (declared.has(g.term) || (g.conceptId && known.has(g.conceptId))) continue;
+          const text = `${s.text} ${s.ask?.prompt ?? ""}`;
+          if (forms.some((f) => uses(text, f))) misses.push(`${where}, step ${i + 1}: "${term}" in "${text.trim()}"`);
+        }
+      });
+    }
+    expect(misses.slice(0, 10)).toEqual([]);
+  }, 30_000);
+});
+
+describe("pedagogy and scale copy (5f)", () => {
+  it("every rule's whyItWorks is one or two sentences, ≤ 25 words, in degrees, with no hype", () => {
+    expect(RULES).toHaveLength(17);
+    for (const r of RULES) {
+      const w = r.pedagogy!.whyItWorks;
+      expect(words(w), `${r.id}: ${w}`).toBeLessThanOrEqual(25);
+      expect(sentences(w).length, `${r.id}: ${w}`).toBeLessThanOrEqual(2);
+      expect(w, r.id).not.toMatch(BANNED);
+      expect(w, r.id).not.toMatch(/#|(?<![A-Za-z])[A-G]b(?![a-z])|semitone/);
+      // key-agnostic: no note names (a capital A–G with an accidental, or a lone B–G; "Type B" is a grip)
+      expect(w, `${r.id}: names a note`).not.toMatch(/(?<![\p{L}])[A-G][♭♯](?![\p{L}])|(?<!Type )(?<![\p{L}])[B-G]\s/u);
+    }
+  });
+
+  it("scale suggestions explain themselves in ≤ 25 words, with no hype", () => {
+    for (const [id, s] of Object.entries(SCALES)) {
+      expect(words(s.why), `${id}: ${s.why}`).toBeLessThanOrEqual(25);
+      for (const sentence of sentences(s.why)) expect(words(sentence), id).toBeLessThanOrEqual(25);
+      expect(s.why, id).not.toMatch(BANNED);
+      expect(s.why, id).not.toMatch(/\b(dreamy|maximum|plain and simple|rub-heavy|straight at)\b/i);
+      expect(s.why, id).not.toMatch(/#|(?<![A-Za-z])[A-G]b(?![a-z])/);
+    }
   });
 });
 
@@ -762,7 +862,8 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     const med = lesson("dominant.mediantDominant");
     expect(med.steps[0]).toMatchObject({ text: "Add the ♭9 to G7 and drop the root: B, D, F, A♭, a diminished 7th.", prereqLink: "basics:dim7" });
     expect(med.steps[1].text).toBe("Put E under them: G♯ (same key as A♭), B, D and F make E7(♭9).");
-    expect(med.steps[3].text).toBe("With a ♭9, G7, B♭7, D♭7 and E7 all hold these four keys: the Family.");
+    // by root (5f): "E7" would be a second name for this move's E7(♭9)
+    expect(med.steps[3].text).toBe("With a ♭9, the dominants on G, B♭, D♭ and E all hold these four keys: the Family.");
     // gospel: the landing is what the voices make, the grip is playable, the sub keeps G7's root as its ♯11
     const gos = lesson("gospel.halfStepTurnaround");
     expect(gos.headline).toBe("Turn G7 → Cmaj7 into F/G → D♭13(♯11) → Cmaj13: a slide into home from a half step above.");
@@ -805,13 +906,14 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     expect(rl.deeper).toBe("Grip A has the 3rd on the bottom, grip B the 7th. Start ii on either; each fifth down swaps them.");
     // upper structure ♭VI: E♭ over G is ♭13, root, ♯9 (G altered)
     const b6 = lesson("voicing.upperStructureBVI");
-    expect(b6.headline).toBe("Over G7's shell, play the E♭ triad: one easy shape gives you G7(♯9,♭13).");
+    // the shell by its notes (5f): "G7's shell" named the chord a second way when the chart says G7(♭9)
+    expect(b6.headline).toBe("Play the E♭ triad over G, F and B: one hand shape gives you G7(♯9,♭13).");
     expect(b6.steps[2].text).toBe("Over G, the triad reads ♭13, root, ♯9: B♭ (same key as A♯) is the ♯9.");
     expect(b6.steps[3].text).toBe("Into Cm6, B rises to C, and E♭ and G are already there.");
     expect(b6.deeper).toBe("All three triad notes sit in G altered, so the right hand can keep going in that scale.");
     // upper structure II: 9, ♯11, 13 over the shell, Lydian dominant (melodic minor's 4th mode)
     const two = lesson("voicing.upperStructureII");
-    expect(two.headline).toBe("Over G7's shell, play the A major triad: G13(♯11), bright and open.");
+    expect(two.headline).toBe("Play the A major triad over G, B and F: G13(♯11), bright and open.");
     expect(two.steps[2].text).toBe("Over G, A is the 9th, C♯ the ♯11, E the 13th.");
     expect(two.steps[3].text).toBe("C♯ is the bright note: a ♯11 where a plain C would rub against B, the 3rd.");
     expect(two.deeper).toBe("Together they're G Lydian dominant without its 5th: the 4th mode of D melodic minor.");
@@ -851,7 +953,8 @@ describe("shipped-copy fixes (teacher's notes)", () => {
 
   it("the teacher's wording for extensions, major-3rd cycles and the dim7, in C", () => {
     const ext = basicsLesson("basics:extensions", "C")!;
-    expect(ext.steps[2].text).toBe("Raise it to C♯, or drop B and make it sus.");
+    // 5f: "make it sus" used a term the lesson never declares (it has its two: tensions, avoid note)
+    expect(ext.steps[2].text).toBe("Raise it to C♯, or drop B so C replaces the 3rd.");
     expect(ext.steps[3].text).toBe("A dominant may bend the 9th or flatten the 13th: A♭ or A♯, and E♭.");
     expect(basicsLesson("basics:symmetricOctave", "C")!.steps[0].text).toBe("C up a major 3rd is E. E up a major 3rd is G♯; we spell it A♭, C's ♭6.");
     expect(basicsLesson("basics:dim7", "C")!.steps[1].text).toBe("Past A♭, the next minor 3rd is C♭ (same key as B), so only three different diminished 7ths exist.");

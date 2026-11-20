@@ -104,7 +104,7 @@ export const PROOFS: Proof[] = [
   {
     id: "pathway",
     title: "Respects the dial",
-    claim: "A pathway never overlaps itself, never goes spicier than the dial, and never exceeds the phrase quota.",
+    claim: "A pathway never overlaps itself, never goes above the dial's level, and never exceeds the phrase quota.",
     property: () =>
       fc.property(progressionArb, fc.integer({ min: 1, max: 4 }), (tune, level) => {
         const long = repeated(tune);
@@ -140,14 +140,14 @@ export const PROOFS: Proof[] = [
           const isIn = chosen.some((c) => c.id === m.id);
           must(isIn === (d.kind === "chosen" || d.kind === "forced"), `${m.id}: "${d.kind}" but ${isIn ? "in" : "out of"} the pathway`);
           if (d.kind === "overlaps") must(chosen.some((c) => c.id === d.by && overlaps(c, m)), `${m.id} blamed on ${d.by}, which doesn't overlap it`);
-          if (d.kind === "above-dial") must(m.level > level, `${m.id} called too spicy at L${m.level}`);
+          if (d.kind === "above-dial") must(m.level > level, `${m.id} called above the dial at L${m.level}`);
         }
       }),
   },
   {
     id: "transposition",
     title: "Key-independent",
-    claim: "Move a tune to any of the 12 keys and the engine finds exactly the same moves, just spelled in the new key.",
+    claim: "Move a tune to any of the 12 keys and the engine finds exactly the same moves, spelled in the new key.",
     property: () =>
       fc.property(progressionArb, fc.constantFrom(...KEYS), (tune, key) => {
         const ids = (t: Tune) => generateMoves(t).accepted.map((m) => `${m.id}:${m.ruleId}`).sort();

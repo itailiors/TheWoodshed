@@ -113,7 +113,10 @@ export interface RulePedagogy {
   formula: string;
   /** Generalized harmonic context where this move applies (max ~12 words). */
   whenToUse: string;
-  /** Punchy 1-sentence acoustic/voice-leading reason the rule works in any key (max ~30 words). */
+  /**
+   * Why the rule works, in any key: one or two sentences, ≤ 25 words, degrees and functions (no
+   * note names), a chord or note as the subject. Held to the style guide by learn.copy.test.ts.
+   */
   whyItWorks: string;
   /** Mental shortcut to find the voicing on the bandstand in real time. */
   bandstandCue: string;

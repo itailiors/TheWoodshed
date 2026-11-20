@@ -123,8 +123,7 @@ export const oneNoteOnTop: Rule = {
   pedagogy: {
     formula: "X (held note) → bass walks ½-steps → Y, the top note never moves",
     whenToUse: "A chord of a bar or more under a sustained melody note; on a changes-only chart, a ii→V or V→I, holding a tone the two chords share.",
-    whyItWorks:
-      "The ear hangs on the held top note while the bass moves under it, so the same pitch is heard as ♭9, ♯11, 13… in turn: the colour changes and the line never leaves.",
+    whyItWorks: "The top note holds while the bass walks down by half steps, so one pitch becomes a new tension over each chord.",
     bandstandCue: "Pin the top note with your 5th finger, walk the bass down by half steps into the next chord, and build each chord under that one note.",
   },
   propose({ tune, index, chord, next }) {
