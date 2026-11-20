@@ -12,6 +12,7 @@ import {
 } from "@reharm/theory-core";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { fetchProgress, saveCoachRun, saveShapeRun, type CoachRunResult } from "../library/practice";
+import { ownProgressOnly } from "../learn/pathStates";
 
 /*
  * The web side of a drill session (theory-core's `drillSession`): the session lives in a ref,
@@ -114,8 +115,8 @@ export function useDrillSession({ runs, keyTonic, flow, delayMs, onSetKey, onFil
       changeKey: (key, byHand) => dispatch({ type: "changeKey", key, byHand }),
       startTwelveKey: async (ruleId, startKey) => {
         const p = await fetchProgress();
-        // the demo's sample notebook is someone else's practice: it never orders your drill
-        const reviews = p && !p.sample ? p.concepts.filter((r) => r.ruleId === ruleId) : [];
+        // the demo's sample notebook is someone else's practice: it never orders your drill (rule 11's one gate)
+        const reviews = ownProgressOnly(p).concepts.filter((r) => r.ruleId === ruleId);
         if (mounted.current) dispatch({ type: "plan", plan: { kind: "lap", keys: drillKeyOrder(reviews, startKey, new Date()) } });
       },
     };
