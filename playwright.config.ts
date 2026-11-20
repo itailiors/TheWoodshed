@@ -22,8 +22,8 @@ export default defineConfig({
   },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    // a phone (Chromium with Pixel 5's viewport, touch and user agent), for the lesson, Coach and path specs only
-    { name: "mobile", use: { ...devices["Pixel 5"] }, testMatch: /(learn|coach|path)\.spec\.ts$/ },
+    // a phone (Chromium with Pixel 5's viewport, touch and user agent), for the lesson, Coach, path and chip specs only
+    { name: "mobile", use: { ...devices["Pixel 5"] }, testMatch: /(learn|coach|path|chips)\.spec\.ts$/ },
   ],
   webServer: {
     command: `npm run preview -w @reharm/web -- --outDir dist-demo --port ${PORT} --strictPort`,

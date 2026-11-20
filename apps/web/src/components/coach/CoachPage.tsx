@@ -35,6 +35,7 @@ import { StageLadder } from "./StageLadder";
 import { useMediaQuery, useTouchFirst } from "../../device/media";
 import { ChordName } from "../ChordName";
 import { conceptLevel, nextUpReason, pathOrder, recommendedFirstLabel, tierBands } from "../../learn/pathModel";
+import { FirstRunHint } from "../learn/FirstRunHint";
 import { DueDot, PathChip } from "../learn/PathChip";
 import { useEscapeCapture } from "../learn/useEscapeCapture";
 import { countOpen } from "../../usage/panelOpens";
@@ -665,6 +666,9 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
               </ol>
             </nav>
           )}
+
+          {/* one routing line at a time (spec §A): the hint waits while a PrereqNote or the return banner shows */}
+          <FirstRunHint screen="coach" hidden={!!returning || (stage === "learn" && !!learn && status?.state === "recommendedFirst" && !flag?.continuedAnyway)} className="order-1 lg:order-none" />
 
           {/* 12-Key Circle-of-Fifths Ribbon & Key Flow Selector */}
           <div className="order-2 lg:order-none">

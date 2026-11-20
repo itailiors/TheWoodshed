@@ -30,8 +30,12 @@ import { ink, seedOf, VERDICT_COLOR, wash } from "../../design/tokens";
 import { VerdictMark, VerdictSwatch } from "../../design/VerdictMark";
 import { describeVerdicts, VERDICT_MARK, VERDICTS } from "../../design/verdictMarks";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
+import { GlossaryChip } from "../learn/GlossaryChip";
 import { VolumeMixer } from "../VolumeMixer";
 import { PenKeyboard } from "./PenKeyboard";
+
+/** Legend words that are glossary terms: chipped (spec §D, Practice). */
+const LEGEND_TERM: Partial<Record<(typeof VERDICTS)[number], string>> = { avoid: "avoid note", tension: "tensions" };
 import { saveImprovRun } from "../../library/practice";
 
 interface Props {
@@ -903,11 +907,15 @@ export function ImprovHeatmap({
           {VERDICTS.map((v) => (
             <span key={v} className="flex items-center gap-2">
               <VerdictSwatch verdict={v} color={VERDICT_COLOR[v]} />
-              {VERDICT_MARK[v].label} {stats.n > 0 && <span className="text-ink-faint">{stats.pct(v)}%</span>}
+              {LEGEND_TERM[v] ? <GlossaryChip term={LEGEND_TERM[v]}>{VERDICT_MARK[v].label}</GlossaryChip> : VERDICT_MARK[v].label}{" "}
+              {stats.n > 0 && <span className="text-ink-faint">{stats.pct(v)}%</span>}
             </span>
           ))}
           <span className="flex items-center gap-2">
-            <span className="inline-block h-3 w-6 rounded-sm border-2 border-ink" /> guide-tone landing
+            <span className="inline-block h-3 w-6 rounded-sm border-2 border-ink" />{" "}
+            <span>
+              <GlossaryChip term="guide tones">guide-tone</GlossaryChip> landing
+            </span>
           </span>
           {tradeBars > 0 && (
             <>
@@ -921,7 +929,9 @@ export function ImprovHeatmap({
                   className="inline-block h-3 w-6 -rotate-1 rounded-sm border border-ink"
                   style={{ background: `repeating-linear-gradient(45deg, ${wash.mustard} 0 2px, transparent 2px 4px), repeating-linear-gradient(-45deg, ${wash.mustard} 0 2px, transparent 2px 4px)` }}
                 />
-                enclosure (cross-hatched)
+                <span>
+                  <GlossaryChip term="enclosure" /> (cross-hatched)
+                </span>
               </span>
               <span className="flex items-center gap-2">
                 <span

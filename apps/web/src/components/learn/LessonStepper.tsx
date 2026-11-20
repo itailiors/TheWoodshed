@@ -1,5 +1,5 @@
-import { chroma, glossaryEntry, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
-import { useEffect, useId, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
+import { chroma, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
 import { SketchBox } from "../../design/rough";
 import { seedOf, wash } from "../../design/tokens";
 import { useNarrow, useTouchFirst } from "../../device/media";
@@ -8,10 +8,11 @@ import { useQwerty } from "../../midi/qwerty";
 import { countLearning } from "../../usage/panelOpens";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
 import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
-import { GlossaryChip } from "./GlossaryChip";
+import { lessonChips } from "./chipText";
+import { GlossText } from "./GlossText";
 import { placeHighlights, playStep, type LessonAudioContext } from "./lessonAudio";
 import { askIsOpen, pressKey } from "./stepperInput";
-import { inRange, inSentence, keyEventOf, keyRange, splitOnTerm, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
+import { inRange, inSentence, keyEventOf, keyRange, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
 import { notLine, useTapAnswer } from "./useTapAnswer";
 
 /*
@@ -329,9 +330,8 @@ function Stepper({
 
   const name = learnName(lesson.conceptId);
   const nextLabel = at === last ? (finishLabel ?? (variant === "full" ? "Study it ›" : "Done")) : "Next ›";
-  // the chip goes on the term as the text writes it: the glossary term or one of its aliases (the copy test allows either)
-  const termForms = step.term ? [step.term, ...(glossaryEntry(step.term)?.aliases ?? [])] : [];
-  const split = termForms.map((t) => splitOnTerm(step.text, t)).find((s) => s !== null) ?? null;
+  // chips: each step's term (as the text writes it, term or alias), the numerals and chord symbols, first use in the lesson
+  const chips = useMemo(() => lessonChips(lesson), [lesson]);
   const noInput = !midiConnected && !qwertyOn;
   const full = variant === "full";
 
@@ -442,17 +442,7 @@ function Stepper({
         ) : (
           <>
             <p>
-              {split ? (
-                <>
-                  {split[0]}
-                  <GlossaryChip term={step.term!} onLearn={onLearn}>
-                    {split[1]}
-                  </GlossaryChip>
-                  {split[2]}
-                </>
-              ) : (
-                step.text
-              )}
+              <GlossText segments={chips.steps[at]} onLearn={onLearn} />
             </p>
             {revealed[at] === "answered" && step.ask && (
               <p className="mt-1 font-marker text-base text-sage-ink">✓ {listOf(step.ask.answer.map(prettyNote))}</p>
@@ -493,7 +483,11 @@ function Stepper({
               <h4 id={deeperId} className="font-marker text-sm font-bold uppercase tracking-wider text-ink-soft">
                 Go deeper
               </h4>
-              {lesson.deeper && <p className="font-hand text-base leading-snug">{lesson.deeper}</p>}
+              {lesson.deeper && (
+                <p className="font-hand text-base leading-snug">
+                  <GlossText segments={chips.deeper} onLearn={onLearn} />
+                </p>
+              )}
               {deeper}
             </section>
           )}

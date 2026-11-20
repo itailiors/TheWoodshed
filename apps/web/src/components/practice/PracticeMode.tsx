@@ -31,7 +31,8 @@ import { QwertyToggle } from "../QwertyToggle";
 import { useQwerty } from "../../midi/qwerty";
 import { TrioMixer } from "../TrioMixer";
 import { VolumeMixer } from "../VolumeMixer";
-import { available, Kbd, notForUs, PRACTICE_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
+import { notForUs, PRACTICE_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
+import { FirstRunHint } from "../learn/FirstRunHint";
 import { PanelBoundary } from "../PanelBoundary";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
@@ -300,26 +301,20 @@ export function PracticeMode(p: Props) {
         {p.midi.status === "connected" ? <MidiMonitorToggle compact /> : !touchFirst && <QwertyToggle compact />}
           </>
         )}
-        <span className="ml-auto hidden gap-3 text-xs text-ink-faint xl:flex" aria-label="Keyboard shortcuts">
-          {available(PRACTICE_SHORTCUTS, keys.enabled).map(([k, v]) => (
-            <span key={k}>
-              <Kbd k={k} /> {v}
-            </span>
-          ))}
-        </span>
-        {/* below xl the legend doesn't fit in the header: it's one key (or click) away */}
+        {/* the shortcut legend lives behind ⌨ at every width (spec §D): one key (or click) away, never a header row */}
         {!touchFirst && (
           <button
             type="button"
             onClick={() => setHelpOpen(true)}
-            className="ml-auto cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink xl:hidden"
-            title="Keyboard shortcuts (?)"
+            aria-keyshortcuts="?"
+            className="ml-auto cursor-pointer rounded-full border-2 border-dashed border-ink-faint px-2.5 py-0.5 font-marker text-sm text-ink-soft hover:border-ink hover:text-ink"
           >
             ⌨ Shortcuts
           </button>
         )}
         {helpOpen && <ShortcutsHelp title="Practice shortcuts" shortcuts={PRACTICE_SHORTCUTS} qwertyOn={keys.enabled} onClose={() => setHelpOpen(false)} />}
       </header>
+      <FirstRunHint screen="practice" text={touchFirst ? "Practice is for moves you know." : undefined} className="shrink-0" />
 
       {/* ── sheet + HUD: top two thirds ── */}
       <div className="grid min-h-[260px] flex-[1.6] grid-cols-1 gap-3 sm:flex-[2] md:min-h-0 md:portrait:grid-rows-[minmax(0,1.15fr)_minmax(0,1fr)] md:landscape:grid-cols-[minmax(0,1fr)_minmax(300px,32%)]">

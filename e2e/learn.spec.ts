@@ -109,7 +109,8 @@ test("Why it works steps through the lesson: one step at a time, the ask waits, 
   await expect(deeper.getByRole("heading", { name: "Go deeper" })).toBeVisible();
   if (lesson.deeper) await expect(deeper).toContainText(lesson.deeper);
   await expect(deeper.getByRole("region", { name: "Melody check" })).toBeVisible();
-  await expect(deeper.locator("[aria-expanded]")).toHaveCount(0);
+  // no folds in Go deeper (its glossary chips are popovers, aria-haspopup, not folds)
+  await expect(deeper.locator("[aria-expanded]:not([aria-haspopup])")).toHaveCount(0);
   await expect(stepper.getByRole("button", { name: "Done" })).toBeVisible();
 
   // Back walks one step

@@ -7,6 +7,7 @@ import { useNarrow, useTouchFirst } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
 import { noteBus } from "../../midi/noteBus";
 import type { MidiStatus } from "../../midi/useMidi";
+import { FirstRunHint } from "../learn/FirstRunHint";
 import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { ModeSwitch, type AppMode } from "../ModeSwitch";
 import { PenKeyboard, type PenKeyboardProps } from "../practice/PenKeyboard";
@@ -172,6 +173,8 @@ export function ChangesPage({ midi, onMode, review = null }: Props) {
 
       <SketchBox seed={seedOf("changes-stage")} fill={paper.light} strokeWidth={2} className="mx-auto max-w-2xl">
         <div className="space-y-4 p-4 md:p-6">
+          {/* one routing line at a time: the passport's review offer outranks the hint */}
+          {s.phase === "idle" && <FirstRunHint screen="changes" hidden={!!(offer && passportMotion)} />}
           {s.phase === "idle" && offer && passportMotion && (
             <div className="flex flex-wrap items-center gap-3 rounded-lg border-2 border-ink px-3 py-2" role="status">
               <span className="font-hand">

@@ -3,6 +3,7 @@ import type { Lesson } from "./lesson";
 import { BASICS_LESSONS } from "./lessons/basics";
 import { tidyLesson } from "./ruleLesson";
 
+export * from "./decoder";
 export * from "./facts";
 export * from "./graph";
 export * from "./glossary";

@@ -3,6 +3,7 @@ import { SketchBox } from "../../design/rough";
 import { paper, pen, seedOf, wash } from "../../design/tokens";
 import { ChordName } from "../ChordName";
 import { DoodleKeyboard } from "../DoodleKeyboard";
+import { GlossaryChip } from "../learn/GlossaryChip";
 
 interface Props {
   now: ImprovEntry | null;
@@ -38,7 +39,10 @@ export function ChordHUD({ now, next, beatsToNext, playing }: Props) {
           {playing ? "Now" : "First chord"}
           {now.chord.analysis && <span className="ml-2 normal-case tracking-normal">· {now.chord.analysis.roman}</span>}
         </p>
-        <ChordName symbol={symbol(now.chord)} className="block text-3xl leading-tight sm:text-5xl xl:text-6xl" />
+        {/* the symbol is the decoder chip: tap it for what each part means */}
+        <GlossaryChip symbol={prettySymbol(symbol(now.chord))}>
+          <ChordName symbol={symbol(now.chord)} className="block text-left text-3xl leading-tight sm:text-5xl xl:text-6xl" />
+        </GlossaryChip>
         {top ? (
           <>
             <p className="font-marker text-lg leading-tight sm:text-2xl" style={{ color: pen.red }}>
@@ -72,7 +76,7 @@ export function ChordHUD({ now, next, beatsToNext, playing }: Props) {
         )}
         {top && top.avoid.length > 0 && (
           <p className="text-xs text-ink-soft sm:text-sm">
-            Don't hold: <span style={{ color: pen.red }}>{top.avoid.map(prettyNote).join(" ")}</span>
+            <GlossaryChip term="avoid note">Don't hold</GlossaryChip>: <span style={{ color: pen.red }}>{top.avoid.map(prettyNote).join(" ")}</span>
           </p>
         )}
         {rest.length > 0 && <p className="truncate text-xs text-ink-soft sm:text-sm">also: {rest.map((s) => s.name).join(" · ")}</p>}
