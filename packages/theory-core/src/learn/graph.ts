@@ -5,7 +5,7 @@ import type { ProgressSummary } from "../srs";
 /*
  * The learning order: a prerequisite graph that recommends but never locks.
  *
- * Nodes are the 17 reharm rules plus `basics:*` foundations that aren't rules. A **hard** edge
+ * Nodes are the 17 reharm rules plus 10 `basics:*` foundations that aren't rules. A **hard** edge
  * means the move's explanation leans on the prerequisite ("Recommended first"); a **soft** edge
  * only helps ("Pairs well with"). `tier` is learning order, kept apart from the level dial
  * (adventurousness + density). Evidence borrows mastery from other families: V → I in the
@@ -15,6 +15,8 @@ import type { ProgressSummary } from "../srs";
  */
 
 export type BasicsId =
+  | "basics:sevenths"
+  | "basics:numerals"
   | "basics:tritone"
   | "basics:guideTones"
   | "basics:dominantResolution"
@@ -36,6 +38,8 @@ export interface ConceptNode {
 }
 
 const BASICS_NAME: Record<BasicsId, string> = {
+  "basics:sevenths": "7th chords",
+  "basics:numerals": "Roman numerals",
   "basics:tritone": "The tritone",
   "basics:guideTones": "Guide tones",
   "basics:dominantResolution": "Dominant resolution",
@@ -55,8 +59,11 @@ const node = (id: string, tier: Tier, hard: string[] = [], soft: string[] = [], 
 
 /** Every concept, basics first, then the rules in `RULES` order (which already encodes priority). */
 export const CONCEPTS: readonly ConceptNode[] = [
+  // optional floor for a newcomer (Gate 0 item 7): the chord vocabulary and the numerals every lesson prints
+  node("basics:sevenths", 0),
   node("basics:tritone", 0),
-  node("basics:guideTones", 0, [], [], ["shape:shell:*"]),
+  node("basics:numerals", 0),
+  node("basics:guideTones", 0, ["basics:sevenths"], [], ["shape:shell:*"]),
   node("basics:dominantResolution", 0, ["basics:guideTones"], [], [earRuleId("landing")]),
   node("basics:twoFiveOne", 0, ["basics:dominantResolution"], [], [earRuleId("setup")]),
   node("basics:extensions", 0),
@@ -65,17 +72,17 @@ export const CONCEPTS: readonly ConceptNode[] = [
   node("basics:symmetricOctave", 0),
 
   node("functional.secondaryTwoFive", 1, ["functional.secondaryDominant", "basics:twoFiveOne"]),
-  node("functional.secondaryDominant", 1, ["basics:dominantResolution"]),
-  node("dominant.tritoneSub", 2, ["basics:tritone", "basics:dominantResolution"], ["functional.secondaryDominant"]),
+  node("functional.secondaryDominant", 1, ["basics:dominantResolution"], ["basics:numerals"]),
+  node("dominant.tritoneSub", 2, ["basics:tritone", "basics:dominantResolution"], ["functional.secondaryDominant", "basics:numerals"]),
   node("voicing.upperStructureBVI", 2, ["basics:guideTones", "basics:extensions"]),
   // the approach chord is the tritone sub voiced as a 13(♯11) cluster: tensions first; upper structure II (9, ♯11, 13) is the same grip
   node("gospel.halfStepTurnaround", 3, ["dominant.tritoneSub", "basics:extensions"], ["voicing.upperStructureII"]),
   node("voicing.rootlessTwoFiveOne", 2, ["basics:guideTones", "basics:extensions", "basics:twoFiveOne"]),
   node("voicing.upperStructureII", 2, ["basics:guideTones", "basics:extensions"], ["dominant.tritoneSub"]),
-  node("modal.backdoorTwoFive", 3, ["modal.borrowedIv", "basics:twoFiveOne"], ["dominant.tritoneSub"]),
+  node("modal.backdoorTwoFive", 3, ["modal.borrowedIv", "basics:twoFiveOne"], ["dominant.tritoneSub", "basics:numerals"]),
   // "the Family" is the °7's four dominants a minor 3rd apart: the dim7 is the real prerequisite
   node("dominant.mediantDominant", 3, ["basics:dim7"], ["dominant.tritoneSub", "modal.backdoorTwoFive"]),
-  node("modal.flatSixFlatSeven", 3, ["basics:parallelMinor"], ["modal.borrowedIv", "modal.backdoorTwoFive"]),
+  node("modal.flatSixFlatSeven", 3, ["basics:parallelMinor"], ["modal.borrowedIv", "modal.backdoorTwoFive", "basics:numerals"]),
   node("modal.borrowedIv", 3, ["basics:parallelMinor"]),
   node("chromatic.passingDiminished", 2, ["basics:dim7", "functional.secondaryDominant"]),
   node("chromatic.commonToneDiminished", 3, ["basics:dim7"], ["chromatic.passingDiminished"]),

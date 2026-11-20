@@ -78,20 +78,20 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("appoggiatura", "A leaning note that resolves by step.", undefined),
   e("enclosure", "Notes above and below a target, then it.", undefined),
   e("the Family", "Four dominants a minor third apart.", "dominant.mediantDominant"),
-  // terms the remaining lessons use (spec §D/§E); 2i links the last two to basics:sevenths and basics:numerals
+  // terms the remaining lessons use (spec §D/§E)
   e("tensions", "Notes above the 7th: 9th, 11th, 13th.", "basics:extensions", ["tension", "extensions"]),
   e("diminished 7th", "Four notes stacked in minor 3rds.", "basics:dim7"),
   e("augmented triad", "Three notes a major 3rd apart.", "basics:symmetricOctave"),
   e("sus", "The 4th replaces the 3rd: no pull yet."),
   e("line cliché", "One voice moving by half steps, chord held.", "chromatic.minorLineCliche"),
-  e("dominant 7th", "Major 3rd plus ♭7: wants to resolve."),
-  e("roman numerals", "Chords named by their root's scale step."),
-  // roman numerals the lessons print (2i links them to basics:numerals)
-  e("V", "The chord built on the key's 5th.", undefined, [], "numeral"),
-  e("♭II", "Chord on the lowered 2nd: tritone-sub root.", undefined, [], "numeral"),
-  e("ii", "Minor chord on the key's 2nd step.", undefined, [], "numeral"),
-  e("♭VII7", "Dominant on the lowered 7th: the backdoor.", undefined, [], "numeral"),
-  e("iv", "Minor chord on the 4th, borrowed from minor.", undefined, [], "numeral"),
+  e("dominant 7th", "Major 3rd plus ♭7: wants to resolve.", "basics:sevenths"),
+  e("roman numerals", "Chords named by their root's scale step.", "basics:numerals"),
+  // roman numerals the lessons print
+  e("V", "The chord built on the key's 5th.", "basics:numerals", [], "numeral"),
+  e("♭II", "Chord on the lowered 2nd: tritone-sub root.", "basics:numerals", [], "numeral"),
+  e("ii", "Minor chord on the key's 2nd step.", "basics:numerals", [], "numeral"),
+  e("♭VII7", "Dominant on the lowered 7th: the backdoor.", "basics:numerals", [], "numeral"),
+  e("iv", "Minor chord on the 4th, borrowed from minor.", "basics:numerals", [], "numeral"),
   ...Object.values(CATEGORY),
   ...LEVEL,
 ];

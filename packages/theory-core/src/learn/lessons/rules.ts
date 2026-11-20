@@ -132,7 +132,7 @@ function borrowedIv(f: BorrowedIvLearn): Lesson {
       ? `Let ${IV} turn into ${iv} before ${target}: one note drops a half step, and home sounds bittersweet.`
       : `Play ${iv} instead of ${IV}: one note drops a half step, and ${target} sounds bittersweet.`,
     steps: [
-      { text: `${iv} is borrowed from ${pn(f.targetRoot)} minor: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3")], term: "borrowed", prereqLink: "basics:parallelMinor" },
+      { text: `${iv} is borrowed from ${pn(f.targetRoot)} minor: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3")], play: "after", term: "borrowed", prereqLink: "basics:parallelMinor" },
       {
         text: `Its only change is the 3rd: ${pn(six)} drops a half step to ${pn(flatSix)}.`,
         highlight: [hl(six, "3rd"), hl(flatSix, "♭3")],
@@ -141,7 +141,7 @@ function borrowedIv(f: BorrowedIvLearn): Lesson {
       },
       { text: `Then ${pn(flatSix)} falls again, to ${pn(five)}: the 5th of ${target}.`, highlight: [hl(flatSix, "♭6"), hl(five, "5th")], play: "after" },
       {
-        text: `That line, ${pn(six)} → ${pn(flatSix)} → ${pn(five)}, is the minor plagal sound: bittersweet, not final.`,
+        text: `That line, ${pn(six)} → ${pn(flatSix)} → ${pn(five)}, is the minor plagal sound: bittersweet, a softer landing than V–I.`,
         highlight: [hl(six, "6"), hl(flatSix, "♭6"), hl(five, "5")],
         play: "ab",
         term: "minor plagal",
@@ -163,6 +163,7 @@ function backdoor(f: BackdoorLearn): Lesson {
           ? `The backdoor borrows two chords from ${pn(f.targetRoot)} minor: ${ps(f.iv)} (iv) and ${bVII} (♭VII7).`
           : `The backdoor borrows ${bVII} from ${pn(f.targetRoot)} minor: the ♭VII7.`,
         highlight: [hl(f.bVIIRoot, "♭VII"), hl(f.targetRoot, "home")],
+        play: "after",
         term: "backdoor",
         prereqLink: f.iv ? "modal.borrowedIv" : "basics:parallelMinor",
       },

@@ -1,6 +1,6 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { guideTones, triadTones } from "../src/chords";
+import { chordTones, guideTones, triadTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
 import { BUNDLED_TUNES } from "../src/index";
@@ -9,14 +9,19 @@ import {
   categoryEntry,
   CONCEPTS,
   conceptNode,
+  conceptStates,
   glossaryEntry,
   hasRuleLesson,
+  isBasicsId,
   lessonForMove,
   levelEntry,
+  nextUp,
   prereqSummary,
   type Lesson,
+  type LessonFlag,
   type TritoneSubLearn,
 } from "../src/learn";
+import { ARTICLE_BEFORE_NOTE } from "../src/learn/lesson";
 import { chroma, mod, transpose } from "../src/pitch";
 import { secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
 import { backdoorTwoFive, borrowedIv } from "../src/rulesAdvanced";
@@ -30,7 +35,18 @@ import { nearestMotion } from "../src/voiceLeading";
  * in the glossary, no hype, and every note spelled for a reader (B♭, never "Bb").
  */
 
-const BASICS = ["basics:tritone", "basics:guideTones", "basics:dominantResolution", "basics:twoFiveOne", "basics:parallelMinor"];
+const BASICS = [
+  "basics:sevenths",
+  "basics:tritone",
+  "basics:numerals",
+  "basics:guideTones",
+  "basics:dominantResolution",
+  "basics:twoFiveOne",
+  "basics:extensions",
+  "basics:parallelMinor",
+  "basics:dim7",
+  "basics:symmetricOctave",
+];
 const SLICE = ["dominant.tritoneSub", "functional.secondaryDominant", "functional.secondaryTwoFive", "modal.borrowedIv", "modal.backdoorTwoFive"];
 const BANNED = /\b(simply|just|of course|obviously|basically|magical|lush|sophisticated|spice up|jazzy|game-changer|secret|unlock|let's dive in|it's important to note)\b/i;
 
@@ -84,9 +100,27 @@ function proseOf(l: Lesson): string[] {
 describe("lesson coverage", () => {
   it("every slice rule and basics lesson exists, in all 12 keys", () => {
     for (const id of SLICE) expect(ruleLessons.filter((r) => r.lesson.conceptId === id).length, id).toBeGreaterThanOrEqual(12);
-    expect(basicsLessons.every((b) => b.lesson)).toBe(true);
-    expect(basicsLesson("basics:dim7", "C")).toBeNull();
+    expect(BASICS).toEqual(CONCEPTS.map((c) => c.id).filter(isBasicsId));
+    expect(basicsLessons.every((b) => b.lesson && b.lesson.conceptId === b.where.split(" in ")[0])).toBe(true);
+    expect(basicsLesson("basics:dim7", "C")?.conceptId).toBe("basics:dim7");
     expect(lessonForMove({ ruleId: "voicing.upperStructureBVI", facts: {} })).toBeNull();
+  });
+
+  it("every basics node next up can offer has a lesson, all the way along the path", () => {
+    // a learner who always finishes the first suggestion: everything the path offers on the way
+    const flags: Record<string, LessonFlag> = {};
+    const offered = new Set<string>();
+    for (let guard = 0; guard < CONCEPTS.length; guard++) {
+      const next = nextUp(conceptStates({ concepts: [], cleanKeys: {} }, flags, new Date("2026-11-20T12:00:00Z")));
+      if (!next.length) break;
+      next.forEach((id) => offered.add(id));
+      flags[next[0]] = { seenAt: "x", finishedAt: "y" };
+    }
+    const basics = [...offered].filter(isBasicsId);
+    expect(basics.sort()).toEqual([...BASICS].sort());
+    for (const id of basics) for (const k of KEYS) expect(basicsLesson(id, k), `${id} in ${k}`).not.toBeNull();
+    // a fresh player's first screen: every suggestion has a lesson
+    for (const id of nextUp(conceptStates({ concepts: [], cleanKeys: {} }, {}, new Date()))) expect(basicsLesson(id, "C") ?? (hasRuleLesson(id) || null), id).not.toBeNull();
   });
 });
 
@@ -118,6 +152,14 @@ describe("lesson copy", () => {
         if (s.ask) expect(s.ask.answer.length, at).toBeGreaterThan(0);
       }
       expect(l.steps.filter((s) => s.term).length, at).toBeLessThanOrEqual(2);
+      // step 1 plays on open, so it always has something to play
+      expect(!!l.steps[0].play || !!l.steps[0].sound?.length, `${at}: step 1 has no ▶ cue`).toBe(true);
+      for (const s of l.steps) for (const c of s.sound ?? []) expect(c.length, at).toBeGreaterThan(0);
+      // basics: no double flats or sharps anywhere a reader or the keyboard sees them (rule lessons
+      // print the engine's spelling, e.g. A♭7's ♭9 as B♭♭; tidying those is 5a's display helper)
+      const basic = isBasicsId(l.conceptId);
+      const notes = l.steps.flatMap((s) => [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? []), ...(s.sound ?? []).flat()]);
+      if (basic) expect(notes.filter((n) => /bb|##|x/.test(n)), at).toEqual([]);
       const asks = l.steps.flatMap((s, i) => (s.ask ? [i] : []));
       expect(asks, `${at}: one predict-then-reveal, in steps 2–4`).toHaveLength(1);
       expect(asks[0]).toBeGreaterThanOrEqual(1);
@@ -127,10 +169,12 @@ describe("lesson copy", () => {
         expect(text, at).not.toMatch(/undefined|NaN|null|\[object/);
         expect(text, at).not.toMatch(BANNED);
         expect(text, at).not.toMatch(/#/);
-        expect(text, `${at}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b/);
+        expect(text, `${at}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/); // "Bb", "Bbm7", "Bbdim7"; not "Above"
+        if (basic) expect(text, `${at}: double accidental in "${text}"`).not.toMatch(/♭♭|♯♯|𝄫|𝄪/u);
+        expect(text, `${at}: "a"/"an" before a note name in "${text}"`).not.toMatch(ARTICLE_BEFORE_NOTE);
       }
     }
-  });
+  }, 30_000); // ~3k lessons: seconds alone, longer beside the other suites
 });
 
 describe("the glossary covers what the UI labels", () => {
@@ -243,6 +287,79 @@ describe("lesson notes are the engine's notes, in every key", () => {
   });
 });
 
+describe("the new basics are the engine's notes, in every key", () => {
+  const gaps = (ns: string[]) => ns.slice(1).map((n, i) => mod(chroma(n) - chroma(ns[i]), 12));
+
+  it("7th chords: the dominant 7th is chordTones(), and the maj7/m7 changes are transpose()", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const G = transpose(T, "5");
+        const l = basicsLesson("basics:sevenths", T)!;
+        expect(l.steps[0].highlight.map((h) => h.note)).toEqual(chordTones({ root: G, quality: "7", extensions: [], alterations: [] }).map((t) => t.note));
+        expect(l.steps[0].highlight.map((h) => h.note)).toEqual(["1", "3", "5", "b7"].map((d) => transpose(G, d)));
+        expect(l.steps[1].highlight[3].note).toBe(transpose(G, "7"));
+        expect(l.steps[2].ask!.answer).toEqual([transpose(G, "b3")]);
+      }),
+    );
+  });
+
+  it("numerals: V is the 5th step, ii the 2nd, ♭II and ♭VII a half step under 2 and 7", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const l = basicsLesson("basics:numerals", T)!;
+        expect(l.steps[1].ask!.answer).toEqual([transpose(T, "5")]);
+        expect(l.steps[2].highlight[0].note).toBe(transpose(T, "2"));
+        const [bII, bVII] = l.steps[3].highlight.map((h) => chroma(h.note));
+        expect(bII).toBe(mod(chroma(T) + 1, 12));
+        expect(bVII).toBe(mod(chroma(T) + 10, 12));
+      }),
+    );
+  });
+
+  it("extensions: every tension is transpose() from the V, by ear where a double accidental is respelled", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const G = transpose(T, "5");
+        const l = basicsLesson("basics:extensions", T)!;
+        const at = (d: string) => chroma(transpose(G, d));
+        expect(l.steps[0].highlight.map((h) => h.note).slice(1)).toEqual(["9", "11", "13"].map((d) => transpose(G, d)));
+        expect(chroma(l.steps[2].highlight[0].note)).toBe(at("#11"));
+        expect(l.steps[3].highlight.map((h) => chroma(h.note))).toEqual([at("b9"), at("#9"), at("b13")]);
+        expect(l.steps[3].ask!.answer.map(chroma)).toEqual([at("b9"), at("b13")]);
+        expect(l.steps[4].highlight.map((h) => h.note)).toEqual([...guideTones({ root: G, quality: "7", extensions: [], alterations: [] }).map((t) => t.note), transpose(G, "9"), transpose(G, "13")]);
+      }),
+    );
+  });
+
+  it("dim7: four minor 3rds that close the octave, G7(♭9) without its root, no double accidentals", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const l = basicsLesson("basics:dim7", T)!;
+        const dim = l.steps[0].highlight.map((h) => h.note);
+        expect(gaps([...dim, dim[0]])).toEqual([3, 3, 3, 3]);
+        expect(chroma(dim[0])).toBe(chroma(transpose(T, "7")));
+        const V7b9 = chordTones({ root: transpose(T, "5"), quality: "7", extensions: [], alterations: ["b9"] }).filter((t) => t.degree !== "1");
+        expect(dim.map(chroma).sort()).toEqual(V7b9.map((t) => chroma(t.note)).sort());
+        for (const n of dim) expect(n).not.toMatch(/bb|##/);
+        expect(l.steps[3].highlight.map((h) => h.note)).toEqual([dim[0], T, dim[3], transpose(T, "5")]);
+      }),
+    );
+  });
+
+  it("major-3rd cycles: each step is 4 half steps and three of them come home", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const l = basicsLesson("basics:symmetricOctave", T)!;
+        const cycle = l.steps[0].highlight.map((h) => h.note);
+        expect(cycle[0]).toBe(T);
+        expect(cycle[1]).toBe(transpose(T, "3"));
+        expect(gaps([...cycle, T])).toEqual([4, 4, 4]);
+        expect(l.steps[1].ask!.answer).toEqual([T]);
+      }),
+    );
+  });
+});
+
 describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () => {
   const lessonAt = (id: string) => ruleLessons.find((r) => r.where.startsWith(`coop-blues in F: ${id}`))?.lesson;
 
@@ -258,5 +375,27 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     const l = lessonAt("modal.backdoorTwoFive@10.1");
     expect(l?.steps[1].text).toBe("E♭9 has no E, so no leading tone pushes up into F.");
     expect(l?.steps.map((s) => s.text).join(" ")).not.toMatch(/no tritone/);
+  });
+});
+
+describe("shipped-copy fixes (teacher's notes)", () => {
+  it("guide tones step 2 says what the 7th rules out, in every key", () => {
+    expect(basicsLesson("basics:guideTones", "C")!.steps[1].text).toBe("B, the 3rd, makes G7 major. F, not F♯, makes it a dominant 7th: F♯ would make Gmaj7.");
+    expect(basicsLesson("basics:guideTones", "Bb")!.steps[1].text).toBe("A, the 3rd, makes F7 major. E♭, not E, makes it a dominant 7th: E would make Fmaj7.");
+    expect(basicsLesson("basics:guideTones", "C")!.steps[2].text).toBe("With G in the bass, B and F alone still sound like G7.");
+  });
+
+  it("the borrowed iv lands bittersweet, softer than V–I", () => {
+    const l = ruleLessons.find((r) => r.where.startsWith("C edge") && r.lesson.conceptId === "modal.borrowedIv")!.lesson;
+    expect(l.steps[3].text).toBe("That line, A → A♭ → G, is the minor plagal sound: bittersweet, a softer landing than V–I.");
+  });
+
+  it("the teacher's wording for extensions, major-3rd cycles and the dim7, in C", () => {
+    const ext = basicsLesson("basics:extensions", "C")!;
+    expect(ext.steps[2].text).toBe("Raise it to C♯, or drop B and make it sus.");
+    expect(ext.steps[3].text).toBe("A dominant may bend the 9th or flatten the 13th: A♭ or A♯, and E♭.");
+    expect(basicsLesson("basics:symmetricOctave", "C")!.steps[0].text).toBe("C up a major 3rd is E. E up a major 3rd is G♯; we spell it A♭, C's ♭6.");
+    expect(basicsLesson("basics:dim7", "C")!.steps[1].text).toBe("Past A♭, the next minor 3rd is C♭ (same key as B), so only three different diminished 7ths exist.");
+    expect(basicsLesson("basics:dim7", "C")!.deeper).toBe("So four dominants, G7, B♭7, D♭7 and E7, share Bdim7 once they take the ♭9.");
   });
 });

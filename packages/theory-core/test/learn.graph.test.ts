@@ -32,12 +32,12 @@ const empty = { concepts: [] as Row[], cleanKeys: {} as Record<string, string[]>
 const states = (progress = empty, flags: Record<string, LessonFlag> = {}) => conceptStates(progress, flags, NOW);
 
 describe("the concept graph", () => {
-  it("places all 17 rules and 8 basics nodes, each once", () => {
+  it("places all 17 rules and 10 basics nodes, each once", () => {
     expect(new Set(ids).size).toBe(ids.length);
     for (const r of RULES) expect(ids).toContain(r.id);
     expect(RULES).toHaveLength(17);
-    expect(ids.filter(isBasicsId)).toHaveLength(8);
-    expect(ids).toHaveLength(25);
+    expect(ids.filter(isBasicsId)).toHaveLength(10);
+    expect(ids).toHaveLength(27);
     for (const id of ids) expect(learnName(id)).not.toBe(id);
   });
 
@@ -71,12 +71,21 @@ describe("the concept graph", () => {
   it("the tritone sub needs only the tritone and dominant resolution; secondary dominants are a soft edge", () => {
     const ts = conceptNode("dominant.tritoneSub")!;
     expect(ts.hard).toEqual(["basics:tritone", "basics:dominantResolution"]);
-    expect(ts.soft).toEqual(["functional.secondaryDominant"]);
+    expect(ts.soft).toEqual(["functional.secondaryDominant", "basics:numerals"]);
+  });
+
+  it("7th chords come before guide tones; numerals only pair with the moves that print them", () => {
+    expect(conceptNode("basics:sevenths")).toMatchObject({ tier: 0, hard: [], soft: [] });
+    expect(conceptNode("basics:numerals")).toMatchObject({ tier: 0, hard: [], soft: [] });
+    expect(conceptNode("basics:guideTones")!.hard).toEqual(["basics:sevenths"]);
+    const pairsWithNumerals = CONCEPTS.filter((c) => c.soft.includes("basics:numerals")).map((c) => c.id);
+    expect(pairsWithNumerals.sort()).toEqual(["dominant.tritoneSub", "functional.secondaryDominant", "modal.backdoorTwoFive", "modal.flatSixFlatSeven"]);
+    expect(CONCEPTS.filter((c) => c.hard.includes("basics:numerals"))).toEqual([]);
   });
 
   it("the teacher's edges: the Family needs the dim7; ♭VI–♭VII–I pairs with the backdoor; the gospel slide needs tensions", () => {
     expect(conceptNode("dominant.mediantDominant")).toMatchObject({ hard: ["basics:dim7"], soft: ["dominant.tritoneSub", "modal.backdoorTwoFive"] });
-    expect(conceptNode("modal.flatSixFlatSeven")).toMatchObject({ hard: ["basics:parallelMinor"], soft: ["modal.borrowedIv", "modal.backdoorTwoFive"] });
+    expect(conceptNode("modal.flatSixFlatSeven")).toMatchObject({ hard: ["basics:parallelMinor"], soft: ["modal.borrowedIv", "modal.backdoorTwoFive", "basics:numerals"] });
     expect(conceptNode("gospel.halfStepTurnaround")).toMatchObject({ hard: ["dominant.tritoneSub", "basics:extensions"], soft: ["voicing.upperStructureII"] });
   });
 
@@ -91,6 +100,8 @@ describe("concept states", () => {
   it("with no history, foundations are New and the tritone sub is Recommended first, never locked", () => {
     const s = states();
     expect(s.get("basics:tritone")!.state).toBe("new");
+    expect(s.get("basics:sevenths")!.state).toBe("new");
+    expect(s.get("basics:guideTones")).toMatchObject({ state: "recommendedFirst", recommendedFirst: ["basics:sevenths"] });
     expect(s.get("basics:dominantResolution")!.state).toBe("recommendedFirst");
     expect(s.get("dominant.tritoneSub")).toMatchObject({ state: "recommendedFirst", recommendedFirst: ["basics:tritone", "basics:dominantResolution"] });
   });
@@ -134,7 +145,12 @@ describe("concept states", () => {
 describe("next up", () => {
   it("with no history, offers foundations with nothing in front of them, at most four", () => {
     const n = nextUp(states());
-    expect(n).toEqual(["basics:tritone", "basics:guideTones", "basics:extensions", "basics:parallelMinor"]);
+    expect(n).toEqual(["basics:sevenths", "basics:tritone", "basics:numerals", "basics:extensions"]);
+    expect(nextUp(states(), 99).filter(isBasicsId)).toEqual(["basics:sevenths", "basics:tritone", "basics:numerals", "basics:extensions", "basics:parallelMinor", "basics:dim7", "basics:symmetricOctave"]);
+  });
+
+  it("finishing 7th chords puts guide tones on the frontier", () => {
+    expect(nextUp(states(empty, { "basics:sevenths": { seenAt: "x", finishedAt: "y" } }))).toEqual(["basics:tritone", "basics:numerals", "basics:guideTones", "basics:extensions"]);
   });
 
   it("once the tritone and dominant resolution are Familiar, the tritone sub is on the frontier, the secondary ii–V is not", () => {
