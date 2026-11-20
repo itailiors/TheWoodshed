@@ -6,6 +6,7 @@
  */
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
+import type { BackdoorLearn, BorrowedIvLearn } from "./learn/facts";
 import { chain, distribute, mk, pn, ps, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
 import { nearestMotion } from "./voiceLeading";
@@ -52,13 +53,31 @@ export const backdoorTwoFive: Rule = {
     const [b7third, b7seventh] = guideTones(bVII).map((g) => g.note);
     // the original dominant's 3rd, spelled as the chart spells it (D♭7 → F♯ gives F, not E♯)
     const leadingTone = guideTones(chord)[0].note;
+    const learn: BackdoorLearn = {
+      original: symbol(chord),
+      target: symbol(next),
+      iv: split ? symbol(chords[0]) : null,
+      bVII: symbol(bVII),
+      targetRoot: T,
+      bVIIRoot,
+      leadingTone,
+      bVIISeventh: b7seventh,
+      targetFifth: transpose(T, "5"),
+      bVIINinth: chordTones(bVII).find((t) => t.degree === "9")!.note,
+    };
     return {
       title: "Backdoor ii–V",
       level: 3,
       category: "modal",
       styleTags: ["modal-interchange", "standard"],
       chords,
-      facts: { target: ps(next), iv: split ? ps(chords[0]) : null, bVII7: ps(bVII), guideToneChain: chain(guideTones(chords[0]).map((g) => g.note), [...chords.slice(1), next]) },
+      facts: {
+        target: ps(next),
+        iv: split ? ps(chords[0]) : null,
+        bVII7: ps(bVII),
+        guideToneChain: chain(guideTones(chords[0]).map((g) => g.note), [...chords.slice(1), next]),
+        learn,
+      },
       text: {
         summary: `Come in through the back door: ${chords.map(ps).join(" → ")} → ${ps(next)}, instead of ${ps(chord)} → ${ps(next)}.`,
         theory:
@@ -174,13 +193,22 @@ export const borrowedIv: Rule = {
     const iv = mk(chord.root, "m6", split ? split[1] : chord.beats);
     const chords = split ? [keep(chord, split[0]), iv] : [iv];
     const line = [transpose(chord.root, "3"), transpose(chord.root, "b3"), transpose(next.root, "5")];
+    const learn: BorrowedIvLearn = {
+      IV: symbol(chord),
+      iv: symbol(iv),
+      target: symbol(next),
+      root: chord.root,
+      targetRoot: next.root,
+      kept: !!split,
+      line: [line[0], line[1], line[2]],
+    };
     return {
       title: "Borrowed iv (minor plagal)",
       level: 3,
       category: "modal",
       styleTags: ["modal-interchange", "standard", "gospel"],
       chords,
-      facts: { target: ps(next), iv: ps(iv), chromaticLine: line },
+      facts: { target: ps(next), iv: ps(iv), chromaticLine: line, learn },
       text: {
         summary: `Darken the IV on its way home: ${chords.map(ps).join(" → ")} → ${ps(next)}.`,
         theory:

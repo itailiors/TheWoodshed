@@ -63,6 +63,9 @@ export function chordTones(c: ChordShape): ChordTone[] {
 
 export const chordChromas = (c: ChordShape) => new Set(chordTones(c).map((t) => chroma(t.note)));
 
+/** Root, 3rd and 5th only: what a resolution lands on (into Cmaj7, B rises to C rather than holding as the 7th). */
+export const triadTones = (c: ChordShape): ChordTone[] => chordTones(c).filter((t) => ["1", "3", "b3", "5", "b5", "#5"].includes(t.degree));
+
 /** 3rd (or sus 4th) followed by the 7th: the two notes that define the chord. */
 export function guideTones(c: ChordShape): ChordTone[] {
   const tones = chordTones(c);

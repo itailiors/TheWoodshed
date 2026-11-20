@@ -71,17 +71,23 @@ export function distribute(total: number, n: number): number[] | null {
 
 export const romanName = (c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|ø7|°7|m7|m6|7|6)$/, "");
 
+/** Each voice followed by nearest motion through a chord list: one motion per chord, per voice. */
+export function chainMotions(voices: string[], chords: Array<Parameters<typeof chordTones>[0]>): VoiceMotion[][] {
+  return voices.map((v) => {
+    const out: VoiceMotion[] = [];
+    let cur = v;
+    for (const c of chords) {
+      const m = nearestMotion(cur, chordTones(c));
+      out.push(m);
+      cur = m.to;
+    }
+    return out;
+  });
+}
+
 /** "A♭ → A♭ → G, E♭ → D → D": follow each voice by nearest motion through a chord list. */
 export function chain(voices: string[], chords: Array<Parameters<typeof chordTones>[0]>): string {
-  return voices
-    .map((v) => {
-      const path = [v];
-      let cur = v;
-      for (const c of chords) {
-        cur = nearestMotion(cur, chordTones(c)).to;
-        path.push(cur);
-      }
-      return path.map(pn).join(" → ");
-    })
+  return chainMotions(voices, chords)
+    .map((ms, i) => [voices[i], ...ms.map((m) => m.to)].map(pn).join(" → "))
     .join(", ");
 }

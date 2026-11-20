@@ -40,3 +40,4 @@ export * from "./control";
 export * from "./srs";
 export * from "./ears";
 export * from "./concepts";
+export * from "./learn";

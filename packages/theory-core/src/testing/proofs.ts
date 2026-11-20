@@ -2,11 +2,13 @@ import fc from "fast-check";
 import { walkingBass } from "../band";
 import { generateMoves, generateMovesTraced } from "../engine";
 import { buildPathway, buildPathwayTraced, DENSITY, overlaps } from "../pathway";
-import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, transpose } from "../pitch";
+import { hasRuleLesson, lessonForMove } from "../learn";
+import { RULES } from "../ruleset";
+import { BASE_INTERVAL_NAMES, chroma, INTERVALS, letterIndex, mod, prettyNote, transpose } from "../pitch";
 import { sortedHarmony, absBeat } from "../time";
 import { KEYS, transposeTune } from "../transpose";
 import type { Tune } from "../types";
-import { progressionArb, SPELLED } from "./arbitraries";
+import { chordPairArb, progressionArb, SPELLED } from "./arbitraries";
 
 /*
  * The engine's claims, as executable properties. CI runs every one of these (see
@@ -30,6 +32,18 @@ export interface Proof {
 function must(cond: unknown, why: string): asserts cond {
   if (!cond) throw new Error(why);
 }
+
+/** Every engine-spelled note ("Bb", "F#") anywhere inside a facts object. */
+function factNotes(v: unknown, out = new Set<string>()): Set<string> {
+  if (typeof v === "string" && /^[A-G](b{1,2}|#{1,2})?$/.test(v)) out.add(v);
+  else if (Array.isArray(v)) v.forEach((x) => factNotes(x, out));
+  else if (v && typeof v === "object") Object.values(v).forEach((x) => factNotes(x, out));
+  return out;
+}
+
+/** Bare note names in display text ("B♭", "F♯"), not chord symbols ("G♭9", "Dm7") or a sentence's opening "A". */
+const NOTE_IN_TEXT = /(?<![\p{L}\p{N}♭♯])[A-G][♭♯]{0,2}(?![\p{L}\p{N}♭♯(])/gu;
+const textNotes = (s: string) => [...s.matchAll(NOTE_IN_TEXT)].filter((m) => !(m[0] === "A" && (m.index === 0 || /[.!?]\s$/.test(s.slice(0, m.index))))).map((m) => m[0]);
 
 /** A 4-bar progression repeated to 16 bars, so phrase windows have competition. */
 function repeated(tune: Tune): Tune {
@@ -144,6 +158,34 @@ export const PROOFS: Proof[] = [
         const out = transpose(note, iv);
         must(chroma(out) === mod(chroma(note) + INTERVALS[iv].semis, 12), `${note} + ${iv} = ${out}: wrong pitch`);
         must(letterIndex(out) === mod(letterIndex(note) + INTERVALS[iv].steps, 7), `${note} + ${iv} = ${out}: wrong letter`);
+      }),
+  },
+  {
+    id: "lessons-honest",
+    title: "Lessons are the engine",
+    claim: "Every note a lesson names, lights on the keyboard or asks you to tap is a note the engine computed for that move, in any key.",
+    property: () =>
+      // whole tunes through the engine, plus each lesson rule straight on a random chord pair
+      // (random ii–V–Is never reach the secondary dominant or the borrowed iv)
+      fc.property(progressionArb, fc.constantFrom(...KEYS), chordPairArb, (tune, key, { chord, next }) => {
+        const moved = transposeTune(tune, key);
+        const ctx = { tune: { ...moved, key: { tonic: next.root, mode: "major" as const } }, index: 0, chord, next };
+        const direct = RULES.filter((r) => hasRuleLesson(r.id)).flatMap((r) => {
+          const p = r.propose(ctx);
+          return p ? [{ id: `${r.id} on ${chord.root}${chord.quality} → ${next.root}${next.quality}`, ruleId: r.id, facts: p.facts }] : [];
+        });
+        for (const m of [...generateMoves(moved).accepted, ...direct]) {
+          const lesson = lessonForMove(m);
+          if (!lesson) continue;
+          const spelled = factNotes(m.facts.learn);
+          const shown = new Set([...spelled].map(prettyNote));
+          for (const s of lesson.steps) {
+            for (const n of [...s.highlight.map((h) => h.note), ...(s.ask?.answer ?? [])]) must(spelled.has(n), `${m.id}: lights ${n}, which the engine never computed`);
+            for (const text of [s.text, s.ask?.prompt ?? "", ...s.highlight.map((h) => h.label)])
+              for (const n of textNotes(text)) must(shown.has(n), `${m.id}: "${text}" names ${n}, which the engine never computed`);
+          }
+          for (const text of [lesson.headline, lesson.deeper ?? ""]) for (const n of textNotes(text)) must(shown.has(n), `${m.id}: "${text}" names ${n}`);
+        }
       }),
   },
   {

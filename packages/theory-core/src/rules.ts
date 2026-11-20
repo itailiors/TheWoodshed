@@ -7,9 +7,11 @@ import {
   isMinorQ,
   resolvesDownFifth,
   symbol,
+  triadTones,
 } from "./chords";
 import { chroma, prettySymbol, simplifyNote, transpose } from "./pitch";
-import { chain, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type { SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "./learn/facts";
+import { chain, chainMotions, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { Quality } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
@@ -43,11 +45,25 @@ export const secondaryTwoFive: Rule = {
       return null; // the ii is already there
     }
 
-    const gtChain = chain(
-      guideTones(iiChord).map((t) => t.note),
-      [vChord, next],
-    );
-    const facts = { target: symbol(next), ii: symbol(iiChord), V: symbol(vChord), guideToneChain: gtChain, related: alreadyV };
+    const iiGuides = guideTones(iiChord).map((t) => t.note);
+    const gtChain = chain(iiGuides, [vChord, next]);
+    // the lesson lands the last leg on the target's triad: into Fmaj7, E rises to F rather than holding as the 7th
+    const [thirdPath, seventhPath] = chainMotions(iiGuides, [vChord, { ...next, quality: tMinor ? "m" : "maj", extensions: [], alterations: [] }]);
+    const learn: SecondaryTwoFiveLearn = {
+      original: symbol(chord),
+      ii: symbol(iiChord),
+      V: symbol(vChord),
+      target: symbol(next),
+      iiRoot: ii,
+      VRoot: V,
+      targetRoot: next.root,
+      targetMinor: tMinor,
+      related: alreadyV,
+      iiThird: { from: iiGuides[0], motions: thirdPath },
+      iiSeventh: { from: iiGuides[1], motions: seventhPath },
+      flatNine: [chordTones(vChord).find((t) => t.degree === "b9")!.note, transpose(next.root, "5")],
+    };
+    const facts = { target: symbol(next), ii: symbol(iiChord), V: symbol(vChord), guideToneChain: gtChain, related: alreadyV, learn };
 
     if (alreadyV) {
       return {
@@ -126,6 +142,22 @@ export const secondaryDominant: Rule = {
     const lowered = oldSeventh && oldSeventh.degree === "7" ? [oldSeventh.note, seventh.note] : undefined;
     const gtChain = chain([third.note, seventh.note], [next]);
     const r = romanName(next);
+    const flatNine = tMinor ? chordTones(dom).find((t) => t.degree === "b9")?.note : undefined;
+    const learn: SecondaryDominantLearn = {
+      original: symbol(chord),
+      dominant: symbol(dom),
+      target: symbol(next),
+      root: chord.root,
+      targetRoot: next.root,
+      targetMinor: tMinor,
+      third: third.note,
+      seventh: seventh.note,
+      ...(raised ? { raised: [raised[0], raised[1]] as [string, string] } : {}),
+      seventhChange: lowered ? "lowered" : oldSeventh?.note === seventh.note ? "kept" : "added",
+      ...(lowered ? { lowered: [lowered[0], lowered[1]] as [string, string] } : {}),
+      resolution: [nearestMotion(third.note, triadTones(next)), nearestMotion(seventh.note, triadTones(next))],
+      ...(flatNine ? { flatNine } : {}),
+    };
     const facts = {
       original: symbol(chord),
       dominant: symbol(dom),
@@ -134,6 +166,7 @@ export const secondaryDominant: Rule = {
       ...(raised ? { raised } : {}),
       ...(lowered ? { lowered } : {}),
       guideToneChain: gtChain,
+      learn,
     };
     const change = [
       raised && `its ${pn(raised[0])} rises to ${pn(raised[1])}`,
@@ -186,13 +219,29 @@ export const tritoneSub: Rule = {
     const [o3, o7] = guideTones({ ...chord, alterations: [] }).map((t) => t.note);
     const [s3, s7] = guideTones(sub).map((t) => t.note);
     const mm = simplifyNote(transpose(subRoot, "5"));
+    const targetTones = triadTones(next);
+    const subTone = (d: string) => chordTones(sub).find((t) => t.degree === d)!.note;
+    const learn: TritoneSubLearn = {
+      original: symbol(chord),
+      sub: symbol(sub),
+      target: symbol(next),
+      originalRoot: chord.root,
+      subRoot,
+      targetRoot: next.root,
+      guideTones: [o3, o7],
+      subGuideTones: [s3, s7],
+      resolution: [nearestMotion(o3, targetTones), nearestMotion(o7, targetTones)],
+      subFifth: subTone("5"),
+      subNinth: subTone("9"),
+      parentMelodicMinor: mm,
+    };
     return {
       title: "Tritone sub",
       level: 2,
       category: "dominant-sub",
       styleTags: ["bebop"],
       chords: [sub],
-      facts: { original: symbol(chord), sub: symbol(sub), sharedTritone: [o3, o7], parentMelodicMinor: mm },
+      facts: { original: symbol(chord), sub: symbol(sub), sharedTritone: [o3, o7], parentMelodicMinor: mm, learn },
       text: {
         summary: `Swap ${ps(chord)} for ${ps(sub)}, the dominant a tritone away.`,
         theory:
