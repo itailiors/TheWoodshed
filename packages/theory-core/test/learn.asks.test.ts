@@ -9,6 +9,7 @@ import type {
   BorrowedIvLearn,
   ColtraneLearn,
   ConstantStructureLearn,
+  FlatSixFlatSevenLearn,
   GospelTurnaroundLearn,
   MediantDominantLearn,
   MinorLineClicheLearn,
@@ -137,6 +138,27 @@ const RULE_ASKS: Record<string, Allowed> = {
     const r = chroma((learn as MinorLineClicheLearn).root);
     return [1, 2, 3].map((s) => mod(r - s, 12));
   },
+  // "One key of Dm9 moves to make G13. Tap where it goes.": the rootless V13 (♭7, 9, 3, 13) keys the rootless ii9 (♭3, 5, ♭7, 9) lacks
+  "voicing.rootlessTwoFiveOne": (_l, { move }) => {
+    const [ii, V] = move!.chords;
+    const grip = (root: string, ds: string[]) => pcs(ds.map((d) => transpose(root, d)));
+    const iiKeys = grip(ii.root, ["b3", "5", "b7", "9"]);
+    return grip(V.root, ["b7", "9", "3", "13"]).filter((pc) => !iiKeys.includes(pc));
+  },
+  // "Tap the major triad a major 3rd below G.": the dominant's root is the move's own chord
+  "voicing.upperStructureBVI": (l, { move }) => {
+    const r = move!.chords[0].root;
+    expect(l.steps.find((s) => s.ask)!.ask!.prompt).toContain(`below ${prettyNote(r)}.`);
+    return pcs(chordTones(shape(transpose(r, "b6"), "maj")).map((t) => t.note));
+  },
+  // "Tap the major triad a whole step above G."
+  "voicing.upperStructureII": (l, { move }) => {
+    const r = move!.chords[0].root;
+    expect(l.steps.find((s) => s.ask)!.ask!.prompt).toContain(`above ${prettyNote(r)}.`);
+    return pcs(chordTones(shape(transpose(r, "2"), "maj")).map((t) => t.note));
+  },
+  // "Tap the bass line into C.": the move's roots, then the target's
+  "modal.flatSixFlatSeven": (_l, { learn, move }) => pcs([...move!.chords.map((c) => c.root), (learn as FlatSixFlatSevenLearn).targetRoot]),
 };
 
 /** Semitones above the root for each degree a held top note can take (independent of the rule's tables). */
@@ -191,6 +213,10 @@ const PROMPTS: Record<string, RegExp> = {
   "chromatic.passingDiminished": /^(\S+ is a dominant without its root\. Tap that root: the V of \S+|Tap the (key|two keys|three keys) \S+ shares with \S+)\.$/,
   "chromatic.commonToneDiminished": /^Which two keys of \S+ rise a half step into \S+\? Tap them\.$/,
   "chromatic.minorLineCliche": /^Start on \S+\. Tap the next three keys down by half steps\.$/,
+  "voicing.rootlessTwoFiveOne": /^One key of \S+ moves to make \S+\. Tap where it goes\.$/,
+  "voicing.upperStructureBVI": /^Tap the major triad a major 3rd below \S+\.$/,
+  "voicing.upperStructureII": /^Tap the major triad a whole step above \S+\.$/,
+  "modal.flatSixFlatSeven": /^Tap the bass line into \S+\.$/,
   "basics:sevenths": /^Make it \S+: lower one key\. Tap the new 3rd\.$/,
   "basics:numerals": /^V is the chord on step 5\. Tap its root\.$/,
   "basics:tritone": /^Tap the key a tritone above \S+\.$/,
@@ -257,6 +283,14 @@ describe("every ask has exactly one right answer set", () => {
     const down = ruleLessons.find((r) => r.where === "down into Dm7 in C")!.lesson;
     expect(down.steps.find((s) => s.ask)!.ask).toEqual({ kind: "tapNotes", prompt: "Tap the two keys E♭dim7 shares with Dm7.", answer: ["A", "C"] });
     expect(ruleLessons.filter((r) => r.where.startsWith("down into")).length).toBe(36);
+  });
+
+  it("the voicing and borrowed-chord asks (5d), worded as audited, in C", () => {
+    const ask = (id: string) => lessonForMove(canonicalMove(id, "C")!)!.steps.find((s) => s.ask)!.ask!;
+    expect(ask("voicing.rootlessTwoFiveOne")).toEqual({ kind: "tapNotes", prompt: "One key of Dm9 moves to make G13. Tap where it goes.", answer: ["B"] });
+    expect(ask("voicing.upperStructureBVI")).toEqual({ kind: "tapNotes", prompt: "Tap the major triad a major 3rd below G.", answer: ["Eb", "G", "Bb"] });
+    expect(ask("voicing.upperStructureII")).toEqual({ kind: "tapNotes", prompt: "Tap the major triad a whole step above G.", answer: ["A", "C#", "E"] });
+    expect(ask("modal.flatSixFlatSeven")).toEqual({ kind: "tapNotes", prompt: "Tap the bass line into C.", answer: ["Ab", "Bb", "C"] });
   });
 
   it("the reference ii–V asks about guide tones, so G (Gm9's root, C7's 5th) is not a right answer it rejects", () => {

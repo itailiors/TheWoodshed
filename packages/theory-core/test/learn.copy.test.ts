@@ -3,14 +3,19 @@ import { describe, expect, it } from "vitest";
 import { chordTones, guideTones, triadTones } from "../src/chords";
 import { generateMoves } from "../src/engine";
 import { someday } from "../src/fixtures/someday";
-import { BUNDLED_TUNES, canonicalMove } from "../src/index";
+import { anyLesson, BUNDLED_TUNES, canonicalMove } from "../src/index";
+import { RULES } from "../src/ruleset";
 import {
   basicsLesson,
   categoryEntry,
   type ColtraneLearn,
   type CommonToneDiminishedLearn,
   type ConstantStructureLearn,
+  type FlatSixFlatSevenLearn,
   type GospelTurnaroundLearn,
+  type RootlessTwoFiveOneLearn,
+  type UpperStructureBVILearn,
+  type UpperStructureIILearn,
   type MediantDominantLearn,
   type MinorLineClicheLearn,
   type OneNoteOnTopLearn,
@@ -29,16 +34,17 @@ import {
   type LessonFlag,
   type TritoneSubLearn,
 } from "../src/learn";
-import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES } from "../src/learn/lesson";
+import { ARTICLE_BEFORE_NOTE, BANNED_PHRASES, readable } from "../src/learn/lesson";
 import { chroma, mod, transpose } from "../src/pitch";
 import { chainMotions as chainMotionsOf, type Rule } from "../src/ruleKit";
-import { gospelTurnaround, secondaryDominant, secondaryTwoFive, tritoneSub } from "../src/rules";
+import { gospelTurnaround, rootlessTwoFiveOne, secondaryDominant, secondaryTwoFive, tritoneSub, upperStructure, upperStructureII } from "../src/rules";
 import {
   backdoorTwoFive,
   borrowedIv,
   coltraneSubstitution,
   commonToneDiminished,
   constantStructure,
+  flatSixFlatSeven,
   mediantDominant,
   minorLineCliche,
   passingDiminished,
@@ -80,9 +86,23 @@ const SLICE = [
   "chromatic.passingDiminished",
   "chromatic.commonToneDiminished",
   "chromatic.minorLineCliche",
+  "voicing.rootlessTwoFiveOne",
+  "voicing.upperStructureBVI",
+  "voicing.upperStructureII",
+  "modal.flatSixFlatSeven",
 ];
 /** Rule lessons held to the basics' rule: no double accidental shown anywhere (5a's display helpers). */
-const NO_DOUBLES = new Set(["dominant.mediantDominant", "gospel.halfStepTurnaround", "chromatic.passingDiminished", "chromatic.commonToneDiminished", "chromatic.minorLineCliche"]);
+const NO_DOUBLES = new Set([
+  "dominant.mediantDominant",
+  "gospel.halfStepTurnaround",
+  "chromatic.passingDiminished",
+  "chromatic.commonToneDiminished",
+  "chromatic.minorLineCliche",
+  "voicing.rootlessTwoFiveOne",
+  "voicing.upperStructureBVI",
+  "voicing.upperStructureII",
+  "modal.flatSixFlatSeven",
+]);
 const BANNED = BANNED_PHRASES;
 
 const words = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
@@ -135,6 +155,14 @@ function edgeCases(T: string) {
     [commonToneDiminished, commonToneDiminished.propose({ ...ctx(ch(T, "6"), ch(at("4"), "maj7")), prev: ch(at("5"), "7") })], // shares the 6th too
     [commonToneDiminished, commonToneDiminished.propose({ ...ctx({ ...ch(T, "6"), bass: at("5") }, ch(at("4"), "maj7")), prev: ch(at("5"), "7") })], // a slash chord: the bass moves
     [minorLineCliche, minorLineCliche.propose(ctx(ch(T, "m"), ch(at("4"), "m7")))],
+    [rootlessTwoFiveOne, rootlessTwoFiveOne.propose(ctx({ ...ch(at("2"), "m7"), extensions: ["9"] }, ch(at("5"), "7"), ch(T, "maj7")))],
+    [upperStructure, upperStructure.propose(ctx(ch(at("5"), "7"), ch(T, "m7")))], // into minor: three common tones
+    [upperStructure, upperStructure.propose(ctx({ ...ch(at("5"), "7"), alterations: ["b13"] }, ch(T, "maj7")))], // altered, into major
+    [upperStructure, upperStructure.propose(ctx({ ...ch(at("5"), "7"), alterations: ["#5"] }, ch(at("2"), "m7")))], // not down a fifth
+    [upperStructureII, upperStructureII.propose(ctx({ ...ch(at("5"), "7"), analysis: { roman: "V7", func: "D" } }, ch(T, "maj7")))],
+    [upperStructureII, upperStructureII.propose(ctx({ ...ch(at("b7"), "7"), alterations: ["#11"] }, ch(T, "maj7")))], // a Lydian ♭VII7
+    [flatSixFlatSeven, flatSixFlatSeven.propose(ctx(ch(at("5"), "7"), ch(T, "maj7")))],
+    [flatSixFlatSeven, flatSixFlatSeven.propose(ctx(ch(at("5"), "7"), ch(T, "6")))], // into a 6 chord
   ];
   return cases.flatMap(([r, p], i) => (p ? [{ ruleId: r.id, facts: p.facts, where: `${T} edge ${i}` }] : []));
 }
@@ -162,6 +190,20 @@ describe("lesson coverage", () => {
     expect(basicsLessons.every((b) => b.lesson && b.lesson.conceptId === b.where.split(" in ")[0])).toBe(true);
     expect(basicsLesson("basics:dim7", "C")?.conceptId).toBe("basics:dim7");
     expect(lessonForMove({ ruleId: "voicing.upperStructureBVI", facts: {} })).toBeNull();
+  });
+
+  it("all 17 rules and all 10 basics have lessons: every rule on its canonical move, in 12 keys", () => {
+    expect(RULES.length).toBe(17);
+    expect([...SLICE].sort()).toEqual(RULES.map((r) => r.id).sort());
+    for (const r of RULES) {
+      expect(hasRuleLesson(r.id), r.id).toBe(true);
+      for (const k of KEYS) expect(lessonForMove(canonicalMove(r.id, k)!)?.conceptId, `${r.id} in ${k}`).toBe(r.id);
+    }
+    const basics = CONCEPTS.map((c) => c.id).filter(isBasicsId);
+    expect(basics).toHaveLength(10);
+    for (const id of basics) for (const k of KEYS) expect(basicsLesson(id, k)?.conceptId, `${id} in ${k}`).toBe(id);
+    // every node on the path, rule or foundation, has a lesson in every key
+    for (const c of CONCEPTS) expect(anyLesson(c.id, "C"), c.id).not.toBeNull();
   });
 
   it("every basics node next up can offer has a lesson, all the way along the path", () => {
@@ -518,6 +560,84 @@ describe("lesson notes are the engine's notes, in every key", () => {
     );
   });
 
+  const above = (from: string, to: string) => mod(chroma(to) - chroma(from), 12);
+
+  it("rootless ii–V–I: grip A (3rd at the bottom) → grip B (7th) → grip A, only the ii's 7th moves into V (−1), and V's 3rd holds as I's 7th", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("voicing.rootlessTwoFiveOne", T);
+        const f = m.facts.learn as RootlessTwoFiveOneLearn;
+        const [ii, V] = m.chords;
+        const at = (root: string, ds: string[]) => ds.map((d) => chroma(transpose(root, d)));
+        expect(f.iiGrip.map(chroma)).toEqual(at(ii.root, ["b3", "5", "b7", "9"]));
+        expect(f.vGrip.map(chroma)).toEqual(at(V.root, ["b7", "9", "3", "13"]));
+        expect(f.iGrip.map(chroma)).toEqual(at(T, ["3", "5", "7", "9"]));
+        // what the hints play is what the lesson names
+        expect(m.voicingHints!.map((h) => [...h.lh, ...h.rh].map(chroma))).toEqual([f.iiGrip, f.vGrip, f.iGrip].map((g) => g.map(chroma)));
+        expect(f.toV.map((v) => v.semitones)).toEqual([0, 0, -1, 0]);
+        expect(f.toI.map((v) => v.semitones)).toEqual([-1, -2, 0, -2]);
+        expect(f.I).toBe(`${T}maj9`);
+        const l = lessonForMove(m)!;
+        expect(l.steps[1].ask!.answer).toEqual([f.vGrip[2]]);
+        for (const n of [...f.iiGrip, ...f.vGrip, ...f.iGrip]) expect(doubled(n), n).toBe(false);
+      }),
+    );
+  });
+
+  it("upper structure ♭VI: the triad a major 3rd below the root reads ♭13, root, ♯9 over the root–♭7–3 shell, and its common keys are the target's", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("voicing.upperStructureBVI", T);
+        const f = m.facts.learn as UpperStructureBVILearn;
+        expect(f.triad.map((n) => above(f.root, n))).toEqual([8, 0, 3]);
+        expect(f.shell.map((n) => above(f.root, n))).toEqual([0, 10, 4]);
+        expect(chroma(f.sharpNine)).toBe(chroma(f.triad[2]));
+        const target = new Set(chordTones({ root: T, quality: "m6", extensions: [], alterations: [] }).map((t) => chroma(t.note))); // the canonical im6
+        for (const n of f.common) expect(target.has(chroma(n)), n).toBe(true);
+        expect(f.thirdResolves).toMatchObject({ semitones: 1 });
+        expect(chroma(f.thirdResolves.to)).toBe(chroma(T));
+        expect(lessonForMove(m)!.steps[1].ask!.answer).toEqual(f.triad);
+        for (const n of [...f.triad, ...f.shell, f.sharpNine]) expect(doubled(n), n).toBe(false);
+      }),
+    );
+  });
+
+  it("upper structure II: the triad a whole step above the root is the 9th, ♯11 and 13th, spelled as those degrees, over the root–3–♭7 shell", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("voicing.upperStructureII", T);
+        const f = m.facts.learn as UpperStructureIILearn;
+        expect(f.triad.map((n) => above(f.root, n))).toEqual([2, 6, 9]);
+        expect(f.shell.map((n) => above(f.root, n))).toEqual([0, 4, 10]);
+        // spelled as degrees: the ♯11 is a raised 4th letter (E♯ over B), the natural 11 the plain one
+        expect(f.triad).toEqual([f.triadRoot, ...["#11", "13"].map((d) => readable(transpose(f.root, d)))]);
+        expect(above(f.naturalEleven, f.triad[1])).toBe(1);
+        expect(above(f.parentMelodicMinor, f.root)).toBe(5);
+        expect(lessonForMove(m)!.steps[1].ask!.answer).toEqual(f.triad);
+      }),
+    );
+  });
+
+  it("♭VI–♭VII–I: the bass climbs two whole steps home, ♭VII6/9 holds the home root as its 9th and lacks the leading tone, and differs from the backdoor's ♭VII7 by one key", () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...KEYS), (T) => {
+        const m = moveIn("modal.flatSixFlatSeven", T);
+        const f = m.facts.learn as FlatSixFlatSevenLearn;
+        expect([above(f.bVIRoot, f.bVIIRoot), above(f.bVIIRoot, f.targetRoot)]).toEqual([2, 2]);
+        expect(chroma(f.bVIINinth)).toBe(chroma(T));
+        const bVII = new Set(chordTones(m.chords[1]).map((t) => chroma(t.note)));
+        expect(bVII.has(chroma(f.leadingTone))).toBe(false);
+        expect(above(f.leadingTone, T)).toBe(1);
+        expect(f.bVII).toMatch(/6\/9$/);
+        // ♭VII6/9 has no tritone; the backdoor's ♭VII7 swaps its 6th for a ♭7 and gets one
+        const pcsList = [...bVII];
+        expect(pcsList.some((a) => bVII.has(mod(a + 6, 12)))).toBe(false);
+        expect(above(f.bVIISixth, f.backdoorSeventh)).toBe(1);
+        expect(lessonForMove(m)!.steps[1].ask!.answer).toEqual([f.bVIRoot, f.bVIIRoot, f.targetRoot]);
+      }),
+    );
+  });
+
   it("basics: guide tones and dominant resolution light exactly guideTones() and transpose(), and agree with the engine's voice motion", () => {
     fc.assert(
       fc.property(fc.constantFrom(...KEYS), (T) => {
@@ -669,6 +789,38 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
     const lc = lesson("chromatic.minorLineCliche");
     expect(lc.steps[2].text).toBe("Each stop renames the chord: Cm, Cm(maj7), Cm7, Cm6.");
     expect(lc.rule).toBe("Over a long minor chord, hold the 3rd and 5th; walk the root voice down, inside or in the bass: 1, 7, ♭7, 6.");
+  });
+
+  it("the teacher's wording for the voicing and borrowed-chord moves, in C", () => {
+    const lesson = (id: string) => lessonForMove(canonicalMove(id, "C")!)!;
+    // rootless: lands on Cmaj9 (E G B D is what sounds), grips moved voice to voice (A falls to G, not to a tie)
+    const rl = lesson("voicing.rootlessTwoFiveOne");
+    expect(rl.headline).toBe("Voice Dm9 → G13 → Cmaj9 without roots: one finger moves from ii to V.");
+    expect(rl.steps.map((s) => s.text)).toEqual([
+      "Play Dm9 rootless: F, A, C, E, its 3rd, 5th, 7th and 9th.",
+      "Only C moves: it falls a half step to B, G13's 3rd. F, A and E stay.",
+      "Now F, A, B, E read as G13's 7th, 9th, 3rd and 13th.",
+      "Into Cmaj9, F falls to E, A to G, E to D; B holds.",
+    ]);
+    expect(rl.deeper).toBe("Grip A has the 3rd on the bottom, grip B the 7th. Start ii on either; each fifth down swaps them.");
+    // upper structure ♭VI: E♭ over G is ♭13, root, ♯9 (G altered)
+    const b6 = lesson("voicing.upperStructureBVI");
+    expect(b6.headline).toBe("Over G7's shell, play the E♭ triad: one easy shape gives you G7(♯9,♭13).");
+    expect(b6.steps[2].text).toBe("Over G, the triad reads ♭13, root, ♯9: B♭ (same key as A♯) is the ♯9.");
+    expect(b6.steps[3].text).toBe("Into Cm6, B rises to C, and E♭ and G are already there.");
+    expect(b6.deeper).toBe("All three triad notes sit in G altered, so the right hand can keep going in that scale.");
+    // upper structure II: 9, ♯11, 13 over the shell, Lydian dominant (melodic minor's 4th mode)
+    const two = lesson("voicing.upperStructureII");
+    expect(two.headline).toBe("Over G7's shell, play the A major triad: G13(♯11), bright and open.");
+    expect(two.steps[2].text).toBe("Over G, A is the 9th, C♯ the ♯11, E the 13th.");
+    expect(two.steps[3].text).toBe("C♯ is the bright note: a ♯11 where a plain C would rub against B, the 3rd.");
+    expect(two.deeper).toBe("Together they're G Lydian dominant without its 5th: the 4th mode of D melodic minor.");
+    // ♭VI–♭VII: borrowed from the parallel minor; the deeper line cites the backdoor
+    const fl = lesson("modal.flatSixFlatSeven");
+    expect(fl.headline).toBe("Replace G7 with A♭maj7 → B♭6/9: the bass climbs two whole steps into C.");
+    expect(fl.steps[0]).toMatchObject({ text: "A♭maj7 and B♭6/9 are borrowed from C minor: they sit on its ♭6 and ♭7.", term: "borrowed", prereqLink: "basics:parallelMinor" });
+    expect(fl.steps[2].text).toBe("B♭6/9 has no B: nothing leans up into C. Its 9th is C, already home.");
+    expect(fl.deeper).toBe("B♭6/9 is the backdoor's ♭VII with G in place of A♭: same root, no tritone.");
   });
 
   it("the gospel turnaround into Co-op Blues' F6 lands on F6/9: the ♭7 rises, the ♯11 holds", () => {

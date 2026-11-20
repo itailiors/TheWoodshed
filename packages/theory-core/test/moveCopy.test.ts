@@ -95,13 +95,28 @@ describe("one source for a lessoned move's words (4a)", () => {
     }
   });
 
-  it("a rule with a lesson writes no text of its own; a rule without one does", () => {
+  it("since 5d every rule has a lesson, so no rule writes text of its own", () => {
     const hs = sortedHarmony(coopBlues);
     for (const m of accepted) {
       const rule = RULES.find((r) => r.id === m.ruleId)!;
       const at = hs.findIndex((c) => c.id === m.replaces[0]);
       const p = rule.propose({ tune: coopBlues, index: at, chord: hs[at], prev: hs[at - 1], next: hs[at + 1], afterNext: hs[at + 2] })!;
-      expect(!!p.text, m.id).toBe(!lessonForMove(m));
+      expect(lessonForMove(m), m.id).not.toBeNull();
+      expect(p.text, m.id).toBeUndefined();
     }
+  });
+
+  // was the e2e "a move without a lesson" until 5d left no lessonless rule to show: the fallback stays for a rule added later
+  it("a rule without a lesson still gets its own words on the card, and one with neither is refused", () => {
+    const own: MoveText = { summary: "Own summary.", theory: "Own theory.", recreateRule: "Own rule." };
+    const stub = (text?: MoveText): Rule => ({
+      id: "test.lessonless",
+      name: "Lessonless",
+      propose: ({ chord }) => ({ title: "Lessonless", level: 1, category: "functional", styleTags: [], chords: [{ ...chord, extensions: [], alterations: [] }], facts: {}, ...(text ? { text } : {}) }),
+    });
+    const m = generateMoves(coopBlues, [stub(own)]).accepted[0];
+    expect(lessonForMove(m)).toBeNull();
+    expect(m.text).toEqual(own);
+    expect(() => generateMoves(coopBlues, [stub()])).toThrow(/no lesson/);
   });
 });

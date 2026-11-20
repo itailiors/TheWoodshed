@@ -100,6 +100,10 @@ export function symbol(c: Omit<ChordShape, never> & { display?: string; bass?: s
     base = base.replace(/7$/, highest);
   } else if ((c.quality === "maj" || c.quality === "m") && c.extensions.includes("9")) {
     base += c.quality === "m" ? "(add9)" : "add9";
+  } else if (c.quality === "6" && c.extensions.includes("9")) {
+    // ♭VII6/9 and one-note-on-top's 6/9 voice the 9th, so the symbol says so (the line cliché's
+    // m6 stop keeps its plain name: there the 9th is the held colour, not part of the stop)
+    base += "/9";
   }
   const alts = c.alterations.length ? `(${c.alterations.join(",")})` : "";
   return `${c.root}${base}${alts}${c.bass ? "/" + c.bass : ""}`;

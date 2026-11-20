@@ -10,8 +10,18 @@ import {
   triadTones,
 } from "./chords";
 import { chroma, simplifyNote, transpose } from "./pitch";
-import type { GospelTurnaroundLearn, SecondaryDominantLearn, SecondaryTwoFiveLearn, TritoneSubLearn } from "./learn/facts";
-import { chain, chainMotions, mk, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type {
+  GospelTurnaroundLearn,
+  RootlessTwoFiveOneLearn,
+  SecondaryDominantLearn,
+  SecondaryTwoFiveLearn,
+  TritoneSubLearn,
+  UpperStructureBVILearn,
+  UpperStructureIILearn,
+} from "./learn/facts";
+import { readable } from "./learn/lesson";
+import { chain, chainMotions, mk, planeMotion, pn, ps, romanName, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import type { ChordTone } from "./chords";
 import type { Quality } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
@@ -224,9 +234,18 @@ export const upperStructure: Rule = {
     const lh = [chord.root, transpose(chord.root, "b7"), transpose(chord.root, "3")];
     const targetSet = chordChromas(next);
     const common = rh.filter((n) => targetSet.has(chroma(n)));
-    const commonText = common.length
-      ? ` ${common.map(pn).join(" and ")} ${common.length > 1 ? "are" : "is"} already in ${ps(next)}, so the resolution is effortless.`
-      : "";
+    const learn: UpperStructureBVILearn = {
+      plain: symbol(mk(chord.root, "7", 1)),
+      voiced: symbol(newChord),
+      target: symbol(next),
+      root: chord.root,
+      triadRoot: tr,
+      triad: [rh[0], rh[1], rh[2]],
+      shell: [lh[0], readable(lh[1]), readable(lh[2])],
+      sharpNine: readable(transpose(chord.root, "#9")),
+      common: common.slice(0, 3),
+      thirdResolves: nearestMotion(readable(lh[2]), triadTones(next)),
+    };
     return {
       title: "Upper-structure triad",
       level: 2,
@@ -234,16 +253,8 @@ export const upperStructure: Rule = {
       styleTags: ["modern", "bebop"],
       chords: [newChord],
       voicingHint: { lh, rh },
-      facts: { triad: rh, shell: lh, commonTonesWithTarget: common },
-      text: {
-        summary: `Same chord, new voicing: a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell gives ${ps(newChord)}.`,
-        theory:
-          `The left hand holds only what defines the dominant: the root, the ♭7 (${pn(lh[1])}) and the 3rd (${pn(lh[2])}). ` +
-          `The right hand plays a plain ${pn(tr)} triad (${rh.map(pn).join(" ")}), which over ${pn(chord.root)} reads as ♭13, root and ♯9. ` +
-          `The shape is easy and the tension is high.${commonText}`,
-        recreateRule:
-          "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
-      },
+      facts: { triad: rh, shell: lh, commonTonesWithTarget: common, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -347,6 +358,30 @@ export const rootlessTwoFiveOne: Rule = {
 
     const b7ii = iiGrip.rh[0];
     const thirdV = vGrip.rh[0];
+    // the lesson spells each grip by its degrees (A♭m9's 3rd is C♭, not the hint's B); the hints keep the engine's keys
+    const four = (root: string, degrees: readonly string[]) => degrees.map((d) => readable(transpose(root, d))) as [string, string, string, string];
+    const vDegrees: [string, string, string, string] = ["b7", "9", "3", "13"];
+    const I_DEGREES = ["3", "5", "7", "9"];
+    const iiTones = four(chord.root, ["b3", "5", "b7", "9"]);
+    const vTones = four(next.root, vDegrees);
+    const iTones = four(afterNext.root, I_DEGREES);
+    const tones = (notes: string[], degrees: readonly string[]): ChordTone[] => notes.map((note, k) => ({ degree: degrees[k], note }));
+    // positional: voice k of one grip into voice k of the next (nearest motion over Cmaj7 ties A between G and B)
+    const toV = planeMotion(iiTones, tones(vTones, vDegrees));
+    const toI = planeMotion(vTones, tones(iTones, I_DEGREES));
+    const learn: RootlessTwoFiveOneLearn = {
+      ii: symbol(iiChord),
+      V: symbol(vChord),
+      // E G B D is what sounds over C: name the I as the grip makes it
+      I: symbol(mk(afterNext.root, "maj7", 1, ["9"])),
+      vRoot: next.root,
+      iiGrip: iiTones,
+      vGrip: vTones,
+      iGrip: iTones,
+      vDegrees,
+      toV,
+      toI,
+    };
     return {
       replaceCount: 2,
       title: "Rootless ii–V–I (Type A → B)",
@@ -361,16 +396,9 @@ export const rootlessTwoFiveOne: Rule = {
         typeB_V: [...vGrip.lh, ...vGrip.rh],
         typeA_I: [...iGrip.lh, ...iGrip.rh],
         movingVoice: `${pn(b7ii)} → ${pn(thirdV)}`,
+        learn,
       },
-      text: {
-        summary: `Voice ${ps(iiChord)} → ${ps(vChord)} → ${ps(afterNext)} with Bill Evans rootless Type A and Type B grips.`,
-        theory:
-          `On ${ps(iiChord)}, stack ♭3–5–♭7–9 (${[...iiGrip.lh, ...iiGrip.rh].map(pn).join("–")}). ` +
-          `To reach ${ps(vChord)}, three voices stay put (${pn(vGrip.lh[0])}, ${pn(vGrip.lh[1])}, ${pn(vGrip.rh[1])}) while only ${pn(b7ii)} drops a half step to ${pn(thirdV)} ` +
-          `to form the ♭7–9–3–13 Type B grip. From there, step down into ${ps(afterNext)} (${[...iGrip.lh, ...iGrip.rh].map(pn).join("–")}).`,
-        recreateRule:
-          "Over ii–V–I, voice ii as ♭3–5–♭7–9 (Type A), drop only the ♭7 a half step to get ♭7–9–3–13 on V (Type B), then resolve into 3–5–7–9 on I.",
-      },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };
@@ -397,6 +425,18 @@ export const upperStructureII: Rule = {
     const tr = tidy(transpose(chord.root, "2"));
     const lh = [chord.root, tidy(transpose(chord.root, "3")), tidy(transpose(chord.root, "b7"))];
     const rh = [tr, tidy(transpose(tr, "3")), tidy(transpose(tr, "5"))];
+    // the lesson spells each tone as its degree (E♯ is B's ♯11, C♭ is D♭'s ♭7); the grip above keeps the engine's keys
+    const learn: UpperStructureIILearn = {
+      plain: symbol(mk(chord.root, "7", 1)),
+      voiced: symbol(newChord),
+      target: symbol(next),
+      root: chord.root,
+      triadRoot: tr,
+      triad: [tr, readable(transpose(tr, "3")), readable(transpose(tr, "5"))],
+      shell: [chord.root, readable(transpose(chord.root, "3")), readable(transpose(chord.root, "b7"))],
+      naturalEleven: readable(transpose(chord.root, "4")),
+      parentMelodicMinor: tidy(transpose(chord.root, "5")),
+    };
     return {
       title: "Upper-structure II (13♯11)",
       level: 2,
@@ -405,16 +445,8 @@ export const upperStructureII: Rule = {
       chords: [newChord],
       voicingHint: { lh, rh },
       voicingHints: [{ lh, rh }],
-      facts: { triad: rh, shell: lh, triadRoot: tr },
-      text: {
-        summary: `Stack a ${pn(tr)} major triad over a ${lh.map(pn).join("–")} shell for ${ps(newChord)}.`,
-        theory:
-          `The left hand plays the root–3rd–♭7 shell (${lh.map(pn).join("–")}). ` +
-          `The right hand plays a plain ${pn(tr)} major triad (${rh.map(pn).join(" ")}), a whole step above ${pn(chord.root)}, ` +
-          `which automatically supplies the 9th (${pn(rh[0])}), ♯11th (${pn(rh[1])}), and 13th (${pn(rh[2])}) — the signature Lydian dominant polychord.`,
-        recreateRule:
-          "Over a dominant 7th, hold the root–3–♭7 shell in the left hand and play the major triad a whole step above the root in the right hand for 13(♯11).",
-      },
+      facts: { triad: rh, shell: lh, triadRoot: tr, learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

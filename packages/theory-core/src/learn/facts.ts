@@ -241,6 +241,76 @@ export interface MinorLineClicheLearn {
   stops: [string, string, string, string];
 }
 
+export interface RootlessTwoFiveOneLearn {
+  /** The ii9 and V13 played, and what the I's grip sounds as (3–5–7–9 over a maj7 chart chord: maj9). */
+  ii: string;
+  V: string;
+  I: string;
+  vRoot: string;
+  /** Each grip bottom to top: ii 3–5–7–9 (grip A), V 7–9–3–13 (grip B), I 3–5–7–9 (grip A). */
+  iiGrip: [string, string, string, string];
+  vGrip: [string, string, string, string];
+  iGrip: [string, string, string, string];
+  /** The degree codes of each V grip voice: b7, 9, 3, 13. */
+  vDegrees: [string, string, string, string];
+  /** Voice k of one grip into voice k of the next (`planeMotion`): ii → V, then V → I. */
+  toV: VoiceMotion[];
+  toI: VoiceMotion[];
+}
+
+export interface UpperStructureBVILearn {
+  /** The plain dominant 7th ("G7"), the voiced chord ("G7(♯9,♭13)") and the target. */
+  plain: string;
+  voiced: string;
+  target: string;
+  root: string;
+  /** The major triad a major 3rd below the root (on the ♭13): ♭13, root, ♯9. */
+  triadRoot: string;
+  triad: [string, string, string];
+  /** Root, ♭7, 3rd: the left hand. */
+  shell: [string, string, string];
+  /** The ♯9 as a ♯9 (A♯ over G), double sharps respelled: the triad's 5th is the same key. */
+  sharpNine: string;
+  /** The triad's keys already in the target (at most 3). */
+  common: string[];
+  /** The shell's 3rd into the target. */
+  thirdResolves: VoiceMotion;
+}
+
+export interface UpperStructureIILearn {
+  /** The plain dominant 7th ("G7"), the voiced chord ("G13(♯11)") and the target. */
+  plain: string;
+  voiced: string;
+  target: string;
+  root: string;
+  /** The major triad a whole step above the root: 9th, ♯11, 13th, spelled as such (E♯ over B, not F). */
+  triadRoot: string;
+  triad: [string, string, string];
+  /** Root, 3rd, ♭7: the left hand. */
+  shell: [string, string, string];
+  /** The natural 11, a half step above the 3rd: the note the ♯11 replaces. */
+  naturalEleven: string;
+  /** The melodic minor whose 4th mode is this Lydian dominant (D over G). */
+  parentMelodicMinor: string;
+}
+
+export interface FlatSixFlatSevenLearn {
+  original: string;
+  target: string;
+  targetRoot: string;
+  bVI: string;
+  bVII: string;
+  bVIRoot: string;
+  bVIIRoot: string;
+  /** The original dominant's 3rd: the leading tone ♭VII6/9 leaves out. */
+  leadingTone: string;
+  /** ♭VII6/9's 9th: the target's root, already sounding. */
+  bVIINinth: string;
+  /** ♭VII6/9's 6th, where the backdoor's ♭VII7 has its ♭7 (G for A♭ in C). */
+  bVIISixth: string;
+  backdoorSeventh: string;
+}
+
 export interface OneNoteOnTopLearn {
   heldNote: string;
   fromMelody: boolean;

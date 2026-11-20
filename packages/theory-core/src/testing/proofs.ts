@@ -42,9 +42,13 @@ function factNotes(v: unknown, out = new Set<string>()): Set<string> {
   return out;
 }
 
-/** Bare note names in display text ("B♭", "F♯"), not chord symbols ("G♭9", "Dm7") or a sentence's opening "A". */
+/** Bare note names in display text ("B♭", "F♯"), not chord symbols ("G♭9", "Dm7"), a sentence's opening "A" or a grip's name ("grip B", "Type A"). */
 const NOTE_IN_TEXT = /(?<![\p{L}\p{N}♭♯])[A-G][♭♯]{0,2}(?![\p{L}\p{N}♭♯(])/gu;
-const textNotes = (s: string) => [...s.matchAll(NOTE_IN_TEXT)].filter((m) => !(m[0] === "A" && (m.index === 0 || /[.!?]\s$/.test(s.slice(0, m.index))))).map((m) => m[0]);
+const textNotes = (s: string) =>
+  [...s.matchAll(NOTE_IN_TEXT)]
+    .filter((m) => !(m[0] === "A" && (m.index === 0 || /[.!?]\s$/.test(s.slice(0, m.index)))))
+    .filter((m) => !/^[AB]$/.test(m[0]) || !/\b(grip|type) $/i.test(s.slice(0, m.index)))
+    .map((m) => m[0]);
 
 /** A 4-bar progression repeated to 16 bars, so phrase windows have competition. */
 function repeated(tune: Tune): Tune {

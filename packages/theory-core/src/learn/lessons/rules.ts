@@ -6,14 +6,18 @@ import type {
   ColtraneLearn,
   CommonToneDiminishedLearn,
   ConstantStructureLearn,
+  FlatSixFlatSevenLearn,
   GospelTurnaroundLearn,
   MediantDominantLearn,
   MinorLineClicheLearn,
   OneNoteOnTopLearn,
   PassingDiminishedLearn,
+  RootlessTwoFiveOneLearn,
   SecondaryDominantLearn,
   SecondaryTwoFiveLearn,
   TritoneSubLearn,
+  UpperStructureBVILearn,
+  UpperStructureIILearn,
 } from "../facts";
 import { degreeWord, hl, hlTo, motionVerb, moves, pn, ps, twin, type Lesson } from "../lesson";
 
@@ -584,6 +588,164 @@ function minorLineCliche(f: MinorLineClicheLearn): Lesson {
   };
 }
 
+function rootlessTwoFiveOne(f: RootlessTwoFiveOneLearn): Lesson {
+  const [ii, V, I] = [ps(f.ii), ps(f.V), ps(f.I)];
+  const moving = f.toV.find((m) => m.semitones !== 0)!;
+  const kept = f.toV.filter((m) => m.semitones === 0).map((m) => pn(m.from));
+  const vWords = f.vDegrees.map(degreeWord);
+  const falls = f.toI.filter((m) => m.semitones !== 0);
+  const holds = f.toI.filter((m) => m.semitones === 0);
+  // "F falls to E, A to G, E to D; B holds"
+  const fallList = falls.map((m, k) => (k ? `${pn(m.from)} to ${pn(m.to)}` : `${pn(m.from)} falls to ${pn(m.to)}`)).join(", ");
+  return {
+    conceptId: "voicing.rootlessTwoFiveOne",
+    headline: `Voice ${ii} → ${V} → ${I} without roots: one finger moves from ii to V.`,
+    steps: [
+      {
+        text: `Play ${ii} rootless: ${f.iiGrip.map(pn).join(", ")}, its 3rd, 5th, 7th and 9th.`,
+        highlight: f.iiGrip.map((n, k) => hl(n, ["3rd", "5th", "7th", "9th"][k])),
+        play: "after",
+        term: "rootless",
+        prereqLink: "basics:extensions",
+      },
+      {
+        text: `Only ${pn(moving.from)} moves: it ${motionVerb(moving)} to ${pn(moving.to)}, ${V}'s 3rd. ${listOf(kept)} stay.`,
+        highlight: [hl(moving.from, "7th"), hlTo(moving, "3rd"), ...f.toV.filter((m) => m.semitones === 0).slice(0, 2).map((m) => hl(m.from, pn(m.from)))],
+        ask: { kind: "tapNotes", prompt: `One key of ${ii} moves to make ${V}. Tap where it goes.`, answer: [moving.to] },
+        prereqLink: "basics:twoFiveOne",
+      },
+      {
+        text: `Now ${f.vGrip.map(pn).join(", ")} read as ${V}'s ${listOf(vWords)}.`,
+        highlight: f.vGrip.map((n, k) => hl(n, vWords[k])),
+        play: "after",
+      },
+      {
+        text: `Into ${I}, ${fallList}${holds.length ? `; ${listOf(holds.map(moves))}` : ""}.`,
+        highlight: f.iGrip.map((n, k) => hl(n, ["3rd", "5th", "7th", "9th"][k])),
+        play: "ab",
+      },
+    ],
+    rule: "Over ii–V–I, voice ii as 3–5–7–9, drop only its 7th a half step for V, then step down into 3–5–7–9 on I.",
+    deeper: "Grip A has the 3rd on the bottom, grip B the 7th. Start ii on either; each fifth down swaps them.",
+  };
+}
+
+function upperStructureBVI(f: UpperStructureBVILearn): Lesson {
+  const [plain, voiced, target] = [ps(f.plain), ps(f.voiced), ps(f.target)];
+  const [root, seventh, third] = f.shell;
+  const [flat13, , sharp9] = f.triad;
+  const r = f.thirdResolves;
+  return {
+    conceptId: "voicing.upperStructureBVI",
+    headline: `Over ${plain}'s shell, play the ${pn(f.triadRoot)} triad: one easy shape gives you ${voiced}.`,
+    steps: [
+      {
+        text: `Left hand: ${f.shell.map(pn).join(", ")}. Root, ♭7 and 3rd: the dominant's shell.`,
+        highlight: [hl(root, "root"), hl(seventh, "♭7", "up"), hl(third, "3rd", "up")],
+        play: "interval",
+        term: "shell",
+        prereqLink: "basics:guideTones",
+      },
+      {
+        text: `Right hand: the ${pn(f.triadRoot)} major triad, a major 3rd below ${pn(f.root)}: the upper structure.`,
+        highlight: f.triad.map((n) => hl(n, pn(n))),
+        ask: { kind: "tapNotes", prompt: `Tap the major triad a major 3rd below ${pn(f.root)}.`, answer: [...f.triad] },
+        term: "upper structure",
+      },
+      {
+        text: `Over ${pn(f.root)}, the triad reads ♭13, root, ♯9: ${twin(sharp9, f.sharpNine)} is the ♯9.`,
+        highlight: [hl(flat13, "♭13"), hl(f.root, "root"), hl(sharp9, "♯9")],
+        play: "after",
+        prereqLink: "basics:extensions",
+      },
+      {
+        text: f.common.length
+          ? `Into ${target}, ${moves(r)}, and ${listOf(f.common.map(pn))} ${f.common.length > 1 ? "are" : "is"} already there.`
+          : `Into ${target}, ${moves(r)}.`,
+        highlight: [hl(r.from, r.semitones > 0 ? "↑" : r.semitones < 0 ? "↓" : "holds"), hlTo(r, pn(r.to)), ...f.common.map((n) => hl(n, "held"))].slice(0, 4),
+        play: "ab",
+      },
+    ],
+    rule: "Over a dominant 7th, hold root, ♭7 and 3rd in the left hand and play the major triad on its ♭13 above.",
+    deeper: `All three triad notes sit in ${pn(f.root)} altered, so the right hand can keep going in that scale.`,
+  };
+}
+
+function upperStructureII(f: UpperStructureIILearn): Lesson {
+  const [plain, voiced] = [ps(f.plain), ps(f.voiced)];
+  const [root, third, seventh] = f.shell;
+  const [nine, sharp11, thirteen] = f.triad;
+  return {
+    conceptId: "voicing.upperStructureII",
+    headline: `Over ${plain}'s shell, play the ${pn(f.triadRoot)} major triad: ${voiced}, bright and open.`,
+    steps: [
+      {
+        text: `Left hand: ${f.shell.map(pn).join(", ")}. Root, 3rd and ♭7: the shell.`,
+        highlight: [hl(root, "root"), hl(third, "3rd", "up"), hl(seventh, "♭7", "up")],
+        play: "interval",
+        term: "shell",
+        prereqLink: "basics:guideTones",
+      },
+      {
+        text: `Right hand: the ${pn(f.triadRoot)} major triad, a whole step above ${pn(f.root)}: the upper structure.`,
+        highlight: f.triad.map((n) => hl(n, pn(n))),
+        ask: { kind: "tapNotes", prompt: `Tap the major triad a whole step above ${pn(f.root)}.`, answer: [...f.triad] },
+        term: "upper structure",
+      },
+      {
+        text: `Over ${pn(f.root)}, ${pn(nine)} is the 9th, ${pn(sharp11)} the ♯11, ${pn(thirteen)} the 13th.`,
+        highlight: [hl(f.root, "root"), hl(nine, "9th"), hl(sharp11, "♯11"), hl(thirteen, "13th")],
+        play: "after",
+        prereqLink: "basics:extensions",
+      },
+      {
+        text: `${pn(sharp11)} is the bright note: a ♯11 where a plain ${pn(f.naturalEleven)} would rub against ${pn(third)}, the 3rd.`,
+        highlight: [hl(sharp11, "♯11"), hl(f.naturalEleven, "11", "down"), hl(third, "3rd", "down")],
+        play: "ab",
+      },
+    ],
+    rule: "Over a dominant 7th, hold root, 3rd and ♭7 in the left hand and play the major triad a whole step above the root.",
+    deeper: `Together they're ${pn(f.root)} Lydian dominant without its 5th: the 4th mode of ${pn(f.parentMelodicMinor)} melodic minor.`,
+  };
+}
+
+function flatSixFlatSeven(f: FlatSixFlatSevenLearn): Lesson {
+  const [orig, bVI, bVII] = [ps(f.original), ps(f.bVI), ps(f.bVII)];
+  const home = pn(f.targetRoot);
+  const bass = [hl(f.bVIRoot, pn(f.bVIRoot)), hl(f.bVIIRoot, pn(f.bVIIRoot), "up"), hl(f.targetRoot, pn(f.targetRoot), "up")];
+  return {
+    conceptId: "modal.flatSixFlatSeven",
+    headline: `Replace ${orig} with ${bVI} → ${bVII}: the bass climbs two whole steps into ${home}.`,
+    steps: [
+      {
+        text: `${bVI} and ${bVII} are borrowed from ${home} minor: they sit on its ♭6 and ♭7.`,
+        highlight: [hl(f.bVIRoot, "♭6"), hl(f.bVIIRoot, "♭7", "up"), hl(f.targetRoot, "home", "up")],
+        play: "after",
+        term: "borrowed",
+        prereqLink: "basics:parallelMinor",
+      },
+      {
+        text: `The bass climbs by whole steps: ${pn(f.bVIRoot)} to ${pn(f.bVIIRoot)} to ${home}.`,
+        highlight: bass,
+        play: "after",
+        ask: { kind: "tapNotes", prompt: `Tap the bass line into ${home}.`, answer: [f.bVIRoot, f.bVIIRoot, f.targetRoot] },
+      },
+      {
+        text: `${bVII} has no ${pn(f.leadingTone)}: nothing leans up into ${home}. Its 9th is ${twin(f.bVIINinth, f.targetRoot)}, already home.`,
+        highlight: [hl(f.leadingTone, "missing"), hl(f.bVIINinth, "9th")],
+        play: "ab",
+      },
+      {
+        text: "You hear a lift by whole steps, not a half-step pull: a phrase-ending sound.",
+        highlight: bass,
+        play: "ab",
+      },
+    ],
+    rule: "Before a major I, play the major chords on ♭6 and ♭7 and let the bass climb by whole steps into I.",
+    deeper: `${bVII} is the backdoor's ♭VII with ${pn(f.bVIISixth)} in place of ${pn(f.backdoorSeventh)}: same root, no tritone.`,
+  };
+}
+
 /** Rule lessons by rule id, each reading its rule's `facts.learn`. */
 export const RULE_LESSONS = {
   "dominant.tritoneSub": tritoneSub,
@@ -599,4 +761,8 @@ export const RULE_LESSONS = {
   "chromatic.passingDiminished": passingDiminished,
   "chromatic.commonToneDiminished": commonToneDiminished,
   "chromatic.minorLineCliche": minorLineCliche,
+  "voicing.rootlessTwoFiveOne": rootlessTwoFiveOne,
+  "voicing.upperStructureBVI": upperStructureBVI,
+  "voicing.upperStructureII": upperStructureII,
+  "modal.flatSixFlatSeven": flatSixFlatSeven,
 } as const satisfies Record<string, (f: never) => Lesson>;

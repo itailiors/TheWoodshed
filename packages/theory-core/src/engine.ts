@@ -136,7 +136,8 @@ function buildMove(tune: Tune, rule: Rule, priority: number, p: Proposal, chords
 /**
  * The move's words. A rule with a lesson gets them from the lesson, so the card, the Deep Dive
  * draft and the lesson can't drift apart: summary = headline, theory = the steps in order,
- * recreateRule = the rule, insight = the deeper line. Any other rule writes its own `text`.
+ * recreateRule = the rule, insight = the deeper line. Since 5d all 17 rules have one; a rule added
+ * without a lesson must write its own `text` (moveCopy.test pins this fallback).
  */
 function moveText(rule: Rule, p: Proposal): MoveText {
   const lesson = lessonForMove({ ruleId: rule.id, facts: p.facts });

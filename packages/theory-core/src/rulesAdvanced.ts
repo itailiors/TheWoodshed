@@ -12,12 +12,13 @@ import type {
   ColtraneLearn,
   CommonToneDiminishedLearn,
   ConstantStructureLearn,
+  FlatSixFlatSevenLearn,
   MediantDominantLearn,
   MinorLineClicheLearn,
   PassingDiminishedLearn,
 } from "./learn/facts";
 import { readable } from "./learn/lesson";
-import { chain, chainMotions, dimTones, distribute, mk, planeMotion, pn, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import { chain, chainMotions, dimTones, distribute, mk, planeMotion, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
 import { collapseHolds, nearestMotion } from "./voiceLeading";
 
@@ -173,21 +174,29 @@ export const flatSixFlatSeven: Rule = {
     const T = next.root;
     const bVI = mk(tidy(transpose(T, "b6")), "maj7", split[0]);
     const bVII = mk(tidy(transpose(T, "b7")), "6", split[1], ["9"]);
+    const tone = (c: NewChord, d: string) => chordTones(c).find((t) => t.degree === d)!.note;
+    const learn: FlatSixFlatSevenLearn = {
+      original: symbol(chord),
+      target: symbol(next),
+      targetRoot: T,
+      bVI: symbol(bVI),
+      bVII: symbol(bVII),
+      bVIRoot: bVI.root,
+      bVIIRoot: bVII.root,
+      leadingTone: guideTones(chord)[0].note,
+      bVIINinth: tone(bVII, "9"),
+      bVIISixth: tone(bVII, "6"),
+      // the backdoor's ♭VII7 on the same root has a ♭7 where this chord has its 6th
+      backdoorSeventh: tone(mk(bVII.root, "7", 1), "b7"),
+    };
     return {
       title: "♭VI–♭VII–I",
       level: 3,
       category: "modal",
       styleTags: ["modal-interchange", "gospel", "cinematic"],
       chords: [bVI, bVII],
-      facts: { target: ps(next), bVI: ps(bVI), bVII: ps(bVII), bassLine: [bVI.root, bVII.root, T] },
-      text: {
-        summary: `Replace the dominant with two borrowed chords whose roots climb into the tonic: ${ps(bVI)} → ${ps(bVII)} → ${ps(next)}.`,
-        theory:
-          `${ps(bVI)} and ${ps(bVII)} come from ${pn(T)} Aeolian, the parallel minor. The roots rise by whole steps (${[bVI.root, bVII.root, T].map(pn).join(" → ")}), ` +
-          `so the arrival feels inevitable without a dominant chord or a tritone anywhere. ` +
-          `It's a bright, open cadence that suits the end of a phrase and tags at the end of a tune.`,
-        recreateRule: "Before a major tonic, play the major chords on ♭6 and ♭7 of the key and let the bass climb by whole steps into I.",
-      },
+      facts: { target: ps(next), bVI: ps(bVI), bVII: ps(bVII), bassLine: [bVI.root, bVII.root, T], learn },
+      // the words come from the lesson (learn/lessons/rules.ts), in buildMove
     };
   },
 };

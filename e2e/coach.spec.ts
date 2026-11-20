@@ -160,18 +160,10 @@ test("Learn that first opens the prerequisite with the return banner, and its la
   await expect(learnStage(page).getByText(`from ${from}`)).toHaveCount(0);
 });
 
-test("a rule without a lesson has no Learn stage: it opens on the drill as before", async ({ page }) => {
-  const lessonless = RULES.find((r) => !hasRuleLesson(r.id));
-  expect(lessonless, "some rule still lacks a lesson (until phase 5)").toBeTruthy();
-  await openCoach(page);
-  await pickConcept(page, lessonless!.id);
-  await expect(page.locator("#coach-h")).toBeVisible();
-  await expect(learnStage(page)).toHaveCount(0);
-  await expect(page.getByText(/^Step \d+ of \d+$/)).toHaveCount(0);
-  await expect(stages(page).getByRole("button", { name: "Learn" })).toHaveCount(0);
-  await expect(stages(page).getByRole("button", { name: "Study it" })).toBeVisible();
-  // the Why card keeps its old, uncollapsed body
-  await expect(page.locator("[data-why-card]")).toHaveCount(0);
+test("every rule has a lesson, so every concept opens with a Learn stage on its ladder", async () => {
+  // "a rule without a lesson has no Learn stage" lived here until 5d left no lessonless rule;
+  // that fallback is unit-tested in apps/web/src/components/coach/gradingMode.test.ts
+  expect(RULES.filter((r) => !hasRuleLesson(r.id)).map((r) => r.id)).toEqual([]);
 });
 
 test("Esc on an open glossary chip closes it and stays on Coach; Learn and the chip pass axe", async ({ page }) => {

@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { BUNDLED_TUNES, generateMoves, hasRuleLesson, lessonForMove, prettyNote, chroma, referenceTune, type Lesson } from "@reharm/theory-core";
+import { generateMoves, lessonForMove, prettyNote, chroma, referenceTune, type Lesson } from "@reharm/theory-core";
 import type { Locator, Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { expect, test } from "./fixtures";
@@ -198,27 +198,9 @@ test("an open lesson passes an axe scan, on the ask and on the last step", async
   expect(await scan()).toEqual([]);
 });
 
-test("a move without a lesson keeps the old Why it works body, with no stepper", async ({ page }) => {
-  // since 5c every move Co-op Blues' dial shows has a lesson; a bundled standard still shows lessonless rules (upper structures, ♭VI–♭VII)
-  const tune = BUNDLED_TUNES.find((t) => t.id === "sunny-side")!;
-  await page.goto(`/?tune=${tune.id}&level=4`);
-  await expect(page.getByRole("heading", { level: 1, name: tune.title })).toBeVisible();
-  await expect(tricks(page).locator("[data-move-id]").first()).toBeVisible();
-  const ids = await tricks(page).locator("[data-move-id]").evaluateAll((els) => els.map((e) => e.getAttribute("data-move-id")!));
-  const id = ids.find((i) => !hasRuleLesson(i.split("@")[0]));
-  expect(id, "level 4 shows a rule without a lesson").toBeTruthy();
-  const card = tricks(page).locator(`[data-move-id="${id}"]`);
-  const head = card.locator("button[aria-expanded]").first();
-  if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
-  await expect(head).toHaveAttribute("aria-expanded", "true");
-  const why = card.getByRole("button", { name: /Why it works/ });
-  await expect(why).toHaveAccessibleName(/^Why it works\s*▸?$/);
-  await why.click();
-  await expect(card.getByText("Recreate it")).toBeVisible();
-  await expect(card.locator("[data-lesson-stepper]")).toHaveCount(0);
-  await expect(card.getByText(/^Step \d+ of \d+$/)).toHaveCount(0);
-  await expect(card.getByRole("heading", { name: "Voice leading" }).or(card.getByRole("region", { name: "Melody check" })).first()).toBeVisible();
-});
+// "A move without a lesson keeps the old Why it works body" lived here until 5d: all 17 rules have
+// lessons now, so no tune can show one. The engine's fallback for a rule added without a lesson is
+// unit-tested in packages/theory-core/test/moveCopy.test.ts; MoveCard keeps its lessonless body for it.
 
 /** Pick an Explanations setting in the ⚙ menu, then close the menu. */
 async function setExplanations(page: Page, label: "Step by step" | "Just the rule") {

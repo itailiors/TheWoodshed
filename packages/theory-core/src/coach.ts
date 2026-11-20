@@ -6,14 +6,18 @@ import type {
   ColtraneLearn,
   CommonToneDiminishedLearn,
   ConstantStructureLearn,
+  FlatSixFlatSevenLearn,
   GospelTurnaroundLearn,
   MediantDominantLearn,
   MinorLineClicheLearn,
   OneNoteOnTopLearn,
   PassingDiminishedLearn,
+  RootlessTwoFiveOneLearn,
   SecondaryDominantLearn,
   SecondaryTwoFiveLearn,
   TritoneSubLearn,
+  UpperStructureBVILearn,
+  UpperStructureIILearn,
 } from "./learn/facts";
 import { degreeWord as lessonDegree, motionVerb, readable, twin } from "./learn/lesson";
 import { classifyNote } from "./melody";
@@ -70,11 +74,12 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
   const learn = facts.learn;
 
   if (resolution) {
-    if (move.ruleId === "voicing.rootlessTwoFiveOne" && move.voicingHints?.[i]) {
-      const h = move.voicingHints[i];
+    if (move.ruleId === "voicing.rootlessTwoFiveOne" && learn) {
+      const L = learn as RootlessTwoFiveOneLearn;
+      const holds = L.toI.filter((m) => m.semitones === 0).map((m) => nn(m.to));
       return {
         role: `Type A resolution (${sym})`,
-        whyHere: `Resolve into the 3–5–7–9 rootless grip (${[...h.lh, ...h.rh].map(nn).join("–")}) on ${sym}.`,
+        whyHere: `${L.iGrip.map(nn).join(", ")}: ${sym}'s 3rd, 5th, 7th and 9th, no root. ${holds.join(" and ")} hold${holds.length === 1 ? "s" : ""}; the rest step down.`,
       };
     }
     return {
@@ -139,36 +144,37 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "voicing.rootlessTwoFiveOne": {
-      const h = move.voicingHints?.[i];
+      const L = learn as RootlessTwoFiveOneLearn | undefined;
+      if (!L) break;
       if (i === 0) {
+        const moving = L.toV.find((m) => m.semitones !== 0)!;
         return {
           role: `Type A rootless ii (${sym})`,
-          whyHere: h
-            ? `Stack ♭3–5–♭7–9 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}) with no root in the bass.`
-            : `Stack ♭3–5–♭7–9 in close rootless position.`,
+          whyHere: `${L.iiGrip.map(nn).join(", ")}: its 3rd, 5th, 7th and 9th, no root. Next, only ${nn(moving.from)} moves.`,
         };
       }
+      const moving = L.toV.find((m) => m.semitones !== 0)!;
       return {
         role: `Type B rootless V (${sym})`,
-        whyHere: h
-          ? `Hold common tones and drop the ♭7 of ii a half step to the 3rd of V for ♭7–9–3–13 (${[...h.lh, ...h.rh].map(prettyNote).join("–")}).`
-          : `Drop only the ♭7 of ii a half step to form the ♭7–9–3–13 Type B grip.`,
+        whyHere: `${L.vGrip.map(nn).join(", ")}: the ${L.vDegrees.map(lessonDegree).join(", ")}. Only ${nn(moving.to)} is new, a half step below ${prettySymbol(L.ii)}'s 7th.`,
       };
     }
-    case "voicing.upperStructureBVI":
+    case "voicing.upperStructureBVI": {
+      const L = learn as UpperStructureBVILearn | undefined;
+      if (!L) break;
       return {
         role: `Upper-structure ♭VI (${sym})`,
-        whyHere: move.voicingHint
-          ? `LH holds the ${move.voicingHint.lh.map(nn).join("–")} shell; RH stacks the ${nn(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(nn).join("–")}) for ♭13, 1, and ♯9.`
-          : `Stack the ♭VI major triad in RH over the root–♭7–3 shell in LH.`,
+        whyHere: `Left hand ${L.shell.map(nn).join(", ")}: root, ♭7, 3rd. Right hand the ${nn(L.triadRoot)} triad: ♭13, root, ♯9.`,
       };
-    case "voicing.upperStructureII":
+    }
+    case "voicing.upperStructureII": {
+      const L = learn as UpperStructureIILearn | undefined;
+      if (!L) break;
       return {
         role: `Upper-structure II (${sym})`,
-        whyHere: move.voicingHint
-          ? `LH holds the ${move.voicingHint.lh.map(nn).join("–")} shell; RH plays the ${nn(move.voicingHint.rh[0])} major triad (${move.voicingHint.rh.map(nn).join("–")}) for 9, ♯11, and 13.`
-          : `Stack the II major triad in RH over the root–3–♭7 shell in LH.`,
+        whyHere: `Left hand ${L.shell.map(nn).join(", ")}: root, 3rd, ♭7. Right hand the ${nn(L.triadRoot)} triad: 9th, ♯11, 13th.`,
       };
+    }
     case "chromatic.minorLineCliche": {
       const L = learn as MinorLineClicheLearn | undefined;
       if (!L) break;
@@ -254,17 +260,18 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       };
     }
     case "modal.flatSixFlatSeven": {
-      const [, , home] = (facts.bassLine as string[] | undefined) ?? [];
-      const target = String(facts.target);
+      const L = learn as FlatSixFlatSevenLearn | undefined;
+      if (!L) break;
+      const target = prettySymbol(L.target);
       if (i === 0) {
         return {
           role: `♭VI, borrowed (${sym})`,
-          whyHere: `Borrowed from ${home ? nn(home) : "the parallel"} minor: the bass, ${nn(c.root)}, starts a climb by whole steps into ${target}.`,
+          whyHere: `Borrowed from ${nn(L.targetRoot)} minor, its ♭6: the bass, ${nn(L.bVIRoot)}, starts a climb by whole steps into ${target}.`,
         };
       }
       return {
         role: `♭VII, borrowed (${sym})`,
-        whyHere: `The bass, ${nn(c.root)}, climbs another whole step into ${target}. No dominant, no tritone: the rising roots carry the cadence.`,
+        whyHere: `The bass, ${nn(L.bVIIRoot)}, climbs another whole step into ${target}. Its 9th, ${twin(L.bVIINinth, L.targetRoot)}, is home already: no leading tone pulls.`,
       };
     }
     case "modal.borrowedIv": {

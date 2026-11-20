@@ -1,7 +1,7 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-20T17:40:53.136Z",
+  "generatedAt": "2026-11-20T17:57:01.735Z",
   "source": "template",
   "explanations": {
     "chromatic.constantStructure@1.1": {
@@ -47,9 +47,9 @@
       "model": "Reharm Lab engine"
     },
     "voicing.upperStructureBVI@8.3": {
-      "summary": "Same chord, new voicing: a B♭ major triad over a D–C–F♯ shell gives D7(♯9,♭13).",
-      "deepDive": "The left hand holds only what defines the dominant: the root, the ♭7 (C) and the 3rd (F♯). The right hand plays a plain B♭ triad (B♭ D F), which over D reads as ♭13, root and ♯9. The shape is easy and the tension is high. B♭ and D and F are already in Gm7, so the resolution is effortless.",
-      "recreateRule": "Over a dominant, play the major triad built on its ♭13 (a major 3rd below the root) above a root–♭7–3 shell. You get a 7(♯9,♭13).",
+      "summary": "Over D7's shell, play the B♭ triad: one easy shape gives you D7(♯9,♭13).",
+      "deepDive": "All three triad notes sit in D altered, so the right hand can keep going in that scale.\n\nWhere else: Any altered dominant 7th (especially V7 resolving to a minor chord).\n\nOn the bandstand: Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
+      "recreateRule": "Over a dominant 7th, hold root, ♭7 and 3rd in the left hand and play the major triad on its ♭13 above.",
       "model": "Reharm Lab engine"
     },
     "chromatic.constantStructure@9.1": {
