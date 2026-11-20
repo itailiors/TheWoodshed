@@ -79,6 +79,8 @@ export interface CoachRunWrite {
   tempo?: number;
   /** "self" when the player checked their own acoustic-piano voicing (no notes were heard). */
   gradedBy?: "engine" | "self";
+  /** Voicings' "Hear, hide, play": played clean from memory while the voicing was hidden. */
+  byEar?: boolean;
 }
 
 /** Where practice history lives. Ids passed in are chart ids (`chartId`), never transposed ones. */
@@ -164,7 +166,7 @@ export const VOICINGS_CHART = conceptFamily("shape").chart!;
  * A chord voiced cleanly in the Voicings tab: one `shape:<style>:<quality>` concept in the chord's
  * root, graded by the server from the wrong strikes before it (`misses`). Demo-aware like a Coach run.
  */
-export const saveShapeRun = (run: { ruleId: string; keyTonic: string; misses: number }) =>
+export const saveShapeRun = (run: { ruleId: string; keyTonic: string; misses: number; byEar?: boolean }) =>
   saveCoachRun({ tuneId: VOICINGS_CHART, moveId: run.ruleId, ...run, leaps: 0, maxLeap: 0, gradedBy: "engine" });
 
 // ── writes ──

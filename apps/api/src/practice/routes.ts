@@ -20,6 +20,8 @@ const CoachAttemptBody = z.object({
   maxLeap: z.number().int().min(0).max(127),
   /** Who judged the run: the engine (MIDI / on-screen keys) or the player (self-check at an acoustic piano). */
   gradedBy: z.enum(["engine", "self"]).default("engine"),
+  /** Voicings' ear mode: answered from memory with the voicing hidden. Same SM-2 item, tagged. */
+  byEar: z.boolean().default(false),
 });
 
 const ImprovRunBody = z.object({

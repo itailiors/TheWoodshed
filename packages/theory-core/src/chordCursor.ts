@@ -45,7 +45,20 @@ export function stepChord(
       : -1;
   // nothing to start from: next lands on the first chord, previous on the last
   const i = from < 0 ? (dir === 1 ? 0 : chords.length - 1) : Math.min(chords.length - 1, Math.max(0, from + dir));
-  const chord = chords[i];
-  const over = pathway.find((m) => m.replaces.includes(chord.id));
-  return { chordId: chord.id, moveId: over ? over.id : selectedId };
+  return placeChordCursor(chords, pathway, chords[i].id, selectedId);
+}
+
+/**
+ * Put the cursor straight on one chord (a click on its symbol), by the same rule as a step: the
+ * move over it opens, a bare chord leaves the open move alone. Null for a chord this chart doesn't have.
+ */
+export function placeChordCursor(
+  chords: readonly ChordEvent[],
+  pathway: readonly ReharmMove[],
+  chordId: string,
+  selectedId: string | null,
+): ChordCursor | null {
+  if (!chords.some((c) => c.id === chordId)) return null;
+  const over = pathway.find((m) => m.replaces.includes(chordId));
+  return { chordId, moveId: over ? over.id : selectedId };
 }

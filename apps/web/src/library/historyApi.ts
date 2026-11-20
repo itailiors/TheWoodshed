@@ -69,6 +69,7 @@ export function apiHistory({ onOffline }: ApiHistoryDeps): PracticeHistory {
         leaps: run.leaps,
         maxLeap: Math.min(127, run.maxLeap),
         gradedBy: run.gradedBy ?? "engine",
+        byEar: run.byEar ?? false,
       });
       if (!res) onOffline();
       return res;

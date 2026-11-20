@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorPathway, generateMoves, liveChordCursor, PATHWAY_EDITOR_START, referenceTune, sortedHarmony, stepChord, type ChordCursor } from "../src";
+import { editorPathway, generateMoves, liveChordCursor, PATHWAY_EDITOR_START, placeChordCursor, referenceTune, sortedHarmony, stepChord, type ChordCursor } from "../src";
 
 /*
  * The chord cursor: Study's previous / next chord. It walks the tune's own changes in order,
@@ -82,5 +82,19 @@ describe("the chord cursor", () => {
 
   it("an empty chart has no chord to step to", () => {
     expect(stepChord([], pathway, null, null, 1)).toBeNull();
+  });
+
+  it("placing it on a chord (a click) follows the same rule as a step", () => {
+    const open = pathway[0].id;
+    expect(placeChordCursor(chords, pathway, chords[covered].id, open)).toEqual({ chordId: chords[covered].id, moveId: moveOver(chords[covered].id)!.id });
+    expect(placeChordCursor(chords, pathway, chords[bare].id, open)).toEqual({ chordId: chords[bare].id, moveId: open });
+    // the placed cursor is live, so the next step carries on from that chord
+    const placed = placeChordCursor(chords, pathway, chords[bare].id, open)!;
+    expect(stepChord(chords, pathway, placed, open, 1)?.chordId).toBe(chords[Math.min(chords.length - 1, bare + 1)].id);
+    expect(placeChordCursor(chords, pathway, "nope", open)).toBeNull();
+  });
+
+  it("at L0 (no reharm) every chord is bare and nothing opens", () => {
+    for (const c of chords) expect(placeChordCursor(chords, [], c.id, null)).toEqual({ chordId: c.id, moveId: null });
   });
 });

@@ -24,6 +24,8 @@ import { player } from "../../audio/player";
 import type { Playback } from "../../audio/usePlayback";
 import { useMediaQuery, NARROW } from "../../device/media";
 import { ink, pen, VERDICT_COLOR, wash } from "../../design/tokens";
+import { VerdictMark } from "../../design/VerdictMark";
+import type { Verdict } from "../../design/verdictMarks";
 import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { BeatPulse, CountInDisplay } from "../BeatPulse";
 import { ChordName } from "../ChordName";
@@ -400,13 +402,19 @@ export function ImprovMode({ tune, chords, entries, loop, now: liveNow, next: li
   );
 }
 
-function Swatch({ color, label, hatch }: { color: string; label: string; hatch?: boolean }) {
+function Swatch({ color, label, hatch, mark }: { color: string; label: string; hatch?: boolean; mark?: Verdict }) {
   return (
     <span className="flex items-center gap-1.5">
       <span
         className="inline-block h-3 w-5 -rotate-2 rounded-sm"
         style={{ background: hatch ? `repeating-linear-gradient(-50deg, ${color} 0 2px, transparent 2px 5px)` : color }}
       />
+      {/* the shape the keys carry for it, so the legend reads without colour too */}
+      {mark && (
+        <svg viewBox="0 0 12 12" className="inline-block h-3 w-3" aria-hidden>
+          <VerdictMark verdict={mark} cx={6} cy={6} r={4} />
+        </svg>
+      )}
       {label}
     </span>
   );
@@ -416,8 +424,8 @@ function Swatch({ color, label, hatch }: { color: string; label: string; hatch?:
 function Legend({ lens }: { lens: ImprovLens }) {
   return (
     <div className="flex shrink-0 flex-wrap items-center justify-center gap-x-4 gap-y-0.5 font-hand text-xs text-ink-soft sm:text-sm">
-      {lens === "blues" ? <Swatch color={wash.brick} label="blues scale" hatch /> : <Swatch color={VERDICT_COLOR["chord-tone"]} label="chord tone" hatch />}
-      {lens === "full" && <Swatch color={VERDICT_COLOR.tension} label="tension" hatch />}
+      {lens === "blues" ? <Swatch color={wash.brick} label="blues scale" hatch /> : <Swatch color={VERDICT_COLOR["chord-tone"]} label="chord tone" hatch mark="chord-tone" />}
+      {lens === "full" && <Swatch color={VERDICT_COLOR.tension} label="tension" hatch mark="tension" />}
       {lens === "full" && (
         <span className="flex items-center gap-1.5">
           <span className="font-bold" style={{ color: pen.red }}>

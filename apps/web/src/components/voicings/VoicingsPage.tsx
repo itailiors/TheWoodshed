@@ -224,7 +224,16 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
     () => (path ? path.map((form, i) => ({ kind: "shape", form, chord: chords[i] })) : [{ kind: "shape", form: single, chord: chords[0] }]),
     [path, single, chords],
   );
-  const session = useDrillSession({ runs, keyTonic: settings.key, flow: HOLD, delayMs: 900, onSetKey: (key) => update({ key }) });
+  // read when a run is filed (inside the strike), so it's the stage as you played it
+  const concealedRef = useRef(false);
+  const session = useDrillSession({
+    runs,
+    keyTonic: settings.key,
+    flow: HOLD,
+    delayMs: 900,
+    onSetKey: (key) => update({ key }),
+    byEar: () => concealedRef.current,
+  });
   const step = session.view.run;
   const drill = session.view.lap;
 
@@ -332,6 +341,10 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
   }, [latest]);
   /** Ear mode, before a clean answer or Reveal: no target, no degrees, no note names; the chord symbol stays. */
   const concealed = settings.ear && earPhase !== "shown" && !grade?.valid;
+  concealedRef.current = concealed;
+  /** Ear mode: a chord's form name (and the motion into it, which names notes) stays hidden until that chord is shown. */
+  const nameHidden = (i: number) => settings.ear && (i > step || (i === step && concealed));
+  const formName = (i: number, f: VoicingForm) => (nameHidden(i) ? "form hidden" : f.label);
   const reveal = () => earEvent("reveal");
   /** Shown again (after a clean answer or Reveal): hide it and hear it again. */
   const hideAgain = () => {
@@ -616,7 +629,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
             <>
               <LeadSheet head={head} path={path} step={step} sounding={sounding} narrow={narrow} onPick={(i) => (headPlaying ? (stopHead(), session.goToRun(i)) : session.goToRun(i))} />
               <p className="font-hand text-sm text-ink-soft">
-                Bar {head.harmony[step]?.at.bar}: {current.label}
+                Bar {head.harmony[step]?.at.bar}: {formName(step, current)}
                 {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
               </p>
             </>
@@ -631,7 +644,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                       type="button"
                       onClick={() => session.goToRun(i)}
                       aria-current={i === step}
-                      aria-label={`${pretty(chords[i])}, ${f.label}`}
+                      aria-label={`${pretty(chords[i])}, ${formName(i, f)}`}
                       className={`w-full cursor-pointer rounded-lg border-2 text-left ${narrow ? "px-2 py-1" : "px-3 py-2"} ${i === step ? "border-ink bg-paper-shade" : "border-dashed border-ink-soft"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
                     >
                       <span className={`font-marker ${narrow ? "text-lg" : "text-xl"}`}>{pretty(chords[i])}</span>
@@ -639,9 +652,9 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
                         (f.id === "A" || f.id === "B") && <span className="ml-1 font-hand text-sm text-ink-soft">{f.id}</span>
                       ) : (
                         <>
-                          <span className="block font-hand text-sm text-ink-soft">{f.label}</span>
+                          <span className="block font-hand text-sm text-ink-soft">{formName(i, f)}</span>
                           {/* the motion names notes: hidden in ear mode until this chord is shown */}
-                          {i > 0 && !(settings.ear && (i > step || (i === step && concealed))) && (
+                          {i > 0 && !nameHidden(i) && (
                             <span className="block font-hand text-xs text-ink-soft">
                               from {pretty(chords[i - 1])}: {motionLine(path, chords, i)}
                             </span>
@@ -654,7 +667,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               </ol>
               {narrow && (
                 <p className="font-hand text-sm text-ink-soft">
-                  {current.label}
+                  {formName(step, current)}
                   {step > 0 && !concealed && ` · from ${pretty(chords[step - 1])}: ${motionLine(path, chords, step)}`}
                 </p>
               )}
@@ -842,7 +855,7 @@ function LeadSheet({
                     onClick={() => onPick(i)}
                     aria-current={i === step}
                     aria-label={`Bar ${bar}: ${prettySymbol(symbol(c))}, ${topName(i)} on top${path[i].fellBack ? ", close" : ""}`}
-                    className={`min-w-0 flex-1 cursor-pointer rounded px-1 py-0.5 text-left ${i === step ? "bg-paper-shade outline-2 outline-ink" : "hover:bg-paper-shade"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
+                    className={`min-w-0 flex-1 cursor-pointer rounded px-1 py-0.5 text-left ${i === step ? "bg-paper-shade font-bold shadow-[inset_0_-3px_0_var(--color-ink)]" : "hover:bg-paper-shade"} ${sounding === i ? "ring-2 ring-wash-mustard" : ""}`}
                   >
                     {/* a phone's two-chord bar is ~40px a chord: smaller symbol, and just "♪F" */}
                     <span className={`block font-marker leading-tight ${narrow ? (inBar.length > 1 ? "text-[0.7rem]" : "text-sm") : "text-lg"}`}>{prettySymbol(symbol(c))}</span>

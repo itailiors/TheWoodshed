@@ -904,9 +904,34 @@ export function ImprovHeatmap({
             <span className="inline-block h-3 w-6 rounded-sm border-2 border-ink" /> guide-tone landing
           </span>
           {tradeBars > 0 && (
-            <span className="flex items-center gap-2 font-marker">
-              <span className="inline-block h-3 w-6 -rotate-1 rounded-sm border border-ink" style={{ background: wash.sage }} /> 👻 Ghost Master answer
-            </span>
+            <>
+              <span className="flex items-center gap-2 font-marker">
+                <span className="inline-block h-3 w-6 -rotate-1 rounded-sm border border-ink" style={{ background: wash.sage }} /> 👻 Ghost Master answer
+              </span>
+              {/* the rest of what the Ghost draws, each told apart by pattern as well as colour */}
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block h-3 w-6 -rotate-1 rounded-sm border border-ink"
+                  style={{ background: `repeating-linear-gradient(45deg, ${wash.mustard} 0 2px, transparent 2px 4px), repeating-linear-gradient(-45deg, ${wash.mustard} 0 2px, transparent 2px 4px)` }}
+                />
+                enclosure (cross-hatched)
+              </span>
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className="inline-block h-2 w-6 -rotate-1 rounded-sm border"
+                  style={{ borderColor: wash.sage, background: `repeating-linear-gradient(-50deg, ${wash.sage} 0 1.5px, transparent 1.5px 4px)` }}
+                />
+                its harmony voices (hatched)
+              </span>
+              <span className="flex items-center gap-2">
+                <svg viewBox="0 0 24 12" className="inline-block h-3 w-6" aria-hidden>
+                  <path d="M2 10 Q12 0 22 10" fill="none" stroke={wash.sage} strokeWidth={1.8} strokeLinecap="round" />
+                </svg>
+                your call → its answer
+              </span>
+            </>
           )}
         </div>
         {ghostSummary && tradeBars > 0 && (

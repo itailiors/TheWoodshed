@@ -37,6 +37,8 @@ export interface CoachAttemptInput {
   leaps: number;
   maxLeap: number;
   gradedBy?: "engine" | "self";
+  /** Answered by ear (Voicings' "Hear, hide, play"); the schedule is the same, the attempt is tagged. */
+  byEar?: boolean;
 }
 
 /** Store a coach run and advance that concept's spaced-repetition schedule. */

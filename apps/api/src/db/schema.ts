@@ -96,6 +96,8 @@ export const coachAttempts = sqliteTable(
      * Self-checked runs can't measure leaps, so their leaps are 0.
      */
     gradedBy: text("graded_by", { enum: ["engine", "self"] }).notNull().default("engine"),
+    /** Played from memory with the voicing hidden (Voicings' "Hear, hide, play"). Same SM-2 item. */
+    byEar: integer("by_ear", { mode: "boolean" }).notNull().default(false),
     /** 0–5 recall grade fed to the scheduler. */
     grade: integer("grade").notNull(),
     createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(() => new Date()),

@@ -276,6 +276,15 @@ html {
     outline-offset: 2px;
     box-shadow: 0 0 0 2px var(--color-paper-light);
   }
+  /*
+   * Tabbing to something below the fold scrolls it only just into view, flush with the
+   * scroller's edge, which cut the ring (2px out + 2px wide) off. Scrollers keep a margin.
+   */
+  .overflow-auto,
+  .overflow-y-auto,
+  .overflow-x-auto {
+    scroll-padding: 0.5rem;
+  }
   ::selection {
     background: var(--selection);
   }

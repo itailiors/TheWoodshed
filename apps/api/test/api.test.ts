@@ -330,4 +330,20 @@ describe("the Voicings tab", () => {
     expect(progress.cleanKeys[id]).toEqual(["G"]);
     expect(progress.places[id]).toBeNull(); // no tune: the passport sends it to the Voicings tab
   });
+
+  it("tags shapes answered by ear on the same SM-2 item", async () => {
+    const { app } = await createApp({ demo: false, dbFile: path.join(tmp(), "voicings-ear.sqlite") });
+    const { body: session } = await call(app, "/api/practice/sessions", json("POST", { tuneId: "voicings", mode: "coach" }));
+    const id = "shape:rootless:m7";
+    const run = { sessionId: session.id, tuneId: "voicings", moveId: id, ruleId: id, leaps: 0, maxLeap: 0, keyTonic: "D", misses: 0 };
+    expect((await call(app, "/api/practice/coach-attempts", json("POST", run))).status).toBe(201);
+    const byEar = await call(app, "/api/practice/coach-attempts", json("POST", { ...run, byEar: true }));
+    expect(byEar.body).toMatchObject({ clean: true, review: { ruleId: id, keyTonic: "D", reps: 2 } });
+    expect((await call(app, "/api/practice/coach-attempts", json("POST", { ...run, byEar: "yes" }))).status).toBe(400);
+
+    const { getDb } = await import("../src/db/client");
+    const { coachAttempts } = await import("../src/db/schema");
+    const rows = getDb().select().from(coachAttempts).all();
+    expect(rows.filter((r) => r.ruleId === id).map((r) => r.byEar)).toEqual([false, true]);
+  });
 });

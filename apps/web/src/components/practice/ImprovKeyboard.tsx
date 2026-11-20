@@ -140,6 +140,11 @@ export function ImprovKeyboard({ low, high, marks, aim, held, onKey, onKeyUp, ta
             {aimSet.has(k.midi % 12) && (
               <ellipse cx={c.x} cy={c.y} rx={k.black ? 17 : 22} ry={k.black ? 17 : 21} fill="none" stroke={ink.deep} strokeWidth={2} strokeDasharray="5 4" className="animate-pulse" />
             )}
+            {/* the full lens's chord tones and tensions also get the heatmap's shape (avoid notes
+                already have their red ✕ in the same spot), so the lens reads without colour */}
+            {(mk?.fill === "chord" || mk?.fill === "tension") && (
+              <VerdictMark verdict={mk.fill === "chord" ? "chord-tone" : "tension"} cx={c.x} cy={c.y - 32} r={k.black ? 4.5 : 5.5} />
+            )}
             {mk && (
               <text
                 x={c.x}

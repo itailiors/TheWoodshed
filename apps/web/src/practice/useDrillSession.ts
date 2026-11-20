@@ -32,6 +32,11 @@ interface Options {
   onSetKey: (key: string) => void;
   /** Every filed run, as it's filed (the Coach stamps its passport straight away). */
   onFiled?: (record: DrillRecord) => void;
+  /**
+   * Read when a shape run is filed: true if it was answered by ear (Voicings' "Hear, hide, play",
+   * played clean while the voicing was still hidden). Same SM-2 item; the attempt is only tagged.
+   */
+  byEar?: () => boolean;
 }
 
 /** Same targets, same identity: a re-render that rebuilds equal runs doesn't start the run over. */
@@ -45,7 +50,8 @@ const identityOf = (runs: readonly DrillRun[], key: string) =>
     ),
   ]);
 
-const save = ({ kind: _, ...run }: DrillRecord): Promise<CoachRunResult | null> => ("tuneId" in run ? saveCoachRun(run) : saveShapeRun(run));
+const save = ({ kind: _, ...run }: DrillRecord, byEar: boolean): Promise<CoachRunResult | null> =>
+  "tuneId" in run ? saveCoachRun(run) : saveShapeRun({ ...run, byEar });
 
 export interface DrillSessionApi {
   view: DrillView;
@@ -61,7 +67,7 @@ export interface DrillSessionApi {
   startTwelveKey: (ruleId: string, startKey: string) => Promise<void>;
 }
 
-export function useDrillSession({ runs, keyTonic, flow, delayMs, onSetKey, onFiled }: Options): DrillSessionApi {
+export function useDrillSession({ runs, keyTonic, flow, delayMs, onSetKey, onFiled, byEar }: Options): DrillSessionApi {
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 31));
   const id = identityOf(runs, keyTonic);
   const state = useRef<{ session: ReturnType<typeof startDrillSession>; id: string } | null>(null);
@@ -71,8 +77,8 @@ export function useDrillSession({ runs, keyTonic, flow, delayMs, onSetKey, onFil
 
   const [, rerender] = useReducer((n: number) => n + 1, 0);
   const [saved, setSaved] = useState<{ epoch: number; result: CoachRunResult } | null>(null);
-  const latest = useRef({ delayMs, onSetKey, onFiled });
-  latest.current = { delayMs, onSetKey, onFiled };
+  const latest = useRef({ delayMs, onSetKey, onFiled, byEar });
+  latest.current = { delayMs, onSetKey, onFiled, byEar };
   const timers = useRef(new Set<ReturnType<typeof setTimeout>>());
   const mounted = useRef(true);
 
@@ -82,7 +88,7 @@ export function useDrillSession({ runs, keyTonic, flow, delayMs, onSetKey, onFil
       if (fx.type === "file") {
         latest.current.onFiled?.(fx.record);
         const epoch = state.current!.session.epoch;
-        void save(fx.record).then((r) => r && mounted.current && setSaved({ epoch, result: r }));
+        void save(fx.record, latest.current.byEar?.() ?? false).then((r) => r && mounted.current && setSaved({ epoch, result: r }));
       } else if (fx.type === "wait") {
         const t = setTimeout(() => {
           timers.current.delete(t);

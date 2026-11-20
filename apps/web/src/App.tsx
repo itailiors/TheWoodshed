@@ -3,6 +3,7 @@ import {
   editorPathway,
   editorPicks,
   liveChordCursor,
+  placeChordCursor,
   stepChord,
   type ChordCursor,
   chroma,
@@ -48,6 +49,7 @@ import { usePedalLevel } from "./midi/pedal";
 import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
+import { ChordFactsCard } from "./components/ChordFactsCard";
 import { SideRail } from "./components/SideRail";
 import { useNarrow } from "./device/media";
 import { useWakeLock } from "./device/wakeLock";
@@ -209,7 +211,15 @@ export function App() {
   // A linked pedal or mod wheel moves only the dial and keeps your choices. The new pathway
   // reaches the band on the next beat, like any other dial change.
   usePedalLevel((l) => edit({ type: "pedal", level: l }));
-  const setSelectedId = (id: string | null) => edit({ type: "select", id });
+  /**
+   * Open a move (a wash, a move card, ← →, a deep link…). That hands the right panel back to the
+   * move, so the chord cursor is dropped: otherwise re-opening the move that stayed open under a
+   * bare chord changes nothing and the chord's card keeps sitting on top of it.
+   */
+  const setSelectedId = (id: string | null) => {
+    setChordCursor(null);
+    edit({ type: "select", id });
+  };
   const pick = (alt: ReharmMove) => edit({ type: "pick", id: alt.id });
   // Chord by chord: keep one chord as written, or hand it back to the dial
   const keepChord = (chordId: string) => edit({ type: "keep", chordId });
@@ -224,8 +234,27 @@ export function App() {
     if (!next) return;
     setChordCursor(next);
     setChordTick((t) => t + 1);
-    if (next.moveId !== selectedId) setSelectedId(next.moveId);
+    setCursorFollow(true);
+    if (next.moveId !== selectedId) edit({ type: "select", id: next.moveId });
   };
+  /** Stepping moves focus to the chord's row in Chord by chord; a click leaves focus and scroll where they are. */
+  const [cursorFollow, setCursorFollow] = useState(true);
+  /** A click on a chord (its symbol on the lead sheet, or its name in Chord by chord): the cursor goes there. */
+  const goToChord = (chordId: string) => {
+    const next = placeChordCursor(original, pathway, chordId, selectedId);
+    if (!next) return; // a reharm chord: it sits inside a wash, which opens its move
+    setChordCursor(next);
+    setChordTick((t) => t + 1);
+    setCursorFollow(false);
+    if (next.moveId !== selectedId) edit({ type: "select", id: next.moveId });
+  };
+  // The cursor on a chord the reharm leaves alone: the right panel shows that chord, not the old move.
+  const improvOriginal = useMemo(() => improvMap(tune, original), [tune, original]);
+  const bareChord =
+    cursorChordId && !pathway.some((m) => m.replaces.includes(cursorChordId)) ? (original.find((c) => c.id === cursorChordId) ?? null) : null;
+  const bareFacts = bareChord && (
+    <ChordFactsCard chord={bareChord} entry={improvOriginal.find((e) => e.chord.id === bareChord.id)} />
+  );
 
   const usedCategories = [...new Set(pathway.map((m) => m.category))];
 
@@ -740,6 +769,7 @@ export function App() {
                       loopBars={playback.status === "playing" || loopSelection ? loop : null}
                       lastBar={bars}
                       activeChordId={cursorChordId}
+                      onChord={goToChord}
                     />
                   </div>
                 </div>
@@ -787,6 +817,8 @@ export function App() {
                     cursorChordId={cursorChordId}
                     cursorTick={chordTick}
                     onStepChord={stepChordBy}
+                    onGoToChord={goToChord}
+                    cursorFollow={cursorFollow}
                   />
                 </div>
               </SketchBox>
@@ -796,10 +828,15 @@ export function App() {
               <ImprovHeatmap key={tune.id} tune={tune} chords={shownChords} loop={loop} playing={playback.status === "playing"} level={level} view={view} />
             </div>
 
-            {selected && improvForSelected.length > 0 && (
-              <div className="mt-6 lg:hidden">
-                <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}`} />
-              </div>
+            {bareFacts ? (
+              <div className="mt-6 lg:hidden">{bareFacts}</div>
+            ) : (
+              selected &&
+              improvForSelected.length > 0 && (
+                <div className="mt-6 lg:hidden">
+                  <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}`} />
+                </div>
+              )
             )}
           </section>
 
@@ -817,6 +854,8 @@ export function App() {
                 </p>
               )}
             </div>
+
+            {bareFacts && <div className="hidden lg:block">{bareFacts}</div>}
 
             {pathway.length === 0 && (
               <p className="text-ink-soft">Level 0 shows the tune as written. Turn the dial up to let the engine reharmonize.</p>
@@ -836,7 +875,7 @@ export function App() {
               />
             ))}
 
-            {selected && improvForSelected.length > 0 && (
+            {!bareFacts && selected && improvForSelected.length > 0 && (
               <div className="hidden lg:block">
                 <ImprovCard entries={improvForSelected} title={`bar ${selected.span.from.bar}${view === "original" ? " (original)" : ""}`} />
               </div>

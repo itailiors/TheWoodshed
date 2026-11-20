@@ -2,6 +2,7 @@ import {
   LETTERS,
   chroma,
   parseNote,
+  prettySymbol,
   symbol,
   transpose,
   type ChordEvent,
@@ -38,6 +39,11 @@ interface Props {
   loopBars?: { startBar: number; endBar: number } | null;
   /** Ink this chord in red (the chord sounding now). */
   activeChordId?: string | null;
+  /**
+   * Click a chord symbol (Study: puts the chord cursor there). Mouse / touch only: the keyboard
+   * already has ⇧ ← → for this, and 40-odd extra Tab stops would bury the moves'.
+   */
+  onChord?: (chordId: string) => void;
   /** Fill the parent box (scale to fit both width and height) instead of flowing at full width. */
   fit?: boolean;
   /** Bars per line: 4 (the page as printed) or 2 (a phone held upright, so the notes stay readable). */
@@ -80,6 +86,7 @@ export function LeadSheet({
   playhead,
   loopBars,
   activeChordId,
+  onChord,
   fit = false,
   perSystem = 4,
 }: Props) {
@@ -367,21 +374,60 @@ export function LeadSheet({
         </g>
       )}
 
-      {/* click targets */}
-      {segs.map((s, i) => (
-        <rect
-          key={i}
-          x={s.x1}
-          y={s.y0 + 20}
-          width={s.x2 - s.x1}
-          height={118}
-          fill="transparent"
-          className="cursor-pointer"
-          role="button"
-          aria-label={`${s.move.title}, bar ${s.move.span.from.bar}`}
-          onClick={() => onSelect(s.move.id)}
-        />
-      ))}
+      {/* chord click targets, from each symbol to the next chord (or the barline). Drawn under the
+          moves' targets, so a click inside a wash still opens its move. */}
+      {onChord &&
+        chords
+          .filter((c) => c.at.bar >= firstBar && c.at.bar <= lastBar)
+          .map((c) => {
+            const g = geo(c.at.bar);
+            const x1 = beatX(c.at.bar, c.at.beat) - 6;
+            const next = chords.find((o) => o.at.bar === c.at.bar && o.at.beat > c.at.beat);
+            const x2 = next ? beatX(next.at.bar, next.at.beat) - 8 : g.x + g.w - 2;
+            return (
+              <rect
+                key={`ct${c.id}`}
+                data-chord-target={c.id}
+                x={x1}
+                y={g.y0 + 34}
+                width={Math.max(12, x2 - x1)}
+                height={36}
+                fill="transparent"
+                className="cursor-pointer"
+                onClick={() => onChord(c.id)}
+              >
+                <title>{`${prettySymbol(symbol(c))}: show this chord`}</title>
+              </rect>
+            );
+          })}
+
+      {/* click targets: one Tab stop per move (its first segment; a move wrapping onto the next
+          line has a second, click-only segment), Enter / Space opens it like a click */}
+      {segs.map((s, i) => {
+        const first = segs.findIndex((o) => o.move.id === s.move.id) === i;
+        return (
+          <rect
+            key={i}
+            x={s.x1}
+            y={s.y0 + 20}
+            width={s.x2 - s.x1}
+            height={118}
+            fill="transparent"
+            className="cursor-pointer"
+            role="button"
+            tabIndex={first ? 0 : -1}
+            aria-hidden={first ? undefined : true}
+            aria-pressed={s.move.id === selectedId}
+            aria-label={`${s.move.title}, bar ${s.move.span.from.bar}`}
+            onClick={() => onSelect(s.move.id)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter" && e.key !== " ") return;
+              e.preventDefault();
+              onSelect(s.move.id);
+            }}
+          />
+        );
+      })}
     </svg>
   );
 }

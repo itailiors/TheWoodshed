@@ -1,0 +1,1 @@
+ALTER TABLE `coach_attempts` ADD `by_ear` integer DEFAULT false NOT NULL;

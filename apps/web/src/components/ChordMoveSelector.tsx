@@ -12,7 +12,7 @@ import { ChordName } from "./ChordName";
 
 const RULE = new Map(RULES.map((r) => [r.id, r]));
 
-const FUNCTION_WORD: Partial<Record<HarmonicFunction, string>> = {
+export const FUNCTION_WORD: Partial<Record<HarmonicFunction, string>> = {
   T: "home: the chord at rest",
   PD: "pre-dominant: leads toward the V",
   D: "tension: wants to resolve",
@@ -45,6 +45,10 @@ interface Props {
   /** Bumped on every cursor step, so stepping onto the same chord again reopens it. */
   cursorTick?: number;
   onStepChord?: (dir: 1 | -1) => void;
+  /** Click a row's chord name: the chord cursor goes there. */
+  onGoToChord?: (chordId: string) => void;
+  /** Whether the cursor's row takes focus and scrolls into view (stepping: yes; a click: no). */
+  cursorFollow?: boolean;
 }
 
 const route = (m: ReharmMove) => (
@@ -89,6 +93,8 @@ export function ChordMoveSelector({
   cursorChordId,
   cursorTick,
   onStepChord,
+  onGoToChord,
+  cursorFollow = true,
 }: Props) {
   const rows = chords
     .map((c) => ({ chord: c, options: accepted.filter((m) => m.replaces.includes(c.id)).sort((a, b) => a.level - b.level || a.priority - b.priority) }))
@@ -158,6 +164,8 @@ export function ChordMoveSelector({
                 onKeep={() => onKeep(chord.id)}
                 onDial={() => onDial(chord.id)}
                 onSelect={onSelect}
+                onGoTo={onGoToChord && (() => onGoToChord(chord.id))}
+                follow={cursorFollow}
               />
             </li>
           );
@@ -179,7 +187,11 @@ function ChordRow({
   onKeep,
   onDial,
   onSelect,
+  onGoTo,
+  follow,
 }: {
+  onGoTo?: () => void;
+  follow: boolean;
   chord: ChordEvent;
   options: ReharmMove[];
   choice: Choice;
@@ -214,20 +226,21 @@ function ChordRow({
     };
   }, [open]);
 
-  // The chord cursor stepped here: open the options, focus the trigger (Enter toggles it,
-  // Escape closes it) and bring the row into view. When the cursor leaves, close it again.
+  // The chord cursor stepped here: highlight the row, focus its trigger (Enter opens the
+  // options, Escape closes them) and bring it into view. The list stays shut, so stepping
+  // fast doesn't bury the heatmap. A click on a chord (`follow` off) only highlights the row, so
+  // the page doesn't jump away from where you clicked. When the cursor leaves, close it again.
   const trigger = useRef<HTMLButtonElement>(null);
   const isCursor = cursorTick !== undefined;
   const wasCursor = useRef(false);
   useEffect(() => {
-    if (isCursor) {
-      setOpen(true);
+    if (isCursor && follow) {
       trigger.current?.focus({ preventScroll: true });
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       box.current?.scrollIntoView({ block: "nearest", behavior: reduce ? "auto" : "smooth" });
-    } else if (wasCursor.current) setOpen(false);
+    } else if (!isCursor && wasCursor.current) setOpen(false);
     wasCursor.current = isCursor;
-  }, [isCursor, cursorTick]);
+  }, [isCursor, cursorTick, follow]);
 
   const choose = (fn: () => void) => () => {
     fn();
@@ -240,11 +253,25 @@ function ChordRow({
         data-chord-cursor={isCursor || undefined}
         className={`flex items-center gap-2 rounded-lg border-2 px-2 py-1.5 ${isCursor ? "border-ink bg-wash-mustard/25" : selected ? "border-ink bg-paper-light" : "border-ink-faint/60"}`}
       >
-        <span className="w-16 shrink-0 text-xs text-ink-soft">
-          bar {chord.at.bar}
-          {chord.at.beat > 1 ? `.${chord.at.beat}` : ""}
-          <ChordName symbol={sym} className="block text-lg text-ink" />
-        </span>
+        {onGoTo ? (
+          <button
+            type="button"
+            onClick={onGoTo}
+            aria-label={`Show ${prettySymbol(sym)} in bar ${chord.at.bar}`}
+            title="Show this chord"
+            className="w-16 shrink-0 cursor-pointer rounded text-left text-xs text-ink-soft hover:bg-paper-shade"
+          >
+            bar {chord.at.bar}
+            {chord.at.beat > 1 ? `.${chord.at.beat}` : ""}
+            <ChordName symbol={sym} className="block text-lg text-ink underline decoration-dotted underline-offset-4" />
+          </button>
+        ) : (
+          <span className="w-16 shrink-0 text-xs text-ink-soft">
+            bar {chord.at.bar}
+            {chord.at.beat > 1 ? `.${chord.at.beat}` : ""}
+            <ChordName symbol={sym} className="block text-lg text-ink" />
+          </span>
+        )}
         <button
           ref={trigger}
           type="button"
