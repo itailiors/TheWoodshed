@@ -50,12 +50,13 @@ function ExplainChoice() {
       <legend className="float-left mr-3 font-marker">Explanations</legend>
       <div className="flex flex-wrap gap-x-3 gap-y-1">
         {(Object.keys(EXPLAIN_LABEL) as ExplainSetting[]).map((s) => (
-          <label key={s} className="inline-flex cursor-pointer items-center gap-1.5">
+          <label key={s} className="inline-flex cursor-pointer items-center gap-1.5 pointer-coarse:min-h-11">
             <input type="radio" name={name} value={s} checked={setting === s} onChange={() => writeExplainSetting(s)} className="accent-ink" />
             {EXPLAIN_LABEL[s]}
           </label>
         ))}
       </div>
+      <p className="clear-left text-xs text-ink-soft">Step by step folds a move once you've played it clean.</p>
     </fieldset>
   );
 }

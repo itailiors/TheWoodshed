@@ -31,7 +31,8 @@ export type LearningCounter = keyof typeof LEARNING_LABEL;
 export const countLearning = (name: LearningCounter) => countOpen(name);
 
 export const PANEL_LABEL: Record<string, string> = {
-  "study.why": "Study · Why it works",
+  // the Gate-0 baseline, still counted beside "why.open" so the two can be compared
+  "study.why": "Study · Why it works (baseline)",
   "study.chordByChord": "Study · Edit chord by chord",
   "study.solo": "Study · Solo over it",
   "study.rejected": "Study · Considered & rejected",

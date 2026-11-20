@@ -24,7 +24,7 @@ export function ThemeSwitch() {
           aria-label={t.label}
           title={t.title}
           onClick={() => setTheme(t.id)}
-          className="grid h-7 w-7 cursor-pointer place-items-center rounded-full"
+          className="grid h-7 w-7 cursor-pointer place-items-center rounded-full pointer-coarse:h-11 pointer-coarse:w-11"
         >
           <span
             aria-hidden

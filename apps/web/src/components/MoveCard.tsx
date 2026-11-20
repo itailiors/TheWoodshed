@@ -193,10 +193,19 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
         if (d.rough) updateLessonFlag(lesson.conceptId, { reopenedFor: d.rough.at });
       }
     }
+    setJustFinished(false);
     setWhy(!why);
   };
+  // finished before (a stored flag) or just now: the button carries a ✓, and finishing says what's next
+  const [finished, setFinished] = useState(false);
+  const [justFinished, setJustFinished] = useState(false);
+  useEffect(() => {
+    setFinished(!!lesson && !!readLessonFlags()[lesson.conceptId]?.finishedAt);
+  }, [lesson]);
   const doneWithLesson = () => {
     setWhy(false);
+    setFinished(true);
+    setJustFinished(true);
     whyBtn.current?.focus();
   };
 
@@ -214,11 +223,13 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
           folded={!depth!.open}
           notice={depth!.rough ? roughRunLine(prettyNote(depth!.rough.keyTonic)) : undefined}
           onFinish={doneWithLesson}
+          focusOnOpen
           deeper={
             <>
               <MelodyCheck move={move} />
               <VoiceLeadingGrid move={move} />
-              <Insight text={move.text.insight} />
+              {/* the lesson's own deeper line already says what the insight says (tritone sub, secondary dominant) */}
+              {!lesson.deeper && <Insight text={move.text.insight} />}
               <DeepDive key={tuneId} tuneId={tuneId} move={move} />
             </>
           }
@@ -334,9 +345,19 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
                 className="cursor-pointer rounded-full border-2 border-dashed border-ink-soft px-3 py-1 font-marker text-ink-soft hover:border-ink hover:text-ink"
               >
                 Why it works
+                {lesson && finished && (
+                  <>
+                    <span aria-hidden className="text-sage-ink"> ✓</span>
+                    <span className="sr-only"> (done)</span>
+                  </>
+                )}
                 {lesson && <span className="font-hand text-sm"> ({lesson.steps.length} steps)</span>} <span aria-hidden>{why ? "▾" : "▸"}</span>
               </button>
             </div>
+            {/* one line, in the card's own words: the lesson is done, the hands are next */}
+            <p role="status" className={`font-hand text-base text-ink-soft ${justFinished && !why ? "mt-2" : ""}`} data-lesson-done>
+              {justFinished && !why ? "Lesson done. Now put it under your hands: 🎹 Practice this move." : ""}
+            </p>
             {why && whyBody}
             {alsoWorks}
           </div>

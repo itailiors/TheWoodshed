@@ -58,6 +58,8 @@ export function LevelDial({ level, onChange }: { level: number; onChange: (l: nu
               aria-checked={on}
               onClick={() => onChange(l.level)}
               title={`L${l.level} ${l.label}: ${densityLabel(l.level)}`}
+              // phones hide the word (decision 2), so the name carries it for screen readers on every width
+              aria-label={`L${l.level} ${l.label}`}
               className={`relative cursor-pointer px-3 py-1 font-marker text-base ${on ? "font-bold" : "text-ink-soft hover:text-ink"}`}
             >
               {on && <PenCircle seed={seedOf("lvl" + l.level)} />}

@@ -94,6 +94,9 @@ test("Why it works steps through the lesson: one step at a time, the ask waits, 
   await stepper.getByRole("button", { name: "Show me" }).click();
   await expect(text).toContainText(step.text);
   await expect(stepper.getByRole("button", { name: "Show me" })).toHaveCount(0);
+  // the wrong key's line is over once the answer is out
+  await expect(stepper.locator("[data-wrong-key]")).toHaveCount(0);
+  await expect(stepper.getByRole("status")).toHaveText(/^The answer: /);
 
   for (let i = ask + 1; i < n; i++) {
     await next.click();
@@ -143,9 +146,8 @@ test("keyboard only: open the lesson, every step and the ask (answered on the co
   await page.keyboard.press("Enter");
   await expect(why).toHaveAttribute("aria-expanded", "true");
   await expect(heading).toHaveText(`Step 1 of ${n}`);
-  // Tab into the lesson (the first stop is a step dot), then → for the next step
-  await page.keyboard.press("Tab");
-  await expect(stepper.getByRole("button", { name: "Step 1" })).toBeFocused();
+  // opening moves focus into the lesson, so → works at once (M1 checkpoint: no Tab through the dots first)
+  await expect(heading).toBeFocused();
   await page.keyboard.press("ArrowRight");
   await expect(heading).toHaveText(`Step 2 of ${n}`);
   await expect(heading).toBeFocused();
@@ -174,6 +176,9 @@ test("keyboard only: open the lesson, every step and the ask (answered on the co
   await expect(stepper).toHaveCount(0);
   await expect(why).toHaveAttribute("aria-expanded", "false");
   await expect(why).toBeFocused();
+  // finishing says so: a ✓ on the button and one status line
+  await expect(why).toHaveAccessibleName(/^Why it works \(done\)/);
+  await expect(card.locator("[data-lesson-done]")).toHaveText(/^Lesson done\./);
   await page.keyboard.press("m"); // computer keys off again
 });
 

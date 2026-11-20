@@ -1,8 +1,8 @@
-import { chroma, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
+import { chroma, glossaryEntry, learnName, prettyNote, type Lesson, type LessonStep } from "@reharm/theory-core";
 import { useEffect, useId, useRef, useState, type KeyboardEvent as RKeyboardEvent, type ReactNode } from "react";
 import { SketchBox } from "../../design/rough";
 import { seedOf, wash } from "../../design/tokens";
-import { useNarrow } from "../../device/media";
+import { useNarrow, useTouchFirst } from "../../device/media";
 import { readLessonFlags, updateLessonFlag } from "../../learn/lessonFlags";
 import { useQwerty } from "../../midi/qwerty";
 import { countLearning } from "../../usage/panelOpens";
@@ -57,6 +57,11 @@ export interface LessonStepperProps {
   audition?: ReactNode;
   /** One line above the steps, e.g. "A rough run in A♭: the steps are open again." */
   notice?: string;
+  /**
+   * Move focus into the lesson when it mounts: the step heading (so ← / → work at once), or
+   * "Step by step ›" when folded. Only for a mount that a click or key caused (Study's "Why it works").
+   */
+  focusOnOpen?: boolean;
 }
 
 /**
@@ -91,20 +96,27 @@ function RuleBox({ lesson, label }: { lesson: Lesson; label: string }) {
  * stamps `seenAt` nor plays a cue.
  */
 function Depth(props: LessonStepperProps) {
-  const { lesson, folded = false, audition, notice, variant } = props;
+  const { lesson, folded = false, audition, notice, variant, focusOnOpen = false } = props;
   const [unfolded, setUnfolded] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const foldedRoot = useRef<HTMLDivElement>(null);
   const focusSteps = useRef(false);
   useEffect(() => {
     if (!unfolded || !focusSteps.current) return;
     focusSteps.current = false;
     root.current?.querySelector<HTMLElement>("[data-step-heading]")?.focus();
   }, [unfolded]);
+  // opened by a click or a key: focus goes into the lesson, so ← / → (or Enter on "Step by step ›") work at once
+  useEffect(() => {
+    if (!focusOnOpen) return;
+    (foldedRoot.current?.querySelector<HTMLElement>("[data-step-by-step]") ?? root.current?.querySelector<HTMLElement>("[data-step-heading]"))?.focus();
+    // on mount only: a later fold or unfold moves focus by its own rule
+  }, []);
 
   if (folded && !unfolded) {
     const full = variant === "full";
     return (
-      <div data-lesson-folded={lesson.conceptId} data-variant={variant} className={`text-ink ${full ? "space-y-3" : "space-y-2"}`}>
+      <div ref={foldedRoot} data-lesson-folded={lesson.conceptId} data-variant={variant} className={`text-ink ${full ? "space-y-3" : "space-y-2"}`}>
         {full && <p className="font-marker text-lg font-bold">{learnName(lesson.conceptId)}</p>}
         <p className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`} data-lesson-headline>
           {lesson.headline}
@@ -113,6 +125,7 @@ function Depth(props: LessonStepperProps) {
         {audition}
         <button
           type="button"
+          data-step-by-step
           onClick={() => {
             focusSteps.current = true;
             setUnfolded(true);
@@ -142,7 +155,7 @@ const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -
 
 /** The marks a step puts on the keyboard. Pure. */
 function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean, hits: number[], wrong: number | null) {
-  const placed = placeHighlights(step.highlight.map((h) => h.note));
+  const placed = placeHighlights(step.highlight);
   const labelOf = new Map<number, string>(step.highlight.map((h, i) => [((placed[i] % 12) + 12) % 12, h.label]));
   const fit = (m: number) => inRange(((m % 12) + 12) % 12, low, high);
   let lit: PenMark[];
@@ -187,6 +200,7 @@ function Stepper({
   const [status, setStatus] = useState("");
   const [help, setHelp] = useState(false);
   const narrow = useNarrow();
+  const touchFirst = useTouchFirst();
   const deeperId = useId();
   const qwertyOn = useQwerty().enabled;
   const heading = useRef<HTMLHeadingElement>(null);
@@ -228,7 +242,8 @@ function Stepper({
   const reveal = (how: Reveal) => {
     setRevealed((r) => (r[at] ? r : { ...r, [at]: how }));
     setPulsed(false);
-    if (how === "answered" && step.ask) setStatus(`✓ ${listOf(step.ask.answer.map(prettyNote))}`);
+    // a wrong key's "Not G" is over once the answer is out: the status says the answer instead
+    if (step.ask) setStatus(how === "answered" ? `✓ ${listOf(step.ask.answer.map(prettyNote))}` : `The answer: ${listOf(step.ask.answer.map(prettyNote))}`);
     // the Show me button goes away with the ask: keep focus on the step
     focusAfter.current = true;
   };
@@ -308,13 +323,15 @@ function Stepper({
 
   // ── the keyboard ──
   const showKeys = step.highlight.length > 0 || !!step.ask;
-  const placed = placeHighlights(step.highlight.map((h) => h.note));
+  const placed = placeHighlights(step.highlight);
   const { low, high } = keyRange(placed, narrow ? 12 : 24);
   const { lit, ghost } = keyMarks(step, low, high, askOpen, tap.hits, tap.wrong);
 
   const name = learnName(lesson.conceptId);
   const nextLabel = at === last ? (finishLabel ?? (variant === "full" ? "Study it ›" : "Done")) : "Next ›";
-  const split = splitOnTerm(step.text, step.term);
+  // the chip goes on the term as the text writes it: the glossary term or one of its aliases (the copy test allows either)
+  const termForms = step.term ? [step.term, ...(glossaryEntry(step.term)?.aliases ?? [])] : [];
+  const split = termForms.map((t) => splitOnTerm(step.text, t)).find((s) => s !== null) ?? null;
   const noInput = !midiConnected && !qwertyOn;
   const full = variant === "full";
 
@@ -333,7 +350,7 @@ function Stepper({
             ref={showMe}
             type="button"
             onClick={() => reveal("shown")}
-            className="cursor-pointer font-marker text-sm text-ink-soft underline decoration-dashed underline-offset-4 hover:text-ink motion-reduce:animate-none"
+            className="cursor-pointer px-1 font-marker text-sm text-ink-soft underline decoration-dashed underline-offset-4 hover:text-ink motion-reduce:animate-none pointer-coarse:min-h-11 pointer-coarse:min-w-11"
           >
             Show me
           </button>
@@ -388,7 +405,7 @@ function Stepper({
                   aria-label={`Step ${i + 1}`}
                   aria-current={i === at ? "step" : undefined}
                   onClick={() => go(i)}
-                  className="group grid cursor-pointer place-items-center p-[3px] pointer-coarse:min-h-11 pointer-coarse:min-w-7"
+                  className="group grid cursor-pointer place-items-center p-[3px] pointer-coarse:min-h-11 pointer-coarse:min-w-11"
                 >
                   <span
                     aria-hidden
@@ -416,7 +433,11 @@ function Stepper({
                 </span>
               )}
             </p>
-            {noInput && <p className="mt-1 text-sm text-ink-soft">Tap the keys, or press M to use your computer keys.</p>}
+            {noInput && (
+              <p className="mt-1 text-sm text-ink-soft" data-input-hint>
+                {touchFirst ? "Tap the keys." : "Tap the keys, or press M to use your computer keys."}
+              </p>
+            )}
           </>
         ) : (
           <>

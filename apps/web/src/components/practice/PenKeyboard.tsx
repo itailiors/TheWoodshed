@@ -124,6 +124,8 @@ export function PenKeyboard({
       const base = { stroke: keyTone.line, strokeWidth: 1.1, roughness: 0.7 };
       const pend = new Set(pending);
       for (const k of keys.filter((k) => !k.black)) {
+        // a lit key's hachure sits on the key's own colour, not on the page (dark in Northgate, where the gaps read as brown)
+        if (pend.has(k.midi)) add(rc.rectangle(k.x, TOP, WW, WH, { stroke: "none", seed: seedOf("pwb" + k.midi), fill: keyTone.white, fillStyle: "solid", roughness: 0 }));
         add(rc.rectangle(k.x, TOP, WW, WH, { ...base, seed: seedOf("pw" + k.midi), fill: pend.has(k.midi) ? wash.mustard : keyTone.white, fillStyle: pend.has(k.midi) ? "hachure" : "solid", hachureGap: 3 }));
         // a watercolour wash on the visible part of the key (below the black keys)
         const fill = pend.has(k.midi) ? null : handWash(k.midi);
@@ -250,7 +252,8 @@ export function PenKeyboard({
             x={k.x + (k.black ? BW : WW) / 2}
             y={TOP + (k.black ? BH : WH) - 6}
             textAnchor="middle"
-            fontSize={k.black ? 9 : 10}
+            // short labels (a note name, "3rd", "home") at a size that reads; long ones spill, so lessons keep them short
+            fontSize={k.black ? 11 : 12}
             fontWeight={700}
             // key colours, not page ink (a dark theme keeps cream keys): a lit key is washed mustard, so its
             // label is the black-key colour, like a white key's; an unlit black key gets the white-key colour
