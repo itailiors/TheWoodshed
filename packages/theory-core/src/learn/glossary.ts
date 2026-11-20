@@ -87,6 +87,8 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("dominant 7th", "Major 3rd plus ♭7: wants to resolve.", "basics:sevenths"),
   e("roman numerals", "Chords named by their root's scale step.", "basics:numerals"),
   e("key centre", "The note a passage treats as home.", "basics:symmetricOctave", ["key center"]),
+  // the Coach ladder's one rung that needs a word of explanation (spec §D, Coach row)
+  e("Self-check", "Reveal, play, grade yourself."),
   // roman numerals the lessons print
   e("V", "The chord built on the key's 5th.", "basics:numerals", [], "numeral"),
   e("♭II", "Chord on the lowered 2nd: tritone-sub root.", "basics:numerals", [], "numeral"),

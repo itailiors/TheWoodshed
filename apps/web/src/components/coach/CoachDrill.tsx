@@ -38,6 +38,9 @@ import { useNarrow } from "../../device/media";
 import { useWakeLock } from "../../device/wakeLock";
 import { modeForStage, type CoachInput, type SelfVerdict } from "./gradingMode";
 import { SelfCheckPanel } from "./SelfCheckPanel";
+import { GlossaryChip } from "../learn/GlossaryChip";
+import { GlossText } from "../learn/GlossText";
+import { termForConcept } from "../learn/chipText";
 
 export type KeyFlow = "fourths" | "fifths" | "hold";
 
@@ -215,8 +218,8 @@ export function CoachDrill({
   const cleanRun = drill.view.clean;
   const finishText = cleanRun
     ? nextKey
-      ? `Clean run! Advancing to ${prettyNote(nextKey)}…`
-      : "Clean run! Try it in another key."
+      ? `Clean run. On to ${prettyNote(nextKey)}…`
+      : "Clean run. Try it in another key."
     : [
         misses ? `Done, with ${misses} miss${misses === 1 ? "" : "es"}.` : "Done.",
         leaps ? `${leaps} change${leaps === 1 ? "" : "s"} jumped. Aim for every voice moving by step.` : "",
@@ -393,7 +396,7 @@ export function CoachDrill({
         </p>
         {!finished && prevPassed?.by === "engine" && !last && (
           <p className="mt-1 font-hand text-xs text-ink-soft" role="status">
-            ✓ {prettySymbol(steps[prevPassed.chord].symbol)} nailed
+            ✓ {prettySymbol(steps[prevPassed.chord].symbol)} right
             {prevPassed.vl ? ` · ${prevPassed.vl.comment}` : ""}
           </p>
         )}
@@ -559,7 +562,8 @@ export function CoachDrill({
               {withHint ? "Ready? Play it with the hint ›" : "Ready? Self-check ›"}
             </button>
           ) : (
-            "Step through every chord; when it sits under your fingers, Self-check runs it for real."
+            // the ladder's pills are buttons, so the "Self-check" chip (spec §D, Coach row) lives here, beside the next rung
+            <GlossText text="Step through every chord; when it sits under your fingers, Self-check runs it for real." terms={["Self-check"]} />
           )
         ) : midiStatus === "connected" ? (
           "Listening to your MIDI keyboard: strike each chord, then release all keys."
@@ -613,10 +617,21 @@ function WhyThisWorksCard({
 }) {
   const [more, setMore] = useState(false);
   if (lesson) {
+    // spec §D, Coach row: the move's own term and the formula's numerals carry chips; the own term's
+    // "Learn it" opens this concept's Learn stage
+    const own = termForConcept(move.ruleId);
     return (
       <aside aria-label="Why this move works" data-why-card className="space-y-1.5 rounded-lg border-2 border-ink/80 bg-wash-mustard/20 px-3.5 py-2.5 text-sm leading-snug">
         <span className="font-marker text-xs font-bold uppercase tracking-wider text-ink-soft">
-          💡 Why this works · <span className="text-ink">{pedagogy.formula}</span>
+          💡 Why this works ·{" "}
+          {own && (
+            <>
+              <GlossaryChip term={own} onLearn={onLearn} /> ·{" "}
+            </>
+          )}
+          <span className="text-ink">
+            <GlossText text={pedagogy.formula} numerals />
+          </span>
         </span>
         <p className="font-hand text-base text-ink">{lesson.headline}</p>
         <p className="font-medium text-ink">{lesson.rule}</p>
