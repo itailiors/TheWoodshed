@@ -5,7 +5,7 @@
  * and on tonicized chords, not just the home key.
  */
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
-import { chroma, fewestAccidentals, mod, transpose, type Interval } from "./pitch";
+import { chroma, fewestAccidentals, mod, playableKey, transpose, type Interval } from "./pitch";
 import type {
   BackdoorLearn,
   BorrowedIvLearn,
@@ -71,6 +71,8 @@ export const backdoorTwoFive: Rule = {
       bVII: symbol(bVII),
       targetRoot: T,
       bVIIRoot,
+      bVIIDegree: readable(transpose(T, "b7")),
+      minorKey: playableKey(T, "minor"),
       leadingTone,
       bVIISeventh: b7seventh,
       targetFifth: transpose(T, "5"),
@@ -182,6 +184,9 @@ export const flatSixFlatSeven: Rule = {
       bVII: symbol(bVII),
       bVIRoot: bVI.root,
       bVIIRoot: bVII.root,
+      bVIDegree: readable(transpose(T, "b6")),
+      bVIIDegree: readable(transpose(T, "b7")),
+      minorKey: playableKey(T, "minor"),
       leadingTone: guideTones(chord)[0].note,
       bVIINinth: tone(bVII, "9"),
       bVIISixth: tone(bVII, "6"),
@@ -223,6 +228,7 @@ export const borrowedIv: Rule = {
       root: chord.root,
       targetRoot: next.root,
       kept: !!split,
+      minorKey: playableKey(next.root, "minor"),
       line: [line[0], line[1], line[2]],
     };
     return {

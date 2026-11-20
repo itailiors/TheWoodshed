@@ -82,6 +82,8 @@ export interface BorrowedIvLearn {
   targetRoot: string;
   /** The IV is kept for its first half, then turns minor. */
   kept: boolean;
+  /** The parallel minor the chord is borrowed from, as a reader finds it (`playableKey`): F♯ for G♭. */
+  minorKey: string;
   /** 6 → ♭6 → 5 of the home key: IV's 3rd, its lowered 3rd, the target's 5th. */
   line: [string, string, string];
 }
@@ -93,6 +95,10 @@ export interface BackdoorLearn {
   bVII: string;
   targetRoot: string;
   bVIIRoot: string;
+  /** ♭VII as the key spells it (F♭ in G♭, where the chord's root is charted E), for the twin. */
+  bVIIDegree: string;
+  /** The parallel minor it borrows from, as a reader finds it (`playableKey`): F♯ for G♭. */
+  minorKey: string;
   /** The original dominant's 3rd, which the backdoor leaves out. */
   leadingTone: string;
   /** ♭VII7's ♭7 and the target's 5th, a half step below it. */
@@ -311,6 +317,11 @@ export interface FlatSixFlatSevenLearn {
   bVII: string;
   bVIRoot: string;
   bVIIRoot: string;
+  /** ♭VI and ♭VII as the key spells them (F♭ in A♭ and G♭, where a root is charted E), for the twin. */
+  bVIDegree: string;
+  bVIIDegree: string;
+  /** The parallel minor both chords come from, as a reader finds it (`playableKey`): F♯ for G♭. */
+  minorKey: string;
   /** The original dominant's 3rd: the leading tone ♭VII6/9 leaves out. */
   leadingTone: string;
   /** ♭VII6/9's 9th: the target's root, already sounding. */

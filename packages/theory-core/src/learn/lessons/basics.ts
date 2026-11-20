@@ -1,5 +1,5 @@
 import { chordTones, guideTones, symbol } from "../../chords";
-import { simplifyNote, transpose } from "../../pitch";
+import { playableKey, simplifyNote, transpose } from "../../pitch";
 import { chainMotions } from "../../ruleKit";
 import type { Quality } from "../../types";
 import type { BasicsId } from "../graph";
@@ -83,11 +83,18 @@ function numerals(T: string): Lesson {
         highlight: [hl(two, "ii"), hl(five, "V"), hl(T, "I")],
         sound: [tones(ii), tones(V7), tones(I)],
       },
-      {
-        text: `Add ♭ and the root drops a half step: ♭II in ${pn(T)} is ${pn(flatTwo)}, ♭VII is ${pn(flatSeven)}.`,
-        highlight: [hl(flatTwo, "♭II"), hl(flatSeven, "♭VII")],
-        play: "interval",
-      },
+      // where ♭II is respelled (D for E♭♭ in D♭) the reader would see a root above the tonic: name the step it drops from
+      transpose(T, "b2") === flatTwo
+        ? {
+            text: `Add ♭ and the root drops a half step: ♭II in ${pn(T)} is ${pn(flatTwo)}, ♭VII is ${pn(flatSeven)}.`,
+            highlight: [hl(flatTwo, "♭II"), hl(flatSeven, "♭VII")],
+            play: "interval",
+          }
+        : {
+            text: `Add ♭ and the root drops a half step: ♭II in ${pn(T)} is ${pn(flatTwo)}, a half step below ${pn(two)}.`,
+            highlight: [hl(two, "2"), hl(flatTwo, "♭II", "down")],
+            play: "interval",
+          },
     ],
     rule: "Read a numeral as a scale step of the key; the chord's root sits on that step.",
     deeper: "Numerals let one rule work in all 12 keys: V7 to I is the same move anywhere.",
@@ -341,22 +348,28 @@ function symmetricOctave(T: string): Lesson {
 
 function parallelMinor(T: string): Lesson {
   const [M3, M6, M7] = ["3", "6", "7"].map((d) => transpose(T, d));
-  const [m3, m6, m7] = ["b3", "b6", "b7"].map((d) => readable(transpose(T, d)));
-  const iv = chord(transpose(T, "4"), "m6");
-  const bVII = chord(m7, "7");
+  // G♭ minor (9 flats) and D♭ minor (8) are written F♯ and C♯ minor: their notes come from that key,
+  // and the borrowed chords take the names the rule lessons give them (Bm6 and E7 in G♭, as the backdoor's Bm7 → E9)
+  const mi = playableKey(T, "minor");
+  const respelled = mi !== T;
+  const [m3, m6, m7] = ["b3", "b6", "b7"].map((d) => readable(transpose(mi, d)));
+  const iv = chord(respelled ? simplifyNote(transpose(T, "4")) : transpose(T, "4"), "m6");
+  const bVII = chord(respelled ? simplifyNote(transpose(T, "b7")) : m7, "7");
   const I = chord(T, "maj7");
   return {
     conceptId: "basics:parallelMinor",
-    headline: `${pn(T)} minor is ${pn(T)} major with the 3rd, 6th and 7th lowered: a source of darker chords.`,
+    headline: respelled
+      ? `${pn(T)}'s parallel minor, written ${pn(mi)} minor, is ${pn(T)} major with the 3rd, 6th and 7th lowered.`
+      : `${pn(T)} minor is ${pn(T)} major with the 3rd, 6th and 7th lowered: a source of darker chords.`,
     steps: [
       {
-        text: `${pn(T)} minor, the parallel minor, lowers ${pn(M3)}, ${pn(M6)} and ${pn(M7)} to ${pn(m3)}, ${pn(m6)} and ${pn(m7)}.`,
+        text: `${pn(mi)} minor, ${respelled ? `${pn(T)}'s` : "the"} parallel minor, lowers ${pn(M3)}, ${pn(M6)} and ${pn(M7)} to ${pn(m3)}, ${pn(m6)} and ${pn(m7)}.`,
         highlight: [hl(T, pn(T)), hl(m3, "♭3"), hl(m6, "♭6"), hl(m7, "♭7")],
         sound: [tones(chord(T, "maj")), tones(chord(T, "m"))],
         term: "parallel minor",
       },
       {
-        text: `${sym(iv)} borrows ${pn(m6)} from ${pn(T)} minor; ${sym(bVII)} borrows ${pn(m7)} and ${pn(m6)}.`,
+        text: `${sym(iv)} borrows ${pn(m6)} from ${pn(mi)} minor; ${sym(bVII)} borrows ${pn(m7)} and ${pn(m6)}.`,
         highlight: [hl(m6, "♭6"), hl(m7, "♭7")],
         term: "borrowed",
         // most of the iv's keys are in the minor scale too: ask for the one the major key lacks

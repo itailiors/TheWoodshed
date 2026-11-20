@@ -158,6 +158,9 @@ function secondaryTwoFive(f: SecondaryTwoFiveLearn): Lesson {
   };
 }
 
+/** "C minor"; in G♭, "F♯ minor (G♭'s parallel minor)": 9 flats isn't a key anyone reads in. */
+const minorName = (minorKey: string, home: string) => (pn(minorKey) === pn(home) ? `${pn(home)} minor` : `${pn(minorKey)} minor (${pn(home)}'s parallel minor)`);
+
 function borrowedIv(f: BorrowedIvLearn): Lesson {
   const [IV, iv, target] = [ps(f.IV), ps(f.iv), ps(f.target)];
   const [six, flatSix, five] = f.line;
@@ -167,7 +170,7 @@ function borrowedIv(f: BorrowedIvLearn): Lesson {
       ? `Let ${IV} turn into ${iv} before ${target}: one note drops a half step, and home sounds bittersweet.`
       : `Play ${iv} instead of ${IV}: one note drops a half step, and ${target} sounds bittersweet.`,
     steps: [
-      { text: `${iv} is borrowed from ${pn(f.targetRoot)} minor: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3", "up")], play: "after", term: "borrowed", prereqLink: "basics:parallelMinor" },
+      { text: `${iv} is borrowed from ${minorName(f.minorKey, f.targetRoot)}: ${pn(f.root)}'s chord with ${pn(flatSix)} for its 3rd.`, highlight: [hl(f.root, "root"), hl(flatSix, "♭3", "up")], play: "after", term: "borrowed", prereqLink: "basics:parallelMinor" },
       {
         text: `Its only change is the 3rd: ${pn(six)} drops a half step to ${pn(flatSix)}.`,
         highlight: [hl(six, "3rd"), hl(flatSix, "♭3", "down")],
@@ -196,8 +199,8 @@ function backdoor(f: BackdoorLearn): Lesson {
     steps: [
       {
         text: f.iv
-          ? `The backdoor borrows two chords from ${pn(f.targetRoot)} minor: ${ps(f.iv)} (iv) and ${bVII} (♭VII7).`
-          : `The backdoor borrows ${bVII} from ${pn(f.targetRoot)} minor: the ♭VII7.`,
+          ? `The backdoor borrows two chords from ${minorName(f.minorKey, f.targetRoot)}: ${ps(f.iv)} (iv) and ${bVII} (♭VII7).`
+          : `The backdoor borrows ${bVII} from ${minorName(f.minorKey, f.targetRoot)}: the ♭VII7.`,
         highlight: [hl(f.bVIIRoot, "♭VII"), hl(f.targetRoot, "home", "up")],
         play: "after",
         term: "backdoor",
@@ -209,7 +212,11 @@ function backdoor(f: BackdoorLearn): Lesson {
         play: "ab",
       },
       {
-        text: `Its ${pn(f.bVIISeventh)} falls a half step to ${pn(f.targetFifth)}; its root ${pn(f.bVIIRoot)} climbs a whole step to ${pn(f.targetRoot)}.`,
+        // the root charted otherwise than the key's ♭7 (E in G♭) gets its twin, so the whole step reads as one
+        text:
+          pn(f.bVIIRoot) === pn(f.bVIIDegree)
+            ? `Its ${pn(f.bVIISeventh)} falls a half step to ${pn(f.targetFifth)}; its root ${pn(f.bVIIRoot)} climbs a whole step to ${pn(f.targetRoot)}.`
+            : `Its ${pn(f.bVIISeventh)} falls to ${pn(f.targetFifth)}; its root ${twin(f.bVIIRoot, f.bVIIDegree)} climbs a whole step to ${pn(f.targetRoot)}.`,
         highlight: [hl(f.bVIISeventh, "♭7"), hl(f.targetFifth, "5th", "down"), hl(f.bVIIRoot, "root"), hl(f.targetRoot, "home", "up")],
         play: "after",
       },
@@ -729,14 +736,15 @@ function flatSixFlatSeven(f: FlatSixFlatSevenLearn): Lesson {
     headline: `Replace ${orig} with ${bVI} → ${bVII}: the bass climbs two whole steps into ${home}.`,
     steps: [
       {
-        text: `${bVI} and ${bVII} are borrowed from ${home} minor: they sit on its ♭6 and ♭7.`,
+        text: `${bVI} and ${bVII} are borrowed from ${minorName(f.minorKey, f.targetRoot)}: they sit on its ♭6 and ♭7.`,
         highlight: [hl(f.bVIRoot, "♭6"), hl(f.bVIIRoot, "♭7", "up"), hl(f.targetRoot, "home", "up")],
         play: "after",
         term: "borrowed",
         prereqLink: "basics:parallelMinor",
       },
       {
-        text: `The bass climbs by whole steps: ${pn(f.bVIRoot)} to ${pn(f.bVIIRoot)} to ${home}.`,
+        // a root charted otherwise than the key's degree (E for F♭) gets its twin, so each whole step reads as one
+        text: `The bass climbs by whole steps: ${twin(f.bVIRoot, f.bVIDegree)} to ${twin(f.bVIIRoot, f.bVIIDegree)} to ${home}.`,
         highlight: bass,
         play: "after",
         ask: { kind: "tapNotes", prompt: `Tap the bass line into ${home}.`, answer: [f.bVIRoot, f.bVIIRoot, f.targetRoot] },

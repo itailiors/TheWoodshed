@@ -229,7 +229,7 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       if (i === 0 && L.iv) {
         return {
           role: `Borrowed iv (${sym})`,
-          whyHere: `Borrowed from ${nn(L.targetRoot)} minor, ${sym} is the ii of ${prettySymbol(L.bVII)}: the backdoor's own ii–V.`,
+          whyHere: `Borrowed from ${nn(L.minorKey)} minor, ${sym} is the ii of ${prettySymbol(L.bVII)}: the backdoor's own ii–V.`,
         };
       }
       return {
@@ -266,7 +266,7 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       if (i === 0) {
         return {
           role: `♭VI, borrowed (${sym})`,
-          whyHere: `Borrowed from ${nn(L.targetRoot)} minor, its ♭6: the bass, ${nn(L.bVIRoot)}, starts a climb by whole steps into ${target}.`,
+          whyHere: `Borrowed from ${nn(L.minorKey)} minor, its ♭6: the bass, ${nn(L.bVIRoot)}, starts a climb by whole steps into ${target}.`,
         };
       }
       return {
@@ -286,7 +286,7 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       }
       return {
         role: `Borrowed iv (${sym})`,
-        whyHere: `Borrowed from ${nn(L.targetRoot)} minor: the 3rd is now ${nn(flatSix)}, and it falls ${L.kept ? "another" : "a"} half step to ${prettySymbol(L.target)}'s 5th.`,
+        whyHere: `Borrowed from ${nn(L.minorKey)} minor: the 3rd is now ${nn(flatSix)}, and it falls ${L.kept ? "another" : "a"} half step to ${prettySymbol(L.target)}'s 5th.`,
       };
     }
     case "chromatic.commonToneDiminished": {

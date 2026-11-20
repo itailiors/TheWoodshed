@@ -638,6 +638,20 @@ describe("lesson notes are the engine's notes, in every key", () => {
     }
   });
 
+  it("one minor key, one name: in D♭ and G♭ the parallel minor is C♯ / F♯ minor in every lesson, and a respelled ♭VII root gets its twin", () => {
+    const gb = basicsLesson("basics:parallelMinor", "Gb")!;
+    expect(gb.steps[0].text).toBe("F♯ minor, G♭'s parallel minor, lowers B♭, E♭ and F to A, D and E.");
+    expect(gb.steps[1].text).toBe("Bm6 borrows D from F♯ minor; E7 borrows E and D.");
+    for (const id of ["modal.borrowedIv", "modal.backdoorTwoFive", "modal.flatSixFlatSeven"])
+      for (const [k, minor] of [["Gb", "F♯ minor (G♭'s parallel minor)"], ["Db", "C♯ minor (D♭'s parallel minor)"], ["C", "C minor"]] as const) {
+        const l = lessonForMove(canonicalMove(id, k)!)!;
+        expect(l.steps[0].text, `${id} in ${k}`).toContain(`from ${minor}`);
+        expect(l.steps.map((s) => s.text).join(" "), `${id} in ${k}`).not.toMatch(/(G♭|D♭) minor/);
+      }
+    expect(lessonForMove(canonicalMove("modal.flatSixFlatSeven", "Gb")!)!.steps[1].text).toBe("The bass climbs by whole steps: D to E (same key as F♭) to G♭.");
+    expect(lessonForMove(canonicalMove("modal.backdoorTwoFive", "Gb")!)!.steps[2].text).toBe("Its D falls to D♭; its root E (same key as F♭) climbs a whole step to G♭.");
+  });
+
   it("secondary dominant: raising the 3rd makes the plain 7th; the ♭9 is named only once it's added", () => {
     const c = lessonForMove(canonicalMove("functional.secondaryDominant", "C")!)!;
     expect(c.steps[2].text).toBe("Its ♭7, G, stays: with C♯ it's A7.");
@@ -809,11 +823,16 @@ describe("the new basics are the engine's notes, in every key", () => {
         const l = basicsLesson("basics:numerals", T)!;
         expect(l.steps[1].ask!.answer).toEqual([transpose(T, "5")]);
         expect(l.steps[2].highlight[0].note).toBe(transpose(T, "2"));
-        const [bII, bVII] = l.steps[3].highlight.map((h) => chroma(h.note));
-        expect(bII).toBe(mod(chroma(T) + 1, 12));
-        expect(bVII).toBe(mod(chroma(T) + 10, 12));
+        const lit = Object.fromEntries(l.steps[3].highlight.map((h) => [h.label, chroma(h.note)]));
+        expect(lit["♭II"]).toBe(mod(chroma(T) + 1, 12));
+        // a respelled ♭II (D for E♭♭ in D♭) is shown under the step it drops from, not beside ♭VII
+        if (lit["♭VII"] === undefined) {
+          expect(lit["2"]).toBe(mod(chroma(T) + 2, 12));
+          expect(l.steps[3].text).toMatch(/a half step below/);
+        } else expect(lit["♭VII"]).toBe(mod(chroma(T) + 10, 12));
       }),
     );
+    expect(basicsLesson("basics:numerals", "Db")!.steps[3].text).toBe("Add ♭ and the root drops a half step: ♭II in D♭ is D, a half step below E♭.");
   });
 
   it("extensions: every tension is transpose() from the V, by ear where a double accidental is respelled", () => {
