@@ -572,7 +572,8 @@ function commonToneDiminished(f: CommonToneDiminishedLearn): Lesson {
       },
     ],
     rule: "On a major chord that lasts, start on the diminished 7th with the same root and let its middle notes rise a half step.",
-    deeper: "Sharps because they rise: the passing °7 that falls spells the same keys with flats.",
+    // key-proof: over B the ♯2 is D (C𝄪 respelled), so "sharps" would be contradicted by the spelling beside it
+    deeper: "Spelled as a raised 2nd and 4th because they rise: the passing °7 that falls spells the same keys with flats.",
   };
 }
 
