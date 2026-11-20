@@ -55,6 +55,8 @@ import { readLessonFlags } from "./learn/lessonFlags";
 import { freshStart } from "./learn/pathStates";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
+import { GlossaryChip } from "./components/learn/GlossaryChip";
+import { GlossText } from "./components/learn/GlossText";
 import { Reveal, useRevealState } from "./components/Reveal";
 import { countOpen } from "./usage/panelOpens";
 import { SideRail } from "./components/SideRail";
@@ -837,7 +839,8 @@ export function App() {
                     {usedCategories.map((c) => (
                       <span key={c} className="flex items-center gap-2">
                         <span className="inline-block h-3 w-6 -rotate-2 rounded-sm opacity-70" style={{ background: CATEGORY_WASH[c] }} />
-                        {CATEGORY_LABEL[c]}
+                        {/* the category's label is its glossary term (spec §D: Study chips the category labels) */}
+                        <GlossaryChip term={CATEGORY_LABEL[c]} />
                       </span>
                     ))}
                   </div>
@@ -978,7 +981,10 @@ export function App() {
                         <span className="font-marker">
                           Bar {r.move.span.from.bar}: {r.move.chords.map((c) => prettySymbol(symbol(c))).join(" · ")}
                         </span>{" "}
-                        <span className="text-ink-soft">({r.reasons[0]})</span>
+                        {/* every rejection is an avoid note under the melody: say so once per line, with its chip */}
+                        <span className="text-ink-soft">
+                          (<GlossText text={/avoid note/.test(r.reasons[0]) ? r.reasons[0] : `avoid note: ${r.reasons[0]}`} terms={["avoid note"]} />)
+                        </span>
                       </li>
                     ))}
                   </ul>

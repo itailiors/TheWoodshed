@@ -14,13 +14,14 @@ import { GlossText } from "./learn/GlossText";
 
 const RULE = new Map(RULES.map((r) => [r.id, r]));
 
+/** The chord's job in the key, after its numeral. "Tension" is not used: in this app it means the 9th, 11th and 13th. */
 export const FUNCTION_WORD: Partial<Record<HarmonicFunction, string>> = {
-  T: "home: the chord at rest",
-  PD: "pre-dominant: leads toward the V",
-  D: "tension: wants to resolve",
-  passing: "passing: connects two chords",
-  chromatic: "chromatic colour",
-  modal: "borrowed / modal colour",
+  T: "tonic: home, at rest",
+  PD: "pre-dominant: leads to the V",
+  D: "dominant: pulls toward home",
+  passing: "passing: links two chords",
+  chromatic: "chromatic: colour from a half step",
+  modal: "borrowed from the parallel minor",
 };
 
 type Choice = { kind: "dial" } | { kind: "kept" } | { kind: "move"; move: ReharmMove };
@@ -366,7 +367,7 @@ function ChordRow({
                     {alsoReplaces.length > 0 && <span className="block text-ink-faint">Also replaces {alsoReplaces.join(", ")}.</span>}
                     {m.level > level && (
                       <span className="block" style={{ color: pen.red }}>
-                        Spicier than the dial (L{level}): it goes in because you picked it.
+                        Above the dial (L{level}): it goes in because you picked it.
                       </span>
                     )}
                   </>
