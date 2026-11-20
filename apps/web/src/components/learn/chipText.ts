@@ -120,12 +120,11 @@ export const SCALE_TERMS = ["Lydian dominant", "Phrygian dominant", "melodic min
 
 /**
  * A lesson's chips: each step's text with its own `term`, plus roman numerals and chord symbols,
- * first use across the lesson (the lesson is one view); "Go deeper" is its own section and adds
- * the scale names. Pure.
+ * first use per step (one step is one screen, so G♭9 in step 3 is chipped even when step 1 named
+ * it: P6 beginner review); "Go deeper" is its own section and adds the scale names. Pure.
  */
 export function lessonChips(lesson: { steps: readonly { text: string; term?: string }[]; deeper?: string }): { steps: Segment[][]; deeper: Segment[] } {
-  const seen = new Set<string>();
-  const steps = lesson.steps.map((s) => chipSegments(s.text, { terms: [s.term], numerals: true, symbols: true, seen }));
+  const steps = lesson.steps.map((s) => chipSegments(s.text, { terms: [s.term], numerals: true, symbols: true, seen: new Set<string>() }));
   const deeper = lesson.deeper ? chipSegments(lesson.deeper, { terms: SCALE_TERMS, numerals: true, symbols: true }) : [];
   return { steps, deeper };
 }

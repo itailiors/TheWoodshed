@@ -1,4 +1,5 @@
-import { anyLesson, inSentence, learnName, prereqSummary } from "@reharm/theory-core";
+import { anyLesson, glossaryEntry, inSentence, learnName, prereqSummary } from "@reharm/theory-core";
+import { GlossText } from "./GlossText";
 import { useEffect, useRef } from "react";
 import { updateLessonFlag } from "../../learn/lessonFlags";
 import { countLearning } from "../../usage/panelOpens";
@@ -60,7 +61,10 @@ export function PrereqNote({ conceptId, tonic, only, chain, onLearnFirst, onCont
   }
   return (
     <div role="note" aria-label="Builds on" className="flex flex-wrap items-baseline gap-x-3 gap-y-1 font-hand text-pen">
-      <span className="text-base">{summary.sentence}</span>
+      {/* a prerequisite named by a glossary term ("secondary dominant") is chipped where it gates */}
+      <span className="text-base">
+        <GlossText text={summary.sentence} terms={summary.prereqs.map((p) => p.name).filter((n) => glossaryEntry(n))} onLearn={onLearnFirst} />
+      </span>
       <span className="inline-flex flex-wrap items-center gap-2">
         <button
           type="button"

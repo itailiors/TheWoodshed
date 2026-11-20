@@ -55,6 +55,8 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("secondary dominant", "The V7 of a chord other than I.", "functional.secondaryDominant"),
   e("related ii", "The minor chord a fifth above a dominant.", "functional.secondaryTwoFive"),
   e("tonicize", "Make a chord briefly sound like home.", "functional.secondaryTwoFive"),
+  // Study's card says "ii–V into the I"; Coach files that move under this name (P6 beginner review)
+  e("secondary ii–V", "A ii–V into any chord, the I included.", "functional.secondaryTwoFive"),
   e("parallel minor", "The minor key on the same root.", "basics:parallelMinor"),
   e("borrowed", "Taken from the parallel minor key.", "basics:parallelMinor", ["borrow"]),
   e("modal interchange", "Borrowing chords from the parallel minor.", "basics:parallelMinor"),

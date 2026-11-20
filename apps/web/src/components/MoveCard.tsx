@@ -1,4 +1,4 @@
-import { chordTones, guideTones, lessonForMove, melodyNoteLabel, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
+import { chordTones, glossaryEntry, guideTones, learnName, lessonForMove, melodyNoteLabel, prettyNote, prettySymbol, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { player } from "../audio/player";
 import { explainFor, roughRunLine, type ExplainSetting } from "../learn/explainDepth";
@@ -10,6 +10,7 @@ import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "
 import { ChordName } from "./ChordName";
 import { DeepDive } from "./DeepDive";
 import { DoodleKeyboard } from "./DoodleKeyboard";
+import { GlossaryChip } from "./learn/GlossaryChip";
 
 interface Props {
   tuneId: string;
@@ -40,7 +41,14 @@ interface Props {
 /** The lesson stepper and its folder load on the first "Why it works" that needs them. */
 const LessonStepper = lazy(() => import("./learn/LessonStepper").then((m) => ({ default: m.LessonStepper })));
 
-const signed = (n: number) => (n === 0 ? "holds" : `${n > 0 ? "+" : "−"}${Math.abs(n)}`);
+/** A voice's motion in words a beginner reads (P6): "holds", "↓ ½ step", "↑ whole step", "↓ 3 half steps". */
+const motionWords = (n: number) => {
+  if (n === 0) return "holds";
+  const a = Math.abs(n);
+  return `${n > 0 ? "↑" : "↓"} ${a === 1 ? "½ step" : a === 2 ? "whole step" : `${a} half steps`}`;
+};
+/** A melody role that is a tension (♭9, ♯11, ♭13…): chipped to the glossary's "tensions". */
+const isTension = (role: string) => /(9|11|13)$/.test(role);
 
 function MoveKeyboard({ move }: { move: ReharmMove }) {
   const color = CATEGORY_WASH[move.category];
@@ -119,13 +127,18 @@ function BeforeAfter({ move, target }: { move: ReharmMove; target?: ChordEvent }
 
 function MelodyCheck({ move }: { move: ReharmMove }) {
   return (
-    <section aria-label="Melody check" className="flex flex-wrap gap-2 text-sm">
+    <section aria-label="Melody check" className="flex flex-wrap items-baseline gap-2 text-sm">
+      {move.checks.melody.length > 0 && <span className="w-full text-ink-soft">The tune's notes, named against the new chords:</span>}
       {move.checks.melody.map((m, i) => {
         // spelled as the chord spells it (E over G♭9 is its 7th, F♭), the written note as its twin
         const chord = move.chords.find((c) => c.id === m.chordId);
+        const role = prettyNote(m.role);
         return (
           <span key={i} data-melody-check className="rounded-full border border-dashed border-ink-soft px-2 py-0.5">
-            melody {chord ? melodyNoteLabel(chord, m.note) : prettyNote(m.note)} = {prettyNote(m.role)} ✓
+            melody {chord ? melodyNoteLabel(chord, m.note) : prettyNote(m.note)} ={" "}
+            {/* a tension (♯11 over G♭9) gets its gloss: a beginner hasn't met it yet */}
+            {isTension(m.role) ? <GlossaryChip term="tensions">{role}</GlossaryChip> : role}
+            {chord && <span className="text-ink-soft"> of {prettySymbol(symbol(chord))}</span>} ✓
           </span>
         );
       })}
@@ -146,7 +159,7 @@ function VoiceLeadingGrid({ move }: { move: ReharmMove }) {
       <ul className="mt-1 grid grid-cols-2 gap-x-4 text-sm sm:grid-cols-3">
         {move.voiceLeading.map((v, i) => (
           <li key={i}>
-            {prettyNote(v.from)} → {prettyNote(v.to)} <span className="text-ink-faint">({signed(v.semitones)})</span>
+            {prettyNote(v.from)} → {prettyNote(v.to)} <span className="text-ink-soft">({motionWords(v.semitones)})</span>
           </li>
         ))}
       </ul>
@@ -165,6 +178,7 @@ function Insight({ text }: { text?: string }) {
 
 export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill, asksEnabled, midiConnected = false, explain, own }: Props) {
   const color = CATEGORY_WASH[move.category];
+  const conceptName = learnName(move.ruleId);
   const bar = move.span.from.bar;
   // Level 2 of the card: the lesson's steps (or, for a rule without a lesson yet, theory, melody
   // check, voice leading, keys, rule, Deep Dive). Closes with the card. It is the last level:
@@ -359,9 +373,18 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
                     <span className="sr-only"> (done)</span>
                   </>
                 )}
-                {lesson && <span className="font-hand text-sm"> ({lesson.steps.length} steps)</span>} <span aria-hidden>{why ? "▾" : "▸"}</span>
+                {/* "Just the rule" opens the folded rule, so no step count on the button */}
+                {lesson && explain !== "rule" && <span className="font-hand text-sm"> ({lesson.steps.length} steps)</span>}{" "}
+                <span aria-hidden>{why ? "▾" : "▸"}</span>
               </button>
             </div>
+            {conceptName.toLowerCase() !== move.title.toLowerCase() && (
+              // the move's title is the engine's; the Coach and the Path file it under its concept's name
+              <p className="mt-1 text-sm text-ink-soft" data-move-concept>
+                In the Coach and on the Path:{" "}
+                {glossaryEntry(conceptName) ? <GlossaryChip term={conceptName} /> : <span className="font-marker">{conceptName}</span>}
+              </p>
+            )}
             {/* one line, in the card's own words: the lesson is done, the hands are next */}
             <p role="status" className={`font-hand text-base text-ink-soft ${justFinished && !why ? "mt-2" : ""}`} data-lesson-done>
               {justFinished && !why ? "Lesson done. Now put it under your hands: 🎹 Practice this move." : ""}
