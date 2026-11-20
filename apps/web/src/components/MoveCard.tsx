@@ -1,6 +1,9 @@
 import { chordTones, guideTones, lessonForMove, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { player } from "../audio/player";
+import { explainFor, roughRunLine, type ExplainSetting } from "../learn/explainDepth";
+import { readLessonFlags, updateLessonFlag } from "../learn/lessonFlags";
+import type { OwnProgress } from "../learn/pathStates";
 import { countLearning, countOpen } from "../usage/panelOpens";
 import { SketchBox, SketchRule } from "../design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf, styleLabel, wash } from "../design/tokens";
@@ -28,6 +31,10 @@ interface Props {
   asksEnabled: boolean;
   /** A MIDI keyboard is connected (the lesson drops its "tap the keys, or press M" line). */
   midiConnected?: boolean;
+  /** The ⚙ explanations setting: "rule" opens every lesson folded to the rule. */
+  explain: ExplainSetting;
+  /** This browser's own runs (never the demo's sample): a concept played clean opens folded. */
+  own: OwnProgress;
 }
 
 /** The lesson stepper and its folder load on the first "Why it works" that needs them. */
@@ -152,7 +159,7 @@ function Insight({ text }: { text?: string }) {
   );
 }
 
-export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill, asksEnabled, midiConnected = false }: Props) {
+export function MoveCard({ tuneId, move, target, selected, alternatives, onSelect, onPick, onPractice, onDrill, asksEnabled, midiConnected = false, explain, own }: Props) {
   const color = CATEGORY_WASH[move.category];
   const bar = move.span.from.bar;
   // Level 2 of the card: the lesson's steps (or, for a rule without a lesson yet, theory, melody
@@ -171,10 +178,20 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
   const bodyId = useId();
   const whyId = useId();
   const whyBtn = useRef<HTMLButtonElement>(null);
+  // the rough run already spent before this opening (read when it opens): a rough run reopens the steps once
+  const [spentRough, setSpentRough] = useState<string | undefined>(undefined);
+  const depth = lesson ? explainFor(explain, own, lesson.conceptId, { reopenedFor: spentRough }) : null;
   const toggleWhy = () => {
     if (!why) {
       countOpen("study.why"); // the Gate-0 baseline keeps counting
       countLearning("why.open");
+      if (lesson) {
+        // in a handler, not an effect (StrictMode): mark this rough run as spent, but keep the steps open for this opening
+        const before = readLessonFlags()[lesson.conceptId]?.reopenedFor;
+        setSpentRough(before);
+        const d = explainFor(explain, own, lesson.conceptId, { reopenedFor: before });
+        if (d.rough) updateLessonFlag(lesson.conceptId, { reopenedFor: d.rough.at });
+      }
     }
     setWhy(!why);
   };
@@ -194,6 +211,8 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
           asksEnabled={asksEnabled}
           midiConnected={midiConnected}
           ruleLabel="Recreate it"
+          folded={!depth!.open}
+          notice={depth!.rough ? roughRunLine(prettyNote(depth!.rough.keyTonic)) : undefined}
           onFinish={doneWithLesson}
           deeper={
             <>

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { PANEL_LABEL, readPanelOpens, resetPanelOpens } from "../usage/panelOpens";
+import { EXPLAIN_LABEL, useExplainSetting, writeExplainSetting, type ExplainSetting } from "../learn/explainDepth";
 import { ThemeSwitch } from "./ThemeSwitch";
 
 /** The panel-open tally: which folded panels you actually open. Read fresh each time the menu opens. */
@@ -37,6 +38,25 @@ function PanelUse() {
         </>
       )}
     </section>
+  );
+}
+
+/** Explanations: Step by step · Just the rule. Per browser (`reharm.explain`); overrides the per-concept fading. */
+function ExplainChoice() {
+  const setting = useExplainSetting();
+  const name = useId();
+  return (
+    <fieldset className="mt-3 border-t-2 border-dashed border-ink-faint pt-2 text-sm">
+      <legend className="float-left mr-3 font-marker">Explanations</legend>
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {(Object.keys(EXPLAIN_LABEL) as ExplainSetting[]).map((s) => (
+          <label key={s} className="inline-flex cursor-pointer items-center gap-1.5">
+            <input type="radio" name={name} value={s} checked={setting === s} onChange={() => writeExplainSetting(s)} className="accent-ink" />
+            {EXPLAIN_LABEL[s]}
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -100,6 +120,8 @@ export function SettingsMenu() {
           <span>Colours</span>
           <ThemeSwitch />
         </div>
+        <ExplainChoice />
+
         {open && <PanelUse />}
       </div>
     </div>

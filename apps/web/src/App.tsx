@@ -48,6 +48,8 @@ import { OriginalStamp } from "./components/OriginalStamp";
 import { usePedalLevel } from "./midi/pedal";
 import { usePathwayEditor } from "./usePathwayEditor";
 import { MoveCard } from "./components/MoveCard";
+import { useExplainSetting } from "./learn/explainDepth";
+import { useOwnProgress } from "./learn/usePathStates";
 import { ChordMoveSelector } from "./components/ChordMoveSelector";
 import { ChordFactsCard } from "./components/ChordFactsCard";
 import { Reveal, useRevealState } from "./components/Reveal";
@@ -289,6 +291,9 @@ export function App() {
   useWakeLock(playback.status === "playing");
   const narrow = useNarrow();
   const midi = useMidi();
+  // how much the move cards' lessons explain: the ⚙ setting, then the player's own runs (never the demo's sample)
+  const explain = useExplainSetting();
+  const { own } = useOwnProgress();
   const [mode, setModeState] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem("reharm.mode");
@@ -919,6 +924,8 @@ export function App() {
                 // the heatmap behind "Solo over it" saves what it hears: lesson asks stay off while it's mounted
                 asksEnabled={!soloOpen}
                 midiConnected={midi.status === "connected"}
+                explain={explain}
+                own={own}
               />
             ))}
 

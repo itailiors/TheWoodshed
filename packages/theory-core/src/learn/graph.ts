@@ -125,6 +125,11 @@ export interface LessonFlag {
   lastStage?: LessonStage;
   /** "Continue anyway" on the prerequisite note: the note is gone for good. */
   continuedAnyway?: boolean;
+  /**
+   * The rough graded run (its review time, ISO) that has already reopened the steps once. A later
+   * rough run reopens them again; this one doesn't. Explanation depth only: no effect on the state.
+   */
+  reopenedFor?: string;
 }
 
 export interface ConceptStatus {

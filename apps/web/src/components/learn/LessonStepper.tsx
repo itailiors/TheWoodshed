@@ -48,6 +48,15 @@ export interface LessonStepperProps {
   deeper?: ReactNode;
   /** The label on the rule box. Default "The rule"; Study keeps its "Recreate it". */
   ruleLabel?: string;
+  /**
+   * Open folded (the explanation depth, `learn/explainDepth.ts`): the headline, the rule,
+   * `audition` and "Step by step ›", which opens the steps. Default false.
+   */
+  folded?: boolean;
+  /** ▶ Before / ▶ After for the folded view. Study leaves it out: its card face already has them. */
+  audition?: ReactNode;
+  /** One line above the steps, e.g. "A rough run in A♭: the steps are open again." */
+  notice?: string;
 }
 
 /**
@@ -58,7 +67,73 @@ export interface LessonStepperProps {
  */
 export function LessonStepper(props: LessonStepperProps) {
   // a different lesson (or the same concept in another key) starts again at step 1
-  return <Stepper key={`${props.lesson.conceptId}|${props.lesson.headline}`} {...props} />;
+  return <Depth key={`${props.lesson.conceptId}|${props.lesson.headline}`} {...props} />;
+}
+
+/** The rule on a mustard wash, like Study's old "Recreate it" note: the one line to take away. */
+function RuleBox({ lesson, label }: { lesson: Lesson; label: string }) {
+  return (
+    <section aria-label={label} className="pt-1">
+      <SketchBox seed={seedOf(lesson.conceptId + "rule")} fill={wash.mustard} fillStyle="hachure" className="-rotate-1 motion-reduce:rotate-0">
+        <div className="m-1.5 bg-paper-light/80 p-3">
+          <h4 className="font-marker text-sm font-bold uppercase tracking-wider">{label}</h4>
+          <p className="font-hand text-lg leading-snug">{lesson.rule}</p>
+        </div>
+      </SketchBox>
+    </section>
+  );
+}
+
+/**
+ * Folded ("Just the rule", or a concept already played clean) or the steps. "Step by step ›"
+ * swaps the folded view for the steps in place (not a disclosure: it doesn't fold back), and
+ * focus goes to the step heading. The folded view mounts nothing of the stepper, so it neither
+ * stamps `seenAt` nor plays a cue.
+ */
+function Depth(props: LessonStepperProps) {
+  const { lesson, folded = false, audition, notice, variant } = props;
+  const [unfolded, setUnfolded] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const focusSteps = useRef(false);
+  useEffect(() => {
+    if (!unfolded || !focusSteps.current) return;
+    focusSteps.current = false;
+    root.current?.querySelector<HTMLElement>("[data-step-heading]")?.focus();
+  }, [unfolded]);
+
+  if (folded && !unfolded) {
+    const full = variant === "full";
+    return (
+      <div data-lesson-folded={lesson.conceptId} data-variant={variant} className={`text-ink ${full ? "space-y-3" : "space-y-2"}`}>
+        {full && <p className="font-marker text-lg font-bold">{learnName(lesson.conceptId)}</p>}
+        <p className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`} data-lesson-headline>
+          {lesson.headline}
+        </p>
+        <RuleBox lesson={lesson} label={props.ruleLabel ?? "The rule"} />
+        {audition}
+        <button
+          type="button"
+          onClick={() => {
+            focusSteps.current = true;
+            setUnfolded(true);
+          }}
+          className="tap-lg cursor-pointer rounded-full border-2 border-ink-soft px-3 py-0.5 font-marker text-sm hover:border-ink"
+        >
+          Step by step ›
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div ref={root} className={variant === "full" ? "space-y-3" : "space-y-2"}>
+      {notice && (
+        <p role="status" className="font-hand text-base text-ink-soft" data-explain-notice>
+          {notice}
+        </p>
+      )}
+      <Stepper {...props} />
+    </div>
+  );
 }
 
 type Reveal = "answered" | "shown";
@@ -390,15 +465,7 @@ function Stepper({
 
       {at === last && (
         <>
-          <section aria-label={ruleLabel} className="pt-1">
-            {/* the rule on a mustard wash, like Study's old "Recreate it" note: the one line to take away */}
-            <SketchBox seed={seedOf(lesson.conceptId + "rule")} fill={wash.mustard} fillStyle="hachure" className="-rotate-1 motion-reduce:rotate-0">
-              <div className="m-1.5 bg-paper-light/80 p-3">
-                <h4 className="font-marker text-sm font-bold uppercase tracking-wider">{ruleLabel}</h4>
-                <p className="font-hand text-lg leading-snug">{lesson.rule}</p>
-              </div>
-            </SketchBox>
-          </section>
+          <RuleBox lesson={lesson} label={ruleLabel} />
           {(lesson.deeper || deeper) && (
             // a plain section, never a fold: the stepper is the card's second disclosure level and its last
             <section aria-labelledby={deeperId} className="space-y-3" data-go-deeper>

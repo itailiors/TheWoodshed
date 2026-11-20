@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { generateMoves, hasRuleLesson, lessonForMove, prettyNote, chroma, referenceTune, type Lesson } from "@reharm/theory-core";
 import type { Locator, Page } from "@playwright/test";
+import { readFileSync } from "node:fs";
 import { expect, test } from "./fixtures";
 
 /*
@@ -207,6 +208,74 @@ test("a move without a lesson keeps the old Why it works body, with no stepper",
   await expect(card.locator("[data-lesson-stepper]")).toHaveCount(0);
   await expect(card.getByText(/^Step \d+ of \d+$/)).toHaveCount(0);
   await expect(card.getByRole("heading", { name: "Voice leading" }).or(card.getByRole("region", { name: "Melody check" })).first()).toBeVisible();
+});
+
+/** Pick an Explanations setting in the ⚙ menu, then close the menu. */
+async function setExplanations(page: Page, label: "Step by step" | "Just the rule") {
+  const gear = page.getByRole("button", { name: "Settings" });
+  await gear.click();
+  const radio = page.getByRole("group", { name: "Settings" }).getByRole("radio", { name: label });
+  await radio.check();
+  await expect(radio).toBeChecked();
+  await page.keyboard.press("Escape");
+  await expect(gear).toHaveAttribute("aria-expanded", "false");
+}
+
+test('⚙ "Just the rule" folds the Study lesson to headline + rule + "Step by step ›", and survives a reload', async ({ page }) => {
+  const errors: string[] = [];
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  page.on("pageerror", (e) => errors.push(String(e)));
+  const { card, lesson } = await firstCard(page);
+  const why = card.getByRole("button", { name: /Why it works/ });
+  await why.click();
+  await expect(card.locator("[data-lesson-stepper]")).toBeVisible();
+
+  // the setting overrides fading, live: the open lesson folds
+  await setExplanations(page, "Just the rule");
+  expect(await page.evaluate(() => localStorage.getItem("reharm.explain"))).toBe("rule");
+  const folded = card.locator("[data-lesson-folded]");
+  await expect(folded).toBeVisible();
+  await expect(card.locator("[data-lesson-stepper]")).toHaveCount(0);
+  await expect(folded.locator("[data-lesson-headline]")).toHaveText(lesson.headline);
+  await expect(folded.getByText("Recreate it")).toBeVisible();
+  await expect(folded.getByText(lesson.rule)).toBeVisible();
+  // ▶ Before / After stay on the card face, right above
+  await expect(card.getByRole("group", { name: "Hear it" }).getByRole("button", { name: /Before/ })).toBeVisible();
+
+  // a reload keeps the choice: the lesson opens folded
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
+  const again = tricks(page).locator("[data-move-id]").first();
+  await again.getByRole("button", { name: /Why it works/ }).click();
+  await expect(again.locator("[data-lesson-folded]")).toBeVisible();
+  await expect(again.locator("[data-lesson-stepper]")).toHaveCount(0);
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("radio", { name: "Just the rule" })).toBeChecked();
+  await page.keyboard.press("Escape");
+
+  // "Step by step ›" opens the steps in place, focus on step 1
+  await again.getByRole("button", { name: "Step by step ›" }).click();
+  const heading = again.locator("[data-lesson-stepper] [data-step-heading]");
+  await expect(heading).toHaveText(`Step 1 of ${lesson.steps.length}`);
+  await expect(heading).toBeFocused();
+  // still two disclosure levels at most
+  expect((await deepestDisclosure(page)).depth).toBeLessThan(3);
+
+  // back to Step by step: a new visitor's default
+  await setExplanations(page, "Step by step");
+  expect(errors).toEqual([]);
+});
+
+test("the demo's seeded sample never folds a lesson: the steps stay open (rule 11)", async ({ page }) => {
+  const { card, lesson } = await firstCard(page);
+  // the sample has clean keys of this concept, so only the guard keeps the steps open
+  const sample = JSON.parse(readFileSync("apps/web/src/library/demoHistory.json", "utf8")) as { concepts: { ruleId: string; cleanRuns: number }[] };
+  expect(sample.concepts.some((c) => c.ruleId === lesson.conceptId && c.cleanRuns > 0), `the sample has a clean key of ${lesson.conceptId}`).toBe(true);
+  expect(await page.evaluate(() => localStorage.getItem("reharm.explain"))).toBeNull();
+  await card.getByRole("button", { name: /Why it works/ }).click();
+  await expect(card.locator("[data-lesson-stepper] [data-step-heading]")).toHaveText(`Step 1 of ${lesson.steps.length}`);
+  await expect(card.locator("[data-lesson-folded]")).toHaveCount(0);
+  await expect(card.locator("[data-explain-notice]")).toHaveCount(0);
 });
 
 /**

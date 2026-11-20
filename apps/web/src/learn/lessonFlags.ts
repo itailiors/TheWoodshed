@@ -21,6 +21,7 @@ const FIELDS: Record<keyof LessonFlag, (v: unknown) => boolean> = {
   relearn: (v) => typeof v === "boolean",
   lastStage: (v) => (LESSON_STAGES as readonly unknown[]).includes(v),
   continuedAnyway: (v) => typeof v === "boolean",
+  reopenedFor: isDate,
 };
 
 /** One entry, or null when it's malformed (not an object, or a known field of the wrong type). Unknown fields are dropped. */
