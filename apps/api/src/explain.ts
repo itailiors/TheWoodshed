@@ -1,11 +1,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import {
+  conceptNode,
+  GLOSSARY,
   improvMap,
+  learnName,
+  lessonForMove,
   prettyNote as pn,
   prettySymbol,
   realize,
+  RULES,
   symbol,
+  type Lesson,
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
@@ -36,6 +42,23 @@ export class ExplainError extends Error {
   }
 }
 
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+// plain terms match as whole words, any case, with "borrows"/"tonicized" counting; numerals match exactly and stand alone
+const termRe = (form: string) => new RegExp(`(?<![\\p{L}])${esc(form)}(?:s|es|ed|ing)?(?![\\p{L}])`, "iu");
+const numeralRe = (form: string) => new RegExp(`(?<![\\p{L}\\p{N}♭♯])${esc(form)}(?![\\p{L}\\p{N}])`, "u");
+
+/** The glossary entries a lesson's words use (its steps' new terms, other terms and the numerals), in glossary order. */
+function lessonGlossary(lesson: Lesson): { term: string; gloss: string }[] {
+  const text = [lesson.headline, ...lesson.steps.map((s) => s.text), lesson.rule].join("\n");
+  const named = new Set(lesson.steps.map((s) => s.term).filter(Boolean));
+  return GLOSSARY.filter((g) => {
+    if (g.kind === "category" || g.kind === "level") return false;
+    if (named.has(g.term)) return true;
+    const forms = [g.term, ...g.aliases];
+    return forms.some((f) => (g.kind === "numeral" ? numeralRe(f) : termRe(f)).test(text));
+  }).map((g) => ({ term: g.term, gloss: g.gloss }));
+}
+
 /** Everything the model may talk about, and nothing else. No raw tune data. */
 export function buildFacts(tune: Tune, move: ReharmMove) {
   // `learn` (the lesson layer's fields) stays out: it is for the UI, and adding it would roll every cache key.
@@ -49,6 +72,9 @@ export function buildFacts(tune: Tune, move: ReharmMove) {
       guideTones: e.guideTones.map((g) => `${pn(g.note)} (${pn(g.degree)})`),
       guideToneTargets: e.targets.map((t) => `${pn(t.from)} → ${pn(t.to)} (${t.semitones >= 0 ? "+" : ""}${t.semitones})`),
     }));
+  // the lesson the player has already seen, as display prose (its keyboard data stays in the UI)
+  const lesson = lessonForMove(move);
+  const pedagogy = RULES.find((r) => r.id === move.ruleId)?.pedagogy;
   return {
     tune: { title: tune.title, key: `${tune.key.tonic} ${tune.key.mode}`, meter: tune.meter.join("/"), feel: tune.feel },
     move: {
@@ -71,6 +97,10 @@ export function buildFacts(tune: Tune, move: ReharmMove) {
     engineFacts: JSON.parse(JSON.stringify(engineFacts), (_k, v) => (typeof v === "string" && /^[A-G][b#]*$/.test(v) ? pn(v) : v)),
     scales,
     draft: move.text,
+    lesson: lesson ? { headline: lesson.headline, steps: lesson.steps.map((s) => s.text), rule: lesson.rule } : null,
+    pedagogy: pedagogy ? { formula: pedagogy.formula, whenToUse: pedagogy.whenToUse, bandstandCue: pedagogy.bandstandCue } : null,
+    prereqs: (conceptNode(move.ruleId)?.hard ?? []).map(learnName),
+    glossary: lesson ? lessonGlossary(lesson) : [],
   };
 }
 
