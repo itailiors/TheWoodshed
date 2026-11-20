@@ -90,8 +90,8 @@ export function inRange(pc: number, low: number, high: number): number | null {
   return m <= high ? m : null;
 }
 
-/** "New to guide tones?": a concept name inside a sentence (keeps a leading proper noun or numeral). */
-export const inSentence = (name: string) => (/^[A-Z][a-z]/.test(name) && !/^Coltrane\b/.test(name) ? name[0].toLowerCase() + name.slice(1) : name);
+/** "New to guide tones?": a concept name inside a sentence; one definition, theory-core's (the prerequisite note uses it too). */
+export { inSentence } from "@reharm/theory-core";
 
 /** The first use of `term` in `text` (case-insensitive), split for a glossary chip, or null. */
 export function splitOnTerm(text: string, term: string | undefined): [string, string, string] | null {

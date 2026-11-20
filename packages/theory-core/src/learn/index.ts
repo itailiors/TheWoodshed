@@ -37,7 +37,7 @@ export interface PrereqSummaryOptions {
 }
 
 /** "The tritone" → "the tritone"; keeps a leading proper noun ("Coltrane") or numeral ("♭VI–♭VII–I"). */
-const inSentence = (name: string) => (/^[A-Z][a-z]/.test(name) && !/^Coltrane\b/.test(name) ? name[0].toLowerCase() + name.slice(1) : name);
+export const inSentence = (name: string) => (/^[A-Z][a-z]/.test(name) && !/^Coltrane\b/.test(name) ? name[0].toLowerCase() + name.slice(1) : name);
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /**

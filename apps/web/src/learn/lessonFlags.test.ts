@@ -52,6 +52,14 @@ describe("lesson flags in reharm.lessons", () => {
     expect(readLessonFlags()).toEqual({});
   });
 
+  it("never overwrites a newer version's store (a downgrade keeps it for the newer app)", () => {
+    const newer = doc({ "basics:tritone": { seenAt: "2026-11-20T10:00:00Z", futureField: 1 } }, 2);
+    localStorage.setItem(LESSONS_STORE, newer);
+    expect(readLessonFlags()).toEqual({});
+    updateLessonFlag("basics:dim7", { seenAt: "2026-11-20T11:00:00Z" });
+    expect(localStorage.getItem(LESSONS_STORE)).toBe(newer);
+  });
+
   it("refuses an update that would store a malformed entry", () => {
     updateLessonFlag("basics:tritone", { seenAt: "2026-11-20" });
     updateLessonFlag("basics:tritone", { lastStage: "jam" as never });

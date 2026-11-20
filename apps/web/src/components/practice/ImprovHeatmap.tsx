@@ -33,10 +33,10 @@ import { noteBus, useNoteBus } from "../../midi/noteBus";
 import { GlossaryChip } from "../learn/GlossaryChip";
 import { VolumeMixer } from "../VolumeMixer";
 import { PenKeyboard } from "./PenKeyboard";
+import { saveImprovRun } from "../../library/practice";
 
 /** Legend words that are glossary terms: chipped (spec §D, Practice). */
 const LEGEND_TERM: Partial<Record<(typeof VERDICTS)[number], string>> = { avoid: "avoid note", tension: "tensions" };
-import { saveImprovRun } from "../../library/practice";
 
 interface Props {
   tune: Tune;

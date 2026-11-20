@@ -183,7 +183,8 @@ export function conceptStates(progress: Progress, flags: Readonly<Record<string,
     else if (flag?.seenAt || reviews.some((r) => r.attempts > 0)) state = "learning";
     else if (unmet.length && !flag?.continuedAnyway) state = "recommendedFirst";
     else state = "new";
-    // the player's own "Relearn this": the only demotion, capped at Learning
+    // the player's own "Relearn this": the only demotion, capped at Learning (3f, parked: no UI writes
+    // `relearn` or `testedOutAt` yet; they're read here so the states are right the day it ships)
     if (flag?.relearn && RANK[state] > RANK.learning) state = "learning";
 
     const status: ConceptStatus = { id: c.id, state, due, cleanKeys: clean, recommendedFirst: state === "recommendedFirst" ? unmet : [] };

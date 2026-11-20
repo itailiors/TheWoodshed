@@ -4,7 +4,8 @@ import { LESSON_STAGES, type LessonFlag } from "@reharm/theory-core";
  * Lesson flags (seen, finished, tested out, relearn, last stage, "Continue anyway"), kept in this
  * browser only as `reharm.lessons` = `{v: 1, flags}`. Nothing is sent anywhere, so it works the
  * same in the demo (zero /api). Every entry is checked on read and a malformed one is dropped; a
- * version this code doesn't know is ignored (read as empty). Blocked storage is never an error.
+ * version this code doesn't know is ignored (read as empty), and a newer one is never overwritten.
+ * Blocked storage is never an error.
  */
 
 export const LESSONS_STORE = "reharm.lessons";
@@ -16,6 +17,7 @@ const isDate = (v: unknown) => typeof v === "string" && !Number.isNaN(Date.parse
 const FIELDS: Record<keyof LessonFlag, (v: unknown) => boolean> = {
   seenAt: isDate,
   finishedAt: isDate,
+  // 3f (parked): test-out and "Relearn this" write these; nothing does yet, but stored ones are kept
   testedOutAt: isDate,
   testedOutVia: (v) => typeof v === "string" && v.length > 0,
   relearn: (v) => typeof v === "boolean",
@@ -82,7 +84,19 @@ export function readLessonFlags(): LessonFlags {
   }
 }
 
+/** The stored document is a newer version than this code writes (a downgrade): it reads as empty, and must not be overwritten. */
+function storedIsNewer(): boolean {
+  try {
+    const doc = JSON.parse(localStorage.getItem(LESSONS_STORE) ?? "null") as { v?: unknown } | null;
+    return typeof doc?.v === "number" && doc.v > VERSION;
+  } catch {
+    return false;
+  }
+}
+
 function write(flags: LessonFlags) {
+  // a newer app's flags stay intact for when it comes back; this version simply keeps nothing
+  if (storedIsNewer()) return;
   try {
     localStorage.setItem(LESSONS_STORE, JSON.stringify({ v: VERSION, flags }));
   } catch {

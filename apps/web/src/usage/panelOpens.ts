@@ -21,6 +21,7 @@ export const LEARNING_LABEL = {
   "learn.finish": "Learn · Lessons finished",
   "prereq.view": "Learn · Builds-on notes shown",
   "prereq.continueAnyway": "Learn · Continue anyway",
+  // 3f (parked): nothing counts these until test-out ships; reserved so the tally's names don't change then
   "testout.pass": "Learn · Test-outs passed",
   "testout.undo": "Learn · Test-outs undone",
   "why.open": "Why it works opened",
