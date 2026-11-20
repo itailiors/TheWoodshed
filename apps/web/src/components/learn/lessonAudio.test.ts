@@ -13,7 +13,7 @@ import {
   type LessonStep,
 } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
-import { placeHighlights, stackUp, stepAudio } from "./lessonAudio";
+import { placeHighlights, stackUp, stepAudio, stepScore } from "./lessonAudio";
 
 const move = canonicalMove("dominant.tritoneSub", "C")!;
 const ctx = { before: [...move.original], after: [...move.chords] };
@@ -97,6 +97,16 @@ describe("lesson audio", () => {
     expect(stepAudio(step({ play: "before" }), ctx)!.voicings).toEqual(voiced(ctx.before));
     expect(stepAudio(step({ play: "after" }), ctx)!.voicings).toEqual(voiced(ctx.after));
     expect(stepAudio(step({ play: "ab" }), ctx)!.voicings).toEqual([...voiced(ctx.before), [], ...voiced(ctx.after)]);
+  });
+
+  it("a step plays as a paced score: each chord at its own offset, the A/B rest left silent but still counted", () => {
+    const a = stepAudio(step({ play: "ab" }), ctx)!;
+    const { events, steps } = stepScore(a);
+    expect(steps).toEqual(a.voicings.map((_, i) => i * a.secondsEach));
+    expect(events.map((e) => e.midis)).toEqual(a.voicings.filter((v) => v.length));
+    expect(events.every((e) => e.seconds === a.secondsEach * 1.1)).toBe(true);
+    const rest = a.voicings.findIndex((v) => !v.length);
+    expect(events.map((e) => e.at)).not.toContain(rest * a.secondsEach);
   });
 
   it("nothing to play is null, never a guess", () => {

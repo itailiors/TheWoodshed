@@ -90,13 +90,48 @@ export function stepAudio(step: LessonStep, ctx: LessonAudioContext = {}): StepA
   }
 }
 
+/** A step's chords as a paced score (each at its own offset), so `stopStepAudio` can still cut what hasn't sounded. Pure. */
+export function stepScore(a: StepAudio) {
+  return {
+    events: a.voicings.flatMap((midis, i) => (midis.length ? [{ midis, at: i * a.secondsEach, seconds: a.secondsEach * 1.1 }] : [])),
+    steps: a.voicings.map((_, i) => i * a.secondsEach),
+  };
+}
+
+// bumped by every play and every stop: a play still waiting on the audio engine checks it's still the latest
+let stepGen = 0;
+let sounding = false;
+
 /** Play a step through the player's audition path; `onDone` once it has rung (not if another audition took over). */
 export function playStep(step: LessonStep, ctx: LessonAudioContext = {}, onDone?: () => void): boolean {
   const a = stepAudio(step, ctx);
   if (!a) return false;
-  void player.playSequence(a.voicings, a.secondsEach, (i) => i === null && onDone?.());
+  const gen = ++stepGen;
+  const { events, steps } = stepScore(a);
+  void player.init().then(() => {
+    if (gen !== stepGen) return;
+    sounding = true;
+    return player.playScore(events, steps, (i) => {
+      if (i !== null) return;
+      if (gen === stepGen) sounding = false;
+      onDone?.();
+    });
+  });
   return true;
 }
 
-/** Stop reporting the audition in progress (a closed stepper shouldn't un-press anything later). */
-export const stopStepAudio = () => player.cancelAudition();
+/** The latest step cue's generation: pass it to `stopStepAudio` to stop that cue and nothing newer. */
+export const stepAudioGen = () => stepGen;
+
+/**
+ * Silence the stepper's own cue: nothing more starts, and what's ringing is let go (a closed
+ * stepper goes quiet). With `onlyGen`, only while no newer cue has started since (a stepper
+ * that remounts on a new lesson keeps its fresh step 1).
+ */
+export function stopStepAudio(onlyGen?: number) {
+  if (onlyGen !== undefined && onlyGen !== stepGen) return;
+  stepGen++;
+  if (!sounding) return;
+  sounding = false;
+  player.stopScore();
+}

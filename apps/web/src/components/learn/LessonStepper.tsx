@@ -11,7 +11,7 @@ import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
 import { lessonChips } from "./chipText";
 import { GlossText } from "./GlossText";
 import { KeyCentreMap } from "./KeyCentreMap";
-import { placeHighlights, playStep, type LessonAudioContext } from "./lessonAudio";
+import { placeHighlights, playStep, stepAudioGen, stopStepAudio, type LessonAudioContext } from "./lessonAudio";
 import { askIsOpen, pressKey } from "./stepperInput";
 import { inRange, inSentence, keyEventOf, keyRange, stepperKey, type StepperAction, type StepperKeyEvent } from "./stepperKeys";
 import { notLine, useTapAnswer } from "./useTapAnswer";
@@ -240,6 +240,19 @@ function Stepper({
     },
     [],
   );
+
+  // closing the card or leaving the stage silences the step's cue. Deferred a tick: StrictMode's
+  // pretend unmount remounts at once and cancels it, so step 1's auto-play isn't cut off in dev
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (stopTimer.current) clearTimeout(stopTimer.current);
+    stopTimer.current = null;
+    return () => {
+      // only this stepper's last cue: a stepper mounting in its place may already have started its own
+      const gen = stepAudioGen();
+      stopTimer.current = setTimeout(() => stopStepAudio(gen), 0);
+    };
+  }, []);
 
   // focus follows Next/Back (not the first render: opening a card shouldn't steal focus)
   useEffect(() => {
