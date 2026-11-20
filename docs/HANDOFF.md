@@ -1,47 +1,44 @@
-# Handoff (2026-11-20, session 11)
+# Handoff (2026-11-20, session 13)
 
 ## Goal
-Work through the architecture-review candidates from session 9, one deepening per commit. Done this session: 05 and 02. Left: 07 (speculative), or the Voicings v2 items (spec `docs/research/voicings-tab.md` §6).
+Settle session 12's open design calls with Itai, build them, close the five leftover a11y gaps, then make chords clickable in Study.
 
-## Done (both pushed to `main`)
-- `640d594` (candidate 05): practice history now goes through one `PracticeHistory` interface (`apps/web/src/library/practice.ts`).
-  - Two adapters: `historyApi.ts` (sessions, `sendBeacon` on pagehide) and `historyBrowser.ts` (IndexedDB plus the sample notebook). The adapter is picked once from `DEMO`; the public functions are unchanged.
-  - Rule 11 fix: the browser adapter's `due()` never returns the sample notebook's reviews. The old `fetchDue` returned them without the `sample` flag.
-  - New test: `historyBrowser.test.ts`. `localProgress` is gone; `memoryBackend` and `Backend` are exported for tests.
-  - Also committed the session-10 handoff.
-- `49a75d6` (candidate 02): theory-core `pathwayEditor.ts` holds `editPathway(state, event, candidates)`.
-  - Events: dial, pedal, pick, keep, release, select, newTune, link. `editorPathway` and `editorPicks` derive the pathway.
-  - `apps/web/src/usePathwayEditor.ts` gives a stable `edit`. `App.tsx` no longer holds level, forced, kept or selectedId state.
-  - Bug fixed: a stale pick id (old link) crashed the next pick through `accepted.find(...)!`.
-  - Test: `packages/theory-core/test/pathwayEditor.test.ts` (9 tests).
-- Checks at `49a75d6`: typecheck clean; tests 290 theory-core + 21 API + 40 web. CI not checked after the push.
+## Done (pushed to `main`, head `41f2dae`)
+- `41f2dae` one commit for the whole session (CI for it not yet checked):
+  - **Study, ⇧ ← →** only highlights and focuses the chord's row in Chord by chord; Enter opens the dropdown.
+  - **Bare chord card:** when the chord cursor is on a chord the reharm leaves alone, the right panel shows `ChordFactsCard.tsx` (roman + function, chord tones, the ImprovCard for that chord) instead of the last move. Works at L0.
+  - **Clickable chords:** lead-sheet chord symbols (`LeadSheet` `onChord`, mouse/touch only, drawn under the move washes) and the chord name in each Chord by chord row (a button) place the cursor. theory-core `placeChordCursor` holds the rule; `stepChord` uses it. A click doesn't move focus or scroll (`cursorFollow` false); stepping does.
+  - **Opening a move clears the cursor** (`setSelectedId` in `App.tsx`). Fixes: move → bare chord → same move left the chord card on top.
+  - **Voicings ear mode:** form names read "form hidden" until that chord is shown (same rule as the motion lines).
+  - **By-ear flag:** `coach_attempts.by_ear` (migration `0003_needy_hellion.sql`), Zod `byEar` default false. Set via `useDrillSession`'s `byEar()` option, read at filing time: true only if played clean while still hidden. Same SM-2 item. The demo's browser store doesn't record it; no UI shows it yet.
+  - **A11y:** lead-sheet moves are Tab stops (one per move, Enter/Space); ImprovKeyboard + its legend carry ● chord tone / ◇ tension; Ghost Master legend explains enclosure, harmony voices, call arc; Voicings tune step selected = bold + inset underline (focus keeps the outline); `scroll-padding: 0.5rem` on `.overflow-*` scrollers so focus rings aren't clipped (measured: 6/12 Progress cards clipped before, 0 after).
+- Checks at `41f2dae`: typecheck clean; tests 309 theory-core + 22 API + 46 web; e2e 6/6 on the demo build. UI verified in the demo build (:4174) with JS hit-tests.
+- **Real DB migrated** (after the commit): the `api` preview started and applied 0003. Row counts unchanged (3 tunes, 14 sessions, 8 attempts all by_ear=0, 60 improv runs, 8 reviews). Pre-migration copy: scratchpad `reharm.before-0003.sqlite` (may be cleared on reboot).
 
 ## In progress
-Nothing. The working tree is clean apart from this file.
+Nothing. Only this file is uncommitted. Previews `api` (:8787) and `web-demo-build` (:4174) were left running.
 
 ## Next 3 steps
-1. Ask Itai to try at the keyboard:
-   - "Hear the head" swing at a few slider settings.
-   - Session 9's Coach transfer, ii–V–I stepping and the 12-key drill.
-   - A quick pass on pathway editing: pick, keep and the linked pedal. It was verified in the dev app, but not by ear.
-2. Check that GitHub CI went green for `640d594` and `49a75d6`.
-3. Choose between candidate 07 and Voicings v2 (`docs/research/voicings-tab.md` §6). Ask Itai; 07 was marked speculative.
+1. Check GitHub CI went green for `41f2dae`.
+2. Wording pass (Itai's next task): make every phrase in the app plainer and more understandable. Re-run `npm run e2e` (golden tests assert visible text) and bump `PROMPT_VERSION` if the `/api/explain` prompt changes.
+3. Leftovers: the "Start the X on:" row in Voicings still marks the default start form as pressed while hidden (small leak); show `by_ear` somewhere (passport/history); judge the 250 ms ear-mode autoplay by ear; code review (medium+) of `49a75d6..41f2dae`.
 
 ## Decisions + why
-- **05 was smaller than the handoff said.** Only `practice.ts` branched on `DEMO` for history. The other `DEMO` uses (library, Deep Dive, UI labels) were left alone on purpose.
-- **Change-game sessions stay in `localStore` in every build.** They're outside the adapter because the API has no tables for them.
-- **The editor reducer lives in theory-core,** like `drillSession`. That keeps it pure and testable without React.
-- **A new tune keeps the dial level;** a link without a level keeps the current one. Both match the old behaviour.
+- **Highlight-only stepping, Enter opens:** auto-opened dropdowns covered the heatmap (Itai's call).
+- **Bare chord shows a facts card, not an empty panel:** useful for comping study (Itai's call).
+- **By ear = tag on the same SM-2 item,** not a separate schedule (Itai's call). Decided at filing, so Reveal-then-play counts as normal.
+- **Lead-sheet chord targets have no Tab stop:** 45 extra stops would bury the moves; keyboard users have ⇧ ← → and the Chord by chord name buttons.
+- **The chord cursor stays out of the pathwayEditor state** (not in the deep link); only cursor handlers call `edit({type:"select"})` directly.
 
 ## Gotchas
-- **Chord selector options** are `li[role=option]` wrapping a `button`. Click the inner button, or nothing happens.
-- **Live pedal module:** import it from its `performance` resource URL, then call `pedal.setLinked(true)` and `pedal.input(1, 127)`. Restore the previous linked state afterwards.
-- **Console logs** keep stale HMR errors from halfway through edits (same `?t=` timestamp). Compare timestamps before calling something broken.
-- **Previews still running:** `api` and `web`. Only reads were sent; the database checksum was unchanged. I cleared the test run from the demo build's IndexedDB.
-- **Only chords some move targets have a selector,** so `keep=c3` on Co-op Blues shows nothing.
+- **The API log says `key MISSING`:** no Anthropic key, so new explanations won't generate until one is set.
+- **Synthetic `KeyboardEvent`s on window don't reach the Study shortcuts;** use the chord buttons, or real keys via the browser `computer` tool (that also triggers `:focus-visible`).
+- **Fresh worktrees** need `npm install`, or `@reharm/*` resolves to the main checkout (false typecheck errors).
+- **Heatmap only grades while the loop plays:** in Playwright, click Play and wait ~3 s before notes.
+- **Playwright Chromium** lives in the user-level ms-playwright cache, shared across checkouts.
+- **`npm install` warns about unapproved install scripts** (esbuild); harmless so far.
+- **Exporting a constant from a component file** (`FUNCTION_WORD` in `ChordMoveSelector.tsx`) can make Vite Fast Refresh do a full reload of that module; harmless.
 
 ## Suggested skills
-- `mattpocock-skills:grilling` before picking 07 or scoping Voicings v2.
-- `mattpocock-skills:tdd` for theory-core work.
-- `mattpocock-skills:codebase-design` if 07 is a deepening.
+- `code-review` (medium) on `49a75d6..41f2dae`.
 - `ship` when Itai says "commit and push".
