@@ -103,7 +103,7 @@ export const VOICING_STYLES: readonly { id: VoicingStyle; label: string; hint: s
   { id: "drop2", label: "Drop 2", hint: "Four voices, the second from the top dropped an octave: open and singing." },
   { id: "drop3", label: "Drop 3", hint: "Four voices, the third from the top dropped an octave: wide, with a tenth inside." },
   { id: "shell", label: "Shells", hint: "Root, 3rd and 7th only: the lean bebop sound." },
-  { id: "threeZone", label: "Three-zone", hint: "Root, a 3rd–7th shell, and one pretty note on top (9, 11, 13)." },
+  { id: "threeZone", label: "Three-zone", hint: "Root, a 3rd–7th shell, and one colour on top: 9, 11 or 13." },
   { id: "quartal", label: "Quartal", hint: "Stacked 4ths from the chord's scale, planing a step on long chords: modal, McCoy-style." },
   { id: "spread", label: "Spread (10ths)", hint: "Left-hand 10th under a right-hand triad: the solo-ballad sound." },
 ];

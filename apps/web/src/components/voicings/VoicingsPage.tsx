@@ -566,7 +566,7 @@ export function VoicingsPage({ midi, onMode, review = null, tune, onOpenReferenc
               <button
                 type="button"
                 onClick={() => void startDrill()}
-                title="This chord and shape through all 12 keys: keys due for review and keys you've missed in come first"
+                title="This chord and shape through all 12 keys: keys due for review and keys you've missed come first"
                 className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker hover:bg-paper-shade"
               >
                 Drill 12 keys →
@@ -801,7 +801,7 @@ function DrillRibbon({ drill, chord, style, onAgain, onStop }: { drill: Drill; c
         <span className="font-marker">
           {finished ? `All 12 keys done: ${clean} clean first time.` : `12-key drill · ${style} · key ${drill.at + 1} of 12: ${chord}`}
         </span>
-        <span className="text-sm text-ink-soft">{finished ? "Each key is filed in the passport." : "Due keys and keys you've missed in come first."}</span>
+        <span className="text-sm text-ink-soft">{finished ? "Each key is filed in the passport." : "Due keys and keys you've missed come first."}</span>
         <span className="ml-auto flex gap-3 font-marker text-sm">
           {finished && (
             <button type="button" onClick={onAgain} className="cursor-pointer underline">

@@ -19,7 +19,7 @@ export const STUDY_SHORTCUTS: Shortcut[] = [
 
 export const PRACTICE_SHORTCUTS: Shortcut[] = [
   ["Space", "play / stop"],
-  ["← →", "spice"],
+  ["← →", "reharm level"],
   ["A", "A/B"],
   ["L", "loop move"],
   ["T", "trade 2s/4s"],

@@ -207,7 +207,7 @@ export function PracticeMode(p: Props) {
         <button
           type="button"
           onClick={() => setImprov(true)}
-          title="Improv mode: just the chord and the piano, full screen (shortcut: F)"
+          title="Improv mode: only the chord and the piano, full screen (shortcut: F)"
           className="cursor-pointer rounded-full border-2 border-ink px-3 py-0.5 font-marker text-sm hover:bg-paper-shade"
         >
           ⛶ Improv
