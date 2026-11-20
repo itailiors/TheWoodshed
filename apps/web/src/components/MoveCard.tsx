@@ -1,4 +1,4 @@
-import { chordTones, guideTones, lessonForMove, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
+import { chordTones, guideTones, lessonForMove, melodyNoteLabel, prettyNote, symbol, voiceProgression, type ChordEvent, type ReharmMove } from "@reharm/theory-core";
 import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { player } from "../audio/player";
 import { explainFor, roughRunLine, type ExplainSetting } from "../learn/explainDepth";
@@ -120,11 +120,15 @@ function BeforeAfter({ move, target }: { move: ReharmMove; target?: ChordEvent }
 function MelodyCheck({ move }: { move: ReharmMove }) {
   return (
     <section aria-label="Melody check" className="flex flex-wrap gap-2 text-sm">
-      {move.checks.melody.map((m, i) => (
-        <span key={i} className="rounded-full border border-dashed border-ink-soft px-2 py-0.5">
-          melody {prettyNote(m.note)} = {prettyNote(m.role)} ✓
-        </span>
-      ))}
+      {move.checks.melody.map((m, i) => {
+        // spelled as the chord spells it (E over G♭9 is its 7th, F♭), the written note as its twin
+        const chord = move.chords.find((c) => c.id === m.chordId);
+        return (
+          <span key={i} data-melody-check className="rounded-full border border-dashed border-ink-soft px-2 py-0.5">
+            melody {chord ? melodyNoteLabel(chord, m.note) : prettyNote(m.note)} = {prettyNote(m.role)} ✓
+          </span>
+        );
+      })}
       {!move.checks.melodyVerified && (
         <span className="rounded-full border border-dashed border-wash-brick px-2 py-0.5 text-wash-brick">
           ⚠ no melody entered here, so check it against your lead sheet

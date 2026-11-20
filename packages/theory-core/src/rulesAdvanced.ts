@@ -7,7 +7,7 @@
 import { chordTones, guideTones, isMajorQ, isMinorQ, resolvesDownFifth, symbol } from "./chords";
 import { chroma, mod, transpose, type Interval } from "./pitch";
 import type { BackdoorLearn, BorrowedIvLearn } from "./learn/facts";
-import { chain, distribute, mk, pn, ps, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
+import { chain, dimTones, distribute, mk, planeMotion, pn, ps, risingTone, splitBeats, tidy, type NewChord, type Rule } from "./ruleKit";
 import type { ChordEvent } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
@@ -226,7 +226,7 @@ export const passingDiminished: Rule = {
     const dimRoot = tidy(transpose(chord.root, ascending ? UP_SEMITONE : DOWN_SEMITONE));
     const dim = mk(dimRoot, "dim7", split[1]);
     const V = transpose(next.root, "5");
-    const dimNotes = chordTones(dim).map((t) => pn(t.note));
+    const dimNotes = dimTones(dim).map((t) => pn(t.note));
     return {
       title: ascending ? "Passing diminished (up)" : "Passing diminished (down)",
       level: 2,
@@ -263,7 +263,8 @@ export const commonToneDiminished: Rule = {
     const split = splitBeats(chord.beats);
     if (!split) return null;
     const dim = mk(chord.root, "dim7", split[1]);
-    const lean = [transpose(chord.root, "b3"), transpose(chord.root, "b5")];
+    // spelled by direction of resolution: they rise, so ♯2 and ♯4 (C: D♯, F♯), not the °7's own E♭ and G♭
+    const lean = [risingTone(chord.root, "#2"), risingTone(chord.root, "#4")];
     const resolve = [transpose(chord.root, "3"), transpose(chord.root, "5")];
     return {
       title: "Common-tone diminished",
@@ -276,7 +277,7 @@ export const commonToneDiminished: Rule = {
       text: {
         summary: `Lean into ${ps(chord)} from the diminished chord on the same root: ${ps(dim)} → ${ps(chord)}.`,
         theory:
-          `${ps(dim)} shares only its root with ${ps(chord)}. Its ${pn(lean[0])} and ${pn(lean[1])} (heard as ♯2 and ♯4) each rise a half step, ` +
+          `${ps(dim)} shares only its root with ${ps(chord)}. Its ${pn(lean[0])} and ${pn(lean[1])} (the ♯2 and ♯4) each rise a half step, ` +
           `into ${pn(resolve[0])} and ${pn(resolve[1])}, the 3rd and 5th. It's an appoggiatura chord: tension that dissolves into the chord you were already on, ` +
           `so it adds motion without changing the harmony.`,
         recreateRule: "On a major chord that lasts a while, start with the diminished 7th on the same root and let it resolve up by half steps.",
@@ -355,7 +356,8 @@ export const constantStructure: Rule = {
       category: "chromatic",
       styleTags: ["modern", "planing"],
       chords,
-      voiceLeading: chordTones(b).map((t) => nearestMotion(t.note, chordTones(next))),
+      // planing is parallel: each voice slides to its own counterpart (nearest motion would hold D♭maj7's C into Cmaj7)
+      voiceLeading: planeMotion(chordTones(b), chordTones(next)),
       facts: { target: ps(next), shape, planedRoots: path },
       text: {
         summary: `Plane into ${ps(next)} with its own shape from above: ${chords.map(ps).join(" → ")} → ${ps(next)}.`,
@@ -401,7 +403,9 @@ export const minorLineCliche: Rule = {
       category: "chromatic",
       styleTags: ["bill-evans", "standard", "ballad"],
       chords,
-      facts: { root: r, chromaticLine: line },
+      // `stops`: the four chords without their added 9th. symbol() rightly prints m7 + 9 as "Cm9",
+      // which would read as a different chord from "Cm" when a lesson names the line's stops.
+      facts: { root: r, chromaticLine: line, stops: chords.map((c) => symbol({ ...c, extensions: [] })) },
       text: {
         summary: `Walk an inner voice chromatically down through ${ps(chord)}: ${chords.map(ps).join(" → ")}.`,
         theory:

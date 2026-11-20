@@ -64,6 +64,9 @@ function lessonGlossary(lesson: Lesson): { term: string; gloss: string }[] {
 /** A note or chord symbol in engine spelling ("Bb", "Gb9", "Ebm7", "C7(b9)"), not a word that starts with A–G ("Above"). */
 const ENGINE_SYMBOL = /^[A-G][b#]*(?:$|[^a-z\s]|m|maj|dim|aug|sus|add)\S*$/;
 
+/** A chord degree in engine spelling ("b9", "#11", "bb7"). */
+const DEGREE_CODE = /^(?:bb|b|#)\d{1,2}$/;
+
 /** Everything the model may talk about, and nothing else. No raw tune data. */
 export function buildFacts(tune: Tune, move: ReharmMove) {
   // `learn` (the lesson layer's fields) stays out: it is for the UI, and adding it would roll every cache key.
@@ -100,7 +103,10 @@ export function buildFacts(tune: Tune, move: ReharmMove) {
       melodyVerified: move.checks.melodyVerified,
     },
     // notes and chord symbols in display spelling ("Gb9" → "G♭9"), so nothing in the facts shows the model an ASCII accidental
-    engineFacts: JSON.parse(JSON.stringify(engineFacts), (_k, v) => (typeof v === "string" && ENGINE_SYMBOL.test(v) ? prettySymbol(v) : v)),
+    // (degree codes too: one-note-on-top's roles "b9", "#11" → "♭9", "♯11")
+    engineFacts: JSON.parse(JSON.stringify(engineFacts), (_k, v) =>
+      typeof v !== "string" ? v : ENGINE_SYMBOL.test(v) ? prettySymbol(v) : DEGREE_CODE.test(v) ? pn(v) : v,
+    ),
     scales,
     draft: move.text,
     lesson: lesson ? { headline: lesson.headline, steps: lesson.steps.map((s) => s.text), rule: lesson.rule } : null,

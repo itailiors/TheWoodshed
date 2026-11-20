@@ -59,6 +59,13 @@ describe("Someday My Prince Will Come, bars 1–8 (blueprint simulation)", () =>
     ]);
   });
 
+  it("L3's common-tone °7 in bar 3 leans by direction of resolution (♯2, ♯4: sharps rise)", () => {
+    const m = find("chromatic.commonToneDiminished", 3)!;
+    expect(m.chords.map(symbol)).toEqual(["Ebdim7", "Ebmaj7"]);
+    expect(m.facts.leaningTones).toEqual(["F#", "A"]);
+    expect(m.voiceLeading.map((v) => `${v.from}→${v.to}`)).toEqual(["F#→G", "A→Bb"]);
+  });
+
   it("L4 uses the advanced pack on the ii–V–I in bars 7–8 (Coltrane)", () => {
     const coltrane = buildPathway(accepted, 4).find((m) => m.ruleId === "symmetric.coltraneSubstitution")!;
     expect(coltrane.span.from.bar).toBe(7);

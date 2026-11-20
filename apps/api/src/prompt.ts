@@ -3,8 +3,9 @@
  * it is part of the cache key, so old explanations are not served for a new prompt.
  * 2026-11-20.1 covers 4a (the draft is the lesson's words), 4c (facts carry the lesson,
  * pedagogy, prerequisites and glossary) and this rewrite, so keys roll once.
+ * 2026-11-20.2: the one-note example's engineFacts roles are degrees ("4", "♯11"), as 5a's facts carry them.
  */
-export const PROMPT_VERSION = "2026-11-20.1";
+export const PROMPT_VERSION = "2026-11-20.2";
 
 /** A compressed `<facts>` block and the ideal answer. Each output passes `validateExplanation` (tested). */
 export interface PromptExample {
@@ -200,7 +201,7 @@ export const PROMPT_EXAMPLES: readonly PromptExample[] = [
         melodyCheck: [],
         melodyVerified: false,
       },
-      engineFacts: { heldNote: "A", fromMelody: false, bassWalk: ["E", "E♭", "D"], roles: ["sus 4th", "♯11"], target: "D7" },
+      engineFacts: { heldNote: "A", fromMelody: false, bassWalk: ["E", "E♭", "D"], roles: ["4", "♯11"], target: "D7" },
       scales: [
         { chord: "E7sus4", scales: [{ name: "E Mixolydian", notes: ["E", "F♯", "G♯", "A", "B", "C♯", "D"], parent: "A major" }], guideTones: ["A (4)", "D (♭7)"], guideToneTargets: ["A → A (+0)", "D → D♭ (-1)"] },
         { chord: "E♭7(♯11)", scales: [{ name: "E♭ Lydian dominant", notes: ["E♭", "F", "G", "A", "B♭", "C", "D♭"], parent: "B♭ melodic minor" }], guideTones: ["G (3)", "D♭ (♭7)"], guideToneTargets: ["G → F♯ (-1)", "D♭ → C (-1)"] },

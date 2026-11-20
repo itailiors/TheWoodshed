@@ -50,6 +50,9 @@ const APPROACH: Partial<Record<number, Shape>> = {
 /** Which common tone a changes-only chart holds on top, best first (by degree in the chord). */
 const HOLD_PREFERENCE = ["1", "5", "3", "b3", "b7", "7", "6", "4", "9", "13"];
 
+/** The held note's role as a word ("b9" → "♭9", "4" → "sus 4th"); `facts.roles` keeps the degree codes. */
+export const roleWord = (degree: string) => DEGREE_WORD[degree] ?? degree;
+
 const DEGREE_WORD: Record<string, string> = {
   "1": "root",
   b9: "♭9",
@@ -175,13 +178,12 @@ export const oneNoteOnTop: Rule = {
       ...(own.has(tc) ? { topVoice } : {}),
     };
     const chords = [kept, ...walk];
-    const role = (c: Shape & { root: string }) => {
-      const t = chordTones({ extensions: [], alterations: [], ...c }).find((x) => chroma(x.note) === tc);
-      return DEGREE_WORD[t?.degree ?? ""] ?? t?.degree ?? "?";
-    };
-    const roles = walk.map((c) => `the ${role(c)} of ${ps(c)}`);
+    /** The held note's degree in a walk chord, as a code ("b9", "#11"). */
+    const role = (c: Shape & { root: string }) =>
+      chordTones({ extensions: [], alterations: [], ...c }).find((x) => chroma(x.note) === tc)?.degree ?? "?";
+    const roles = walk.map((c) => `the ${roleWord(role(c))} of ${ps(c)}`);
     const landing = chordTones(next).find((x) => chroma(x.note) === tc);
-    const lands = landing ? `, and lands as the ${DEGREE_WORD[landing.degree] ?? landing.degree} of ${ps(next)}` : `, then moves on as ${ps(next)} arrives`;
+    const lands = landing ? `, and lands as the ${roleWord(landing.degree)} of ${ps(next)}` : `, then moves on as ${ps(next)} arrives`;
 
     return {
       title: "One note on top",

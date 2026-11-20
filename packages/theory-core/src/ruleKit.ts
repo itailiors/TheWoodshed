@@ -1,6 +1,6 @@
 /** Shared types and helpers for reharm rules. */
-import { chordTones, symbol } from "./chords";
-import { parseNote, prettyNote as pn, prettySymbol, simplifyNote } from "./pitch";
+import { chordTones, symbol, type ChordTone } from "./chords";
+import { parseNote, prettyNote as pn, prettySymbol, simplifyNote, transpose } from "./pitch";
 import type { ChordEvent, MoveCategory, MoveText, Quality, RulePedagogy, Tune, VoiceMotion } from "./types";
 import { nearestMotion } from "./voiceLeading";
 
@@ -74,7 +74,33 @@ export function distribute(total: number, n: number): number[] | null {
   return out;
 }
 
-export const romanName = (c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|ø7|°7|m7|m6|7|6)$/, "");
+/**
+ * A diminished 7th's tones for display: double accidentals and C♭/F♭/E♯/B♯ respelled, so a
+ * descending passing E♭dim7 reads E♭ G♭ A C, never B♭♭ and D♭♭. The degrees stay the chord's own.
+ */
+export const dimTones = (dim: Parameters<typeof chordTones>[0]): ChordTone[] => chordTones(dim).map((t) => ({ ...t, note: tidy(t.note) }));
+
+/**
+ * A tone spelled by its direction of resolution: `transpose(root, iv)` with a sharp interval
+ * ("#2", "#4") gives a rising leaning tone (D♯ over C), simplified only where it would need a
+ * double sharp (F𝄪 over E → G, C𝄪 over B → D).
+ */
+export function risingTone(root: string, iv: string): string {
+  const n = transpose(root, iv);
+  return parseNote(n).alter >= 2 ? simplifyNote(n) : n;
+}
+
+/**
+ * Positional voice motion for planing and grips: voice k of `from` moves to voice k of `to`
+ * (the nearest octave of that one tone), not to whichever chord tone is nearest. Parallel
+ * shapes stay parallel: D♭maj7 → Cmaj7 is four −1 slides, where nearest motion holds the C.
+ */
+export function planeMotion(from: ReadonlyArray<string | ChordTone>, to: readonly ChordTone[]): VoiceMotion[] {
+  if (from.length !== to.length) throw new Error(`planeMotion: ${from.length} voices into ${to.length}`);
+  return from.map((f, k) => nearestMotion(typeof f === "string" ? f : f.note, [to[k]]));
+}
+
+export const romanName =(c: ChordEvent) => c.analysis?.roman.replace(/(maj7|m7b5|ø7|°7|m7|m6|7|6)$/, "");
 
 /** Each voice followed by nearest motion through a chord list: one motion per chord, per voice. */
 export function chainMotions(voices: string[], chords: Array<Parameters<typeof chordTones>[0]>): VoiceMotion[][] {

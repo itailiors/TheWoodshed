@@ -8,7 +8,7 @@ export * from "./scales";
 export * from "./rules";
 export * from "./rulesAdvanced";
 export * from "./ruleset";
-export { distribute, splitBeats } from "./ruleKit";
+export { dimTones, distribute, planeMotion, risingTone, splitBeats } from "./ruleKit";
 export * from "./engine";
 export * from "./pathway";
 export * from "./pathwayEditor";

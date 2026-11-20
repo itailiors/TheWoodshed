@@ -4,6 +4,7 @@ import type { BackdoorLearn, BorrowedIvLearn, SecondaryDominantLearn, SecondaryT
 import { degreeWord as lessonDegree, motionVerb, readable, twin } from "./learn/lesson";
 import { classifyNote } from "./melody";
 import { chroma, mod, prettyNote, prettySymbol, spellChroma } from "./pitch";
+import { roleWord } from "./rulesOneNote";
 import { sortedHarmony } from "./time";
 import type { ChordEvent, ReharmMove, Tune, VoiceMotion } from "./types";
 import { voiceChord, type Voicing } from "./voicing";
@@ -171,7 +172,7 @@ function buildStepCue(move: ReharmMove, c: ChordEvent, i: number, chords: ChordE
       const roles = (move.facts.roles as string[] | undefined) ?? [];
       return {
         role: `Bass walks: ${sym}`,
-        whyHere: `${prettyNote(held)} stays on top as the ${roles[i - 1] ?? "colour"} of ${sym}, while the bass steps down a half step${nextSym ? ` toward ${nextSym}` : ""}.`,
+        whyHere: `${prettyNote(held)} stays on top as the ${roles[i - 1] ? roleWord(roles[i - 1]) : "colour"} of ${sym}, while the bass steps down a half step${nextSym ? ` toward ${nextSym}` : ""}.`,
       };
     }
     case "gospel.halfStepTurnaround":
