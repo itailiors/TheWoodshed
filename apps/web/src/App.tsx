@@ -41,6 +41,7 @@ import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
 import { lazyWithPreload, whenIdle } from "./lazy";
 import { PanelBoundary } from "./components/PanelBoundary";
 import type { PractiseRequest } from "./components/progress/PracticeDashboard";
+import type { CoachPlace } from "./components/coach/CoachPage";
 import { useMidi } from "./midi/useMidi";
 import { KeyPicker } from "./components/KeyPicker";
 import { LeadSheet } from "./components/LeadSheet";
@@ -367,6 +368,19 @@ export function App() {
     /** Opened from a Path card or link: focus goes to the lesson (the drawer that had it is gone). */
     focus?: boolean;
   } | null>(null);
+  /**
+   * Where the player was on the Coach page. Leaving the Coach makes it the target, so the Coach tab
+   * reopens there (a later "Drill the voicing", Path card or Practise → still opens what it points to).
+   */
+  const coachPlace = useRef<CoachPlace | null>(null);
+  const keepCoachPlace = useCallback((p: CoachPlace) => {
+    coachPlace.current = p;
+  }, []);
+  useEffect(() => {
+    if (mode === "coach" || !coachPlace.current) return;
+    setCoachTarget(coachPlace.current);
+    coachPlace.current = null;
+  }, [mode]);
   const openCoach = (id?: string) => {
     const targetMoveId = id ?? selected?.id ?? null;
     if (id) setSelectedId(id);
@@ -464,6 +478,9 @@ export function App() {
     edit({ type: "newTune" });
     setTempo(baseTune.tempo);
     setLoopSelection(false);
+    // move ids are positional, so the old tune's move means nothing here: keep its concept, as a 12-key drill
+    setCoachTarget((t) => (t?.moveId ? { moveId: null, ruleId: t.ruleId, key: t.key, scope: "concept" } : t));
+    if (coachPlace.current?.moveId) coachPlace.current = { ...coachPlace.current, moveId: null, scope: "concept" };
   }, [baseTune, edit]);
 
   // Apply a link once its tune is on the stand. Declared after the resets above so its state
@@ -619,6 +636,7 @@ export function App() {
             midi={midi}
             onMode={setMode}
             onPractise={(r) => practiseConcept(r)}
+            onPlace={keepCoachPlace}
           />
         </PanelBoundary>
       </Suspense>

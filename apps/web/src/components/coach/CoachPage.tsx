@@ -161,6 +161,16 @@ interface Props {
   onMode: (m: AppMode) => void;
   /** A due review from another concept or chart: the app resolves the concept and key. */
   onPractise: (r: PractiseRequest) => void;
+  /** Where the player is (kept by the app, so a later Coach visit reopens here). */
+  onPlace?: (p: CoachPlace) => void;
+}
+
+/** A spot on the Coach page, in the shape `initial` takes back. */
+export interface CoachPlace {
+  scope: CoachScope;
+  moveId: string | null;
+  ruleId: string;
+  key: string;
 }
 
 const RULE_NAME = new Map(RULES.map((r) => [r.id, r.name]));
@@ -180,7 +190,7 @@ const CIRCLE_FIFTHS = [0, 7, 2, 9, 4, 11, 6, 1, 8, 3, 10, 5].map((c) => KEYS.fin
  *  - Center Stage: 12-Key Circle-of-Fifths Ribbon + Key Flow Selector + Isolated CoachDrill.
  *  - Right Rail: 12-key KeyMatrix stamp grid for the active concept.
  */
-export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPractise }: Props) {
+export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPractise, onPlace }: Props) {
   const firstTuneMove = accepted.find((m) => m.id === initial.moveId) ?? pathway[0] ?? accepted[0] ?? null;
   const defaultScope: CoachScope =
     initial.scope ?? (initial.ruleId && !accepted.some((m) => m.id === initial.moveId) ? "concept" : firstTuneMove ? "tune" : "concept");
@@ -206,6 +216,12 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
   // a chart's move fires in every key: the engine is transposition-invariant (theory-core's
   // transposeInvariance test), so the page needs no "not in this key" branch
   const move = inTune ? tuneMove : conceptFallback.move!;
+
+  // report where the player is; the app only stores it (a ref), so this never re-renders anything
+  const placeMoveId = tuneMove?.id ?? null;
+  useEffect(() => {
+    onPlace?.({ scope, moveId: placeMoveId, ruleId, key });
+  }, [onPlace, scope, placeMoveId, ruleId, key]);
 
   // practice history: server-side (in the demo, the seeded history), plus this session's runs,
   // so the passport stamps at once, and the read-only demo, which saves nothing, still shows what you've done.

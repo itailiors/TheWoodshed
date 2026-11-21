@@ -225,6 +225,21 @@ test("Esc on an open glossary chip closes it and stays on Coach; Learn and the c
   await expect(stepHeading(page)).toHaveText(at!);
 });
 
+test("a later Coach visit reopens on the concept the player left, not where the Coach first opened", async ({ page }) => {
+  await openCoach(page);
+  await expect(learnStage(page)).toHaveAttribute("data-coach-learn", FIRST);
+  await pickConcept(page, TRITONE_SUB);
+  await expect(learnStage(page)).toHaveAttribute("data-coach-learn", TRITONE_SUB);
+  const modes = page.getByRole("tablist", { name: "Mode" });
+  for (const away of ["Study", "Voicings"]) {
+    await modes.getByRole("tab", { name: away }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toHaveCount(0);
+    await modes.getByRole("tab", { name: "Coach" }).click();
+    await expect(page.getByRole("heading", { level: 1, name: /Comping coach/i })).toBeVisible();
+    await expect(learnStage(page)).toHaveAttribute("data-coach-learn", TRITONE_SUB);
+  }
+});
+
 test("Learn that first follows a cold chain down and returns all the way up, one Back at a time", async ({ page }) => {
   await openCoach(page);
   // dominant resolution from scratch: guide tones builds on 7th chords, so 7th chords opens first
