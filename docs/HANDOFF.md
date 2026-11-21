@@ -1,38 +1,39 @@
-# Handoff (2026-11-21, session 15)
+# Handoff (2026-11-21, session 16)
 
 ## Goal
-Build the learning UX (less overload, plainer teaching): phases 2–6 of `reports/Reharm Lab learning UX plan.md`, executed from `PLAN.md` and `docs/plans/learn-ux-spec.md`. Every sub-phase is logged in `PROGRESS.md`.
+Close out the learning-UX follow-ups left by session 15 (phases 2–6, merged as PR #1). Plan and spec: `PLAN.md`, `docs/plans/learn-ux-spec.md`; history of every sub-phase and every deferred reviewer finding: `PROGRESS.md` (P6 rows).
 
-## Done (branch `feat/learn-ux-phases-2-6`, 71 commits on top of `main` 8d8d832, NOT pushed, no upstream)
-- Phase 2 theory-core `learn/`: concept graph (17 rules + 10 foundations), glossary, lessons for every rule, canonical progressions, chord decoder. Proof `lessons-honest` (the 9th PROOF).
-- 1b (move-card ▶ Before/After, level dial labels), phase 3 (Study lesson stepper, ⚙ Step by step / Just the rule, Coach ladder Learn → Study it → Self-check → Play it, Path tab, Your path rail, chips), phase 4 (card text and Coach cues from lessons, explain prompt rewrite + validator + negative cache, demo file via `--template`), phase 5 (all 17 lessons, wording pass), phase 6 (five-persona review fixes). Per-commit details are in `PROGRESS.md`.
-- `3a4785a`: all 10 findings from a high-effort /code-review of `main...HEAD` fixed. Itemised in PROGRESS.md "Code review fixes".
-- Checks at `3a4785a`: typecheck clean; `--noUnusedLocals` clean in all 3 packages; tests 1138 core + 54 api + 183 web; e2e 71/71 (chromium + Pixel 5); real database checksum unchanged (3c7bbe3f…77e6).
+## Done (all merged to `main`, now at df790f1 = PR #2, https://github.com/itailiors/TheWoodshed/pull/2)
+- eab500e: the Coach "doesn't work on this chart in X" notice can't fire. The engine is transposition-invariant (no bundled tune loses a move in any of 12 keys, flat or sharp spellings). New `packages/theory-core/test/transposeInvariance.test.ts` pins it; comments in `coachLesson.ts` / `CoachPage.tsx` call the notice a guard.
+- ff9e242: Itai's four deferred P6 calls, as he chose them:
+  - Mediant step 3 names all five voices ("Into Fmaj7, C♯ slips to C, B♭ to A, G steps down to F; A and E hold."). New `inner` motions in `MediantDominantLearn` (facts.ts, rulesAdvanced.ts). Over a 6 chord the 5th steps down to the 6th. Highlights = the 4 upper voices labelled "→ X"/"holds" (4-key cap).
+  - Basics asks move to notes not yet shown: guide tones has a new step 4 asking for I's guide tones (lesson is now 4 steps); dominant resolution asks at step 2 (E → F), and its headline no longer names the landings. Pins updated in `learn.asks.test.ts`, `learn.copy.test.ts`.
+  - Path tab tier bands fold at every width (`PathView.tsx`); e2e helper in `e2e/path.spec.ts` unfolds at every width.
+  - Coach Learn shows `sixChordNote` (coachLesson.ts, rendered by LearnStage `chartNote`): "Your chart writes F6; F6 and Fmaj7 are both the I chord here." Only in concept scope, major charts, I written as X6 with no Xmaj7, and the lesson actually says Xmaj7.
+  - Demo explanations regenerated with `--template` (no live call).
+- Checks at ff9e242: typecheck clean, `--noUnusedLocals` clean in all 3 packages; tests 1141 core + 54 api + 186 web; e2e 71/71; demo build (:4174) checked by hand, 0 /api requests, clean console.
 
 ## In progress
-Nothing. Working tree clean (only this file changes). Waiting on Itai: push the branch and open a PR, or review first. Do not push without his yes.
+Nothing. Local `main` = origin/main. This file is the only uncommitted change.
 
 ## Next 3 steps
-1. Itai reviews; on his yes push `feat/learn-ux-phases-2-6` and open a PR to `main` (the `mattpocock-skills:pr` skill for the body). Then bind it with the ccd_pr tools and read CI.
-2. Check the Coach's new "doesn't work on this chart in X" notice in the demo build (:4174). It is unit-tested only. First find a bundled tune and key where a chart move drops out (`tuneMoveInKey` in `apps/web/src/components/coach/coachLesson.ts`).
-3. Itai's deferred calls (PROGRESS.md P6 rows): mediant step 3 wording, guide-tones / dominant-resolution asks, the Path band collapse on desktop, "mark foundations as known" (with the parked 3f test-out), the "F6 or Fmaj7" lesson line.
+1. Add a PROGRESS.md row for session 16 (the four calls above + the invariance finding), so the P6 "deferred" markers aren't stale.
+2. Ask Itai which of the remaining deferred P6 items to take next (all listed in PROGRESS.md P6 rows): "mark foundations as known" (parked with 3f test-out), engineer nice 6–8 / 11 / 15a bundle baseline, UI/UX 12 (h3 inside the card button) and 15, beginner nice 9–12 and "remember the last Coach concept".
+3. Optional: if Itai wants less dead code, remove the not-in-key notice and `missingInKey` now that the invariance test covers it (he was offered this; no answer yet).
 
 ## Decisions + why
-- Blocking decisions #2, #5, #6, #8 were answered in a grilling session and recorded in PLAN.md. 3f "I know this" test-out is parked because its trigger can't fire without real usage data.
-- The "finished lesson ≤ 3 clicks" target was relaxed to "≤ 3 decisions" (measured: Coach 5 clicks, Study 6) instead of merging steps; recorded in PLAN.md.
-- Regenerate (`fresh`) now lifts the explain negative cache and pays for a call: the player asked. This reverses a test that used to pin the opposite.
-- The Deep Dive cache key skips reference material (glossary glosses, pedagogy, prerequisite names). The draft and the lesson steps stay in, so a cached answer can't repeat steps the player now reads differently. This rolled every key once, free with no API key.
-- Hard stops honoured: no live Claude calls (`--template` only), no og-card re-render.
+- Shipping: Itai is fine with feature branch + PR instead of pushing to `main` (safer: CI runs first; he merges). Saved as a memory. `/ship` on `main` = branch, push, open PR.
+- Asks: a question step already hides its own text and lit keys until answered; the give-away was earlier steps/headlines. So asks target notes the lesson hasn't named yet, one ask per lesson (the asks test assumes one).
+- Mediant 5th excludes the target root (the ♭7 takes it), so F6 gets E→D, not a doubled F.
 
 ## Gotchas
-- `apps/api/test/explain.test.ts` pins a sha256 of `buildFacts` output. Re-pin it only on purpose, and say why in the comment there.
-- Coach keeps a "Learn that first" return STACK. It clears whenever the open concept isn't the top entry's `forId` (an effect in CoachPage).
-- Lesson audio: `player.playScore` returns an audition token; `stopStepAudio` stops only while `player.currentAudition()` still equals it.
-- The `learnIsolation` and `learnStageIsolation` tests forbid lesson code from importing a drill or the grader. Keep the Learn stage free of grading.
-- Process slips during the run: commit a32b88d went in with the API pin failing (fixed in fb94ab8); one fix appended to `pitch.test.ts` via a shell heredoc, against the tool rule (its content was reviewed).
-- No Anthropic key yet, so live Deep Dives won't generate.
+- The app remembers its last mode; to reach the passport (Path tab) in the browser, switch to the Study tab first.
+- `learn` facts are stripped from `buildFacts` (apps/api/src/explain.ts), so lesson-fact changes don't move the API sha pin, but lesson-step changes do roll the Deep Dive cache: regenerate the demo file with `npm run demo:generate -w @reharm/api -- --template`.
+- e2e runs on :4175, so it can run while the `web-demo-build` preview holds :4174.
+- Old branches `feat/learn-ux-phases-2-6` and `feat/learn-deferred-calls` are merged; Itai said keep them.
+- Still no Anthropic API key: live Deep Dives won't generate.
 
 ## Suggested skills
-- `mattpocock-skills:pr` for the PR body; `ship` only if Itai says "commit and push".
-- `run` or the `web-demo-build` launch config to check the not-in-key notice.
-- `code-review` (high) on any follow-up diff before pushing.
+- `ship` for commit + push (branch + PR when on main, per the memory note).
+- `mattpocock-skills:grilling` or plain AskUserQuestion to settle which deferred item is next.
+- `run` / the `web-demo-build` launch config to verify UI changes; `code-review` before pushing anything larger.
