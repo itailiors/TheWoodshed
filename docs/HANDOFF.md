@@ -19,7 +19,7 @@ Nothing. Local `main` = origin/main. This file is the only uncommitted change.
 ## Next 3 steps
 1. Add a PROGRESS.md row for session 16 (the four calls above + the invariance finding), so the P6 "deferred" markers aren't stale.
 2. Ask Itai which of the remaining deferred P6 items to take next (all listed in PROGRESS.md P6 rows): "mark foundations as known" (parked with 3f test-out), engineer nice 6–8 / 11 / 15a bundle baseline, UI/UX 12 (h3 inside the card button) and 15, beginner nice 9–12 and "remember the last Coach concept".
-3. Optional: if Itai wants less dead code, remove the not-in-key notice and `missingInKey` now that the invariance test covers it (he was offered this; no answer yet).
+3. Done (branch docs/session-16-progress): the not-in-key notice and `missingInKey` are removed from CoachPage; `tuneMoveInKey` stays (CoachDrill, coachLesson) and the drill throws inside PanelBoundary if the invariant ever broke.
 
 ## Decisions + why
 - Shipping: Itai is fine with feature branch + PR instead of pushing to `main` (safer: CI runs first; he merges). Saved as a memory. `/ship` on `main` = branch, push, open PR.

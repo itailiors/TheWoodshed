@@ -161,10 +161,11 @@ export function CoachDrill({
         activeTune: res.tune!,
       };
     }
-    // the page mounts the drill only where the move fires in this key (`tuneMoveInKey`): never the
-    // old key's chords on the new key's chart, graded and saved under the new key
+    // the move on the chart transposed to this key, never the old key's chords graded and saved under
+    // the new key. It always fires (theory-core's transposeInvariance test); if that ever broke, throw
+    // (PanelBoundary contains it) rather than grade the wrong chords
     const { tune: dtune, move: inKey } = tuneMoveInKey(tune, move.id, key);
-    if (!inKey) throw new Error(`${move.id} doesn't fire in ${key}: the Coach page must not mount a drill for it`);
+    if (!inKey) throw new Error(`${move.id} doesn't fire in ${key}: the engine should be transposition-invariant`);
     const found = inKey;
     const matchedRule = RULES.find((r) => r.id === found.ruleId);
     return {

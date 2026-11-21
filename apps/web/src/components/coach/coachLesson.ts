@@ -83,7 +83,7 @@ export function coachLesson(conceptId: string, key: string, tuneMove?: { tune: T
     return lesson ? { lesson, move: null } : null;
   }
   if (tuneMove) {
-    // not in this key: no lesson (the Coach shows "not in this key" instead of a drill)
+    // not in this key: no lesson (unreachable for the bundled tunes, see `tuneMoveInKey`)
     const d = tuneMoveInKey(tuneMove.tune, tuneMove.move.id, key);
     return d.move ? fromMove(d.tune, d.move) : null;
   }
