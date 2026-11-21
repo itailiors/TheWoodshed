@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { BUNDLED_TUNES, prettyNote, referenceTune } from "@reharm/theory-core";
 import { expect, installFakeMidi, test, type FakeMidi } from "./fixtures";
 
@@ -81,6 +82,29 @@ test("Study: first load shows headlines; the rest is one click away", async ({ p
   await expect(page.getByRole("heading", { name: "Improv heatmap" })).toBeVisible();
   await expect(page.getByRole("region", { name: "Improvisation map" })).toBeVisible();
   await expect(page.getByRole("button", { name: /Trade 2s/ })).toHaveCount(0);
+});
+
+test("Study: a card's heading holds its select button, and a click anywhere on the face still selects it", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
+  const cards = tricks(page).locator("[data-move-id]");
+  expect(await cards.count()).toBeGreaterThan(1);
+  const second = cards.nth(1);
+  // the h3 is a real heading (not swallowed by a button), and the button inside it names just the move
+  const select = second.getByRole("heading", { level: 3 }).getByRole("button");
+  await expect(select).toHaveAttribute("aria-expanded", "false");
+  await expect(select).toHaveAccessibleName(/\(Bar \d+\)$/);
+  await expect(select).toHaveAccessibleDescription((await second.locator("[data-move-summary]").textContent())!.trim());
+  // the summary isn't inside the button, but the stretched button covers it: a real click there lands
+  // on the button (a locator click would wait forever, since the button intercepts it, which is the point)
+  const summary = second.locator("[data-move-summary]");
+  await summary.scrollIntoViewIfNeeded();
+  const box = (await summary.boundingBox())!;
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(select).toHaveAttribute("aria-expanded", "true");
+  await expect(second.getByRole("button", { name: /Practice this move/ })).toBeVisible();
+  const scan = await new AxeBuilder({ page }).include("[data-move-id]").withTags(["wcag2a", "wcag2aa"]).analyze();
+  expect(scan.violations.map((v) => `${v.id}: ${v.nodes.length}`)).toEqual([]);
 });
 
 test("Study: the dial is named by how far it goes, with the density in each tooltip", async ({ page }) => {
