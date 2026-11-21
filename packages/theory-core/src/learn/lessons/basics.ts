@@ -3,7 +3,7 @@ import { playableKey, simplifyNote, transpose } from "../../pitch";
 import { chainMotions } from "../../ruleKit";
 import type { Quality } from "../../types";
 import type { BasicsId } from "../graph";
-import { degreeWord, hl, hlTo, moves, pn, ps, readable, twin, type Lesson } from "../lesson";
+import { degreeWord, guideMotion, hl, hlTo, moves, pn, ps, readable, twin, type Lesson } from "../lesson";
 
 /*
  * The foundation lessons, for any tonic: every note comes from `transpose()`, `chordTones()`,
@@ -209,12 +209,12 @@ function twoFiveOne(T: string): Lesson {
       { text: `The roots fall in fifths: ${pn(ii.root)} to ${pn(V7.root)} to ${pn(T)}.`, highlight: [hl(ii.root, "ii"), hl(V7.root, "V", "down"), hl(T, "I", "down")], sound: progression },
       {
         text: `${sym(ii)}'s 7th: ${moves(seventh[0])}, ${sym(V7)}'s ${degreeWord(seventh[0].toDegree)}.`,
-        highlight: [hl(ii7, "7th"), hlTo(seventh[0], degreeWord(seventh[0].toDegree))],
+        highlight: guideMotion(seventh[0], { chord: "ii", role: "7th" }, "V"),
         prereqLink: "basics:guideTones",
       },
       {
         text: `${sym(ii)}'s 3rd: ${moves(third[0])}, now ${sym(V7)}'s ${degreeWord(third[0].toDegree)}.`,
-        highlight: [hl(ii3, "3rd")],
+        highlight: guideMotion(third[0], { chord: "ii", role: "3rd" }, "V"),
         // the ii's root is in the V too (D is G7's 5th): the ask names the guide tones
         ask: { kind: "tapNotes", prompt: `Which of ${sym(ii)}'s guide tones stays for ${sym(V7)}? Tap it.`, answer: [third[0].to] },
       },

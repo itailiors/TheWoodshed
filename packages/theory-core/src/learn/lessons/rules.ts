@@ -19,7 +19,7 @@ import type {
   UpperStructureBVILearn,
   UpperStructureIILearn,
 } from "../facts";
-import { degreeWord, hl, hlTo, motionVerb, moves, pn, ps, twin, type Lesson } from "../lesson";
+import { degreeWord, guideMotion, hl, hlTo, motionVerb, moves, pn, ps, twin, type Lesson } from "../lesson";
 
 /*
  * Rule lessons. Each one reads only its rule's `facts.learn`, computed in `propose()`; nothing
@@ -141,7 +141,7 @@ function secondaryTwoFive(f: SecondaryTwoFiveLearn): Lesson {
       },
       {
         text: `${ii}'s 7th: ${moves(s7toV)}, ${V}'s ${degreeWord(s7toV.toDegree)}. Its 3rd: ${moves(s3toV)}, ${V}'s ${degreeWord(s3toV.toDegree)}.`,
-        highlight: [hl(f.iiSeventh.from, "7th"), hlTo(s7toV, degreeWord(s7toV.toDegree)), hl(f.iiThird.from, "3rd")],
+        highlight: [...guideMotion(s7toV, { chord: "ii", role: "7th" }, "V"), ...guideMotion(s3toV, { chord: "ii", role: "3rd" }, "V")],
         // the ii's root can be a chord tone of the V too (G is C7's 5th): the ask names the guide tones
         ask: { kind: "tapNotes", prompt: `Which of ${ii}'s guide tones stays for ${V}? Tap it.`, answer: [s3toV.semitones === 0 ? s3toV.to : s7toV.to] },
         prereqLink: "basics:twoFiveOne",
@@ -643,7 +643,7 @@ function rootlessTwoFiveOne(f: RootlessTwoFiveOneLearn): Lesson {
       },
       {
         text: `Only ${pn(moving.from)} moves: it ${motionVerb(moving)} to ${pn(moving.to)}, ${V}'s 3rd. ${listOf(kept)} stay.`,
-        highlight: [hl(moving.from, "7th"), hlTo(moving, "3rd"), ...f.toV.filter((m) => m.semitones === 0).slice(0, 2).map((m) => hl(m.from, pn(m.from)))],
+        highlight: [...guideMotion(moving, { chord: "ii", role: "7th" }, "V"), ...f.toV.filter((m) => m.semitones === 0).slice(0, 2).map((m) => hl(m.from, pn(m.from)))],
         ask: { kind: "tapNotes", prompt: `One key of ${ii} moves to make ${V}. Tap where it goes.`, answer: [moving.to] },
         prereqLink: "basics:twoFiveOne",
       },

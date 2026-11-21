@@ -1,5 +1,16 @@
 import { decodeSymbol, glossaryEntry, learnName } from "@reharm/theory-core";
-import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type PointerEvent as RPointerEvent,
+  type ReactNode,
+} from "react";
 import { useNarrow } from "../../device/media";
 import { useEscapeCapture } from "./useEscapeCapture";
 
@@ -25,6 +36,38 @@ export const HOVER_MS = 300;
 /** The note's width on a desktop, px. */
 const NOTE_W = 256;
 
+/**
+ * The concept whose lesson the chip sits in (LessonStepper provides it). Its own term's note then
+ * drops "Learn it →": inside the 7th chords lesson, "dominant 7th" shouldn't offer that same lesson.
+ */
+export const OpenLessonContext = createContext<string | null>(null);
+
+/** Marks a region a desktop note must not cover (a lesson's lit keys): `<div {...CHIP_AVOID}>`. */
+export const CHIP_AVOID = { "data-chip-avoid": "" } as const;
+
+/** Space between the chip and its note, px. */
+const GAP = 4;
+
+type Box = { top: number; bottom: number; left: number; right: number };
+const overlap = (a: Box, b: Box) => Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) * Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left));
+
+/**
+ * Where a desktop note goes, as fixed-position style. Below the chip by default; above it when
+ * the space below is short or the note would cover more of an avoided region (a lesson's keys)
+ * than it would above. Pure, so it's tested without a layout engine.
+ */
+export function placeNote(chip: Box, noteH: number, view: { w: number; h: number }, avoid: Box[]): CSSProperties {
+  const left = Math.max(8, Math.min(chip.left, view.w - NOTE_W - 8));
+  const right = left + NOTE_W;
+  const below: Box = { top: chip.bottom + GAP, bottom: chip.bottom + GAP + noteH, left, right };
+  const above: Box = { top: chip.top - GAP - noteH, bottom: chip.top - GAP, left, right };
+  const fitsBelow = below.bottom <= view.h - 8;
+  const fitsAbove = above.top >= 8;
+  const cost = (b: Box) => avoid.reduce((s, r) => s + overlap(b, r), 0);
+  const useAbove = fitsAbove && (!fitsBelow || cost(above) < cost(below));
+  return useAbove ? { left, bottom: view.h - chip.top + GAP } : { left, top: chip.bottom + GAP };
+}
+
 /** The default "Learn it →": Coach on that concept, through the `#coach/<conceptId>` deep link App listens for. */
 export const learnByLink = (conceptId: string) => {
   window.location.hash = `coach/${conceptId}`;
@@ -47,6 +90,7 @@ export function GlossaryChip({ term, symbol, children, onLearn = learnByLink }: 
   const btn = useRef<HTMLButtonElement>(null);
   const note = useRef<HTMLDivElement>(null);
   const narrow = useNarrow();
+  const openLesson = useContext(OpenLessonContext);
   const id = useId();
 
   const close = (refocus: boolean) => {
@@ -82,9 +126,10 @@ export function GlossaryChip({ term, symbol, children, onLearn = learnByLink }: 
     const place = () => {
       const r = btn.current?.getBoundingClientRect();
       if (!r) return;
-      const left = Math.max(8, Math.min(r.left, window.innerWidth - NOTE_W - 8));
-      // below the chip, or above it when the space below is short
-      setPos(window.innerHeight - r.bottom < 180 && r.top > 180 ? { left, bottom: window.innerHeight - r.top + 4 } : { left, top: r.bottom + 4 });
+      // the note renders hidden first, so its real height is known; 180 until then
+      const noteH = note.current?.offsetHeight || 180;
+      const avoid = [...document.querySelectorAll("[data-chip-avoid]")].map((el) => el.getBoundingClientRect()).filter((b) => b.width > 0 && b.height > 0);
+      setPos(placeNote(r, noteH, { w: window.innerWidth, h: window.innerHeight }, avoid));
     };
     place();
     window.addEventListener("scroll", place, true);
@@ -120,7 +165,8 @@ export function GlossaryChip({ term, symbol, children, onLearn = learnByLink }: 
     setOpen((o) => !o);
   };
 
-  const learnable = entry?.conceptId ?? null;
+  // no "Learn it →" back into the lesson that's already open
+  const learnable = entry?.conceptId && entry.conceptId !== openLesson ? entry.conceptId : null;
   const title = entry ? entry.term : decoded!.symbol;
   const body = (
     <div

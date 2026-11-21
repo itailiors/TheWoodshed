@@ -288,7 +288,12 @@ export function PenKeyboard({
             strokeLinejoin="round"
             className="pointer-events-none font-marker"
           >
-            {mk.label}
+            {/* a "\n" label stacks upward: its last line sits at the key's foot ("ii" over "7th") */}
+            {mk.label.split("\n").map((line, i, all) => (
+              <tspan key={i} x={k.x + (k.black ? BW : WW) / 2} dy={i === 0 ? -(all.length - 1) * 13 : 13}>
+                {line}
+              </tspan>
+            ))}
           </text>
         );
       })}
