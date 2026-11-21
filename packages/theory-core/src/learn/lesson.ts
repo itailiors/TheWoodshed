@@ -12,7 +12,7 @@ export type PlayCue = "interval" | "before" | "after" | "ab";
 export interface Highlight {
   /** Engine spelling ("Fb"); the keyboard lights its key. */
   note: string;
-  /** Written on the key. */
+  /** Written on the key. A "\n" splits it into two lines, the last at the key's foot ("ii\n7th"). */
   label: string;
   /**
    * Which way this key lies from the key before it in the list, when the text says so ("F falls
@@ -119,3 +119,18 @@ export const hl = (note: string, label: string, dir?: "up" | "down"): Highlight 
 
 /** The key a motion lands on, placed the way it moves from the key listed just before it. */
 export const hlTo = (m: VoiceMotion, label: string): Highlight => hl(m.to, label, m.semitones > 0 ? "up" : m.semitones < 0 ? "down" : undefined);
+
+/** "7th" → "7", "3rd" → "3"; "♭9" and "root" stay. */
+const degreeNumber = (word: string) => word.replace(/(?<=\d)(st|nd|rd|th)$/, "");
+
+/**
+ * A guide tone moving from one chord to the next, as keys to light. Each label carries its chord
+ * on a first line ("ii\n7th", "V\n3rd"), so two neighbouring keys never read as one label ("3rd 7th")
+ * and a key is never named for one chord while the text names it for the other (P6 UI/UX 15).
+ * A held tone is one key with both: "ii→V\n3→7".
+ */
+export function guideMotion(m: VoiceMotion, from: { chord: string; role: string }, toChord: string): Highlight[] {
+  const toRole = degreeWord(m.toDegree);
+  if (m.semitones === 0) return [hl(m.from, `${from.chord}→${toChord}\n${degreeNumber(from.role)}→${degreeNumber(toRole)}`)];
+  return [hl(m.from, `${from.chord}\n${from.role}`), hlTo(m, `${toChord}\n${toRole}`)];
+}

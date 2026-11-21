@@ -9,6 +9,7 @@ import { countLearning } from "../../usage/panelOpens";
 import { PenKeyboard, type PenMark } from "../practice/PenKeyboard";
 import { COACH_LEARN_SHORTCUTS, ShortcutsHelp } from "../Shortcuts";
 import { lessonChips } from "./chipText";
+import { CHIP_AVOID, OpenLessonContext } from "./GlossaryChip";
 import { GlossText } from "./GlossText";
 import { KeyCentreMap } from "./KeyCentreMap";
 import { placeHighlights, playStep, stepAudioGen, stopStepAudio, type LessonAudioContext } from "./lessonAudio";
@@ -158,7 +159,10 @@ function Depth(props: LessonStepperProps) {
           {notice}
         </p>
       )}
-      <Stepper {...props} />
+      {/* chips in this lesson don't offer "Learn it →" back into it */}
+      <OpenLessonContext.Provider value={props.lesson.conceptId}>
+        <Stepper {...props} />
+      </OpenLessonContext.Provider>
     </div>
   );
 }
@@ -180,10 +184,12 @@ const answerName =(n: string) => prettyNote(readable(n));
 function wrongLine(step: LessonStep, pc: number): string {
   const placed = placeHighlights(step.highlight);
   const i = placed.findIndex((m) => ((m % 12) + 12) % 12 === pc);
-  const label = i >= 0 ? step.highlight[i].label : "";
+  // a two-line label is chord over role ("ii\n7th"): "the ii 7th"
+  const lines = i >= 0 ? step.highlight[i].label.split("\n") : [""];
+  const label = lines[lines.length - 1];
   // only a chord role ("7th", "♭9", "root") says why; a note name or "new"/"home" would just repeat the key
   const role = /^(?:[♭♯]?\d+(?:st|nd|rd|th)?|root)$/.test(label);
-  return role ? `${notLine(pc)}, the ${label}: close, not this one.` : notLine(pc);
+  return role ? `${notLine(pc)}, the ${lines.length > 1 ? `${lines[0]} ` : ""}${label}: close, not this one.` : notLine(pc);
 }
 
 /** The marks a step puts on the keyboard. Pure. */
@@ -443,7 +449,8 @@ function Stepper({
   );
 
   const keyboard = showKeys && (
-    <div role="group" aria-label={askOpen ? "Keyboard: tap the answer" : "Keyboard"}>
+    // a glossary note opens above its chip rather than over the lit keys
+    <div role="group" aria-label={askOpen ? "Keyboard: tap the answer" : "Keyboard"} {...CHIP_AVOID}>
       <PenKeyboard
         low={low}
         high={high}
