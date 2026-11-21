@@ -18,3 +18,7 @@ apps/api/data/
 # databases anywhere (the real one lives in apps/api/data/)
 *.sqlite
 *.sqlite-journal
+# Showcase recordings: the clips and frames stay local; the plan (videos/PLAN.md) and scripts can be committed
+videos/*
+!videos/PLAN.md
+!videos/scripts/
