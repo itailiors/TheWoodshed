@@ -1,7 +1,6 @@
 import { learnName, type ConceptNode, type ConceptStatus, type Tier } from "@reharm/theory-core";
 import { useId, useState } from "react";
 import { DEMO } from "../../demo";
-import { useNarrow } from "../../device/media";
 import { pen } from "../../design/tokens";
 import { conceptLevel, OPTIONAL_CONCEPTS, prereqLine, tierBands } from "../../learn/pathModel";
 import { usePathStates } from "../../learn/usePathStates";
@@ -37,12 +36,11 @@ function frame(s: ConceptStatus | undefined): string {
  */
 export function PathView({ onOpen }: Props) {
   const { states, nextUp, progress, loading } = usePathStates(4);
-  const narrow = useNarrow();
   const bands = tierBands();
   const firstTier = bands.find((b) => b.nodes.some((n) => n.id === nextUp[0]))?.tier ?? 0;
-  /** On a phone the bands fold; the one holding the first Next up item starts open. */
+  /** The bands fold at every width (27 cards at once was a wall); the one holding the first Next up item starts open. */
   const [openTiers, setOpenTiers] = useState<ReadonlySet<Tier> | null>(null);
-  const isOpen = (t: Tier) => !narrow || (openTiers ? openTiers.has(t) : t === firstTier);
+  const isOpen = (t: Tier) => (openTiers ? openTiers.has(t) : t === firstTier);
   const toggle = (t: Tier) =>
     setOpenTiers((cur) => {
       const s = new Set(cur ?? [firstTier]);
@@ -69,16 +67,12 @@ export function PathView({ onOpen }: Props) {
           return (
             <section key={band.tier} aria-labelledby={`${listId}-h`} data-tier={band.tier} className="space-y-2">
               <h3 id={`${listId}-h`} className="font-marker text-xl uppercase">
-                {narrow ? (
-                  <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => toggle(band.tier)} className="tap-lg flex w-full cursor-pointer items-center justify-between text-left uppercase">
-                    {band.heading}
-                    <span aria-hidden className="text-base">
-                      {open ? "▾" : "▸"}
-                    </span>
-                  </button>
-                ) : (
-                  band.heading
-                )}
+                <button type="button" aria-expanded={open} aria-controls={listId} onClick={() => toggle(band.tier)} className="tap-lg flex w-full cursor-pointer items-center justify-between text-left uppercase">
+                  {band.heading}
+                  <span aria-hidden className="text-base">
+                    {open ? "▾" : "▸"}
+                  </span>
+                </button>
               </h3>
               <ul id={listId} hidden={!open} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
                 {band.nodes.map((node) => {

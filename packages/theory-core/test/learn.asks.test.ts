@@ -171,13 +171,13 @@ const BASICS_ASKS: Record<string, Allowed> = {
   "basics:numerals": (_l, { tonic }) => [chroma(transpose(tonic!, "5"))],
   // "Tap the key a tritone above G♭."
   "basics:tritone": (_l, { tonic }) => [chroma(tonic!)],
-  // "Tap G7's guide tones: the 3rd and 7th."
-  "basics:guideTones": (_l, { tonic }) => pcs(guide(shape(transpose(tonic!, "5"), "7"))),
-  // "F falls a half step into Cmaj7. Tap where it lands.": a chord tone a half step under the 7th
+  // "Now tap Cmaj7's guide tones: the 3rd and 7th.": I's, which the lesson never names before the ask
+  "basics:guideTones": (_l, { tonic }) => pcs(guide(shape(tonic!, "maj7"))),
+  // "B rises a half step into Cmaj7. Tap where it lands.": a chord tone a half step over V7's 3rd
   "basics:dominantResolution": (_l, { tonic }) => {
-    const [, g7] = guide(shape(transpose(tonic!, "5"), "7"));
+    const [g3] = guide(shape(transpose(tonic!, "5"), "7"));
     const I = chordChromas(shape(tonic!, "maj7"));
-    return [mod(chroma(g7) - 1, 12)].filter((pc) => I.has(pc));
+    return [mod(chroma(g3) + 1, 12)].filter((pc) => I.has(pc));
   },
   // "Which of Dm7's guide tones stays for G7?"
   "basics:twoFiveOne": (l, { tonic }) => {
@@ -220,8 +220,8 @@ const PROMPTS: Record<string, RegExp> = {
   "basics:sevenths": /^Make it \S+: lower one key\. Tap the new 3rd\.$/,
   "basics:numerals": /^V is the chord on step 5\. Tap its root\.$/,
   "basics:tritone": /^Tap the key a tritone above \S+\.$/,
-  "basics:guideTones": /^Tap \S+'s guide tones: the 3rd and 7th\.$/,
-  "basics:dominantResolution": /^\S+ falls a half step into \S+\. Tap where it lands\.$/,
+  "basics:guideTones": /^Now tap \S+'s guide tones: the 3rd and 7th\.$/,
+  "basics:dominantResolution": /^\S+ rises a half step into \S+\. Tap where it lands\.$/,
   "basics:twoFiveOne": /^Which of \S+'s guide tones stays for \S+\? Tap it\.$/,
   "basics:extensions": /^Tap the ♭9 and the ♭13 of \S+\.$/,
   "basics:parallelMinor": /^Which key of \S+ isn't in \S+ major\? Tap it\.$/,

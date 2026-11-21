@@ -127,6 +127,8 @@ function guideTonesLesson(T: string): Lesson {
   const V7 = chord(transpose(T, "5"), "7");
   const [g3, g7] = guideTones(V7).map((t) => t.note);
   const maj7 = transpose(V7.root, "7");
+  const I = chord(T, "maj7");
+  const [i3, i7] = guideTones(I).map((t) => t.note);
   return {
     conceptId: "basics:guideTones",
     headline: "A chord's 3rd and 7th tell you what it is. Play only those two and the chord stays.",
@@ -145,8 +147,14 @@ function guideTonesLesson(T: string): Lesson {
         text: `With ${pn(V7.root)} in the bass, ${pn(g3)} and ${pn(g7)} alone still sound like ${sym(V7)}.`,
         highlight: [hl(V7.root, "bass"), hl(g3, "3rd"), hl(g7, "7th")],
         sound: [[V7.root, g3, g7]],
-        // the guide tones by name: the root and ♭7 also "make" a 7th chord to a newcomer
-        ask: { kind: "tapNotes", prompt: `Tap ${sym(V7)}'s guide tones: the 3rd and 7th.`, answer: [g3, g7] },
+      },
+      {
+        text: `${sym(I)}'s guide tones are ${pn(i3)} and ${pn(i7)}: a major 3rd and a major 7th.`,
+        highlight: [hl(i3, "3rd"), hl(i7, "7th")],
+        sound: [tones(I), [i3, i7]],
+        // a chord the lesson never spells: the player finds the 3rd and 7th, not keys already named.
+        // By name: the root and ♭7 also "make" a 7th chord to a newcomer
+        ask: { kind: "tapNotes", prompt: `Now tap ${sym(I)}'s guide tones: the 3rd and 7th.`, answer: [i3, i7] },
       },
     ],
     rule: "Find the 3rd and 7th first; the root, 5th and tensions add colour on top.",
@@ -160,7 +168,8 @@ function dominantResolution(T: string): Lesson {
   const [i3] = guideTones(I).map((t) => t.note);
   return {
     conceptId: "basics:dominantResolution",
-    headline: `In ${sym(V7)} → ${sym(I)}, two notes pull by half step: ${pn(g3)} up to ${pn(T)}, ${pn(g7)} down to ${pn(i3)}.`,
+    // the landings stay out of the headline: step 2 asks for one
+    headline: `In ${sym(V7)} → ${sym(I)}, two of ${sym(V7)}'s notes pull a half step each into ${sym(I)}.`,
     steps: [
       { text: `${sym(V7)}'s root, ${pn(V7.root)}, falls a fifth to ${pn(T)}.`, highlight: [hl(V7.root, "V"), hl(T, "I", "down")], sound: [tones(V7), tones(I)] },
       {
@@ -168,12 +177,12 @@ function dominantResolution(T: string): Lesson {
         highlight: [hl(g3, "3rd"), hl(T, "root", "up")],
         term: "leading tone",
         prereqLink: "basics:guideTones",
+        // "where does it go" allows any chord tone: say which way, and how far
+        ask: { kind: "tapNotes", prompt: `${pn(g3)} rises a half step into ${sym(I)}. Tap where it lands.`, answer: [T] },
       },
       {
         text: `Its 7th, ${pn(g7)}, falls a half step to ${pn(i3)}, the 3rd of ${sym(I)}.`,
         highlight: [hl(g7, "7th"), hl(i3, "3rd", "down")],
-        // "where does it go" allows any chord tone: say which way, and how far
-        ask: { kind: "tapNotes", prompt: `${pn(g7)} falls a half step into ${sym(I)}. Tap where it lands.`, answer: [i3] },
       },
       {
         text: `Two half-step pulls at once, ${pn(g3)} and ${pn(g7)}: that's why ${sym(V7)} → ${sym(I)} sounds like home.`,

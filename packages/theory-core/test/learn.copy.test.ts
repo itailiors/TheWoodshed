@@ -439,7 +439,7 @@ describe("prerequisite summaries", () => {
       expect(s.steps).toBe(basicsLesson("basics:tritone", k)!.steps.length + basicsLesson("basics:dominantResolution", k)!.steps.length);
       expect(s.steps).toBeGreaterThan(0);
     }
-    expect(prereqSummary("basics:dominantResolution", "C")!.sentence).toBe("This builds on guide tones (3 steps).");
+    expect(prereqSummary("basics:dominantResolution", "C")!.sentence).toBe("This builds on guide tones (4 steps).");
     expect(prereqSummary("dominant.tritoneSub", "C")!.sentence).toBe("This builds on the tritone and dominant resolution (7 steps).");
     // a prerequisite without a lesson yet (here a rule; Coach passes `lessonFor` for those): names only, never a partial count
     expect(prereqSummary("functional.secondaryTwoFive", "C")!.sentence).toBe("This builds on secondary dominant and the ii–V–I.");

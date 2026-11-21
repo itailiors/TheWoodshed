@@ -41,6 +41,8 @@ interface Props {
   chain?: readonly string[];
   /** A concept the player already knows (Familiar or better): its "New to …? Learn that first →" link is stale. */
   prereqKnown: (conceptId: string) => boolean;
+  /** "Your chart writes F6; F6 and Fmaj7 are both the I chord here." (`sixChordNote`), under the lesson. */
+  chartNote?: string | null;
 }
 
 /** ▶ Before / ▶ After for the folded lesson ("Just the rule"), voice-led and played through the player's audition. */
@@ -66,7 +68,7 @@ function Audition({ before, after }: { before: ChordLike[]; after: ChordLike[] }
  * that first" / "Continue anyway"). One routing line at a time: the note, else the return banner
  * in the stepper header. The ⚙ explanations setting (and fading) can open the lesson folded.
  */
-export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, from, finishLabel, onFinish, onLearn, midiConnected, focus, footer, chain, prereqKnown }: Props) {
+export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, from, finishLabel, onFinish, onLearn, midiConnected, focus, footer, chain, prereqKnown, chartNote }: Props) {
   const { lesson, audio } = data;
   const explain = useExplainSetting();
   // the rough run already spent when this lesson opened: a rough latest run reopens the steps once (spec §D), as in Study
@@ -117,6 +119,11 @@ export function LearnStage({ conceptId, data, tonic, status, flag, own, ladder, 
           </>
         )}
       </Suspense>
+      {chartNote && (
+        <p className="font-hand text-base text-ink-soft" data-chart-note>
+          {chartNote}
+        </p>
+      )}
       {footer}
     </div>
   );
