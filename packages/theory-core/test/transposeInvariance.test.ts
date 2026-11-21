@@ -7,8 +7,8 @@ import { KEYS, transposeTune } from "../src/transpose";
  * The engine sees only intervals: every rule is relative to its local target, and the melody filter
  * classifies pitch classes against the chord. So transposing a chart never changes which moves are
  * accepted. Move ids are positional, so the same set of ids in every key is the whole claim.
- * Coach's "doesn't work on this chart in X" notice (`tuneMoveInKey` in the web app) is a guard for
- * this claim breaking; this test is what keeps it from firing.
+ * The Coach relies on it: it has no "not in this key" branch, and its drill throws (inside
+ * PanelBoundary) if a chart's move ever failed to fire in a key (`tuneMoveInKey` in the web app).
  */
 
 const ids = (t: Parameters<typeof generateMoves>[0]) => generateMoves(t).accepted.map((m) => m.id).sort();
