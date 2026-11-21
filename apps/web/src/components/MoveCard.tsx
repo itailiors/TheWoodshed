@@ -334,12 +334,24 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
               <ChordName key={c.id} symbol={symbol(c)} className="text-ink-faint line-through decoration-2" />
             ))}
             <span className="font-marker text-ink-soft">→</span>
-            {move.chords.map((c, i) => (
-              <span key={c.id} className="flex items-baseline gap-2">
-                {i > 0 && <span className="text-ink-faint">·</span>}
-                <ChordName symbol={symbol(c)} />
-              </span>
-            ))}
+            {/* the move's chords are decoder chips (first use of each symbol): tap one for what each part
+                means. The chip's wrapper is positioned, so it sits above the stretched select button */}
+            {move.chords.map((c, i) => {
+              const sym = symbol(c);
+              const first = move.chords.findIndex((o) => symbol(o) === sym) === i;
+              return (
+                <span key={c.id} className="flex items-baseline gap-2">
+                  {i > 0 && <span className="text-ink-faint">·</span>}
+                  {first ? (
+                    <GlossaryChip symbol={prettySymbol(sym)}>
+                      <ChordName symbol={sym} />
+                    </GlossaryChip>
+                  ) : (
+                    <ChordName symbol={sym} />
+                  )}
+                </span>
+              );
+            })}
             {move.targetSymbol && (
               <>
                 <span className="font-marker text-ink-soft">→</span>

@@ -84,7 +84,7 @@ test("Study: first load shows headlines; the rest is one click away", async ({ p
   await expect(page.getByRole("button", { name: /Trade 2s/ })).toHaveCount(0);
 });
 
-test("Study: a card's heading holds its select button, and a click anywhere on the face still selects it", async ({ page }) => {
+test("Study: a card's heading holds its select button, its chords are decoder chips, and a click elsewhere on the face selects it", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
   const cards = tricks(page).locator("[data-move-id]");
@@ -95,6 +95,16 @@ test("Study: a card's heading holds its select button, and a click anywhere on t
   await expect(select).toHaveAttribute("aria-expanded", "false");
   await expect(select).toHaveAccessibleName(/\(Bar \d+\)$/);
   await expect(select).toHaveAccessibleDescription((await second.locator("[data-move-summary]").textContent())!.trim());
+  // the move's chords are decoder chips above the stretched button: a tap opens the note, not the card
+  const chip = second.locator('button[data-chip="symbol"]').first();
+  await chip.click();
+  const note = page.locator('[data-chip-note="symbol"]');
+  await expect(note).toBeVisible();
+  await expect(select).toHaveAttribute("aria-expanded", "false");
+  await page.keyboard.press("Escape");
+  await expect(note).toHaveCount(0);
+  await expect(chip).toBeFocused();
+  await expect(select).toHaveAttribute("aria-expanded", "false");
   // the summary isn't inside the button, but the stretched button covers it: a real click there lands
   // on the button (a locator click would wait forever, since the button intercepts it, which is the point)
   const summary = second.locator("[data-move-summary]");
