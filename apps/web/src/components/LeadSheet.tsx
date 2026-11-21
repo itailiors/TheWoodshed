@@ -14,6 +14,7 @@ import { useRough } from "../design/rough";
 import { packLabels, textWidth, useFontsReady } from "../design/labels";
 import { CATEGORY_WASH, ink, seedOf } from "../design/tokens";
 import { ChordText } from "./ChordName";
+import { engrave, formLength, type Glyph } from "./notation";
 
 /** Drawing width (viewBox units) for 4 bars a line; 2 bars a line (phones) gets a narrower page, so bars keep their size. */
 const PAGE_W = { 4: 1000, 2: 600 } as const;
@@ -55,6 +56,46 @@ const FLAT_POS = [4, 7, 3, 6, 2, 5, 1];
 const SHARP_POS = [8, 5, 9, 6, 3, 7, 4];
 const FLAT_ORDER = ["B", "E", "A", "D", "G", "C", "F"];
 const SHARP_ORDER = ["F", "C", "G", "D", "A", "E", "B"];
+
+/** Stem length (3½ spaces), and the shortest a beamed stem may get. */
+const STEM = 35;
+const STEM_MIN = 28;
+/** A beam rises or falls at most one staff space. */
+const BEAM_MAX_RISE = 10;
+const BEAM_W = 5;
+
+const FEEL_LABEL: Record<Tune["feel"], string> = {
+  swing: "Swing",
+  waltz: "Jazz waltz",
+  bossa: "Bossa nova",
+  ballad: "Ballad",
+  straight8: "Straight 8ths",
+};
+
+/**
+ * Noto Music rest glyphs by printed length, with the baseline (below the staff's top line, at
+ * 40px) that puts each where it belongs. Measured from the glyphs' ink: the whole rest hangs
+ * from the 4th line, the half sits on the middle line, the others centre on the staff.
+ */
+const REST: Record<string, { glyph: string; baseline: number }> = {
+  whole: { glyph: "𝄻", baseline: 30 },
+  "2": { glyph: "𝄼", baseline: 31 },
+  "1": { glyph: "𝄽", baseline: 40 },
+  "0.5": { glyph: "𝄾", baseline: 39 },
+  "0.25": { glyph: "𝄿", baseline: 40 },
+};
+
+interface Head {
+  glyph: Glyph;
+  bar: number;
+  x: number;
+  y: number;
+  pos: number;
+  up: boolean;
+  stemX: number;
+  stemEnd: number;
+  beamed: boolean;
+}
 
 function keySignature(tune: Tune): { count: number; flats: boolean } {
   const major = tune.key.mode === "major" ? tune.key.tonic : transpose(tune.key.tonic, "b3");
@@ -115,6 +156,64 @@ export function LeadSheet({
     return g.x + 12 + ((beat - 1) / bpb) * (g.w - 22);
   };
   const lineY = (staffTop: number, pos: number) => staffTop + 4 * LINE_GAP - pos * (LINE_GAP / 2);
+
+  // ── engraved melody: notes, rests, ties, beams (rules in notation.ts) ──
+  const sheet = engrave(tune, keyAlter);
+  const formEnd = formLength(tune);
+  const heads = new Map<Glyph, Head>();
+  const beamLines: Array<{ x1: number; y1: number; x2: number; y2: number; up: boolean }> = [];
+  for (const b of bars) {
+    const eb = sheet.get(b);
+    if (!eb) continue;
+    const g = geo(b);
+    for (const gl of eb.glyphs) {
+      if (!gl.pitch) continue;
+      const { pos } = staffPos(gl.pitch);
+      const x = beatX(b, gl.beat) + 12;
+      const y = lineY(g.staffTop, pos);
+      const up = pos < 4; // on or above the middle line: stem down
+      heads.set(gl, { glyph: gl, bar: b, x, y, pos, up, stemX: up ? x + 7 : x - 7, stemEnd: up ? y - STEM : y + STEM, beamed: false });
+    }
+    for (const run of eb.beams) {
+      const hs = run.map((i) => heads.get(eb.glyphs[i])!);
+      // the note farthest from the middle line sets the direction; a tie goes stem down
+      const far = Math.max(...hs.map((h) => Math.abs(h.pos - 4)));
+      const up = far > 0 && hs.some((h) => 4 - h.pos === far) && !hs.some((h) => h.pos - 4 === far);
+      const dir = up ? -1 : 1;
+      for (const h of hs) {
+        h.up = up;
+        h.stemX = up ? h.x + 7 : h.x - 7;
+        h.beamed = true;
+      }
+      const first = hs[0];
+      const last = hs[hs.length - 1];
+      const e1 = first.y + dir * STEM;
+      const rise = Math.max(-BEAM_MAX_RISE, Math.min(BEAM_MAX_RISE, last.y + dir * STEM - e1));
+      const at = (x: number) => e1 + (rise * (x - first.stemX)) / (last.stemX - first.stemX || 1);
+      // push the beam outward until every stem is long enough
+      let shift = 0;
+      for (const h of hs) shift = Math.max(shift, dir * (h.y + dir * STEM_MIN - at(h.stemX)));
+      for (const h of hs) h.stemEnd = at(h.stemX) + dir * shift;
+      beamLines.push({ x1: first.stemX, y1: e1 + dir * shift, x2: last.stemX, y2: e1 + rise + dir * shift, up });
+    }
+  }
+
+  // ties: between heads on one line, or a half tie to / from the line's edge when it wraps
+  const noteSeq = [...sheet.values()].flatMap((eb) => eb.glyphs.filter((gl) => gl.pitch));
+  const ties: Array<{ x1: number; x2: number; y: number; below: boolean }> = [];
+  noteSeq.forEach((gl, i) => {
+    const h = heads.get(gl);
+    if (!h) return;
+    const gh = geo(h.bar);
+    if (gl.tieToNext) {
+      const hn = heads.get(noteSeq[i + 1]);
+      ties.push({ x1: h.x + 8, x2: hn && geo(hn.bar).sys === gh.sys ? hn.x - 8 : gh.x + gh.w - 3, y: h.y, below: h.up });
+    }
+    if (gl.tiedFromPrev) {
+      const hp = heads.get(noteSeq[i - 1]);
+      if (!hp || geo(hp.bar).sys !== gh.sys) ties.push({ x1: gh.x + 3, x2: h.x - 8, y: h.y, below: h.up });
+    }
+  });
 
   // ── wash segments for each move, split per system ──────────────────────
   type Seg = { move: ReharmMove; sys: number; x1: number; x2: number; y0: number; first: boolean };
@@ -200,37 +299,73 @@ export function LeadSheet({
 
       for (const b of bars) {
         const g = geo(b);
-        line(g.x + g.w, g.staffTop, g.x + g.w, g.staffTop + 40, { strokeWidth: 1.4 });
-        const notes = tune.melody.filter((n) => n.at.bar === b);
-        if (!notes.length) {
+        const xr = g.x + g.w;
+        if (b === formEnd) {
+          // final barline: thin + thick
+          line(xr - 7, g.staffTop, xr - 7, g.staffTop + 40, { strokeWidth: 1.4 });
+          line(xr - 2, g.staffTop, xr - 2, g.staffTop + 40, { strokeWidth: 4.5, roughness: 0.3 });
+        } else line(xr, g.staffTop, xr, g.staffTop + 40, { strokeWidth: 1.4 });
+        if (!sheet.get(b)?.glyphs.length) {
           // lead-sheet comping slashes where no melody is entered
           for (let beat = 1; beat <= bpb; beat++) {
             const x = beatX(b, beat) + 8;
             line(x - 5, g.staffTop + 25, x + 5, g.staffTop + 15, { strokeWidth: 3.2, stroke: ink.faint, roughness: 0.4 });
           }
         }
-        for (const n of notes) {
-          const { pos } = staffPos(n.pitch);
-          const x = beatX(b, n.at.beat) + 12;
-          const y = lineY(g.staffTop, pos);
-          const hollow = n.beats >= 2;
-          add(
-            rc.ellipse(x, y, 15, 11, {
-              seed: seedOf(n.pitch + b),
-              roughness: 0.8,
-              strokeWidth: 1.8,
-              stroke: ink.deep,
-              ...(hollow ? {} : { fill: ink.deep, fillStyle: "solid" }),
-            }),
-          );
-          if (pos < 4) line(x + 7, y - 1, x + 7, y - 35, { strokeWidth: 1.5 });
-          else line(x - 7, y + 1, x - 7, y + 35, { strokeWidth: 1.5 });
-          if ([3, 1.5, 0.75].includes(n.beats)) {
-            add(rc.circle(x + 15, pos % 2 === 0 ? y - 4 : y, 3.5, { fill: ink.deep, fillStyle: "solid", stroke: ink.deep, seed: 4 }));
+      }
+
+      for (const h of heads.values()) {
+        const { glyph: gl, x, y, pos, bar: b } = h;
+        const g = geo(b);
+        const seed = seedOf(`${gl.pitch}${b}:${gl.beat}`);
+        add(
+          rc.ellipse(x, y, 15, 11, {
+            seed,
+            roughness: 0.8,
+            strokeWidth: 1.8,
+            stroke: ink.deep,
+            ...(gl.value >= 2 ? {} : { fill: ink.deep, fillStyle: "solid" }),
+          }),
+        );
+        if (gl.value < 4) line(h.stemX, y + (h.up ? -1 : 1), h.stemX, h.stemEnd, { strokeWidth: 1.5 });
+        if (!h.beamed && gl.value < 1) {
+          // flags: one for an eighth (or dotted eighth), two for a sixteenth
+          const flags = gl.value < 0.3 ? 2 : 1;
+          const d = h.up ? 1 : -1;
+          for (let f = 0; f < flags; f++) {
+            const e = h.stemEnd + d * f * 8;
+            const sx = h.stemX;
+            add(
+              rc.path(`M ${sx} ${e} C ${sx + 1} ${e + d * 8} ${sx + 12} ${e + d * 11} ${sx + 9} ${e + d * 24}`, {
+                seed: seed + f,
+                roughness: 0.5,
+                strokeWidth: 2.2,
+                stroke: ink.deep,
+              }),
+            );
           }
-          for (let p = -2; p >= pos; p -= 2) line(x - 12, lineY(g.staffTop, p), x + 12, lineY(g.staffTop, p));
-          for (let p = 10; p <= pos; p += 2) line(x - 12, lineY(g.staffTop, p), x + 12, lineY(g.staffTop, p));
         }
+        if ([3, 1.5, 0.75].includes(gl.value)) {
+          add(rc.circle(x + 15, pos % 2 === 0 ? y - 4 : y, 3.5, { fill: ink.deep, fillStyle: "solid", stroke: ink.deep, seed: 4 }));
+        }
+        for (let p = -2; p >= pos; p -= 2) line(x - 12, lineY(g.staffTop, p), x + 12, lineY(g.staffTop, p));
+        for (let p = 10; p <= pos; p += 2) line(x - 12, lineY(g.staffTop, p), x + 12, lineY(g.staffTop, p));
+      }
+
+      for (const bl of beamLines) {
+        // the beam's outer edge sits on the stem ends
+        const t = bl.up ? BEAM_W : -BEAM_W;
+        add(
+          rc.polygon(
+            [
+              [bl.x1 - 0.7, bl.y1],
+              [bl.x2 + 0.7, bl.y2],
+              [bl.x2 + 0.7, bl.y2 + t],
+              [bl.x1 - 0.7, bl.y1 + t],
+            ],
+            { seed: seedOf(`beam${bl.x1}:${bl.y1}`), roughness: 0.4, fill: ink.deep, fillStyle: "solid", stroke: ink.deep, strokeWidth: 0.8 },
+          ),
+        );
       }
 
       // pen circle around the selected move
@@ -246,7 +381,7 @@ export function LeadSheet({
         );
       }
     },
-    [systems, perSystem, ks.count, firstBar, lastBar, melodyKey, selectedId, JSON.stringify(segs.map((s) => [s.move.id, s.x1, s.x2]))],
+    [systems, perSystem, ks.count, firstBar, lastBar, melodyKey, tune.melodyCoverage, formEnd, selectedId,JSON.stringify(segs.map((s) => [s.move.id, s.x1, s.x2]))],
   );
 
   return (
@@ -292,20 +427,69 @@ export function LeadSheet({
 
       <g ref={inkRef} />
 
-      {/* accidentals that differ from the key signature */}
-      {tune.melody
-        .filter((n) => n.at.bar >= firstBar && n.at.bar <= lastBar)
-        .map((n, i) => {
-          const { pos, letter, alter } = staffPos(n.pitch);
-          if ((keyAlter[letter] ?? 0) === alter) return null;
-          const g = geo(n.at.bar);
-          const glyph = alter === 0 ? "♮" : alter > 0 ? "♯" : "♭";
+      {/* tempo and feel, over the first line */}
+      {firstBar === 1 && (
+        <text x={LEFT + 2} y={TOP + 50} className="fill-ink font-hand" fontSize={15} fontWeight={700}>
+          {FEEL_LABEL[tune.feel]}{" "}
+          <tspan fontFamily="Noto Music" fontSize={17}>
+            ♩
+          </tspan>
+          {` = ${tune.tempo}`}
+        </text>
+      )}
+
+      {/* accidentals: held to the barline, cancelled with a natural (see notation.ts) */}
+      {[...heads.values()]
+        .filter((h) => h.glyph.accidental !== null)
+        .map((h) => {
+          const a = h.glyph.accidental!;
           return (
-            <text key={i} x={beatX(n.at.bar, n.at.beat) - 6} y={lineY(g.staffTop, pos) + 5} fontFamily="Noto Music" fontSize={34} className="fill-ink">
-              {glyph}
+            <text key={`acc${h.bar}:${h.glyph.beat}`} x={h.x - 18} y={h.y + 5} fontFamily="Noto Music" fontSize={34} className="fill-ink">
+              {a === 0 ? "♮" : a > 0 ? "♯" : "♭"}
             </text>
           );
         })}
+
+      {/* rests */}
+      {bars.flatMap((b) => {
+        const g = geo(b);
+        return (sheet.get(b)?.glyphs ?? [])
+          .filter((gl) => gl.pitch === null)
+          .map((gl) => {
+            const whole = gl.value === bpb;
+            const r = REST[whole ? "whole" : String(gl.value)] ?? REST["0.5"];
+            return (
+              <text
+                key={`rest${b}:${gl.beat}`}
+                x={whole ? g.x + g.w / 2 : beatX(b, gl.beat) + 12}
+                y={g.staffTop + r.baseline}
+                textAnchor="middle"
+                fontFamily="Noto Music"
+                fontSize={40}
+                className="fill-ink"
+              >
+                {r.glyph}
+              </text>
+            );
+          });
+      })}
+
+      {/* ties: curve away from the stems */}
+      {ties.map((t, i) => {
+        const d = t.below ? 1 : -1;
+        const y0 = t.y + d * 7;
+        const mx = (t.x1 + t.x2) / 2;
+        const bulge = d * Math.min(9, 3 + (t.x2 - t.x1) / 12);
+        return (
+          <path
+            key={`tie${i}`}
+            d={`M ${t.x1} ${y0} Q ${mx} ${y0 + bulge * 2} ${t.x2} ${y0} Q ${mx} ${y0 + bulge * 2 - d * 3} ${t.x1} ${y0} Z`}
+            fill={ink.deep}
+            stroke={ink.deep}
+            strokeWidth={0.6}
+          />
+        );
+      })}
 
       {/* wash labels (lane-packed; see `labels` above) */}
       {labels.map((l) => {
