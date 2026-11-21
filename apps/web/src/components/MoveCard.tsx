@@ -195,6 +195,7 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
   );
   const bodyId = useId();
   const whyId = useId();
+  const summaryId = useId();
   const whyBtn = useRef<HTMLButtonElement>(null);
   // the rough run already spent before this opening (read when it opens): a rough run reopens the steps once
   const [spentRough, setSpentRough] = useState<string | undefined>(undefined);
@@ -300,12 +301,27 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
   return (
     <SketchBox seed={seedOf(move.id)} fill={selected ? paper.light : undefined} className="text-ink" roughness={selected ? 1.6 : 1.2}>
       <article className="p-4" data-move-id={move.id}>
-        <button type="button" onClick={onSelect} className="w-full cursor-pointer text-left" aria-expanded={selected} aria-controls={selected ? bodyId : undefined}>
+        {/* the face: a real h3 holding the select button (a heading inside a button loses its heading role);
+            the button's ::after stretches over the whole face, so a click anywhere on it still selects */}
+        <div className="relative">
           <header className="flex items-start gap-3">
             <span aria-hidden className="mt-1 inline-block h-4 w-4 shrink-0 rotate-3 rounded-[3px] opacity-80" style={{ background: color }} />
             <div className="min-w-0 flex-1">
-              <h3 className="ink-wobble font-marker text-xl font-bold uppercase leading-tight tracking-wide">
-                {move.title} <span className="text-base font-normal normal-case">(Bar {bar})</span>
+              {/* no filter (ink-wobble) on the h3 or the button: a filter makes a containing block and
+                  would trap the stretched ::after inside the heading */}
+              <h3 className="font-marker text-xl font-bold uppercase leading-tight tracking-wide">
+                <button
+                  type="button"
+                  onClick={onSelect}
+                  aria-expanded={selected}
+                  aria-controls={selected ? bodyId : undefined}
+                  aria-describedby={summaryId}
+                  className="cursor-pointer text-left uppercase after:absolute after:inset-0 after:content-['']"
+                >
+                  <span className="ink-wobble">
+                    {move.title} <span className="text-base font-normal normal-case">(Bar {bar})</span>
+                  </span>
+                </button>
               </h3>
               <p className="text-ink-soft text-xs">
                 {CATEGORY_LABEL[move.category]} · L{move.level} · heard in {move.styleTags.map(styleLabel).join(", ")}
@@ -333,10 +349,10 @@ export function MoveCard({ tuneId, move, target, selected, alternatives, onSelec
           </div>
 
           {/* for a rule with a lesson this is the lesson's headline (theory-core buildMove) */}
-          <p className="mt-2 text-[15px] leading-snug" data-move-summary>
+          <p id={summaryId} className="mt-2 text-[15px] leading-snug" data-move-summary>
             {move.text.summary}
           </p>
-        </button>
+        </div>
 
         <BeforeAfter move={move} target={target} />
 
