@@ -1,6 +1,28 @@
-import { chroma, generateMoves, referenceTune } from "@reharm/theory-core";
+import { basicsLesson, canonicalLesson, chroma, generateMoves, referenceTune, type Tune } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
-import { coachLesson, tuneMoveInKey } from "./coachLesson";
+import { coachLesson, sixChordNote, tuneMoveInKey } from "./coachLesson";
+
+describe("sixChordNote: the chart writes I as a 6 chord, the lesson says Xmaj7", () => {
+  const resolution = (k: string) => basicsLesson("basics:dominantResolution", k)!; // "C7 → Fmaj7" in F
+
+  it("Co-op Blues (F6) with a lesson that says Fmaj7: one line, naming both chords", () => {
+    expect(referenceTune.harmony.some((c) => c.root === "F" && c.quality === "6")).toBe(true);
+    expect(sixChordNote(referenceTune, "F", resolution("F"))).toBe("Your chart writes F6; F6 and Fmaj7 are both the I chord here.");
+    expect(sixChordNote(referenceTune, "Ab", resolution("Ab"))).toBe("Your chart writes its I as a 6 chord: A♭6 and A♭maj7 are both the I chord here.");
+    expect(sixChordNote(referenceTune, "F", canonicalLesson("dominant.tritoneSub", "F")!)).toMatch(/^Your chart writes F6;/);
+  });
+
+  it("nothing when the lesson never says Xmaj7, the chart has a maj7 on I, or the chart is minor", () => {
+    expect(sixChordNote(referenceTune, "F", basicsLesson("basics:tritone", "F")!)).toBeNull();
+    const maj7: Tune = { ...referenceTune, harmony: [...referenceTune.harmony, { ...referenceTune.harmony[0], id: "x", quality: "maj7" }] };
+    expect(sixChordNote(maj7, "F", resolution("F"))).toBeNull();
+    expect(sixChordNote({ ...referenceTune, key: { ...referenceTune.key, mode: "minor" } }, "F", resolution("F"))).toBeNull();
+  });
+
+  it("B major never matches B♭maj7 (the accidental sits between the letter and the quality)", () => {
+    expect(sixChordNote(referenceTune, "B", { ...resolution("F"), headline: "B♭maj7 only", rule: "", steps: [], deeper: undefined })).toBeNull();
+  });
+});
 
 describe("Coach's Learn-stage lesson for a tune move", () => {
   const move = generateMoves(referenceTune).accepted.find((m) => m.ruleId === "dominant.tritoneSub")!;

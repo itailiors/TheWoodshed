@@ -4,6 +4,7 @@ import {
   generateMoves,
   isBasicsId,
   lessonForMove,
+  prettyNote,
   sortedHarmony,
   transposeTune,
   type ChordEvent,
@@ -52,6 +53,24 @@ function fromMove(tune: Tune, move: ReharmMove): CoachLesson | null {
 export function tuneMoveInKey(tune: Tune, moveId: string, key: string): { tune: Tune; move: ReharmMove | null } {
   const dtune = key === tune.key.tonic ? tune : transposeTune(tune, key);
   return { tune: dtune, move: generateMoves(dtune).accepted.find((m) => m.id === moveId) ?? null };
+}
+
+/**
+ * One line for a lesson that names the I chord as Xmaj7 (the canonical progression, a basic)
+ * while the open chart writes its I as a 6 chord, as Co-op Blues writes F6. Null otherwise: a
+ * minor chart, a chart with a maj7 on I, or a lesson that never says Xmaj7. Pure.
+ */
+export function sixChordNote(tune: Tune, key: string, lesson: Lesson): string | null {
+  if (tune.key.mode !== "major") return null;
+  const onI = tune.harmony.filter((c) => c.root === tune.key.tonic && !c.bass);
+  if (!onI.some((c) => c.quality === "6") || onI.some((c) => c.quality === "maj7")) return null;
+  const p = prettyNote(key);
+  const prose = [lesson.headline, lesson.rule, lesson.deeper ?? "", ...lesson.steps.flatMap((s) => [s.text, s.ask?.prompt ?? ""])].join(" ");
+  // "Fmaj7" never matches inside "F♯maj7" or "B♭maj7" for B: the accidental sits between
+  if (!new RegExp(`(?<![A-G])${p}maj7`).test(prose)) return null;
+  return key === tune.key.tonic
+    ? `Your chart writes ${p}6; ${p}6 and ${p}maj7 are both the I chord here.`
+    : `Your chart writes its I as a 6 chord: ${p}6 and ${p}maj7 are both the I chord here.`;
 }
 
 /**

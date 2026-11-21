@@ -166,6 +166,8 @@ export interface MediantDominantLearn {
   dimTwins: [string, string, string, string];
   /** III7's 3rd and ♭7 moving into the target (half step to its 5th, whole step to its root). */
   resolution: [VoiceMotion, VoiceMotion];
+  /** The other two upper voices: the ♭9 down to the target's 3rd, and the 5th to its nearest target tone other than the root (holds as a maj7's 7th; down to a 6 chord's 6th). */
+  inner: [VoiceMotion, VoiceMotion];
   /** The four dominants that share the diminished 7th once they take the ♭9: V7, ♭VII7, ♭II7, III7. */
   family: [string, string, string, string];
   familyRoots: [string, string, string, string];

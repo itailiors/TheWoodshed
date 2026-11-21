@@ -27,14 +27,12 @@ async function openPath(page: Page) {
   return dialog;
 }
 
-/** A Path card; on a phone its tier band may be folded, so unfold it first. */
+/** A Path card; its tier band may be folded (at every width), so unfold it first. */
 async function card(page: Page, id: string) {
   const c = page.locator(`[data-path] [data-concept="${id}"]`);
-  if ((page.viewportSize()?.width ?? 1280) < 640) {
-    const toggle = page.locator(`[data-path] section[data-tier="${CONCEPTS.find((n) => n.id === id)!.tier}"]`).getByRole("button").first();
-    await expect(toggle).toBeVisible();
-    if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
-  }
+  const toggle = page.locator(`[data-path] section[data-tier="${CONCEPTS.find((n) => n.id === id)!.tier}"]`).getByRole("button").first();
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
   await expect(c).toBeVisible();
   return c;
 }

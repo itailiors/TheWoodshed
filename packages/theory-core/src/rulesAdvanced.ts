@@ -136,6 +136,11 @@ export const mediantDominant: Rule = {
         nearestMotion(readable(third), chordTones(next).filter((t) => t.degree === "5" || t.degree === "#5")),
         nearestMotion(seventh, chordTones(next).filter((t) => t.degree === "1")),
       ],
+      inner: [
+        nearestMotion(subTones[3], chordTones(next).filter((t) => t.degree === "3")),
+        // the root is the ♭7's: the 5th holds as a maj7's 7th, or steps down to a 6 chord's 6th
+        nearestMotion(subTones[1], chordTones(next).filter((t) => t.degree !== "1")),
+      ],
       family: four(familyChords.map((c) => symbol({ ...c, alterations: [] }))),
       familyRoots: four(familyChords.map((c) => c.root)),
       relativeMinor: viRoot,

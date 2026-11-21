@@ -374,14 +374,28 @@ function oneNoteOnTop(f: OneNoteOnTopLearn): Lesson {
 /** "A, B and C". */
 const listOf = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 /** "G♯ falls a half step to G", "G♯ holds". */
-const goes = (m: VoiceMotion) => (m.semitones === 0 ? `${pn(m.from)} holds` : `${pn(m.from)} ${motionVerb(m)} to ${pn(m.to)}`);
 const COUNT = ["", "", "two", "three", "four"];
 /** Words as the copy budget counts them (anything with a letter or digit). */
 const wordCount = (s: string) => s.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 
+/** A short verb for a voice that moves ("slips to", "steps down to"); a run of the same verb says it once: "C♯ slips to C, B♭ to A". */
+const shortVerb = (m: VoiceMotion) => {
+  const n = Math.abs(m.semitones);
+  return n === 1 ? (m.semitones < 0 ? "slips to" : "rises to") : n === 2 ? (m.semitones < 0 ? "steps down to" : "steps up to") : "moves to";
+};
+function voiceList(moving: VoiceMotion[]): string {
+  return moving.map((m, k) => `${pn(m.from)} ${k > 0 && shortVerb(moving[k - 1]) === shortVerb(m) ? "to" : shortVerb(m)} ${pn(m.to)}`).join(", ");
+}
+
 function mediantDominant(f: MediantDominantLearn): Lesson {
   const [orig, sub, target] = [ps(f.original), ps(f.sub), ps(f.target)];
   const [r3, r7] = f.resolution;
+  const [b9, fifth] = f.inner;
+  // every voice into the target: the four upper ones by motion, the bass (the target's 3rd) and any upper voice that holds, together
+  const voices = [r3, b9, r7, fifth];
+  const moving = voices.filter((m) => m.semitones !== 0);
+  const held = [f.subRoot, ...voices.filter((m) => m.semitones === 0).map((m) => m.from)].map(pn);
+  const into = `Into ${target}, ${voiceList(moving)}; ${listOf(held)} ${held.length > 1 ? "hold" : "holds"}.`;
   // III7(♭9)'s own spelling, with the °7 key it shares in parentheses where they differ (G♯, same key as A♭)
   const named = f.subTones.map((n, k) => twin(n, f.dimTwins[k]));
   return {
@@ -401,8 +415,9 @@ function mediantDominant(f: MediantDominantLearn): Lesson {
         ask: { kind: "tapNotes", prompt: `Keep those four keys. Tap the bass a major 3rd above ${pn(f.targetRoot)}.`, answer: [f.subRoot] },
       },
       {
-        text: `Into ${target}, ${goes(r3)}, ${goes(r7)}. ${pn(f.subRoot)} is its 3rd.`,
-        highlight: [hl(r3.from, "3rd"), hlTo(r3, "5th"), hl(r7.from, "♭7"), hlTo(r7, "root")],
+        text: into,
+        // the four upper voices (the step's cap), each marked with where it goes
+        highlight: voices.map((m) => hl(m.from, m.semitones === 0 ? "holds" : `→ ${pn(m.to)}`)),
         play: "ab",
       },
       {

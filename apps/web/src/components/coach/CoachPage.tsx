@@ -32,7 +32,7 @@ import { MidiMonitorToggle } from "../MidiMonitorToggle";
 import { QwertyToggle } from "../QwertyToggle";
 import { KeyMatrix, type PractiseRequest } from "../progress/KeyMatrix";
 import { CoachDrill, nextCircleKey, type KeyFlow } from "./CoachDrill";
-import { coachLesson, tuneMoveInKey } from "./coachLesson";
+import { coachLesson, sixChordNote, tuneMoveInKey } from "./coachLesson";
 import { coachInput, openingStage, retireGradingStore, stagesFor } from "./gradingMode";
 import { LearnStage } from "./LearnStage";
 import { StageLadder } from "./StageLadder";
@@ -855,6 +855,8 @@ export function CoachPage({ tune, accepted, pathway, initial, midi, onMode, onPr
                   focus={stageFocus}
                   chain={unmetChain(states, activeRuleId)}
                   prereqKnown={(id) => atLeastFamiliar(states.get(id)?.state ?? "new")}
+                  // a chart move's lesson already uses the chart's chords; the canonical one and the basics say Xmaj7
+                  chartNote={inTune ? null : sixChordNote(tune, key, learn.lesson)}
                   footer={
                     lessonDone === activeRuleId ? (
                       <p role="status" className="font-hand text-base text-ink-soft" data-lesson-done>
