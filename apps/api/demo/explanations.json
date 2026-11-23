@@ -1,116 +1,116 @@
 {
   "version": 1,
   "tuneId": "coop-blues",
-  "generatedAt": "2026-11-21T00:01:24.771Z",
-  "source": "template",
+  "generatedAt": "2026-11-23T13:39:18.115Z",
+  "source": "claude",
   "explanations": {
     "chromatic.constantStructure@1.1": {
-      "summary": "Slide into B♭7 with its own shape: C7 → B7 → B♭7, the whole hand moving together.",
-      "deepDive": "With room for two, start a whole step above, as here: C7, B7, then B♭7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play C7 → B7 instead of the second half of F6. B♭7 arrives with every voice sliding together.",
+      "deepDive": "The ear hears one shape sliding downhill while the key briefly drops away. Inertia does the work: once A starts falling, it carries straight through to A♭ on B♭7.\n\nKeep the voicing identical in the right hand: C, E, G, B♭, then B, D♯, F♯, A. Lock your fingers and move the hand as one unit, with roots in the left hand. Play the two planed chords short and even, then lean into B♭7.\n\nOver C7, C Lydian dominant comes first, a mode of G melodic minor; its F♯ is the ♯11. Aim E at D♯ and B♭ at A, so the line moves in step with the chords. The slide works into any target on the last beat or two of a bar, such as I to IV in a blues. It fails when a held melody note sits a half step from the moving shape. Here D over B7 rubs against D♯, but it passes quickly as a ♯9.",
+      "recreateRule": "Before any target chord, play its exact shape a whole step, then a half step above, and slide the whole hand down into it.",
+      "model": "claude-opus-5-5"
     },
     "functional.secondaryTwoFive@2.1": {
-      "summary": "Swap B♭7 for Gm9 → C7(♭9): a ii–V that walks you into F6.",
-      "deepDive": "C7(♭9)'s ♭9, D♭, falls a half step to C, the 5th of F6.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
-      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
-      "model": "Reharm Lab engine"
+      "summary": "Play Gm9 → C7(♭9) instead of B♭7. Bar 3's F6 arrives as a cadence, not a drift.",
+      "deepDive": "The ear hears bar 3 announced. B♭7 leans back toward F, but this pair drives into F6 with bebop forward motion.\n\nVoice Gm9 with B♭ and F in the left hand and A on top for the 9th. On C7(♭9), keep B♭ and let F slip to E. Put D♭ on top for the ♭9. Swing the change on beat 3 lightly and land firmly on F6. D♭ has weight: let gravity drop it a half step to C as F6 sounds.\n\nFor the right hand, G Dorian fits Gm9, all inside F major; aim F down to E. Over C7(♭9), C Phrygian dominant, from F harmonic minor, supplies D♭ and A♭. The melody's A♭ is that scale's ♭13. Pass through F rather than holding it. The move works before any major or minor chord lasting two beats or more, including the IV of a blues. It fails when the melody holds D over C7(♭9): that natural 9 clashes with D♭.",
+      "recreateRule": "Before a target chord, play the dominant a fifth above it, preceded by the minor 7th a fifth above that; use m7♭5 into minor.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@4.1": {
-      "summary": "Slide into F7 with its own shape: G♭7 → F7, the whole hand moving together.",
-      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play G♭7 after Cm7 instead of holding Cm7. F7 arrives by a one-shape half-step slide.",
+      "deepDive": "The ear hears one dominant shape sinking sideways into another. It sounds more modern than functional, as if F7 arrived a half step high and settled.\n\nVoice G♭7 exactly as you will voice F7: G♭, B♭, D♭, F♭ under one hand. Lock the fingering and drop the whole hand as a unit. Gravity does the work: F♭ falls to E♭, D♭ to C. Play G♭7 light and short, then lean on F7. For the right hand, G♭ Lydian dominant comes first, a mode of D♭ melodic minor. Its C is the ♯11, so the melody's C over G♭7 reads as colour. Aim lines at B♭ falling to A and F♭ falling to E♭.\n\nThe slide works into any target chord on the last beat or two of the bar before it. It fails when the melody holds F over G♭7: that major 7th clashes a half step above F♭.",
+      "recreateRule": "Before a target chord, play its exact voicing a half step higher, then slide every voice down together into it.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@4.3": {
-      "summary": "Slide into B♭7 with its own shape: B7 → B♭7, the whole hand moving together.",
-      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play F7 → B7 instead of a full bar of F7. B♭7 arrives on a one-handed half-step slide.",
+      "deepDive": "The ear hears the whole chord sink as one block, B7 dropping into B♭7 like a weight let go. B sinks to B♭, and gravity does the rest.\n\nKeep the four-note shape under one hand, with the same fingering for both chords, so only the position moves. Play B7 short and light on the last beat, then lean into B♭7. Over F7, F Lydian dominant comes first, a mode of C melodic minor. Its B is the ♯11, which previews B7's root. Hold A and E♭ into B7, where E♭ is respelled D♯, its 3rd. Both then fall a half step, to A♭ and D.\n\nThe engine ranks no scale for B7. At one beat, the shape itself is the line. The move works when approaching any target on the last beat or two of a bar. Over a longer chord, start a whole step above and slide down twice. It fails when the melody sustains B♭, the target's root, a grinding half step below B7's root.",
+      "recreateRule": "On the last beat before a chord, play its exact shape a half step higher, then slide the whole hand down into it.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@6.1": {
-      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
-      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play G6 → G♭6 instead of the second half of Bdim7. F6 arrives as one hand sliding home.",
+      "deepDive": "The ear hears one shape gliding downhill, four voices in lockstep. It sounds modern and slippery, then F6 snaps everything into focus.\n\nGive the right hand the four-note 6 shape: G, B, D, E for G6. Shift it down to G♭, B♭, D♭, E♭ for G♭6. Meanwhile the left hand walks the roots G, G♭, F. Keep one fingering for all three chords and move the wrist, not the fingers. Play G6 and G♭6 lightly and lean on F6. Once the slide starts, inertia carries E♭ down to D and B♭ down to A. For lines, G Ionian, then G♭ Ionian, rank first. Don't hold C over G6 or C♭ over G♭6.\n\nThe move approaches any target chord on the last one or two beats before it, whatever the target's shape. Here the melody's F becomes the major 7th of G♭6, a bright rub that clears as F6 lands. It fails when a held melody note clashes with the sliding shape, such as G, a ♭9 over G♭6.",
+      "recreateRule": "On the last beats before a chord, play its exact shape a whole step, then a half step, above, and slide down into it.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@8.1": {
-      "summary": "Slide into D7(♭9) with its own shape: E♭7(♭9) → D7(♭9), the whole hand moving together.",
-      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play E♭7(♭9) instead of Am7♭5's last beat. D7(♭9) arrives through one smooth half-step slide.",
+      "deepDive": "The ear hears the harmony slip sideways for a beat and then drop into place. Once the shape starts moving, inertia carries it: F♭ has nowhere to go but down to E♭, the ♭9 of D7(♭9).\n\nPut E♭ and D♭ in the left hand, with G, B♭ and F♭ in the right. Lock that grip and move it as one block, so the arrival is the same shape a half step lower. Play E♭7(♭9) short and light, then lean on D7(♭9).\n\nFor the right hand, E♭ half-whole diminished comes first; aim G at F♯ and D♭ at C. The melody's C sits in that scale as the 13, so it colours the chord. Any chord reached on the last beat or two of a bar can take this approach. With two beats, start a whole step above and slide twice. It fails when the melody holds D over the slide, a major 7th that grinds on D♭.",
+      "recreateRule": "On the last beat before a chord, play its exact voicing a half step higher, then slide every voice down into it.",
+      "model": "claude-opus-5-5"
     },
     "dominant.tritoneSub@8.3": {
-      "summary": "Play A♭9 instead of D7(♭9). Same two tense notes, but the bass slides down a half step into Gm7.",
-      "deepDive": "Every note of A♭9 is a tone or tension of D7(♭9): A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
-      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
-      "model": "Reharm Lab engine"
+      "summary": "Play A♭9 instead of D7(♭9). Gm7 arrives by a half-step bass slide, smoother and darker.",
+      "deepDive": "The ear gets a smoother, more chromatic turn into Gm7. The bass steps down instead of leaping, so bar 9 feels slid into, not struck.\n\nPut C and G♭ in the left hand, with B♭ on top as the 9th. G♭ sits a half step above F, and gravity does the rest: let it drop. Keep A♭9 light over its two beats, then lean into Gm7. The melody's F♯ reads as the ♭7, the same key as G♭.\n\nFor the right hand, A♭ Lydian dominant comes first, a mode of E♭ melodic minor; its D is the ♯11. It shares all seven notes with D altered, so your altered lines over D still fit. Aim C down to B♭ and G♭ down to F. The move works on any V7 that resolves to a minor ii, or any dominant falling a fifth. It fails when the melody holds G, a major 7th above A♭ that rubs against G♭.",
+      "recreateRule": "Over a dominant falling a fifth, keep its 3rd and 7th and put the root a half step above the target.",
+      "model": "claude-opus-5-5"
     },
     "voicing.upperStructureBVI@8.3": {
-      "summary": "Play the B♭ triad over D, C and F♯: one hand shape gives you D7(♯9,♭13).",
-      "deepDive": "All three triad notes sit in D altered, so the right hand can keep going in that scale.\n\nWhere else: Any altered dominant 7th (especially V7 resolving to a minor chord).\n\nOn the bandstand: Hold a root–♭7–3 shell in LH; in RH play the major triad a major 3rd below the dominant's root.",
-      "recreateRule": "Over a dominant 7th, hold root, ♭7 and 3rd in the left hand and play the major triad on its ♭13 above.",
-      "model": "Reharm Lab engine"
+      "summary": "Play D7(♯9,♭13) instead of D7(♭9). A darker dominant whose top triad already belongs to Gm7.",
+      "deepDive": "The ear gets a gritty dominant with a clean major triad shining on top. Tension and consonance sound together, so the cadence feels urgent but never muddy.\n\nKeep the left hand compact, with D, C and F♯ in the middle register. Voice the B♭ triad close in the right hand and let it ring through the bar line. Those three notes stay put into Gm7, and only C and F♯ move. C falls to B♭ and F♯ sinks onto F, settling under gravity into the new chord. Lean on the shell and keep the triad light.\n\nFor lines, D altered comes first, a mode of E♭ melodic minor. Aim F♯ at F and C at B♭ as Gm7 lands. The shape works on any altered dominant. It shines on a V7 resolving to a minor chord, such as the V of ii or a minor-key V. It fails when the melody holds G, the 4th, which smears against F♯ before Gm7 arrives.",
+      "recreateRule": "Over an altered dominant, hold root, ♭7 and 3rd in the left hand; above, play the major triad on its ♭13.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@9.1": {
-      "summary": "Slide into C7 with its own shape: D7 → D♭7 → C7, the whole hand moving together.",
-      "deepDive": "With room for two, start a whole step above, as here: D7, D♭7, then C7.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play Gm7 → D7 → D♭7 instead of plain Gm7. C7 arrives by a half-step slide of the whole hand.",
+      "deepDive": "The ear hears the whole chord glide downward, a shape sliding into place rather than a cadence. Once the hand starts moving, inertia carries it, and C♭ keeps falling until it lands on B♭, the ♭7 of C7.\n\nChoose your C7 voicing first, then build D7 and D♭7 with the same fingering. The left-hand guide tones plane cleanly: F♯ and C, then F and C♭, then E and B♭. Keep the passing chords light, one beat each, and put your weight on C7. Over Gm7, G Dorian comes first, from F major. Aim B♭ at A and F at F♯ as D7 arrives. On the slide, let the right hand ride the shape rather than run a scale.\n\nIt works on the last beat or two before any target chord, whatever its quality, as long as the shape stays exact. It fails when the melody holds a note through the slide. Each beat changes that note's role: D over D♭7 becomes a ♭9, fine for a beat, harsh if sustained.",
+      "recreateRule": "In the last beat or two before a chord, play its exact shape a whole step above, then a half step above, and slide down.",
+      "model": "claude-opus-5-5"
     },
     "dominant.tritoneSub@10.1": {
-      "summary": "Play G♭9 instead of C7. Same two tense notes, but the bass slides down a half step into F6.",
-      "deepDive": "Every note of G♭9 is a tone or tension of C7: G♭ is the ♭5, D♭ the ♭9, A♭ the ♭13. And G♭ Lydian dominant and C altered share all seven notes: both are modes of D♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
-      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
-      "model": "Reharm Lab engine"
+      "summary": "Play G♭9 instead of C7. Bar 11's F6 arrives by half step, darker and smoother.",
+      "deepDive": "The ear gets a darker V in bar 10, with the bass sliding into F6 instead of dropping onto it. In a swing blues, that half step sounds pure bebop.\n\nPut B♭ and F♭ in the left hand as a shell, with A♭ above for the 9th. F♭ is drawn to F like iron to a magnet: hold it, then let it rise. The melody's E sounds as that same ♭7, so it sits inside the chord. When the melody hits G, the ♭9, drop the A♭ so the two don't rub a half step apart.\n\nFor the right hand, G♭ Lydian dominant fits, a mode of D♭ melodic minor. Its C is the ♯11, which the melody already sings here. Aim your lines at A and F as F6 lands. The sub works on any dominant falling a fifth, secondary dominants included. It fails when a melody G is held against the full 9th voicing.",
+      "recreateRule": "Over a dominant falling a fifth, keep its 3rd and 7th and put the root a half step above the target.",
+      "model": "claude-opus-5-5"
     },
     "gospel.halfStepTurnaround@10.1": {
-      "summary": "Turn C7 → F6 into B♭/C → G♭13(♯11) → F6/9: a slide into home from a half step above.",
-      "deepDive": "G♭13(♯11)'s ♯11 is C: the sub keeps C7's root inside, as the ♯11.\n\nWhere else: A V7 resolving to a major tonic with at least 2 beats.\n\nOn the bandstand: Play a major triad a whole step below V over the V bass, then plane a 13(♯11) chord from a half step above I down into home.",
-      "recreateRule": "Before a major I, play IV/V, then a 13(♯11) chord a half step above I, and slide down into I.",
-      "model": "Reharm Lab engine"
+      "summary": "Play B♭/C → G♭13(♯11) instead of C7. Home arrives as a half-step slide into F6/9.",
+      "deepDive": "The ear gets a soft hover, then a slide home. B♭/C floats with no leading tone. G♭13(♯11) then lets almost every voice drop into F6/9 by gravity.\n\nFor B♭/C, put C alone in the left hand and the B♭ triad, B♭ D F, in the right. Hold B♭ across the change; F slips down to F♭ and D to D♭. C sounds in all three chords: bass, then ♯11, then the 5th of home. Lay back on the sus and land the slide squarely on beat one.\n\nOver B♭/C, C Mixolydian fits. Aim at F, which slides to F♭, and at B♭, which holds. The engine ranks no scale for G♭13(♯11), so target its guide tones: B♭ to A, F♭ to F. The move suits any V7 that resolves to a major tonic with two beats to spare, especially final turnarounds. It fails when the melody holds G over G♭13(♯11), a ♭9 against the root, or E over the sus.",
+      "recreateRule": "Before a major I, play IV over the V bass, then a 13(♯11) on ♭II, and slide down a half step into I.",
+      "model": "claude-opus-5-5"
     },
     "modal.backdoorTwoFive@10.1": {
-      "summary": "Come home from below: B♭m7 → E♭9 → F6. Darker than C7, with no E leaning up into F.",
-      "deepDive": "Where else: Replacing a V7 resolving to a major tonic.\n\nOn the bandstand: Play the minor 7th on the 4th degree of the target key, then drop the 7th to make the dominant a whole step below I.",
-      "recreateRule": "For a major I, play the minor 7th a 4th above it, then the dominant 7th a whole step below it.",
-      "model": "Reharm Lab engine"
+      "summary": "Play B♭m7 → E♭9 instead of C7. Bars 10–11 sink gently into F6 rather than being pushed there.",
+      "deepDive": "The ear gets a blues turnaround that softens instead of driving. Bar 10 darkens, then bar 11 settles, with D♭ sinking to C like a weight finding the floor.\n\nPut D♭ and A♭ in the left hand for B♭m7. Keep D♭ down through E♭9, where it becomes the 7th, and let A♭ slip to G. Your melody already sings G, B♭ and D♭ over E♭9, so the chord sits squarely under the line. Swing the two chords lightly and give F6 the weight.\n\nOver E♭9, E♭ Lydian dominant comes first, from B♭ melodic minor; its A adds lift to a dark chord. E♭ Mixolydian also works, but don't hold its A♭. Steer toward G and D♭, then resolve them to F and C. The move fits any V7 resolving to a major tonic, especially a closing bar. It fails when the melody holds E over E♭9, where it rubs as a ♭9. Here E falls over B♭m7 instead, as a bright ♯11 tension.",
+      "recreateRule": "Before a major tonic, play the minor 7th on its 4th degree, then the dominant 7th a whole step below the tonic.",
+      "model": "claude-opus-5-5"
     },
     "dominant.mediantDominant@10.1": {
-      "summary": "Play A7(♭9) instead of C7: the same diminished shape on top, a new bass under it.",
-      "deepDive": "A7(♭9) usually leads to Dm, so the ear expects D minor and gets F major instead.\n\nWhere else: Replacing a V7 that resolves to a major chord.\n\nOn the bandstand: Keep the right hand on the °7 a half step below I; put the bass a major 3rd above I instead of a 5th.",
-      "recreateRule": "Over V7 to I, keep the diminished 7th a half step below I and put the bass a major 3rd above I.",
-      "model": "Reharm Lab engine"
+      "summary": "Play A7(♭9) instead of C7. Same diminished top, but F6 arrives as a surprise.",
+      "deepDive": "The ear hears a chord that seems bound elsewhere, then folds into F6 anyway. That small swerve gives the blues turnaround a gospel lift.\n\nKeep E, G, B♭ and D♭ in the right hand, exactly as you would over C7(♭9). The left hand takes A alone; the D♭ above already sounds as its 3rd, C♯. C♯ sits a half step over C like a magnet's near pole: let it hang, then let C pull it down. Lean on the new bass, not the top.\n\nFor right-hand lines, A half-whole diminished comes first; its B♯ is the ♯9. Aim at the guide-tone targets: C♯ to C, G to F. The move replaces any V7 that resolves to a major chord. The other Family members, C7(♭9), E♭7(♭9) and G♭7(♭9), take the same right hand over their own basses. Watch the melody's C, the ♯9 here. It fails when C is held long right beside C♯ in the voicing, so keep that 3rd below it.",
+      "recreateRule": "Over V7 to I, hold the diminished 7th a half step below I and play the bass a major 3rd above I.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@10.1": {
-      "summary": "Slide into F6 with its own shape: G6 → G♭6 → F6, the whole hand moving together.",
-      "deepDive": "With room for two, start a whole step above, as here: G6, G♭6, then F6.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play G6 → G♭6 instead of the last two beats of C7. F6 arrives on a parallel half-step slide.",
+      "deepDive": "The ear hears a block of sound sliding, not a cadence. For two beats the key blurs, then F6 lands in the same shape that approached it.\n\nLearn F6 as one four-note grip and keep the fingering fixed; only your wrist moves. On G6 that grip reads G, B, D, E. Coming off C7, E holds and B♭ rises to B. Play the planed chords slightly detached and lean into F6, so the slide reads as one gesture. Once the hand starts moving from G, inertia carries it down to F.\n\nOver C7, C Lydian dominant ranks first; its F♯ replaces Mixolydian's F, the avoid note. On the planed chords, play the shape rather than a scale, and aim B♭ at A and E♭ at D. The move approaches any target on its last one or two beats, whatever the target's quality. It strains when the melody holds a note that clashes with the moving shape. Here B♭ over G6 is a ♯9 against B: fine for one beat, sour if held longer.",
+      "recreateRule": "Before a target chord, play its exact voicing a whole step, then a half step above, and slide the whole hand down into it.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@11.1": {
-      "summary": "Slide into D7 with its own shape: E♭7 → D7, the whole hand moving together.",
-      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play F6 → E♭7 instead of F6 alone. D7 arrives by a parallel half-step slide.",
+      "deepDive": "The ear hears a whole block of sound sink a half step and settle on D7. It sounds modern and slick, more glide than cadence.\n\nLock E♭, G, B♭ and D♭ in the left hand, fingers fixed, and move the grip as one unit. Inertia does the work: once D♭ starts falling, it carries straight into C, the ♭7 of D7. Play E♭7 short and light, then lean into the arrival.\n\nFor the right hand, E♭ Lydian dominant comes first, a mode of B♭ melodic minor. Its A is the ♯11, so the melody's A sounds as bright tension there. Aim G at F♯ and D♭ at C as D7 lands. The slide works before any target chord on the last beat or two of a bar. With more room, start a whole step above. It fails when the melody lands on D over E♭7, rubbing a half step against D♭, the ♭7.",
+      "recreateRule": "On the last beat before a target chord, play its exact voicing a half step higher, then slide every voice down into it.",
+      "model": "claude-opus-5-5"
     },
     "functional.secondaryTwoFive@11.3": {
-      "summary": "Split D7 into Am7♭5 → D7(♭9): its related ii in front, a full ii–V into Gm7.",
-      "deepDive": "D7(♭9)'s ♭9, E♭, falls a half step to D, the 5th of Gm7.\n\nWhere else: Before any major or minor target chord (or solitary V7) with at least 2 beats.\n\nOn the bandstand: From the target chord, go up a 5th for V7 and another 5th (or a whole step above the target) for ii.",
-      "recreateRule": "Before any major or minor chord, go up a fifth for the V and another fifth for the ii; into minor, make the ii m7♭5.",
-      "model": "Reharm Lab engine"
+      "summary": "Play Am7♭5 → D7(♭9) instead of D7. Gm7 arrives through a full minor ii–V.",
+      "deepDive": "The ear gets a darker, more urgent approach to Gm7. Two quick beats of minor-key colour announce a minor target before it lands.\n\nPut C and G in the left hand for Am7♭5. Hold C into D7(♭9), where it becomes the 7th, and let G slip to F♯. Add E♭ on top for the ♭9. Each chord gets one beat, so keep the touch light and lean into Gm7.\n\nThe engine ranks no scale for Am7♭5, so outline its chord tones. Over D7(♭9), D Phrygian dominant comes first, a mode of G harmonic minor. F♯ sits a half step from F like a magnet's near pole. Let it fall there while C drops to B♭. This works before any V7 that resolves to a minor chord, given two beats or more. It fails when the melody holds G over D7(♭9): sustained as the 11th, it clashes with F♯, the 3rd.",
+      "recreateRule": "Before a minor target, split its V7 into a m7♭5 a fifth above the V, then the V7(♭9), one beat each or more.",
+      "model": "claude-opus-5-5"
     },
     "dominant.tritoneSub@11.3": {
-      "summary": "Play A♭9 instead of D7. Same two tense notes, but the bass slides down a half step into Gm7.",
-      "deepDive": "Every note of A♭9 is a tone or tension of D7: A♭ is the ♭5, E♭ the ♭9, B♭ the ♭13. And A♭ Lydian dominant and D altered share all seven notes: both are modes of E♭ melodic minor.\n\nWhere else: Any dominant 7th chord resolving down a perfect 5th.\n\nOn the bandstand: Keep your original V7 guide-tone shell (3rd & ♭7) and put the root a half step above the target chord.",
-      "recreateRule": "Over any dominant 7th resolving down a fifth, try the dominant 7th a half step above the target.",
-      "model": "Reharm Lab engine"
+      "summary": "Play A♭9 instead of D7. Gm7 arrives from a half step above, smoother and darker.",
+      "deepDive": "The ear gets a bass that slips rather than leaps. A♭ sinks a half step into Gm7, and the turnaround sounds sleek and bebop-tinged.\n\nPut C and G♭ in the left hand, with B♭ on top for the 9th. Both guide tones fall into Gm7. G♭ drops a half step to F, and C settles a whole step to B♭. Let gravity do the work: touch G♭ lightly and let it fall. Lean into Gm7, not the sub.\n\nFor the right hand, A♭ Lydian dominant fits, a mode of E♭ melodic minor; its D is the ♯11. Aim phrases at F and B♭ as Gm7 arrives. The move works on any secondary dominant falling a fifth into a minor ii, including the VI7 of a turnaround. The melody's F♯ reads as the ♭7, the same key as G♭. Its A becomes the ♭9 against the new root: fine in passing, harsh if held.",
+      "recreateRule": "Over a dominant falling a fifth, keep its 3rd and 7th and put the root a half step above the target.",
+      "model": "claude-opus-5-5"
     },
     "chromatic.constantStructure@12.1": {
-      "summary": "Slide into C7 with its own shape: D♭7 → C7, the whole hand moving together.",
-      "deepDive": "With a longer chord, start a whole step above and slide down twice.\n\nWhere else: Approaching any target chord on the final 1–2 beats of the preceding bar.\n\nOn the bandstand: Take the exact voicing of the upcoming target chord, shift your whole hand up 1 (or 2) half steps, and slide chromatically down into it.",
-      "recreateRule": "Near the end of a chord, play the next chord's exact shape a half step above it and slide the whole hand down.",
-      "model": "Reharm Lab engine"
+      "summary": "Play D♭7 instead of the end of Gm7. Every voice slides down a half step into C7.",
+      "deepDive": "The ear hears a quick smear of colour right before C7. Four voices drop together, so C7 sounds pulled into place rather than chosen.\n\nFind your C7 voicing first, then lift every note a half step. Put D♭ in the bass, F and C♭ in the left hand, and A♭ on top. Keep D♭7 short and light, then lean into C7. C♭ hangs over B♭ like a weight on a string; let gravity drop it.\n\nFor the right hand, D♭ Lydian dominant comes first, a mode of A♭ melodic minor. Its G is the ♯11, which is why the melody's G sounds bright here. The melody's B♭ sits as the 13. Aim F at E and C♭ at B♭. The slide works into a target chord of any quality, played in the last beat or two of the bar before it. It fails when the melody holds C through the slide. Over D♭7 that C is a major 7th grinding against C♭.",
+      "recreateRule": "Before any target chord, play its exact voicing a half step higher, then slide every voice down together into it.",
+      "model": "claude-opus-5-5"
     }
   }
 }

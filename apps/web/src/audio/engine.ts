@@ -528,6 +528,15 @@ export class AudioEngine {
     const ctx = Tone.getContext().rawContext as AudioContext;
     if (ctx.state !== "running" && ctx.state !== "closed") void ctx.resume().catch(() => {});
   }
+
+  /** Report the context's state now and on every change ("running", "suspended", iOS's "interrupted", "closed"). */
+  onAudioState(fn: (state: string) => void): () => void {
+    const ctx = Tone.getContext().rawContext as AudioContext;
+    const report = () => fn(ctx.state);
+    ctx.addEventListener("statechange", report);
+    report();
+    return () => ctx.removeEventListener("statechange", report);
+  }
 }
 
 function makeFallbackPianoSynth(): Tone.PolySynth {
