@@ -45,6 +45,12 @@ If two moves explain the same span, the one with the most matched chords wins, w
 
 **7d. Live stamps in Practice (web).** A `useHarmonyCatcher` hook: `useChordStrikes` (keys only; the pedal is ignored, as the Coach does) → beat from `player.currentBeat()` → a rolling buffer of the last 2 choruses → `catchMoves`, deduplicated per move per chorus. Show a Rough.js passport stamp toast ("Caught: …") through the Toaster, with a click to open the move card. Make it opt-in from a "🕵️ Catcher" toggle in Practice, persisted in `reharm.catcher`. Verify in the preview with fake MIDI in Practice (never Coach).
 
+*(Shipped: `practice/catcherSession.ts` (pure, 6 tests) plus the `useHarmonyCatcher` hook.*
+- *A catch is stamped only once its span is behind the playhead, so a later strike can still veto it.*
+- *A push in the loop's last eighth carries into the next pass.*
+- *Verified in the demo build with fake MIDI: B♭m7 to E♭9 in bar 10 was stamped "Caught: Backdoor ii–V · bar 10, in F", and the band's own L2 tritone sub was not stamped.*
+- ***Deferred:** the stamp is a plain Toaster note, not a Rough.js stamp, and clicking it doesn't open the move card yet. Practice has no move card to open, so that needs App routing into Study.)*
+
 **7e. Fingerprint persistence.** Add an API table `catches(id, ruleId, keyTonic, tuneId, moveId, at)` and run `npm run db:generate`. `POST /api/catches` uses `sendBeacon` batching like sessions; `GET /api/catches/summary` returns counts per rule × key. The demo returns 403 on writes, and the static demo build reads a seeded `demoCatches.json`, labelled as a sample (rule 11). Tests run against a temp DB behind the `REHARM_DB` sentinel.
 
 **7f. Fingerprint view.** Add a "Your vocabulary" panel in the passport drawer: a rule × key grid of catch counts, and a "never caught" list that links to the Coach drill. Add a PROOFS entry for "original changes are never caught" so it shows in the Proof tab.
