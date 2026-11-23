@@ -262,7 +262,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 1. ~~**Phase 6:** the five-persona review~~ **Done:** `0012323` (#10, engineer items), `ff9e242` (deferred calls), `0a402df` (#13, beginner wording).
 2. **Read the ⚙ counters** after a week of real use, from about 2026-11-27 (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
-3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
+3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); ~~Claude-written demo Deep Dives~~ (done 2026-11-23); the og-card re-render (it still says "11 rules" / "8 claims").
 4. **Decided (Itai, 2026-11-23): readable spellings stay.** Some rule chords in flat keys are spelled enharmonically, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9, not E𝄫maj7 → F♭6/9. Not a gap; don't "fix" it to strict letter spelling.
 
 ### Done in the last session (verify, then commit if needed)
@@ -349,7 +349,7 @@ The **Musician's Wishlist** in the README holds the full set of ideas: Expressio
 - MIDI melody capture;
 - recording takes;
 - a dark theme;
-- Claude-written demo Deep Dives (ask before spending);
+- ~~Claude-written demo Deep Dives~~ **Done 2026-11-23:** 18 Co-op Blues entries by `claude-opus-5-5`, spelling checked against `buildFacts`; the demo now shows ✍ Deep dive. A `--template` rerun overwrites them, so a rule change on Co-op Blues needs a paid rerun (ask first);
 - real iReal testing at the piano;
 - the Coach with a physical keyboard since it became a page.
 
