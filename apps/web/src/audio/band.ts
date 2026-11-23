@@ -1,5 +1,6 @@
 import type { DrumVoice } from "@reharm/theory-core";
 import * as Tone from "tone";
+import { getChannelVolumes, getMasterVolume, subscribeChannelVolumes, subscribeMasterVolume } from "./mix";
 
 /*
  * The backing band's instruments: sampled when the CDNs answer, synthesized when they
@@ -11,116 +12,10 @@ export type GhostInstrument = "sax" | "piano";
 const hz = (midi: number) => Tone.Frequency(midi, "midi").toFrequency();
 
 // ── master & per-instrument channel volumes ─────────────────────────────
+// The store is Tone-free (`mix.ts`), so the mixer UI doesn't pull Tone into the entry chunk.
+// It's re-exported here for the engine; this module applies the values to Tone (see the end of the file).
 
-const MASTER_VOL_KEY = "reharm.masterVolume";
-const CHANNEL_VOL_KEY = "reharm.channelVolumes";
-const masterVolSubs = new Set<() => void>();
-const channelVolSubs = new Set<() => void>();
-
-export type ChannelId = "playerPiano" | "bgPiano" | "bass" | "drums";
-export type ChannelVolumes = Readonly<Record<ChannelId, number>>;
-
-const clampDb = (db: number) => (Number.isFinite(db) ? Math.max(-24, Math.min(12, Math.round(db * 2) / 2)) : 0);
-
-let masterVolumeDb = (() => {
-  try {
-    const raw = localStorage.getItem(MASTER_VOL_KEY);
-    return raw !== null ? clampDb(Number(raw)) : 0;
-  } catch {
-    return 0;
-  }
-})();
-
-let channelVolumes: ChannelVolumes = (() => {
-  const defaults: ChannelVolumes = { playerPiano: 0, bgPiano: 0, bass: 0, drums: 0 };
-  try {
-    const raw = localStorage.getItem(CHANNEL_VOL_KEY);
-    if (!raw) return defaults;
-    const parsed = JSON.parse(raw) as Partial<Record<ChannelId, number>>;
-    return {
-      playerPiano: clampDb(parsed.playerPiano ?? 0),
-      bgPiano: clampDb(parsed.bgPiano ?? 0),
-      bass: clampDb(parsed.bass ?? 0),
-      drums: clampDb(parsed.drums ?? 0),
-    };
-  } catch {
-    return defaults;
-  }
-})();
-
-export function getMasterVolume(): number {
-  return masterVolumeDb;
-}
-
-export function setMasterVolume(db: number): void {
-  masterVolumeDb = clampDb(db);
-  try {
-    localStorage.setItem(MASTER_VOL_KEY, String(masterVolumeDb));
-  } catch {
-    /* private mode */
-  }
-  try {
-    Tone.getDestination().volume.value = masterVolumeDb;
-  } catch {
-    /* audio context not yet created */
-  }
-  masterVolSubs.forEach((fn) => fn());
-}
-
-export function subscribeMasterVolume(fn: () => void): () => void {
-  masterVolSubs.add(fn);
-  return () => void masterVolSubs.delete(fn);
-}
-
-export function getChannelVolumes(): ChannelVolumes {
-  return channelVolumes;
-}
-
-export function setChannelVolume(channel: ChannelId, db: number): void {
-  const next = clampDb(db);
-  if (channelVolumes[channel] === next) return;
-  channelVolumes = { ...channelVolumes, [channel]: next };
-  try {
-    localStorage.setItem(CHANNEL_VOL_KEY, JSON.stringify(channelVolumes));
-  } catch {
-    /* private mode */
-  }
-  if (channel === "playerPiano" && saxVol) {
-    saxVol.volume.value = next;
-  }
-  channelVolSubs.forEach((fn) => fn());
-}
-
-export function resetChannelVolumes(): void {
-  channelVolumes = { playerPiano: 0, bgPiano: 0, bass: 0, drums: 0 };
-  try {
-    localStorage.setItem(CHANNEL_VOL_KEY, JSON.stringify(channelVolumes));
-  } catch {
-    /* private mode */
-  }
-  if (saxVol) saxVol.volume.value = 0;
-  channelVolSubs.forEach((fn) => fn());
-}
-
-export function subscribeChannelVolumes(fn: () => void): () => void {
-  channelVolSubs.add(fn);
-  return () => void channelVolSubs.delete(fn);
-}
-
-export const getPlayerPianoVolume = () => channelVolumes.playerPiano;
-export const setPlayerPianoVolume = (db: number) => setChannelVolume("playerPiano", db);
-
-export const getBgPianoVolume = () => channelVolumes.bgPiano;
-export const setBgPianoVolume = (db: number) => setChannelVolume("bgPiano", db);
-
-export const getPianoVolume = () => channelVolumes.bgPiano;
-export const setPianoVolume = (db: number) => setChannelVolume("bgPiano", db);
-
-export const getBassVolume = () => channelVolumes.bass;
-export const setBassVolume = (db: number) => setChannelVolume("bass", db);
-
-export const getDrumsVolume = () => channelVolumes.drums;
-export const setDrumsVolume = (db: number) => setChannelVolume("drums", db);
+export * from "./mix";
 
 // ── upright bass ────────────────────────────────────────────────────────
 
@@ -164,13 +59,13 @@ export interface BassInstrument {
 
 export async function loadBass(out: Tone.ToneAudioNode): Promise<BassInstrument> {
   try {
-    Tone.getDestination().volume.value = masterVolumeDb;
+    Tone.getDestination().volume.value = getMasterVolume();
   } catch {
     /* ignore */
   }
-  const bassBus = new Tone.Volume(channelVolumes.bass).connect(out);
+  const bassBus = new Tone.Volume(getChannelVolumes().bass).connect(out);
   const unsub = subscribeChannelVolumes(() => {
-    bassBus.volume.value = channelVolumes.bass;
+    bassBus.volume.value = getChannelVolumes().bass;
   });
   for (const baseUrl of BASS_SOUNDFONTS) {
     try {
@@ -288,9 +183,9 @@ function oneShot(buffer: Tone.ToneAudioBuffer, dest: Tone.ToneAudioNode, time: n
  *              stays a precise tick rather than part of the band's sound
  */
 export async function loadDrums(out: Tone.ToneAudioNode, dry: Tone.ToneAudioNode): Promise<DrumKit> {
-  const drumsBus = new Tone.Volume(channelVolumes.drums).connect(out);
+  const drumsBus = new Tone.Volume(getChannelVolumes().drums).connect(out);
   const unsub = subscribeChannelVolumes(() => {
-    drumsBus.volume.value = channelVolumes.drums;
+    drumsBus.volume.value = getChannelVolumes().drums;
   });
   // GM kits have no brush swirl, so the sweep stays a quiet filtered-noise texture.
   const brush = makeBrush(drumsBus);
@@ -423,7 +318,7 @@ let saxLastTime = 0;
 
 function ensureGhostSax(): Tone.MonoSynth {
   if (saxSynth) return saxSynth;
-  saxVol = new Tone.Volume(channelVolumes.playerPiano).toDestination();
+  saxVol = new Tone.Volume(getChannelVolumes().playerPiano).toDestination();
   saxVib = new Tone.Vibrato({ frequency: 5.2, depth: 0.14 }).connect(saxVol);
   saxSynth = new Tone.MonoSynth({
     oscillator: { type: "sawtooth" },
@@ -469,3 +364,16 @@ export const ghostSax = {
     saxSynth?.triggerRelease(Tone.now());
   },
 };
+
+// Apply the Tone-free volume store to Tone, from the moment this (lazy) module loads. These were inline
+// in the setters when the store lived here; module-level and never unsubscribed, as before.
+subscribeMasterVolume(() => {
+  try {
+    Tone.getDestination().volume.value = getMasterVolume();
+  } catch {
+    /* audio context not yet created */
+  }
+});
+subscribeChannelVolumes(() => {
+  if (saxVol) saxVol.volume.value = getChannelVolumes().playerPiano;
+});

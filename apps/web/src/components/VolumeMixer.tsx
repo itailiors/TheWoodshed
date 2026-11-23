@@ -8,7 +8,7 @@ import {
   subscribeChannelVolumes,
   subscribeMasterVolume,
   type ChannelId,
-} from "../audio/band";
+} from "../audio/mix";
 import { BandFeelControls, useBandFeelChanged } from "./BandFeelControls";
 
 interface Props {

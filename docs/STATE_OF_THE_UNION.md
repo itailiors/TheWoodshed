@@ -383,7 +383,7 @@ npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.js
   - X-ray: ← → and Esc. Drawers: Esc.
 - **Bundle baseline** (`npm run build:demo`, `apps/web/dist-demo/assets`, 2026-11-23 at 2354731; raw bytes, gzip -9 in brackets). Diff against this after anything that adds to the entry chunk:
   - entry `index-*.js` 577,799 (175,006): the theory engine, the rule lessons, the glossary and the decoder sit here, because theory-core's `engine.ts` needs `ruleLesson` (rule 7) and the root barrel re-exports `learn`;
-  - **Tone.js is in the entry chunk too, not in the lazy audio `engine-*.js`:** `VolumeMixer` imports the volume store (and `ImprovHeatmap` imports `ghostSax`) from `audio/band.ts`, which imports Tone at the top. Rule 12's intent (only the lazy `engine.ts` loads Tone) doesn't hold for the bundle. Fix: move the volume/ghost store into a Tone-free module (as `bandFeel.ts` is), then re-measure;
+  - **Tone.js was in the entry chunk at that commit** (`VolumeMixer` and `ImprovHeatmap` imported values from `audio/band.ts`, which imports Tone). **Fixed:** the volume store is Tone-free `audio/mix.ts` and the heatmap uses the lazy `audio/ghostSax.ts`; `toneIsolation.test.ts` guards it. After the fix: entry **322,050 (109,702)**, Tone now in the lazy `band-*.js` 256,183 (65,064), audio `engine-*.js` 23,282 (7,511), 24 JS files 1,372,526 in all;
   - `react-*.js` 223,094 (68,919); `proofs.worker-*.js` 259,965 (87,715), loaded only by the Proof tab;
   - lazy chunks: CoachPage 49,752 (15,763), ChangesPage 36,830, PracticeMode 26,470, VoicingsPage 25,092, the audio `engine-*.js` 23,294, EngineXRay 17,811, LessonStepper 16,697;
   - CSS `index-*.css` 56,562 (11,206); all 23 JS files together 1,372,104.
