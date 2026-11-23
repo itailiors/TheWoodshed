@@ -381,6 +381,13 @@ export function App() {
     setCoachTarget(coachPlace.current);
     coachPlace.current = null;
   }, [mode]);
+  // a fresh visitor (no runs of their own, no lesson flags) opening the tab starts on the path's first
+  // foundation, not on a gated rule. Computed once per Coach entry (`mode` is a dependency, so flags written
+  // elsewhere are re-read), not on every render: `readLessonFlags` parses localStorage.
+  const coachFreshStart = useMemo(
+    () => (mode === "coach" && !coachTarget && !historyLoading ? freshStart(ownHistory, readLessonFlags(), new Date()) : null),
+    [mode, coachTarget, historyLoading, ownHistory],
+  );
   const openCoach = (id?: string) => {
     const targetMoveId = id ?? selected?.id ?? null;
     if (id) setSelectedId(id);
@@ -610,9 +617,8 @@ export function App() {
   }
 
   if (mode === "coach") {
-    // a fresh visitor (no runs of their own, no lesson flags) opening the tab starts on the path's first
-    // foundation, not on a gated rule; anyone else opens where the Coach always did
-    const start = !coachTarget && !historyLoading ? freshStart(ownHistory, readLessonFlags(), new Date()) : null;
+    // a fresh visitor starts on the path's first foundation; anyone else opens where the Coach always did
+    const start = coachFreshStart;
     return (
       <Suspense fallback={<Inking label="Opening the Coach" />}>
         <Toaster />
