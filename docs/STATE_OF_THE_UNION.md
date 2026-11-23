@@ -2,13 +2,13 @@
 
 > Reference doc: file tree, design system, what works, commands. No need to paste it anymore: the working rules (§0) and architectural rules (§2) now live in the root `CLAUDE.md`, and the latest session handoff is `docs/HANDOFF.md`, loaded automatically at session start.
 > Updated 2026-11-11, end of the "Co-op Blues + Expression Pedal" session.
-> **Learning-UX update, 2026-11-20** (branch `feat/learn-ux-phases-2-6`, phases 2–5 of `PLAN.md`; per-commit log in `PROGRESS.md`): §1 lists the lesson layer and its UI, §4 opens with "The learning system", §5 opens with what's left of that plan. Older sections below are kept as they were.
+> **Learning-UX update, 2026-11-20** (phases 2–5 of `PLAN.md`, merged to `main` as PR #1; per-commit log in `PROGRESS.md`): §1 lists the lesson layer and its UI, §4 opens with "The learning system", §5 opens with what's left of that plan. Older sections below are kept as they were.
 >
-> **Git state when this was written:** the Must-Be floor is committed as `7834922` on `main`. The Co-op Blues swap and the Expression Pedal (§4) were in the **working tree, uncommitted**. Run `git status` and `git log --oneline -5` first. If those files still show as modified or untracked, they still need committing (Itai commits and pushes himself).
+> **Housekeeping, 2026-11-23:** `PLAN.md` is complete through Phase 6 (PRs #10, #13). Everything on `main` is committed; the only other branch is `exp/warm-band-tone` (see §5). For the latest state read `docs/HANDOFF.md` and `git log --oneline -5`.
 >
 > **Reharm Lab** is a jazz-piano reharmonization and practice app. It is the flagship portfolio piece of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**: a genuine practice tool for advanced players, and a showcase of full-stack engineering. The goal of the current phase is a **public portfolio launch** aimed at **hiring managers at top-tier tech and music-tech companies**. The message is *"a product-minded full-stack builder who writes rigorous, edge-case-proof code."* It stands alone as its own link, inside the Software & Jazz Co-op brand. Only the **static, read-only demo** ships publicly, so there are no API costs.
 >
-> Repo root: `C:\Users\itail\Documents\claude-projects\TheWoodshed`. Remote: `origin` → `github.com/itailiors/TheWoodshed`. Windows 11, Node 22.11, **npm workspaces** (pnpm isn't installed).
+> Repo root: `C:\Users\itail\Documents\claude-projects\TheWoodshed`. Remote: `origin` → `github.com/itailiors/TheWoodshed`. Windows 11, Node 24, **npm workspaces** (pnpm isn't installed).
 
 ---
 
@@ -260,9 +260,9 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 ### Next: the learning UX (from `PLAN.md`)
 
-1. **Phase 6:** the five-persona review on the demo build (desktop + phone, light + dark, fresh and returning state), then polish.
-2. **Read the ⚙ counters** after a week of real use (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
-3. **Waiting on Itai:** pushing the branch; Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
+1. ~~**Phase 6:** the five-persona review~~ **Done:** `0012323` (#10, engineer items), `ff9e242` (deferred calls), `0a402df` (#13, beginner wording).
+2. **Read the ⚙ counters** after a week of real use, from about 2026-11-27 (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
+3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
 4. **Decided (Itai, 2026-11-23): readable spellings stay.** Some rule chords in flat keys are spelled enharmonically, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9, not E𝄫maj7 → F♭6/9. Not a gap; don't "fix" it to strict letter spelling.
 
 ### Done in the last session (verify, then commit if needed)
