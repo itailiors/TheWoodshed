@@ -17,7 +17,8 @@ import {
   type VoicingStyle,
 } from "@reharm/theory-core";
 import * as Tone from "tone";
-import { getBandFeel, subscribeBandFeel } from "./bandFeel";
+import { getBandFeel, subscribeBandFeel, type BandTone } from "./bandFeel";
+import { createToneChain, type ToneChain } from "./bandTone";
 import {
   getBgPianoVolume,
   getPlayerPianoVolume,
@@ -195,12 +196,23 @@ export class AudioEngine {
   /** The last arrangement, re-laid when the swing or band style changes. */
   private arrangement: Arrangement | null = null;
   private unsubFeel: () => void;
+  /** The band's tone stage and the bus nodes it sits in (reverbs, glue), freed on dispose. */
+  private toneChain: ToneChain | null = null;
+  private toneNodes: Tone.ToneAudioNode[] = [];
+  private tone: BandTone = getBandFeel().tone;
   source: InstrumentSource | null = null;
   bandSource: { bass: BandSource; drums: BandSource } | null = null;
 
   constructor(private host: EngineHost) {
     // Parts live on the Transport, so rebuilding them mid-tune lands on the very next event.
     this.unsubFeel = subscribeBandFeel(() => {
+      const { tone } = getBandFeel();
+      if (tone !== this.tone) {
+        // A tone change is a mix change: no need to re-lay the parts.
+        this.tone = tone;
+        this.toneChain?.apply(tone);
+        return;
+      }
       if (this.arrangement) this.update(this.arrangement, Tone.getTransport().bpm.value);
     });
   }
@@ -214,14 +226,24 @@ export class AudioEngine {
    */
   async init(unlock = true): Promise<InstrumentSource> {
     if (unlock) void Tone.start().catch(() => {});
-    const reverb = new Tone.Reverb({ decay: 2.4, wet: 0.16 }).toDestination();
+    // The band (comping piano, bass, drums) runs through its tone stage and one glue compressor;
+    // the player's own piano has its own reverb and skips both, so the tone never touches your playing.
+    const makeup = new Tone.Volume(0).toDestination();
+    const glue = new Tone.Compressor({ threshold: 0, ratio: 1, attack: 0.015, release: 0.2, knee: 6 }).connect(makeup);
+    const reverb = new Tone.Reverb({ decay: 2.4, wet: 0.16 }).connect(glue);
+    const playerReverb = new Tone.Reverb({ decay: 2.4, wet: 0.16 }).toDestination();
     // Bass and drums sit drier than the piano; a little room keeps them in the same club.
-    const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).toDestination();
-    await Promise.all([reverb.ready, room.ready]);
+    const room = new Tone.Reverb({ decay: 1.2, wet: 0.08 }).connect(glue);
+    await Promise.all([reverb.ready, playerReverb.ready, room.ready]);
+    this.toneChain?.dispose();
+    const chain = createToneChain(reverb, room, glue, makeup);
+    this.toneChain = chain;
+    chain.apply(getBandFeel().tone);
+    this.toneNodes = [makeup, glue, reverb, playerReverb, room];
 
     // Dedicated volume buses for Background Piano vs. Player/Ghost Master Piano
-    this.bgPianoBus = new Tone.Volume(getBgPianoVolume()).connect(reverb);
-    this.playerPianoBus = new Tone.Volume(getPlayerPianoVolume()).connect(reverb);
+    this.bgPianoBus = new Tone.Volume(getBgPianoVolume()).connect(chain.piano);
+    this.playerPianoBus = new Tone.Volume(getPlayerPianoVolume()).connect(playerReverb);
     this.unsubVolumes?.();
     this.unsubVolumes = subscribeChannelVolumes(() => {
       if (this.bgPianoBus) this.bgPianoBus.volume.value = getBgPianoVolume();
@@ -233,12 +255,12 @@ export class AudioEngine {
     (["piano", "bass", "drums"] as const).forEach((i) => progress(i, "loading"));
     // The metronome bypasses the reverbs: a click should be a precise tick, not a sound.
     const dry = new Tone.Gain(1).toDestination();
-    const bass = loadBass(room).then((b) => {
+    const bass = loadBass(chain.bass).then((b) => {
       this.bass = b;
       progress("bass", b.source === "sampled" ? "ready" : "fallback");
       return b;
     });
-    const drums = loadDrums(room, dry).then((d) => {
+    const drums = loadDrums(chain.drums, dry).then((d) => {
       this.drums = d;
       progress("drums", d.source === "sampled" ? "ready" : "fallback");
       return d;
@@ -459,6 +481,10 @@ export class AudioEngine {
     this.instrument = this.playerInstrument = null;
     this.bgPianoBus = this.playerPianoBus = null;
     this.bass = this.drums = null;
+    this.toneChain?.dispose();
+    this.toneChain = null;
+    this.toneNodes.forEach((n) => n.dispose());
+    this.toneNodes = [];
   }
 
   /** Playing, or counting in (so Space during the count-in stops rather than restarts). */

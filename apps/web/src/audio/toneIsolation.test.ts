@@ -19,20 +19,21 @@ const code = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/
 const valueImports = (src: string) =>
   [...code(src).matchAll(/^\s*import\s+(?!type\s)([\s\S]*?)\s+from\s+["']([^"']+)["']/gm)].map((m) => m[2]);
 
-const AUDIO_CHUNK = new Set(["audio/engine.ts", "audio/band.ts"]);
+/** `bandTone.ts` (the band's EQ/glue stage) is imported only by `engine.ts`. */
+const AUDIO_CHUNK = new Set(["audio/engine.ts", "audio/band.ts", "audio/bandTone.ts"]);
 
 describe("Tone.js stays in the lazy audio chunk (rule 12)", () => {
   const all = files(SRC).map((f) => ({ rel: relative(SRC, f).replace(/\\/g, "/"), src: readFileSync(f, "utf8") }));
 
-  it("only engine.ts and band.ts import tone", () => {
+  it("only the audio chunk (engine.ts, band.ts, bandTone.ts) imports tone", () => {
     const importers = all.filter((f) => valueImports(f.src).includes("tone")).map((f) => f.rel);
     expect(importers.sort()).toEqual([...AUDIO_CHUNK].sort());
   });
 
-  it("nothing outside the audio chunk imports a value from band.ts or engine.ts", () => {
+  it("nothing outside the audio chunk imports a value from band.ts, bandTone.ts or engine.ts", () => {
     const leaks = all
       .filter((f) => !AUDIO_CHUNK.has(f.rel))
-      .flatMap((f) => valueImports(f.src).filter((p) => /(^|\/)(band|engine)$/.test(p) && !p.includes("@reharm")).map((p) => `${f.rel} → ${p}`));
+      .flatMap((f) => valueImports(f.src).filter((p) => /(^|\/)(band|bandTone|engine)$/.test(p) && !p.includes("@reharm")).map((p) => `${f.rel} → ${p}`));
     expect(leaks).toEqual([]);
   });
 });

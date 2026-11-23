@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { BAND_STYLES, DEFAULT_SWING, SWING_HARD, SWING_STRAIGHT, VOICING_STYLES, bandStylesFor, type BandStyle, type VoicingStyle } from "@reharm/theory-core";
-import { getBandFeel, resetBandFeel, setBandStyle, setSwing, setVoicingStyle, subscribeBandFeel } from "../audio/bandFeel";
+import { BAND_TONES, getBandFeel, resetBandFeel, setBandStyle, setBandTone, setSwing, setVoicingStyle, subscribeBandFeel, type BandTone } from "../audio/bandFeel";
 
 /** Styles whose feel is straight, so the swing ratio has nothing to act on. */
 const STRAIGHT_STYLES: readonly BandStyle[] = ["ballad", "bossa", "straight8"];
@@ -20,8 +20,8 @@ export const useBandFeel = () => useSyncExternalStore(subscribeBandFeel, getBand
 
 /** True when swing or style is off its default (the mixer button shows it). */
 export function useBandFeelChanged(): boolean {
-  const { swing, style, voicing } = useBandFeel();
-  return pct(swing) !== pct(DEFAULT_SWING) || style !== "as-written" || voicing !== "close";
+  const { swing, style, voicing, tone } = useBandFeel();
+  return pct(swing) !== pct(DEFAULT_SWING) || style !== "as-written" || voicing !== "close" || tone !== "clean";
 }
 
 /**
@@ -29,9 +29,10 @@ export function useBandFeelChanged(): boolean {
  * mixer popover beside the faders. Changes re-lay the band's parts while it plays.
  */
 export function BandFeelControls({ beatsPerBar }: { beatsPerBar: number }) {
-  const { swing, style, voicing } = useBandFeel();
+  const { swing, style, voicing, tone } = useBandFeel();
   const changed = useBandFeelChanged();
   const voicingHint = VOICING_STYLES.find((v) => v.id === voicing)?.hint;
+  const toneHint = BAND_TONES.find((t) => t.id === tone)?.hint;
   const offered = bandStylesFor(beatsPerBar);
   const styles = BAND_STYLES.filter((s) => offered.includes(s.id));
   const shown = offered.includes(style) ? style : "as-written";
@@ -87,6 +88,24 @@ export function BandFeelControls({ beatsPerBar }: { beatsPerBar: number }) {
         </select>
       </label>
       {voicingHint && <p className="mt-0.5 font-hand text-[10px] leading-tight text-ink-soft">{voicingHint}</p>}
+
+      <label htmlFor="band-tone" className="mt-2 flex items-center justify-between gap-2 font-marker text-xs text-ink">
+        Sound
+        <select
+          id="band-tone"
+          aria-label="Band sound"
+          value={tone}
+          onChange={(e) => setBandTone(e.target.value as BandTone)}
+          className="cursor-pointer rounded border border-ink/40 bg-paper-light px-1 py-0.5 font-hand text-xs text-ink"
+        >
+          {BAND_TONES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {toneHint && <p className="mt-0.5 font-hand text-[10px] leading-tight text-ink-soft">{toneHint}</p>}
 
       <div className={`mt-2 flex flex-col gap-0.5 ${straight ? "opacity-45" : ""}`}>
         <div className="flex items-baseline justify-between gap-2">
