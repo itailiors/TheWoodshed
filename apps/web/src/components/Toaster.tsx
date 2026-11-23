@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { SketchBox } from "../design/rough";
 import { paper, pen, seedOf } from "../design/tokens";
+import { AudioBlockedPill } from "./AudioBlockedPill";
 
 /*
  * Toasts as notes pinned to the margin: a sketched paper slip, slightly askew, that
@@ -75,6 +76,7 @@ export function Toaster() {
       role="status"
       className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex flex-col items-center gap-2 px-4 text-ink"
     >
+      <AudioBlockedPill />
       {list.map((t) => (
         <Slip key={t.id} t={t} />
       ))}

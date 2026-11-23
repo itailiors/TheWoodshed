@@ -81,6 +81,7 @@ Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3
     - **Every source must guarantee a note-off for every note-on:**
       - MIDI releases per device on unplug, All Notes Off, or unmount;
       - QWERTY releases everything on blur, a hidden tab, or switching off.
+    - **The sustain pedal is sound-only.** `monitor.ts` honours CC64; grading and the heatmap read `noteBus` (keys only), so the Coach grades what your fingers hold. `midi/sustainPolicy.test.ts` enforces it.
     - Controller features subscribe to `controlBus`, never to MIDI. The pedal only *sets the level*; it must not clear picks or selection (`changeLevel` does that for clicks), and it must stay opt-in.
     - QWERTY sounds its own notes through the player. MIDI is sounded by `midi/monitor.ts` (a noteBus + controlBus listener): on by default and persisted in `reharm.midiMonitor`, with the sustain pedal (CC64) honoured. "🔊 Hear it in the app" / "🔇 Keyboard speakers only" shows next to the MIDI pill once a keyboard is connected. Clicking Connect MIDI warms up the audio engine, because MIDI messages aren't user gestures and can't unlock audio themselves.
 14. **Resilience:**
@@ -88,7 +89,8 @@ Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3
     - Library errors carry an HTTP status.
     - Drawers and pages sit inside `PanelBoundary`.
     - A view transition never blocks a mode switch.
-    - Production console stays clean; debug logging is `import.meta.env.DEV` only. Tone's version banner is the only log.
+    - Production console stays empty; debug logging is `import.meta.env.DEV` only. `audio/quietTone.ts` (main.tsx's first import) sets `TONE_SILENCE_LOGGING` outside dev.
+    - "Sound is paused · tap to enable" (`AudioBlockedPill`, in the Toaster) shows only when sound was asked for and the context stayed asleep past a 700 ms grace (`audio/audioGate.ts`).
 
 ---
 

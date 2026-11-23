@@ -13,7 +13,7 @@ export function MidiMonitorToggle({ compact = false }: { compact?: boolean }) {
       onClick={midiMonitor.toggle}
       title={
         on
-          ? "Your MIDI keyboard plays through the app's piano (sustain pedal included). Turn this off if your keyboard has its own speakers."
+          ? "Your MIDI keyboard plays through the app's piano (sustain pedal included). Turn this off if your keyboard has its own speakers. The pedal is for sound only: the Coach grades the keys you hold."
           : "Muted: you hear only your keyboard's own sound. Turn this on to play through the app's piano."
       }
       className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm hover:bg-paper-shade ${on ? "border-ink bg-paper-light" : "border-dashed border-ink-soft text-ink-soft"}`}
