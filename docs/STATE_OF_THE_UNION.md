@@ -381,6 +381,12 @@ npx tsx apps/web/scripts/gen-demo-history.ts apps/web/src/library/demoHistory.js
   - Global: `M` toggles QWERTY. While it's on: `A`–`'` play notes, `W E T Y U O P` play black keys, `Z` / `X` change octave.
   - Practice: Space, ← →, A, L, `[ ]`, `, .`, 1–4, Esc.
   - X-ray: ← → and Esc. Drawers: Esc.
+- **Bundle baseline** (`npm run build:demo`, `apps/web/dist-demo/assets`, 2026-11-23 at 2354731; raw bytes, gzip -9 in brackets). Diff against this after anything that adds to the entry chunk:
+  - entry `index-*.js` 577,799 (175,006): the theory engine, the rule lessons, the glossary and the decoder sit here, because theory-core's `engine.ts` needs `ruleLesson` (rule 7) and the root barrel re-exports `learn`;
+  - **Tone.js is in the entry chunk too, not in the lazy audio `engine-*.js`:** `VolumeMixer` imports the volume store (and `ImprovHeatmap` imports `ghostSax`) from `audio/band.ts`, which imports Tone at the top. Rule 12's intent (only the lazy `engine.ts` loads Tone) doesn't hold for the bundle. Fix: move the volume/ghost store into a Tone-free module (as `bandFeel.ts` is), then re-measure;
+  - `react-*.js` 223,094 (68,919); `proofs.worker-*.js` 259,965 (87,715), loaded only by the Proof tab;
+  - lazy chunks: CoachPage 49,752 (15,763), ChangesPage 36,830, PracticeMode 26,470, VoicingsPage 25,092, the audio `engine-*.js` 23,294, EngineXRay 17,811, LessonStepper 16,697;
+  - CSS `index-*.css` 56,562 (11,206); all 23 JS files together 1,372,104.
 - **Sample sources:**
   - Salamander piano (tonejs.github.io);
   - `acoustic_bass` from gleitz/midi-js-soundfonts;
