@@ -262,7 +262,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 1. ~~**Phase 6:** the five-persona review~~ **Done:** `0012323` (#10, engineer items), `ff9e242` (deferred calls), `0a402df` (#13, beginner wording).
 2. **Read the ⚙ counters** after a week of real use, from about 2026-11-27 (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
-3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
+3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); ~~Claude-written demo Deep Dives~~ (done 2026-11-23); the og-card re-render (it still says "11 rules" / "8 claims").
 4. **Decided (Itai, 2026-11-23): readable spellings stay.** Some rule chords in flat keys are spelled enharmonically, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9, not E𝄫maj7 → F♭6/9. Not a gap; don't "fix" it to strict letter spelling.
 
 ### Done in the last session (verify, then commit if needed)
@@ -319,11 +319,11 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 - ~~**Study-mode shortcuts**~~ **Done 2026-11-19 (`062c0eb`):** `studyKeys.ts` (Space, ← → moves, ↑ ↓ dial, A, L, `[ ]`, `, .`, `?`) and a shared modal `?` card (`components/Shortcuts.tsx`); Practice opens it from "⌨ Shortcuts" below `xl`. Previous/next *chord* (Itai's Notion list) followed: `Shift + ← →` and the ‹ chord / chord › buttons in Chord by chord step a chord cursor (theory-core `chordCursor.ts`, `stepChord`) through the tune's changes, opening that chord's selector and the reharm's move over it, or inking a bare chord red on the lead sheet.
 - **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
 - Smaller items:
-  - a sustain-pedal policy;
-  - an "audio blocked / tap to enable" status;
-  - silence Tone's console banner (`TONE_SILENCE_LOGGING`);
-  - heatmap shapes for colour-blind users;
-  - focus rings;
+  - ~~a sustain-pedal policy~~ **Done 2026-11-23:** sound-only; the Coach grades held keys (`midi/sustainPolicy.test.ts`);
+  - ~~an "audio blocked / tap to enable" status~~ **Done 2026-11-23:** `AudioBlockedPill` + `audio/audioGate.ts` (700 ms grace);
+  - ~~silence Tone's console banner~~ **Done 2026-11-23:** `audio/quietTone.ts`, production only;
+  - ~~heatmap shapes for colour-blind users~~ **Done** (`23ddc09`);
+  - ~~focus rings~~ **Done** (`948444d`);
   - ~~Playwright golden paths~~ **Done:** `e2e/` (`npm run e2e`) against the static demo build on :4175, with the fake-MIDI recipe. Not in `npm test`; CI runs it after the demo build.
 
 **Open Studio research (2026-11-19):** `docs/research/open-studio-ideas.md` maps Adam Maness's *Harmony Games* / *Lead Sheet Breakdown*, "Sugar Chords" and Peter Martin's ATTYA sheets against the engine. It lists 7 rule candidates (One Note on Top first), voicing styles (drop-2/3, shell, three-zone, melody-on-top, 6-dim), Changes rounds and practice tools. Mirrored in Notion under "OpenS reharm techniques".
@@ -349,7 +349,7 @@ The **Musician's Wishlist** in the README holds the full set of ideas: Expressio
 - MIDI melody capture;
 - recording takes;
 - a dark theme;
-- Claude-written demo Deep Dives (ask before spending);
+- ~~Claude-written demo Deep Dives~~ **Done 2026-11-23:** 18 Co-op Blues entries by `claude-opus-5-5`, spelling checked against `buildFacts`; the demo now shows ✍ Deep dive. A `--template` rerun overwrites them, so a rule change on Co-op Blues needs a paid rerun (ask first);
 - real iReal testing at the piano;
 - the Coach with a physical keyboard since it became a page.
 

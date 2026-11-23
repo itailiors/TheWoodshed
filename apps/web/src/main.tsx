@@ -1,3 +1,4 @@
+import "./audio/quietTone"; // first: sets TONE_SILENCE_LOGGING before Tone can ever load
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App";

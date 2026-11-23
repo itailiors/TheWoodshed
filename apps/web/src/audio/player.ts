@@ -1,6 +1,7 @@
 import type { ChordEvent, TimePos, Tune } from "@reharm/theory-core";
 import type { BandSource } from "./band";
 import type { AudioEngine } from "./engine";
+import { AudioGate } from "./audioGate";
 
 /*
  * The app's one player, as seen by the UI. This module has no Tone.js in it: the audio
@@ -129,6 +130,22 @@ class Player {
   /** The count-in in progress, or null. Drives the "1 · 2 · 3" display. */
   count: CountState | null = null;
 
+  private blockedListeners = new Set<() => void>();
+  private gate = new AudioGate(() => this.blockedListeners.forEach((l) => l()));
+  private unsubAudioState: (() => void) | null = null;
+
+  /** Sound was asked for and the browser is keeping the audio clock asleep: the UI offers "tap to enable". */
+  get audioBlocked() {
+    return this.gate.blocked;
+  }
+
+  onAudioBlocked(fn: () => void) {
+    this.blockedListeners.add(fn);
+    return () => {
+      this.blockedListeners.delete(fn);
+    };
+  }
+
   /**
    * Loads the engine, convolution reverbs, and instrument samples.
    * When `unlock` is false (background pre-warming), samples and reverbs load into the
@@ -172,6 +189,8 @@ class Player {
         throw new Error("player was replaced while loading");
       }
       this.engine = engine;
+      this.unsubAudioState?.();
+      this.unsubAudioState = engine.onAudioState((s) => this.gate.setState(s, engine.playing));
       this.source = source;
       this.bandSource = engine.bandSource;
       return source;
@@ -245,6 +264,7 @@ class Player {
 
   /** Start from the top of the loop, after the count-in (if one is set). */
   async play() {
+    this.gate.want();
     await this.init();
     this.engine?.play(this.countInBars);
   }
@@ -268,6 +288,7 @@ class Player {
 
   /** Audition a voicing (coach "hear it") or play a Ghost Master phrase with dynamic velocity. */
   async playNotes(midis: number[], seconds = 1.6, delay = 0, vel = 0.6) {
+    this.gate.want();
     await this.init();
     this.engine?.playNotes(midis, seconds, delay, vel);
   }
@@ -280,6 +301,7 @@ class Player {
    * Starting another audition (or `cancelAudition`) silences the old one's callbacks.
    */
   async playSequence(voicings: number[][], secondsEach = 1.2, onStep?: (i: number | null) => void) {
+    this.gate.want();
     await this.init();
     const token = ++this.auditionToken;
     const step = (i: number | null) => () => token === this.auditionToken && onStep?.(i);
@@ -300,6 +322,7 @@ class Player {
    * `stopScore` can cut it off: a sampler can't take back an attack it has already been given.
    */
   async playScore(events: { midis: number[]; at: number; seconds: number; vel?: number }[], steps: number[] = [], onStep?: (i: number | null) => void): Promise<number | null> {
+    this.gate.want();
     await this.init();
     this.stopScore();
     const eng = this.engine;
@@ -363,6 +386,7 @@ class Player {
   async noteOn(midi: number, velocity?: number) {
     const seq = ++this.noteSeq;
     this.liveNotes.set(midi, seq);
+    this.gate.want();
     if (!this.engine) {
       await this.init();
       if (this.liveNotes.get(midi) !== seq) return;
@@ -384,12 +408,15 @@ class Player {
   dispose() {
     this.disposed = true;
     if (this.scoreTimer) clearInterval(this.scoreTimer);
+    this.unsubAudioState?.();
+    this.gate.dispose();
     this.engine?.dispose();
     this.engine = null;
     this.listeners.clear();
     this.mixListeners.clear();
     this.progressListeners.clear();
     this.countListeners.clear();
+    this.blockedListeners.clear();
   }
 }
 

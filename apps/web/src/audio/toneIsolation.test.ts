@@ -29,6 +29,13 @@ describe("Tone.js stays in the lazy audio chunk (rule 12)", () => {
     expect(importers.sort()).toEqual([...AUDIO_CHUNK].sort());
   });
 
+  it("main.tsx imports quietTone first, so TONE_SILENCE_LOGGING is set before Tone can load", () => {
+    const main = all.find((f) => f.rel === "main.tsx")!;
+    const first = code(main.src).match(/^\s*import\s+["']([^"']+)["']/m);
+    expect(code(main.src).trimStart().startsWith(`import "./audio/quietTone"`)).toBe(true);
+    expect(first?.[1]).toBe("./audio/quietTone");
+  });
+
   it("nothing outside the audio chunk imports a value from band.ts or engine.ts", () => {
     const leaks = all
       .filter((f) => !AUDIO_CHUNK.has(f.rel))
