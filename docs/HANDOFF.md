@@ -19,7 +19,7 @@ Try an experimental band sound modelled on a reference track Itai supplied (a 21
 2. Read the ⚙ counters after a week of real use (STATE_OF_THE_UNION §5 item 2); 3f and "mark foundations known" stay parked until then.
 3. Itai: og-card re-render (still says "11 rules" / "8 claims") and the paid demo Deep Dives (hard stops).
 
-Still open, Itai's call: UI/UX nice 10 (Path wall layout); removing the unreachable `missingInKey` notice; teacher N13 (mediant step 3) if not covered by ff9e242.
+Previously listed as open, all already on main: the `missingInKey` notice was removed in 47eb468; UI/UX nice 10 (Path wall) and teacher N13 (mediant step 3) landed in ff9e242.
 
 ## Decisions + why
 - Warm is an option, not the default (Itai).
