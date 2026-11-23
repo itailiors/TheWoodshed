@@ -1,48 +1,45 @@
-# Handoff (2026-11-23, session 24)
+# Handoff (2026-11-23, session 25)
 
-## Goal (next session): Harmony Catcher
-Itai picked Harmony Catcher, the "second delighter" (STATE_OF_THE_UNION §5; spec in README.md "Musician's Wishlist", Harmony Catcher section). Idea: while Itai comps or improvises freely, the engine recognises its own reharm moves in his playing and stamps them ("You just played a backdoor ii–V in E♭"). Over time this builds a harmonic fingerprint. No plan or spec exists yet: start by designing one with Itai, not by coding.
+## Goal
+Harmony Catcher (Phase 7). While Itai comps over a chart in Practice, the engine stamps any of its own moves he plays without being asked. Spec and slices 7a–7f: `docs/plans/harmony-catcher.md`, linked from PLAN.md. Itai's decisions:
+- chart-first (Practice), with free play later;
+- guide tones required, root optional;
+- catches feed the fingerprint only, never SM-2;
+- voicing rules included in v1, one-note-on-top left out.
 
-## Done this session
-- 1c28b38 launch polish:
-  - "Sound is paused · tap to enable" pill (`audio/audioGate.ts`, `components/AudioBlockedPill.tsx`, 700 ms grace);
-  - Tone banner silenced in production (`audio/quietTone.ts`, the first import in main.tsx);
-  - sustain pedal is sound-only, enforced by `midi/sustainPolicy.test.ts`.
-- 0ab5de5: Claude-written demo Deep Dives. 18 Co-op Blues entries in `apps/api/demo/explanations.json` (`claude-opus-5-5`, spelling checked against `buildFacts`). Itai ran it himself; it **cost $1.20**. The static demo now shows ✍ Deep dive on a move card's last step.
-- Heatmap shapes (23ddc09) and focus rings (948444d) had already shipped; marked done in STATE_OF_THE_UNION.
-- Both commits are in PR https://github.com/itailiors/TheWoodshed/pull/14, with squash auto-merge on. At handoff: 1 check passing, 1 pending. Checks: typecheck clean; tests 1183 core + 54 api + 225 web.
+## Done this session (branch `feat/harmony-catcher`, not pushed)
+- PR #14 merged, `feat/launch-polish` deleted. Local main has a no-op merge commit (561b2a3) whose tree matches origin/main.
+- a339376, 7a–7c in theory-core (`src/harmonyCatcher.ts`):
+  - `matchChord`: guide tones required, per-quality tension table, slash basses required;
+  - `catchMoves` / `catchMovesTraced`;
+  - voicing moves caught by their own grips.
+- 28b30a3, 7d: live stamps in Practice. `apps/web/src/practice/catcherSession.ts` (pure, 6 tests), the `useHarmonyCatcher` hook, and a "🕵️ Catcher" toggle in the Practice header (`reharm.catcher`, off by default).
+- Verified in the demo build with fake MIDI: B♭m7 to E♭9 in bar 10 was stamped "Caught: Backdoor ii–V · bar 10, in F". The band's own L2 tritone sub was not stamped.
+- Checks: typecheck clean; tests 1211 core, 54 api, 231 web.
 
 ## In progress
-- PR #14 is waiting on CI. Once it merges, delete the local `feat/launch-polish` branch and pull main.
+- Nothing uncommitted. The branch needs a push / PR when Itai is ready.
 
 ## Next 3 steps
-1. Confirm PR #14 merged, then switch to main and pull.
-2. Harmony Catcher design pass with Itai. Open questions:
-   - Where does it run (Practice / Improv, a new tab, always-on)?
-   - What counts as "played a move": the chord sequence alone, or the voicing too?
-   - How tolerant is it of rootless voicings and the left hand alone?
-   - Does a catch feed SM-2 history (server-graded, rule 10) or only the passport?
-   - Demo mode needs seeded or no-op catches (rule 11).
-3. Then write a short PLAN.md phase and build it test-first in theory-core (pure and deterministic, rule 1).
-
-## Code to start from (verify before trusting)
-- Chord strikes: `apps/web/src/midi/noteBus.ts` `useChordStrikes` (45 ms settle window; keys only, pedal ignored).
-- Voicing recognition: `packages/theory-core/src/voicingForms.ts` `classifyVoicing` / `gradeShape`; `coach.ts` `diffStrike`; `melody.ts` `classifyNote`.
-- A grep found no "notes → chord symbol" identifier in theory-core. That is probably the first real gap: strikes → chord symbols → match against rule patterns from `ruleset.ts` / `ruleKit.ts`. Rules are interval-relative to their local target, so matching can be key-free.
-- The passport UI and practice history: `library/practice.ts`, `components/progress/PracticeDashboard.tsx`, `learn/progressStore.ts`.
+1. 7e: a `catches` table plus `db:generate` and committing `drizzle/`.
+   - `POST /api/catches` batched via sendBeacon; `GET /api/catches/summary`.
+   - Demo: 403 on writes, and a seeded `demoCatches.json` labelled as a sample.
+   - The hook's `onCatch` is the place to post from.
+2. 7f: a "Your vocabulary" panel in the passport (rule × key counts, never-caught links to the Coach), plus a PROOFS entry: "the written changes are never caught".
+3. Deferred from 7d:
+   - a Rough.js stamp in place of the plain toast;
+   - clicking the stamp should open the move card in Study (needs App routing).
 
 ## Decisions + why
-- Sustain pedal = sound only: the Coach grades held keys, so a pedal smear can't pass a sloppy change (Itai's choice). Harmony Catcher should follow the same rule.
-- The demo Deep Dives are Claude-written now. A `demo:generate -- --template` rerun overwrites them, so a new rule firing on Co-op Blues needs a paid rerun (~$1.20, ask first).
+- A move is caught only when the original chord can't explain the strike. Every tone of D♭9(13) is an altered tension of G7, so a sub needs its own root lowest. Otherwise rootless comping gets mis-stamped.
+- A chord must land by the and-of-1 and hold: every strike under it fits. Otherwise one E♭9 late in a bar of C7 counted as 4 beats of A7(♭9).
+- Ranking: more chords first, then roots in the bass, then level. F–A♭–C–E♭–G over F is Fm9, not B♭9sus.
+- The chart's own slash bass is ignored (the bassist's line). A move chord's slash bass is required.
+- Voicing moves are judged by their `voicingHint(s)` grip, not `classifyVoicing`: no Voicings-tab style is "triad on top". Rootless ii–V counts only the A→B alternation the move teaches.
+- The tension table is stricter than `classifyNote`, which would pass E♭ over Cmaj7. Every Voicings-tab form must match its own chord (exhaustive test): a ø7 needs its ♭5 only when rootless, and a 7sus4 allows the 3rd on top.
 
 ## Gotchas
-- `.env` reads are permission-denied for Claude. Itai runs paid generation himself from PowerShell (`npm.cmd run …`).
-- Scratch tsx scripts outside the repo need a `.mts` extension (top-level await), imported via `file:///` paths.
-- Docs can list items as open after they've shipped. Grep and `git log -S` before building.
+- Pass `moves` (precomputed `generateMoves(tune).accepted`) to `catchMoves` in loops; regenerating per call timed out a test. One call costs about 3 ms.
+- Fake MIDI in the static demo build works for live checks. Wait on the HUD's "NOW" chord to hit a bar's downbeat; timers run normally even with the pane hidden.
+- `.env` reads are permission-denied for Claude; Itai runs paid generation himself.
 - Still waiting on Itai: the Warm club A/B (`exp/warm-band-tone`) and the ⚙ counters from ~2026-11-27.
-
-## Suggested skills
-- `mattpocock-skills:grilling` or `mattpocock-skills:domain-modeling` for the Harmony Catcher design pass.
-- `mattpocock-skills:prototype` to sanity-check the recognition state model.
-- `mattpocock-skills:tdd` for the theory-core recogniser.
-- `ship` / "PR and merge" when a slice is done.
