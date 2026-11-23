@@ -11,8 +11,10 @@ const TRITONE_SUB = "dominant.tritoneSub@10.1";
 // Re-pinned in 4d (was cff838e4…d524): engineFacts chord symbols in display spelling ("Gb9" → "G♭9"), under 4d's PROMPT_VERSION bump.
 // Re-pinned in P6 (was 90a40533…a86b): the tritone sub's deeper line ("So" → "And") is in the draft; the
 // facts' key is display-spelled now ("D♭ major"), which leaves this F-major pin alone. PROMPT_VERSION unchanged.
+// Re-pinned for P6 beginner nice 9–12 (was 87b59b6d…f971): the tritone sub's facts carry the ♭II gloss
+// ("The lowered 2nd: a half step above I."). The cache key drops glossaries, so no answer rolls. PROMPT_VERSION unchanged.
 // No API key was configured any of these times, so the rolls cost nothing.
-const PINNED_SHA256 = "87b59b6d06a8726d00f60c117a65a0abb32a466f14ae8bd4ef85b4ff02e7f971";
+const PINNED_SHA256 = "cda13c22ec16f385186b2441f25895c8be180fb503b51db6e2eb08cc623122f5";
 
 describe("buildFacts", () => {
   const move = generateMoves(referenceTune).accepted.find((m) => m.id === TRITONE_SUB);

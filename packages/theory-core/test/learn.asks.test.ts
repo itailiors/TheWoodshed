@@ -165,7 +165,7 @@ const RULE_ASKS: Record<string, Allowed> = {
 const DEGREE_SEMIS: Record<string, number> = { "1": 0, b3: 3, b9: 1, "9": 2, "#9": 3, "3": 4, "4": 5, "#11": 6, "5": 7, b13: 8, "13": 9, b7: 10, "7": 11 };
 
 const BASICS_ASKS: Record<string, Allowed> = {
-  // "Make it Gm7: lower one key. Tap the new 3rd."
+  // "Make it Gm7: lower the 3rd, B, one key. Tap the new 3rd."
   "basics:sevenths": (_l, { tonic }) => [chroma(transpose(transpose(tonic!, "5"), "b3"))],
   // "V is the chord on step 5. Tap its root."
   "basics:numerals": (_l, { tonic }) => [chroma(transpose(tonic!, "5"))],
@@ -217,7 +217,7 @@ const PROMPTS: Record<string, RegExp> = {
   "voicing.upperStructureBVI": /^Tap the major triad a major 3rd below \S+\.$/,
   "voicing.upperStructureII": /^Tap the major triad a whole step above \S+\.$/,
   "modal.flatSixFlatSeven": /^Tap the bass line into \S+\.$/,
-  "basics:sevenths": /^Make it \S+: lower one key\. Tap the new 3rd\.$/,
+  "basics:sevenths": /^Make it \S+: lower the 3rd, \S+, one key\. Tap the new 3rd\.$/,
   "basics:numerals": /^V is the chord on step 5\. Tap its root\.$/,
   "basics:tritone": /^Tap the key a tritone above \S+\.$/,
   "basics:guideTones": /^Now tap \S+'s guide tones: the 3rd and 7th\.$/,
@@ -300,5 +300,24 @@ describe("every ask has exactly one right answer set", () => {
     expect(ask.answer.map((n) => chroma(n))).toEqual([chroma("Bb")]);
     const t = ruleLessons.find((r) => r.where.startsWith("coop-blues in F: dominant.tritoneSub@10"))!.lesson;
     expect(t.steps.find((s) => s.ask)!.ask!.prompt).toBe("G♭9 keeps C7's guide tones. Tap them.");
+  });
+});
+
+describe("an ask's context keys (P6 beginner nice 9)", () => {
+  it("never light an answer key, in 12 keys", () => {
+    for (const { where, lesson } of [...ruleLessons, ...basicsLessons])
+      for (const s of lesson.steps) {
+        const answer = new Set((s.ask?.answer ?? []).map((n) => chroma(n)));
+        for (const h of s.ask?.context ?? []) expect(answer.has(chroma(h.note)), `${where}: context key ${h.note} is an answer`).toBe(false);
+      }
+  });
+
+  it("the 7th chords ask keeps V7 on the keys while it asks for the minor 3rd", () => {
+    for (const k of KEYS) {
+      const ask = basicsLesson("basics:sevenths", k)!.steps.find((s) => s.ask)!.ask!;
+      const V7 = { root: transpose(k, "5"), quality: "7" as Quality, extensions: [], alterations: [] };
+      expect(ask.context!.map((h) => chroma(h.note)), k).toEqual(chordTones(V7).map((t) => chroma(t.note)));
+    }
+    expect(basicsLesson("basics:sevenths", "F")!.steps[2].ask!.prompt).toBe("Make it Cm7: lower the 3rd, E, one key. Tap the new 3rd.");
   });
 });

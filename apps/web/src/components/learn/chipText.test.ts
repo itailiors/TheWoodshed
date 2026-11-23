@@ -25,7 +25,8 @@ describe("glossary chips: where they go", () => {
         const ch = lessonChips(l);
         l.steps.forEach((s, i) => expect(joined(ch.steps[i])).toBe(s.text));
         if (l.deeper) expect(joined(ch.deeper)).toBe(l.deeper);
-        for (const seg of [...ch.steps.flat(), ...ch.deeper]) {
+        l.steps.forEach((s, i) => (s.ask ? expect(joined(ch.prompts[i]!)).toBe(s.ask.prompt) : expect(ch.prompts[i]).toBeNull()));
+        for (const seg of [...ch.steps.flat(), ...ch.prompts.flatMap((p) => p ?? []), ...ch.deeper]) {
           if (seg.kind === "term") {
             const e = glossaryEntry(seg.term);
             expect(e, `${c.id} ${seg.term}`).toBeDefined();
@@ -83,6 +84,14 @@ describe("glossary chips: where they go", () => {
     for (const k of KEYS) {
       const l = anyLesson("dominant.tritoneSub", k)!;
       expect(lessonChips(l).steps.flat().some((s) => s.kind === "symbol")).toBe(true);
+    }
+  });
+
+  it("an ask's prompt chips its chord symbol: it replaces the step text while open (P6 beginner nice 9)", () => {
+    for (const k of KEYS) {
+      const l = anyLesson("basics:sevenths", k)!;
+      const i = l.steps.findIndex((s) => s.ask);
+      expect(chips(lessonChips(l).prompts[i]!).map((s) => s.kind), k).toContain("symbol");
     }
   });
 });
