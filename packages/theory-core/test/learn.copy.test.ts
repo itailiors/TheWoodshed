@@ -1028,9 +1028,23 @@ describe("the reference rewrites (Co-op Blues in F, the plan's examples)", () =>
 
 describe("shipped-copy fixes (teacher's notes)", () => {
   it("guide tones step 2 says what the 7th rules out, in every key", () => {
-    expect(basicsLesson("basics:guideTones", "C")!.steps[1].text).toBe("B, the 3rd, makes G7 major. F, not F♯, makes it a dominant 7th: F♯ would make Gmaj7.");
-    expect(basicsLesson("basics:guideTones", "Bb")!.steps[1].text).toBe("A, the 3rd, makes F7 major. E♭, not E, makes it a dominant 7th: E would make Fmaj7.");
+    // "gives G7 a major 3rd", not "makes G7 major": the lesson before says G7 isn't a major 7th chord (P6 beginner nice 10)
+    expect(basicsLesson("basics:guideTones", "C")!.steps[1].text).toBe("B gives G7 a major 3rd. F, not F♯, makes it a dominant 7th: F♯ would make Gmaj7.");
+    expect(basicsLesson("basics:guideTones", "Bb")!.steps[1].text).toBe("A gives F7 a major 3rd. E♭, not E, makes it a dominant 7th: E would make Fmaj7.");
     expect(basicsLesson("basics:guideTones", "C")!.steps[2].text).toBe("With G in the bass, B and F alone still sound like G7.");
+  });
+
+  it("interval names agree with what the key shows (P6 beginner nice 10)", () => {
+    // the tritone key is named by its spelling: B over F is a ♯4, G♭ over C a ♭5
+    const tritoneKey = (k: string) => basicsLesson("basics:tritone", k)!.steps[0].highlight[1].label;
+    expect([tritoneKey("F"), tritoneKey("C"), tritoneKey("Bb"), tritoneKey("G")]).toEqual(["♯4", "♭5", "♯4", "♭5"]);
+    for (const k of KEYS) expect(["♯4", "♭5"], k).toContain(tritoneKey(k));
+    expect(basicsLesson("basics:tritone", "F")!.rule).toBe("A tritone is six half steps: the ♯4 or ♭5 above any note.");
+    // ♭7 is named a minor 7th once, before the rule uses both words
+    expect(basicsLesson("basics:sevenths", "F")!.steps[0].text).toBe("Stack 3rds on C: C, E, G, B♭. That's C7, a dominant 7th; B♭ is its ♭7 (a minor 7th).");
+    expect(basicsLesson("basics:sevenths", "F")!.rule).toBe("Name a 7th chord by its 3rd and 7th: maj7 both major, 7 a major 3rd and ♭7, m7 a minor 3rd and ♭7.");
+    // "falls a fifth" while the key sits a 4th up: say both, the first time
+    expect(basicsLesson("basics:dominantResolution", "F")!.steps[0].text).toBe("C7's root, C, falls a fifth to F (down a 5th lands on the same key as up a 4th).");
   });
 
   it("the borrowed iv lands bittersweet, softer than V–I", () => {

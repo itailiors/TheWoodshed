@@ -36,7 +36,16 @@ export interface LessonStep {
    */
   map?: string[];
   /** Predict, then reveal: tap these keys (any octave, any spelling of the same key). */
-  ask?: { kind: "tapNotes"; prompt: string; answer: string[] };
+  ask?: {
+    kind: "tapNotes";
+    prompt: string;
+    answer: string[];
+    /**
+     * Keys that stay lit while the ask is open: the chord the prompt starts from ("Make it Cm7"
+     * keeps C7 on the keys). Never an answer key. Unset: the keyboard is blank until the reveal.
+     */
+    context?: Highlight[];
+  };
   /** The one new term this step introduces (a glossary term, used in `text`). */
   term?: string;
   /** "Learn that first": the concept this step leans on. */

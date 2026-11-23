@@ -93,7 +93,7 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
   e("Self-check", "Reveal, play, grade yourself."),
   // roman numerals the lessons print
   e("V", "The chord built on the key's 5th.", "basics:numerals", [], "numeral"),
-  e("♭II", "Chord on the lowered 2nd: tritone-sub root.", "basics:numerals", [], "numeral"),
+  e("♭II", "The lowered 2nd: a half step above I.", "basics:numerals", [], "numeral"),
   e("ii", "Minor chord on the key's 2nd step.", "basics:numerals", [], "numeral"),
   e("♭VII7", "Dominant on the lowered 7th: the backdoor.", "basics:numerals", [], "numeral"),
   e("iv", "Minor chord on the 4th, borrowed from minor.", "basics:numerals", [], "numeral"),

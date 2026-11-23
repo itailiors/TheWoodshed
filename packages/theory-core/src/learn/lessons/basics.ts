@@ -1,5 +1,5 @@
 import { chordTones, guideTones, symbol } from "../../chords";
-import { playableKey, simplifyNote, transpose } from "../../pitch";
+import { intervalName, playableKey, simplifyNote, transpose } from "../../pitch";
 import { chainMotions } from "../../ruleKit";
 import type { Quality } from "../../types";
 import type { BasicsId } from "../graph";
@@ -29,7 +29,8 @@ function sevenths(T: string): Lesson {
     headline: "A 7th chord stacks four notes in 3rds; its 3rd and 7th give it its name.",
     steps: [
       {
-        text: `Stack 3rds on ${pn(G)}: ${pn(root)}, ${pn(third)}, ${pn(fifth)}, ${pn(flat7)}. That's ${sym(V7)}, a dominant 7th.`,
+        // "♭7" and "minor 7th" name one interval: say so once, before the rule uses both (P6 beginner nice 10)
+        text: `Stack 3rds on ${pn(G)}: ${pn(root)}, ${pn(third)}, ${pn(fifth)}, ${pn(flat7)}. That's ${sym(V7)}, a dominant 7th; ${pn(flat7)} is its ♭7 (a minor 7th).`,
         highlight: [hl(root, "root"), hl(third, "3rd"), hl(fifth, "5th"), hl(flat7, "♭7")],
         play: "interval",
         sound: [tones(V7)],
@@ -44,7 +45,13 @@ function sevenths(T: string): Lesson {
         text: `Lower the 3rd, ${pn(third)} to ${twin(minor3, simplifyNote(minor3))}, and ${sym(V7)} becomes ${sym(Vm7)}: minor 3rd, ♭7.`,
         highlight: [hl(root, "root"), hl(minor3, "♭3"), hl(fifth, "5th"), hl(flat7, "♭7")],
         sound: [tones(Vm7)],
-        ask: { kind: "tapNotes", prompt: `Make it ${sym(Vm7)}: lower one key. Tap the new 3rd.`, answer: [minor3] },
+        // name the key to lower, and keep the chord it starts from on the keys (P6 beginner nice 9)
+        ask: {
+          kind: "tapNotes",
+          prompt: `Make it ${sym(Vm7)}: lower the 3rd, ${pn(third)}, one key. Tap the new 3rd.`,
+          answer: [minor3],
+          context: [hl(root, "root"), hl(third, "3rd"), hl(fifth, "5th"), hl(flat7, "♭7")],
+        },
       },
       {
         text: `Built from ${pn(T)} major's notes, the chord on ${pn(G)} gets ${pn(flat7)}, not ${pn(maj7)}: a dominant 7th.`,
@@ -52,7 +59,7 @@ function sevenths(T: string): Lesson {
         sound: [tones(V7), tones(chord(T, "maj"))],
       },
     ],
-    rule: "Name a 7th chord by its 3rd and 7th: maj7 has both major, 7 a major 3rd and ♭7, m7 both minor.",
+    rule: "Name a 7th chord by its 3rd and 7th: maj7 both major, 7 a major 3rd and ♭7, m7 a minor 3rd and ♭7.",
     deeper: "The 5th rarely changes the name; drop it first when your hand is full.",
   };
 }
@@ -104,13 +111,16 @@ function numerals(T: string): Lesson {
 function tritone(T: string): Lesson {
   // spelled as the tritone sub spells its root: E♭ → A, never B♭♭
   const b5 = simplifyNote(transpose(T, "b5"));
+  // the key is named by its spelling: F up to B is a ♯4 (four letters), C up to G♭ a ♭5 (five letters).
+  // "♭5" over a B read as a clash (P6 beginner nice 10); "♯4/♭5" spilled off a white key
+  const tritoneName = intervalName(T, b5) === "#4" ? "♯4" : "♭5";
   const V7 = chord(transpose(T, "5"), "7");
   const [g3, g7] = guideTones(V7).map((t) => t.note);
   return {
     conceptId: "basics:tritone",
     headline: "A tritone splits the octave exactly in half: six half steps, the most restless interval.",
     steps: [
-      { text: `From ${pn(T)} up to ${pn(b5)} is six half steps: a tritone.`, highlight: [hl(T, pn(T)), hl(b5, "♭5", "up")], play: "interval", term: "tritone" },
+      { text: `From ${pn(T)} up to ${pn(b5)} is six half steps: a tritone.`, highlight: [hl(T, pn(T)), hl(b5, tritoneName, "up")], play: "interval", term: "tritone" },
       {
         text: `Go up six more from ${pn(b5)} and you're back on ${pn(T)}: it halves the octave.`,
         highlight: [hl(b5, pn(b5)), hl(T, pn(T), "up")],
@@ -119,7 +129,7 @@ function tritone(T: string): Lesson {
       },
       { text: `Every dominant 7th holds one: in ${sym(V7)}, it's ${pn(g3)} and ${pn(g7)}.`, highlight: [hl(g3, "3rd"), hl(g7, "7th")], sound: [tones(V7), [g3, g7]] },
     ],
-    rule: "A tritone is six half steps: the ♭5 above any note.",
+    rule: "A tritone is six half steps: the ♯4 or ♭5 above any note.",
   };
 }
 
@@ -140,7 +150,8 @@ function guideTonesLesson(T: string): Lesson {
         term: "guide tones",
       },
       {
-        text: `${pn(g3)}, the 3rd, makes ${sym(V7)} major. ${pn(g7)}, not ${pn(maj7)}, makes it a dominant 7th: ${pn(maj7)} would make ${sym(chord(V7.root, "maj7"))}.`,
+        // not "makes C7 major": the lesson before taught that C7 isn't a major 7th chord (P6 beginner nice 10)
+        text: `${pn(g3)} gives ${sym(V7)} a major 3rd. ${pn(g7)}, not ${pn(maj7)}, makes it a dominant 7th: ${pn(maj7)} would make ${sym(chord(V7.root, "maj7"))}.`,
         highlight: [hl(g3, "major 3rd"), hl(g7, "♭7")],
       },
       {
@@ -171,7 +182,8 @@ function dominantResolution(T: string): Lesson {
     // the landings stay out of the headline: step 2 asks for one
     headline: `In ${sym(V7)} → ${sym(I)}, two of ${sym(V7)}'s notes pull a half step each into ${sym(I)}.`,
     steps: [
-      { text: `${sym(V7)}'s root, ${pn(V7.root)}, falls a fifth to ${pn(T)}.`, highlight: [hl(V7.root, "V"), hl(T, "I", "down")], sound: [tones(V7), tones(I)] },
+      // the first "falls a fifth" a beginner meets; on the keys the landing can sit a 4th up (P6 beginner nice 10)
+      { text: `${sym(V7)}'s root, ${pn(V7.root)}, falls a fifth to ${pn(T)} (down a 5th lands on the same key as up a 4th).`, highlight: [hl(V7.root, "V"), hl(T, "I", "down")], sound: [tones(V7), tones(I)] },
       {
         text: `Its 3rd, ${pn(g3)}, rises a half step to ${pn(T)}: the leading tone.`,
         highlight: [hl(g3, "3rd"), hl(T, "root", "up")],

@@ -211,6 +211,13 @@ function keyMarks(step: LessonStep, low: number, high: number, askOpen: boolean,
       const spelled = answer.find((n) => chroma(n) === pc);
       return [{ midi: at, label: labelOf.get(pc) ?? (spelled ? answerName(spelled) : "") }];
     });
+    // the chord the prompt starts from stays on the keys (P6 beginner nice 9); a found answer key keeps its own mark
+    const context = step.ask!.context ?? [];
+    const placedContext = placeHighlights(context);
+    for (const [i, m] of placedContext.entries()) {
+      const at = m >= low && m <= high ? m : fit(m);
+      if (at !== null && !lit.some((l) => l.midi % 12 === at % 12)) lit.push({ midi: at, label: context[i].label });
+    }
   }
   const ghost = askOpen && wrong !== null ? inRange(wrong, low, high) : null;
   return { lit, ghost };
@@ -512,7 +519,9 @@ function Stepper({
       <div ref={textRef} aria-live="polite" data-step-text className={`font-hand ${full ? "text-xl" : "text-lg"} leading-snug`}>
         {askOpen ? (
           <>
-            <p className="font-marker">{step.ask!.prompt}</p>
+            <p className="font-marker">
+              <GlossText segments={chips.prompts[at] ?? [{ kind: "text", text: step.ask!.prompt }]} onLearn={onLearn} />
+            </p>
             {/* the answer's dashed line; a wrong key is crossed out on it in red pen (announced by the status line) */}
             <p aria-hidden className="mt-1 flex items-baseline justify-between border-b-2 border-dashed border-ink-faint text-ink-faint">
               <span>?</span>
