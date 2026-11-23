@@ -1,39 +1,42 @@
-# Handoff (2026-11-21, session 16)
+# Handoff (2026-11-23, session 19)
 
 ## Goal
-Close out the learning-UX follow-ups left by session 15 (phases 2–6, merged as PR #1). Plan and spec: `PLAN.md`, `docs/plans/learn-ux-spec.md`; history of every sub-phase and every deferred reviewer finding: `PROGRESS.md` (P6 rows).
+Close the deferred P6 items (PROGRESS.md P6 rows; the review reports were p6-*.md in an old scratchpad, not in the repo). Every closed item gets a row in `PROGRESS.md`.
 
-## Done (all merged to `main`, now at df790f1 = PR #2, https://github.com/itailiors/TheWoodshed/pull/2)
-- eab500e: the Coach "doesn't work on this chart in X" notice can't fire. The engine is transposition-invariant (no bundled tune loses a move in any of 12 keys, flat or sharp spellings). New `packages/theory-core/test/transposeInvariance.test.ts` pins it; comments in `coachLesson.ts` / `CoachPage.tsx` call the notice a guard.
-- ff9e242: Itai's four deferred P6 calls, as he chose them:
-  - Mediant step 3 names all five voices ("Into Fmaj7, C♯ slips to C, B♭ to A, G steps down to F; A and E hold."). New `inner` motions in `MediantDominantLearn` (facts.ts, rulesAdvanced.ts). Over a 6 chord the 5th steps down to the 6th. Highlights = the 4 upper voices labelled "→ X"/"holds" (4-key cap).
-  - Basics asks move to notes not yet shown: guide tones has a new step 4 asking for I's guide tones (lesson is now 4 steps); dominant resolution asks at step 2 (E → F), and its headline no longer names the landings. Pins updated in `learn.asks.test.ts`, `learn.copy.test.ts`.
-  - Path tab tier bands fold at every width (`PathView.tsx`); e2e helper in `e2e/path.spec.ts` unfolds at every width.
-  - Coach Learn shows `sixChordNote` (coachLesson.ts, rendered by LearnStage `chartNote`): "Your chart writes F6; F6 and Fmaj7 are both the I chord here." Only in concept scope, major charts, I written as X6 with no Xmaj7, and the lesson actually says Xmaj7.
-  - Demo explanations regenerated with `--template` (no live call).
-- Checks at ff9e242: typecheck clean, `--noUnusedLocals` clean in all 3 packages; tests 1141 core + 54 api + 186 web; e2e 71/71; demo build (:4174) checked by hand, 0 /api requests, clean console.
+## Done
+- Merged to main: PR #8 (425bbfe) "remember the last Coach concept": `CoachPage` reports its place via `onPlace`, App keeps it in a ref and makes it `coachTarget` when the mode leaves Coach. Explicit opens still win; a new tune turns a remembered move into its concept. Same session only (not stored).
+- Merged to main: PR #9 (875c413) `videos/PLAN.md` + `videos/scripts/` (Playwright, demo build :4174). Clips and frames stay git-ignored in `videos/clips`, `videos/shots`. Deep dive clip didn't record.
+- Repo setting: "Allow auto-merge" is now on (Itai approved).
+- Branch `chore/p6-engineer-nice` (local only, NOT pushed), from `/next-steps 3`:
+  - 579186a step 1, engineer nice 6–8: guard tests match tokens on whitespace-stripped source; learn.copy's 10.5 s sweep split per concept in chunks of ≤ 300 (max case ~0.7 s); 30 s timeouts → 15 s in learn.copy/moveCopy; coach.spec ISOLATION polls the store for 2 s instead of a 500 ms sleep.
+  - 2354731 step 2, engineer nice 11: `coachFreshStart` useMemo on `[mode, coachTarget, historyLoading, ownHistory]`.
+  - a9e3b41 step 3, engineer nice 15a: bundle baseline in STATE_OF_THE_UNION §6.
+  - 38c9d70 perf(audio): Tone.js out of the entry chunk. Volume store → Tone-free `audio/mix.ts` (`band.ts` re-exports it and subscribes to apply it to Tone); `audio/ghostSax.ts` is a lazy stand-in for the heatmap. Entry 577,799 → 322,050 raw (175,006 → 109,702 gzip). `toneIsolation.test.ts` guards it.
+- Checks on the branch: typecheck clean; tests 1180 core + 54 api + 205 web; e2e 74/74; master volume → Tone destination and the ghost sax checked live in the dev preview.
 
 ## In progress
-Nothing. Local `main` = origin/main. This file is the only uncommitted change.
+Nothing. `chore/p6-engineer-nice` needs a push + PR (Itai's call). `docs/HANDOFF.md` (this file) is uncommitted.
 
 ## Next 3 steps
-1. Add a PROGRESS.md row for session 16 (the four calls above + the invariance finding), so the P6 "deferred" markers aren't stale.
-2. Ask Itai which of the remaining deferred P6 items to take next (all listed in PROGRESS.md P6 rows): "mark foundations as known" (parked with 3f test-out), engineer nice 6–8 / 11 / 15a bundle baseline, UI/UX 12 (h3 inside the card button) and 15, beginner nice 9–12 and "remember the last Coach concept".
-3. Done (branch docs/session-16-progress): the not-in-key notice and `missingInKey` are removed from CoachPage; `tuneMoveInKey` stays (CoachDrill, coachLesson) and the drill throws inside PanelBoundary if the invariant ever broke.
+1. Push `chore/p6-engineer-nice` and open a PR (or `/ship`), merge once CI is green.
+2. Listen to the band and the Ghost Master's sax by ear once (the volume path now goes through a subscription; checked by value, not by ear).
+3. Beginner nice 9–12 (lesson/glossary copy; changes the api facts sha and needs `demo:generate -- --template`): needs Itai's wording, so ask first.
 
 ## Decisions + why
-- Shipping: Itai is fine with feature branch + PR instead of pushing to `main` (safer: CI runs first; he merges). Saved as a memory. `/ship` on `main` = branch, push, open PR.
-- Asks: a question step already hides its own text and lit keys until answered; the give-away was earlier steps/headlines. So asks target notes the lesson hasn't named yet, one ask per lesson (the asks test assumes one).
-- Mediant 5th excludes the target root (the ♭7 takes it), so F6 gets E→D, not a doubled F.
+- `coachFreshStart` keeps `mode` in its deps: a lesson finished in Study changes the flags but no other dep.
+- learn.copy chunks by concept AND size: constant structure alone has ~1,400 tune lessons (~5 s in one case).
+- voiceTheTune/voicingForms keep their 30 s timeouts (not in the review; ≤ 1.1 s each).
+- The coach ISOLATION 250 ms waits stay: they pace the notes, not a negative assertion.
+- "Remember the Coach concept" isn't persisted across reloads (the deferred item said App state). Persisting is an option if Itai wants it.
+- HANDOFF.md was left out of the PR #8/#9 commits because it was already modified when the session started.
 
 ## Gotchas
-- The app remembers its last mode; to reach the passport (Path tab) in the browser, switch to the Study tab first.
-- `learn` facts are stripped from `buildFacts` (apps/api/src/explain.ts), so lesson-fact changes don't move the API sha pin, but lesson-step changes do roll the Deep Dive cache: regenerate the demo file with `npm run demo:generate -w @reharm/api -- --template`.
-- e2e runs on :4175, so it can run while the `web-demo-build` preview holds :4174.
-- Old branches `feat/learn-ux-phases-2-6` and `feat/learn-deferred-calls` are merged; Itai said keep them.
-- Still no Anthropic API key: live Deep Dives won't generate.
+- Anything outside `audio/engine.ts`/`audio/band.ts` must import volumes from `audio/mix.ts`, not `band.ts`, or Tone lands in the entry chunk again (`toneIsolation.test.ts` fails).
+- `Map.groupBy` isn't in the TS lib target: group by hand.
+- Squashed-source regexes break `\b` after a tag name (`<CoachDrillmove=`): count tags on the raw source.
+- `gh pr merge --auto` works now that the repo allows auto-merge.
+- Global CLAUDE.md now says "merge once CI is green" = `/ship`, `gh pr create --fill`, `gh pr merge --auto --squash` (earlier PRs here were merge commits).
 
 ## Suggested skills
-- `ship` for commit + push (branch + PR when on main, per the memory note).
-- `mattpocock-skills:grilling` or plain AskUserQuestion to settle which deferred item is next.
-- `run` / the `web-demo-build` launch config to verify UI changes; `code-review` before pushing anything larger.
+- `ship` for push + PR.
+- `code-review` on the branch before merging (38c9d70 touches audio loading).
