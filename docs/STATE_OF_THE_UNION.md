@@ -263,7 +263,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 1. **Phase 6:** the five-persona review on the demo build (desktop + phone, light + dark, fresh and returning state), then polish.
 2. **Read the ⚙ counters** after a week of real use (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
 3. **Waiting on Itai:** pushing the branch; Claude-written demo Deep Dives (paid, hard stop); the og-card re-render (it still says "11 rules" / "8 claims").
-4. **Known gaps:** on a 375 px phone, Study's first move card sits below the lead sheet. Some rule-chord spellings follow the engine, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9.
+4. **Known gaps:** some rule-chord spellings follow the engine, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9.
 
 ### Done in the last session (verify, then commit if needed)
 

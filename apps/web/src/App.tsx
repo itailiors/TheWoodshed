@@ -65,6 +65,7 @@ import { Reveal, useRevealState } from "./components/Reveal";
 import { countOpen } from "./usage/panelOpens";
 import { SideRail } from "./components/SideRail";
 import { useNarrow } from "./device/media";
+import { FOLD_BARS, foldable, forcedOpen, lastShownBar } from "./leadSheetFold";
 import { useWakeLock } from "./device/wakeLock";
 import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
@@ -298,6 +299,20 @@ export function App() {
   // the phone on the music stand mustn't sleep mid-chorus (any mode: Study, Practice, Coach)
   useWakeLock(playback.status === "playing");
   const narrow = useNarrow();
+  // phones: the lead sheet folds to bars 1–4, so the first move card is closer (leadSheetFold.ts)
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const fold = {
+    narrow,
+    bars,
+    open: sheetOpen,
+    playing: playback.status === "playing",
+    // only what the player opened: the default first move doesn't unfold the sheet
+    focusBar: Math.max(
+      selectedId && selected ? selected.span.to.bar : 0,
+      original.find((c) => c.id === cursorChordId)?.at.bar ?? 0,
+    ) || null,
+  };
+  const sheetLastBar = lastShownBar(fold);
   const midi = useMidi();
   // how much the move cards' lessons explain: the ⚙ setting, then the player's own runs (never the demo's sample)
   const explain = useExplainSetting();
@@ -882,7 +897,7 @@ export function App() {
                 </div>
                 {/* phones get two bars a line rather than a sideways-scrolling page */}
                 <div className="mt-2">
-                  <div>
+                  <div id="lead-sheet-bars">
                     <LeadSheet
                       perSystem={narrow ? 2 : 4}
                       tune={tune}
@@ -893,11 +908,23 @@ export function App() {
                       showWashes={view === "reharm"}
                       playhead={playback.position}
                       loopBars={playback.status === "playing" || loopSelection ? loop : null}
-                      lastBar={bars}
+                      lastBar={sheetLastBar}
                       activeChordId={cursorChordId}
                       onChord={goToChord}
                     />
                   </div>
+                  {foldable(fold) && !forcedOpen(fold) && (
+                    <button
+                      type="button"
+                      data-lead-sheet-fold
+                      aria-expanded={sheetLastBar === bars}
+                      aria-controls="lead-sheet-bars"
+                      onClick={() => setSheetOpen((o) => !o)}
+                      className="tap-lg mt-2 cursor-pointer rounded-full border-2 border-ink px-3 font-marker hover:bg-paper-shade"
+                    >
+                      {sheetLastBar === bars ? `Show bars 1–${FOLD_BARS} ▴` : `Show all ${bars} bars ▾`}
+                    </button>
+                  )}
                 </div>
                 {usedCategories.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-4 text-sm">
