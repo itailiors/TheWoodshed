@@ -1,35 +1,48 @@
-# Handoff (2026-11-23, session 23)
+# Handoff (2026-11-23, session 24)
 
-## Goal
-Run `/next-steps 2` against PLAN.md, then housekeeping on the repo docs and the Notion WoodShed page.
+## Goal (next session): Harmony Catcher
+Itai picked Harmony Catcher, the "second delighter" (STATE_OF_THE_UNION §5; spec in README.md "Musician's Wishlist", Harmony Catcher section). Idea: while Itai comps or improvises freely, the engine recognises its own reharm moves in his playing and stamps them ("You just played a backdoor ii–V in E♭"). Over time this builds a harmonic fingerprint. No plan or spec exists yet: start by designing one with Itai, not by coding.
 
-## Done
-- `/next-steps 2`: no steps could run. PLAN.md is complete through Phase 6 (0012323 #10, ff9e242, 0a402df #13). Everything left waits on Itai.
-- The "remove missingInKey notice" item was already done in 47eb468 (2026-11-21); nice 10 (Path wall) and teacher N13 landed in ff9e242. The handoff said they were open; corrected in 51772ca.
-- ac0efbd: STATE_OF_THE_UNION header (learn-ux merged as PR #1, Node 24), §5 marks Phase 6 done, lists the Warm-club A/B and the counters date (~2026-11-27).
-- Both commits pushed to main (f5cbfde..ac0efbd). Checks: typecheck clean; test 1183 core + 54 api + 212 web.
-- Git is tidy: only `main` and `exp/warm-band-tone` (1 commit ahead, merges cleanly into main); no stashes or extra worktrees.
-- Notion "🎹 The WoodShed" synced with git: marked done One Note on Top (4968d49), mediant III7 (sus/alt colour still open), next/last chord (0719b46), voicing styles + Voicings tab (9331581), Study shortcuts (062c0eb), dark theme (b97392c); the polish line annotated; Warm-club A/B and "read counters ~11-27" added under Immediate. The memory note `notion-woodshed-page` records this.
+## Done this session
+- 1c28b38 launch polish:
+  - "Sound is paused · tap to enable" pill (`audio/audioGate.ts`, `components/AudioBlockedPill.tsx`, 700 ms grace);
+  - Tone banner silenced in production (`audio/quietTone.ts`, the first import in main.tsx);
+  - sustain pedal is sound-only, enforced by `midi/sustainPolicy.test.ts`.
+- 0ab5de5: Claude-written demo Deep Dives. 18 Co-op Blues entries in `apps/api/demo/explanations.json` (`claude-opus-5-5`, spelling checked against `buildFacts`). Itai ran it himself; it **cost $1.20**. The static demo now shows ✍ Deep dive on a move card's last step.
+- Heatmap shapes (23ddc09) and focus rings (948444d) had already shipped; marked done in STATE_OF_THE_UNION.
+- Both commits are in PR https://github.com/itailiors/TheWoodshed/pull/14, with squash auto-merge on. At handoff: 1 check passing, 1 pending. Checks: typecheck clean; tests 1183 core + 54 api + 225 web.
 
 ## In progress
-- Nothing. Itai still hasn't listened to Warm club (`exp/warm-band-tone`, no PR).
+- PR #14 is waiting on CI. Once it merges, delete the local `feat/launch-polish` branch and pull main.
 
 ## Next 3 steps
-1. Itai: A/B Warm club by ear; if it stays, open a PR from `exp/warm-band-tone` (auto-merge per the standing rule).
-2. From ~2026-11-27: read the ⚙ counters (STATE_OF_THE_UNION §5 item 2); build 3f only if Continue anyway ≥ 50% or Itai asks.
-3. Pick from the open Notion/README backlog (none are in PLAN.md): small polish (sustain-pedal policy, "audio blocked / tap to enable" status, silence Tone banner), demo GIF, Harmony Catcher, the plain/sus/alt dominant colour, "Standard of the Day", easier reharm switching, the duplicate tritone-sub check in the Coach.
+1. Confirm PR #14 merged, then switch to main and pull.
+2. Harmony Catcher design pass with Itai. Open questions:
+   - Where does it run (Practice / Improv, a new tab, always-on)?
+   - What counts as "played a move": the chord sequence alone, or the voicing too?
+   - How tolerant is it of rootless voicings and the left hand alone?
+   - Does a catch feed SM-2 history (server-graded, rule 10) or only the passport?
+   - Demo mode needs seeded or no-op catches (rule 11).
+3. Then write a short PLAN.md phase and build it test-first in theory-core (pure and deterministic, rule 1).
 
-Hard stops unchanged: og-card re-render, paid demo Deep Dives.
+## Code to start from (verify before trusting)
+- Chord strikes: `apps/web/src/midi/noteBus.ts` `useChordStrikes` (45 ms settle window; keys only, pedal ignored).
+- Voicing recognition: `packages/theory-core/src/voicingForms.ts` `classifyVoicing` / `gradeShape`; `coach.ts` `diffStrike`; `melody.ts` `classifyNote`.
+- A grep found no "notes → chord symbol" identifier in theory-core. That is probably the first real gap: strikes → chord symbols → match against rule patterns from `ruleset.ts` / `ruleKit.ts`. Rules are interval-relative to their local target, so matching can be key-free.
+- The passport UI and practice history: `library/practice.ts`, `components/progress/PracticeDashboard.tsx`, `learn/progressStore.ts`.
 
 ## Decisions + why
-- No new decisions this session. Standing: Warm is an option, not the default; readable flat-key spellings stay (STATE_OF_THE_UNION §5 item 4).
+- Sustain pedal = sound only: the Coach grades held keys, so a pedal smear can't pass a sloppy change (Itai's choice). Harmony Catcher should follow the same rule.
+- The demo Deep Dives are Claude-written now. A `demo:generate -- --template` rerun overwrites them, so a new rule firing on Co-op Blues needs a paid rerun (~$1.20, ask first).
 
 ## Gotchas
-- Handoffs and PROGRESS.md rows can list items as open after they've shipped. Before building a "remaining" item, run `git log -S <symbol>` / `--grep` (this session's three "open" items were all already done).
-- PROGRESS.md rows are a historical log; don't rewrite them to match later state.
-- Notion edits: Itai OKs keeping the page in sync when he asks for housekeeping; otherwise ask first.
+- `.env` reads are permission-denied for Claude. Itai runs paid generation himself from PowerShell (`npm.cmd run …`).
+- Scratch tsx scripts outside the repo need a `.mts` extension (top-level await), imported via `file:///` paths.
+- Docs can list items as open after they've shipped. Grep and `git log -S` before building.
+- Still waiting on Itai: the Warm club A/B (`exp/warm-band-tone`) and the ⚙ counters from ~2026-11-27.
 
 ## Suggested skills
-- `ship` / "PR and merge" once Warm club is approved.
-- `next-steps` only after a new plan exists; PLAN.md has nothing runnable now.
-- `run` or the `web` preview (:5173, Study mode) to hear the band.
+- `mattpocock-skills:grilling` or `mattpocock-skills:domain-modeling` for the Harmony Catcher design pass.
+- `mattpocock-skills:prototype` to sanity-check the recognition state model.
+- `mattpocock-skills:tdd` for the theory-core recogniser.
+- `ship` / "PR and merge" when a slice is done.

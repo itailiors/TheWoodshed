@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./pitch";
 export * from "./chords";
+export * from "./harmonyCatcher";
 export * from "./time";
 export * from "./melody";
 export * from "./voiceLeading";
