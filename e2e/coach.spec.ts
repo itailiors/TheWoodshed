@@ -325,8 +325,11 @@ test("ISOLATION: notes through every Learn step (computer keys, on-screen keys, 
   }
   await page.keyboard.press("m"); // off again, before the drill
   await expect(stages(page).getByRole("button", { name: "Study it" })).toHaveAttribute("aria-current", "step");
-  await page.waitForTimeout(500);
-  expect(await practiceStore(page)).toBe(before);
+  // not a fixed sleep: keep re-reading the store for 2 s, so a save that lands late still fails the test
+  const watchedUntil = Date.now() + 2000;
+  await expect
+    .poll(async () => ((await practiceStore(page)) !== before ? "changed" : Date.now() < watchedUntil ? "watching" : "unchanged"), { timeout: 5000, intervals: [100] })
+    .toBe("unchanged");
 
   // the passport is still the sample notebook (nothing of the player's own: progress().sample is true)
   await page.keyboard.press("Escape");

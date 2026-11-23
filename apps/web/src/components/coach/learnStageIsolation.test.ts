@@ -19,21 +19,23 @@ describe("Coach's Learn stage mounts nothing that grades or saves", () => {
   });
 
   it("CoachPage renders the Learn stage INSTEAD of the drill (one ternary, Learn first)", () => {
-    const src = code(read("./CoachPage.tsx"));
-    const learnAt = src.indexOf('stage === "learn" && learn ? (');
+    // whitespace dropped, so a Prettier reflow can't break the token checks
+    const raw = code(read("./CoachPage.tsx"));
+    const src = raw.replace(/\s+/g, "");
+    const learnAt = src.search(/stage===["']learn["']&&learn\?/);
     const stageAt = src.indexOf("<LearnStage", learnAt);
     const drillAt = src.indexOf("<CoachDrill", learnAt);
     expect(learnAt, "the Learn branch").toBeGreaterThan(0);
     expect(stageAt).toBeGreaterThan(learnAt);
     // the drill sits in a later branch of the same conditional, after the Learn stage's
     expect(drillAt).toBeGreaterThan(stageAt);
-    expect(src.match(/<CoachDrill\b/g)).toHaveLength(1);
-    expect(src.match(/<LearnStage\b/g)).toHaveLength(1);
+    expect(raw.match(/<CoachDrill\b/g)).toHaveLength(1);
+    expect(raw.match(/<LearnStage\b/g)).toHaveLength(1);
   });
 
   it("the drill hears strikes only when the stage says so", () => {
     const src = code(read("./CoachDrill.tsx"));
-    expect(src).toMatch(/useChordStrikes\(strike, stageMode\.strikes\)/);
+    expect(src.replace(/\s+/g, "")).toMatch(/useChordStrikes\(\w+,stageMode\.strikes\)/);
     expect(src).not.toMatch(/useGradingMode|coachGrading/);
   });
 });

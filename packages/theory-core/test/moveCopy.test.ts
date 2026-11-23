@@ -126,7 +126,7 @@ describe("one name per chord, every rule (5f)", () => {
         }
     }
     expect([...misses].slice(0, 10)).toEqual([]);
-  }, 30_000);
+  }, 15_000); // ~0.7 s alone
 });
 
 describe("one source for a lessoned move's words (4a)", () => {

@@ -87,10 +87,12 @@ describe("stepper keys never reach the heatmap's save path", () => {
     expect(app).toMatch(/<MoveCard[\s\S]*?asksEnabled=\{!soloOpen\}[\s\S]*?\/>/);
     expect(src("../MoveCard.tsx")).toMatch(/<LessonStepper[\s\S]*?asksEnabled=\{asksEnabled\}/);
     const stepper = src("./LessonStepper.tsx");
-    expect(stepper).toMatch(/const askOpen = askIsOpen\(step, asksEnabled, revealed\[at\]\);/);
+    // tokens, not formatted lines: whitespace is dropped, so a reflow or a renamed lambda parameter still passes
+    const flat = stepper.replace(/\s+/g, "");
+    expect(flat).toMatch(/askOpen=askIsOpen\([^)]*asksEnabled/);
     // the stepper's keys and its answer listener go through the gate, and nothing else emits
-    expect(stepper).toMatch(/onKey=\{\(m\) => pressKey\(m, askOpen\)\}/);
-    expect(stepper).toMatch(/useTapAnswer\([^)]*askOpen/);
+    expect(flat).toMatch(/onKey=\{\(?(\w+)\)?=>pressKey\(\1,askOpen\)\}/);
+    expect(flat).toMatch(/useTapAnswer\([^)]*askOpen/);
     expect(stepper).not.toMatch(/noteBus/);
   });
 

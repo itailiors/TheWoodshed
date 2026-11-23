@@ -236,8 +236,16 @@ describe("lesson copy", () => {
     for (const s of l.steps) expect(words(s.text), s.text).toBeLessThanOrEqual(20);
   });
 
-  it("every lesson in every key keeps to the budgets, the glossary and the house spelling", () => {
-    for (const { where, lesson: l } of ALL) {
+  // one case per concept (all its keys and variants), split into chunks of ≤ 300 lessons (constant structure alone has
+  // ~1,400 from the tunes), so each case runs well inside the default timeout and a slowdown shows
+  const CHUNK = 300;
+  const byConcept = [...new Set(ALL.map((x) => x.lesson.conceptId))].flatMap((id) => {
+    const all = ALL.filter((x) => x.lesson.conceptId === id);
+    const parts = Math.ceil(all.length / CHUNK);
+    return Array.from({ length: parts }, (_, p) => [parts > 1 ? `${id} (part ${p + 1}/${parts})` : id, all.slice(p * CHUNK, (p + 1) * CHUNK)] as const);
+  });
+  it.each(byConcept)("every lesson of %s, in every key, keeps to the budgets, the glossary and the house spelling", (_id, lessons) => {
+    for (const { where, lesson: l } of lessons) {
       const at = `${where}`;
       expect(words(l.headline), `${at}: ${l.headline}`).toBeLessThanOrEqual(20);
       expect(sentences(l.rule), `${at}: ${l.rule}`).toHaveLength(1);
@@ -279,7 +287,7 @@ describe("lesson copy", () => {
         expect(text, `${at}: "a"/"an" before a note name in "${text}"`).not.toMatch(ARTICLE_BEFORE_NOTE);
       }
     }
-  }, 30_000); // ~3k lessons: seconds alone, longer beside the other suites
+  });
 
   it("a lessoned move's card text is its lesson, so it keeps the same budgets (every bundled tune, 12 keys)", () => {
     expect(fromTunes.length).toBeGreaterThan(0);
@@ -298,7 +306,7 @@ describe("lesson copy", () => {
         expect(text, `${where}: engine spelling leaked into "${text}"`).not.toMatch(/(?<![A-Za-z])[A-G]b+(?![a-ce-ln-z])/);
       }
     }
-  }, 30_000);
+  }, 15_000); // ~1.6 s alone; headroom for the other suites running beside it
 });
 
 describe("the glossary covers what the UI labels", () => {
@@ -403,7 +411,7 @@ describe("no undeclared jargon in lesson steps (5f)", () => {
       });
     }
     expect(misses.slice(0, 10)).toEqual([]);
-  }, 30_000);
+  }, 15_000); // ~1.2 s alone
 });
 
 describe("pedagogy and scale copy (5f)", () => {
