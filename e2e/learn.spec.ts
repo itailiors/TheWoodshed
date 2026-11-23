@@ -65,6 +65,34 @@ test("first viewport: one line says what the demo is; on a phone one tap reaches
   await expect(page.getByRole("group", { name: "More tools" })).toBeHidden();
 });
 
+test("on a phone the lead sheet folds to bars 1–4; a move past bar 4 unfolds it. Desktops never fold", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: referenceTune.title })).toBeVisible();
+  const fold = page.locator("[data-lead-sheet-fold]");
+  // the bar numbers printed at the start of each line
+  const lineStarts = () =>
+    page.locator("#lead-sheet-bars svg text").evaluateAll((ts) => ts.map((t) => t.textContent ?? "").filter((s) => /^\d+$/.test(s) && s !== "4"));
+  const phone = (page.viewportSize()?.width ?? 1280) < 640;
+  if (!phone) {
+    await expect(fold).toHaveCount(0);
+    expect(await lineStarts()).toEqual(["1", "5", "9"]);
+    return;
+  }
+  await expect(fold).toHaveText(/Show all 12 bars/);
+  await expect(fold).toHaveAttribute("aria-expanded", "false");
+  expect(await lineStarts()).toEqual(["1", "3"]);
+  await fold.click();
+  await expect(fold).toHaveAttribute("aria-expanded", "true");
+  expect(await lineStarts()).toEqual(["1", "3", "5", "7", "9", "11"]);
+  await fold.click();
+  expect(await lineStarts()).toEqual(["1", "3"]);
+  // opening the last card's move (past bar 4) brings the whole sheet back, with no button left to press
+  const last = tricks(page).locator("[data-move-id]").last();
+  await last.getByRole("heading", { level: 3 }).click();
+  await expect(fold).toHaveCount(0);
+  expect((await lineStarts()).length).toBe(6);
+});
+
 test("the move cards pass an axe scan (WCAG A/AA)", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator("[data-move-id]").first()).toBeVisible();
