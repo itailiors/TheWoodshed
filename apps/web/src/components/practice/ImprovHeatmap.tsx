@@ -22,7 +22,8 @@ import {
 } from "@reharm/theory-core";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNarrow } from "../../device/media";
-import { ghostSax, type GhostInstrument } from "../../audio/band";
+import type { GhostInstrument } from "../../audio/band";
+import { ghostSax } from "../../audio/ghostSax";
 import { player } from "../../audio/player";
 import { packLabels, textWidth, useFontsReady } from "../../design/labels";
 import { SketchBox, useRough, useSize } from "../../design/rough";
