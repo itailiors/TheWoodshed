@@ -1,38 +1,35 @@
-# Handoff (2026-11-23, session 22)
+# Handoff (2026-11-23, session 23)
 
 ## Goal
-Try an experimental band sound modelled on a reference track Itai supplied (a 210 BPM swing backing, "It Don't Mean a Thing"), then tidy up after PR #13.
+Run `/next-steps 2` against PLAN.md, then housekeeping on the repo docs and the Notion WoodShed page.
 
 ## Done
-- PR #13 (beginner nice 9–12) and #12 (session 20 handoff) are merged to main (0a402df). Local branches `fix/beginner-nice-9-12` and `docs/session-20-handoff` deleted; remotes pruned.
-- dcc21fa on `exp/warm-band-tone` (pushed, **no PR yet**): Mixer › 🎷 Band › Sound = Clean (default, unchanged) | Warm club (experimental).
-  - `apps/web/src/audio/bandTone.ts` (new, Tone, lazy chunk only): per-instrument low shelf / peak / high shelf / low-pass / trim for the backing piano, bass and drums, then a 2:1 glue compressor plus a make-up trim on the band bus. The player's piano has its own reverb and bypasses all of it.
-  - The setting is `tone` in `bandFeel.ts` (`reharm.bandTone`); the engine applies it without re-laying parts; "Reset feel" resets it.
-  - Measured in the browser at 210 BPM: Warm is within ~2 dB per band of the reference, centroid 443 Hz (ref 333, Clean 3.2 kHz), loudness matched to Clean (−25.5 vs −25.3 dB). Clean measures identical to the old sound.
-- Checks: typecheck clean; test 1183 core + 54 api + 212 web.
+- `/next-steps 2`: no steps could run. PLAN.md is complete through Phase 6 (0012323 #10, ff9e242, 0a402df #13). Everything left waits on Itai.
+- The "remove missingInKey notice" item was already done in 47eb468 (2026-11-21); nice 10 (Path wall) and teacher N13 landed in ff9e242. The handoff said they were open; corrected in 51772ca.
+- ac0efbd: STATE_OF_THE_UNION header (learn-ux merged as PR #1, Node 24), §5 marks Phase 6 done, lists the Warm-club A/B and the counters date (~2026-11-27).
+- Both commits pushed to main (f5cbfde..ac0efbd). Checks: typecheck clean; test 1183 core + 54 api + 212 web.
+- Git is tidy: only `main` and `exp/warm-band-tone` (1 commit ahead, merges cleanly into main); no stashes or extra worktrees.
+- Notion "🎹 The WoodShed" synced with git: marked done One Note on Top (4968d49), mediant III7 (sus/alt colour still open), next/last chord (0719b46), voicing styles + Voicings tab (9331581), Study shortcuts (062c0eb), dark theme (b97392c); the polish line annotated; Warm-club A/B and "read counters ~11-27" added under Immediate. The memory note `notion-woodshed-page` records this.
 
 ## In progress
-- Itai hasn't listened to Warm yet. He chose "keep as an option" (Clean stays the default).
+- Nothing. Itai still hasn't listened to Warm club (`exp/warm-band-tone`, no PR).
 
 ## Next 3 steps
-1. Itai: A/B Warm by ear; if it stays, open a PR from `exp/warm-band-tone` (auto-merge per the standing rule).
-2. Read the ⚙ counters after a week of real use (STATE_OF_THE_UNION §5 item 2); 3f and "mark foundations known" stay parked until then.
-3. Itai: og-card re-render (still says "11 rules" / "8 claims") and the paid demo Deep Dives (hard stops).
+1. Itai: A/B Warm club by ear; if it stays, open a PR from `exp/warm-band-tone` (auto-merge per the standing rule).
+2. From ~2026-11-27: read the ⚙ counters (STATE_OF_THE_UNION §5 item 2); build 3f only if Continue anyway ≥ 50% or Itai asks.
+3. Pick from the open Notion/README backlog (none are in PLAN.md): small polish (sustain-pedal policy, "audio blocked / tap to enable" status, silence Tone banner), demo GIF, Harmony Catcher, the plain/sus/alt dominant colour, "Standard of the Day", easier reharm switching, the duplicate tritone-sub check in the Coach.
 
-Previously listed as open, all already on main: the `missingInKey` notice was removed in 47eb468; UI/UX nice 10 (Path wall) and teacher N13 (mediant step 3) landed in ff9e242.
+Hard stops unchanged: og-card re-render, paid demo Deep Dives.
 
 ## Decisions + why
-- Warm is an option, not the default (Itai).
-- Plain biquads rather than Tone.EQ3: EQ3 loses ~1.3 dB at 0 dB gains (its crossovers don't sum flat), so Clean wouldn't have been the original sound.
-- WebAudio's DynamicsCompressor adds its own make-up gain (~5 dB here); `glue.makeup: -4` takes it back so the A/B isn't won by loudness.
-- The rest of the gap to the reference is the GM drum samples themselves; better ride/brush samples would be the next lever, not more EQ.
+- No new decisions this session. Standing: Warm is an option, not the default; readable flat-key spellings stay (STATE_OF_THE_UNION §5 item 4).
 
 ## Gotchas
-- Tone can't ramp a dB param that sits at 0 (exponential ramps), nor a compressor threshold at 0 dB: use `linearRampTo` / `setValueAtTime` (see `bandTone.ts`).
-- `toneIsolation.test.ts` lists every module allowed to import `tone`; `bandTone.ts` was added to it.
-- Measuring the mix: connect an AnalyserNode to `Tone.getDestination().output` from the page (Tone module URL from `performance.getEntriesByType('resource')`), solo with `player.setMix`. Long measurements must run detached and be polled (javascript_tool times out at 45 s).
-- The reference-analysis script (`analyze.py`, numpy/scipy via `uv run --with`) lives in this session's scratchpad only.
+- Handoffs and PROGRESS.md rows can list items as open after they've shipped. Before building a "remaining" item, run `git log -S <symbol>` / `--grep` (this session's three "open" items were all already done).
+- PROGRESS.md rows are a historical log; don't rewrite them to match later state.
+- Notion edits: Itai OKs keeping the page in sync when he asks for housekeeping; otherwise ask first.
 
 ## Suggested skills
-- `ship` / "PR and merge" once Warm is approved.
-- `run` or the `web` preview (:5173, Study mode) to hear or re-measure the band.
+- `ship` / "PR and merge" once Warm club is approved.
+- `next-steps` only after a new plan exists; PLAN.md has nothing runnable now.
+- `run` or the `web` preview (:5173, Study mode) to hear the band.
