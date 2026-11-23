@@ -321,6 +321,10 @@ Each lesson sub-phase: `*Learn` interface in `learn/facts.ts`, populated in `pro
 - **Fixes:** one small commit each, `fix(learn): persona review, <what>`.
 - **Re-verify:** typecheck, test, e2e, demo zero-`/api`, the real DB's `sha256sum` unchanged since phase 3 began. Then `/handoff`.
 
+### Phase 7. Harmony Catcher
+
+The spec and slices 7a–7f are in [`docs/plans/harmony-catcher.md`](docs/plans/harmony-catcher.md) (decided 2026-11-23).
+
 ---
 
 ## Dependency graph, milestones and parallel sessions

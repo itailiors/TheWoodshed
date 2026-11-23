@@ -37,6 +37,7 @@ import { PanelBoundary } from "../PanelBoundary";
 import { ChordHUD } from "./ChordHUD";
 import { ImprovHeatmap } from "./ImprovHeatmap";
 import { ImprovMode } from "./ImprovMode";
+import { useHarmonyCatcher } from "../../practice/useHarmonyCatcher";
 
 interface Props {
   tune: Tune;
@@ -84,6 +85,14 @@ export function PracticeMode(p: Props) {
   const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("sax");
   const extras = !cramped || more;
   const cycleTrade = () => setTradeBars((t) => (t === 0 ? 2 : t === 2 ? 4 : 0));
+  // Harmony Catcher: the band's own pathway is reading, not discovery, so it's never stamped
+  const catcher = useHarmonyCatcher({
+    tune,
+    loop,
+    active: p.view === "reharm" ? p.pathway.map((m) => m.id) : [],
+    playing,
+    tempo: p.tempo,
+  });
 
   // ── sync: one improv map per chord list; the Tone.Draw-timed position picks the entry ──
   const entries = useMemo(() => {
@@ -225,6 +234,17 @@ export function PracticeMode(p: Props) {
           }`}
         >
           {tradeBars === 0 ? "🎷 Trade 2s / 4s" : `🎷 Trading ${tradeBars}s`}
+        </button>
+        <button
+          type="button"
+          onClick={catcher.toggle}
+          aria-pressed={catcher.on}
+          title="Harmony Catcher: comp freely, and when you play one of the engine's moves unasked (not one the band is playing), it gets stamped."
+          className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm transition-colors ${
+            catcher.on ? "border-ink bg-wash-mustard/40 font-bold text-ink" : "border-dashed border-ink-soft hover:bg-paper-shade"
+          }`}
+        >
+          🕵️ {catcher.on ? "Catcher on" : "Catcher"}
         </button>
         {tradeBars > 0 && (
           <>
