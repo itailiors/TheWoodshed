@@ -7,6 +7,7 @@ The shippable artefact is the static demo at https://itailiors.github.io/reharm-
 - **Scope.** A free portfolio release. Nothing in it may cost money to run: no hosted API, no accounts. Freemium comes later (a piano teacher, AI-built lessons), so don't design that path out.
 - **Name.** Reharm Lab. The repo has been renamed to `itailiors/reharm-lab` (#16).
 - **Real musicians' names.** Allowed only as a style credit ("in the style of …") or as a standard theory term ("Coltrane substitution", "Bill Evans rootless"). Never as a persona, a badge, an endorsement, a likeness or a marketing headline.
+- **Tune titles and changes, yes; melodies and solos, no.** Titles and chord changes aren't copyrightable, so lick titles may reference tunes ("So What Cool Space"), because that's what players search for (Itai, 2026-11-25). Melodies (heads) and transcribed solos of copyrighted tunes never ship. Get a quick IP-lawyer check before the freemium launch.
 - **Harmony Catcher.** Post-MVP. Ship the 7d toggle labelled beta. Build 7e/7f later on the local store.
 
 ## Already done (checked in the code, so don't rebuild)
@@ -26,8 +27,8 @@ Owner key: C = Claude can do and verify it alone; I = needs Itai.
    - **Credits panel:** add one to the app (Settings ⚙ → "Credits & licences") and a matching README section.
    - **Code licence (I):** the repo has no `LICENSE`, which means all rights reserved. That fits the freemium plan; say so explicitly in the README.
 2. **Musician-name policy applied** (C, then I checks)
-   - Rename the lick titles in `packages/theory-core/src/vocabulary.ts` that name copyrighted compositions: Take Five, Waltz for Debby, So What, Almost Blue, Quiet Nights, Freddie Freeloader, Epistrophy. Use generic names and keep the `master` style credit.
-   - Itai confirms each lick is generic vocabulary, not a quoted melody.
+   - ~~Rename the lick titles~~ Done in #20; the original tune-referencing titles were then restored on Itai's call. Credits read "in the style of X".
+   - The licks are 4-note chord-degree cells, not quoted melodies (checked 2026-11-25).
 3. **Harmony Catcher "beta" label** on the 🕵️ Catcher toggle, plus a one-line note in the README (C).
 4. **A feedback channel** (C builds, I picks where it goes). The release exists to get feedback, and today there's no way to send any.
    - Add a "💬 Feedback" link in Settings and in the README footer.
