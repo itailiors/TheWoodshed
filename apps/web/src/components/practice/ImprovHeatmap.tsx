@@ -161,7 +161,7 @@ export function ImprovHeatmap({
 }: Props) {
   const [localTrade, setLocalTrade] = useState<TradeSpan>(0);
   const [localPersonality, setLocalPersonality] = useState<GhostPersonality>("side-slipper");
-  const [localInstrument, setLocalInstrument] = useState<GhostInstrument>("sax");
+  const [localInstrument, setLocalInstrument] = useState<GhostInstrument>("piano");
   const tradeBars: TradeSpan = trading ? (controlledTrade ?? localTrade) : 0;
   const setTradeBars = onTradeBars ?? setLocalTrade;
   const ghostPersonality = controlledPersonality ?? localPersonality;

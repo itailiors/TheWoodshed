@@ -82,7 +82,7 @@ export function PracticeMode(p: Props) {
   improvRef.current = improv;
   const [tradeBars, setTradeBars] = useState<TradeSpan>(0);
   const [ghostPersonality, setGhostPersonality] = useState<GhostPersonality>("side-slipper");
-  const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("sax");
+  const [ghostInstrument, setGhostInstrument] = useState<GhostInstrument>("piano");
   const extras = !cramped || more;
   const cycleTrade = () => setTradeBars((t) => (t === 0 ? 2 : t === 2 ? 4 : 0));
   // Harmony Catcher: the band's own pathway is reading, not discovery, so it's never stamped
