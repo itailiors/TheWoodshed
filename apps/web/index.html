@@ -6,8 +6,23 @@
     <title>Reharm Lab · a jazz reharmonization engine you can play</title>
     <meta
       name="description"
-      content="Turn the dial from L0 to L4 and hear a deterministic engine reharmonize jazz standards live: tritone subs, backdoor ii–Vs, gospel turnarounds, Coltrane changes, every move checked against the melody. Property-tested, runs entirely in your browser."
+      content="Free jazz reharmonization practice in your browser: turn the dial from L0 to L4 and hear tritone subs, backdoor ii–Vs and Coltrane changes on real standards."
     />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Reharm Lab",
+        "alternateName": "The Woodshed",
+        "description": "A jazz reharmonization practice app: a deterministic engine reharmonizes standards from ii–Vs to L4 Coltrane changes, checks every move against the melody, and runs entirely in your browser.",
+        "url": "https://itailiors.github.io/reharm-lab/",
+        "applicationCategory": "MusicApplication",
+        "operatingSystem": "Any (modern web browser)",
+        "isAccessibleForFree": true,
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+        "author": { "@type": "Person", "name": "Itai Lior" }
+      }
+    </script>
     <meta name="author" content="Itai Lior · Software & Jazz Co-op" />
     <meta name="theme-color" content="#f6e9c9" />
     <!-- colour scheme before first paint (src/design/themes.ts: THEME_KEY and the theme ids) -->
@@ -50,6 +65,20 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <h1>Reharm Lab: a jazz reharmonization engine you can play</h1>
+      <p>
+        Reharm Lab (also known as The Woodshed) is a free practice app for jazz pianists and comping players. Turn the
+        reharmonization dial from L0 to L4 and hear the changes on real standards: tritone substitutions, backdoor
+        ii–Vs, gospel turnarounds and Coltrane changes. A deterministic engine checks every move against the melody.
+      </p>
+      <ul>
+        <li>Reharmonization dial from plain triads to altered substitutions</li>
+        <li>Walking-bass trio, MIDI comping coach and practice passport across all 12 keys</li>
+        <li>Runs entirely in your browser: no account, no install</li>
+      </ul>
+      <p>This app needs JavaScript. Please enable it to play.</p>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
