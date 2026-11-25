@@ -14,7 +14,7 @@ Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3
   - Run every command from the repo root. Run `npm run typecheck` and `npm test` before saying anything is done.
   - Verify UI in the browser preview. `.claude/launch.json` has `web` (:5173), `api` (:8787) and `web-demo-build` (:4174, serves `apps/web/dist-demo`; run `npm run build:demo` first).
   - Read data from the page with JavaScript; screenshots can fail while the browser pane is hidden.
-- **Commits.** Itai usually stages, commits and pushes himself, and wants a list of changed files plus a suggested message. Only commit when asked; if you do, end the message with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- **Commits and PRs.** Work on a branch, never on `main`. `/ship` runs the check, commits (conventional message) and pushes the branch; then `gh pr create --fill` and `gh pr merge --auto --squash`. `main` requires the CI check "Typecheck, test, build", so the PR merges itself on green and the branch is deleted. Commit only when asked; never force-push.
 - **Protect Itai's data.** The `api` preview writes to `apps/api/data/reharm.sqlite`, his real library and practice history.
   - Never send test POSTs (practice runs, imports, deletes) to it.
   - **Watch out:** if the dev app is on the Coach page and you inject fake MIDI or QWERTY notes, the Coach grades them. A *finished* run is saved to the real database. Test input in Study mode, in the static demo build (which never writes), or against a scratch database.
@@ -25,7 +25,7 @@ Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3
   - A command line without `watch` is a temporary server, and safe to kill. The `api` preview runs under `tsx watch`; leave that one.
 - **Windows shells:**
   - Don't use `VAR=x cmd` inside npm scripts; use flags (`--demo`) or Vite mode files (`--mode demo`).
-  - For multi-line Python edits, write the script to the scratchpad with the Write tool and run it. Bash heredocs containing backticks and quotes have failed here.
+  - Edit files with Edit/Write only, never with shell or script patching.
 - **Vite HMR gotchas:**
   - If one edit *uses* a symbol and a later edit *adds* it, the page can crash in between. `PanelBoundary` contains such crashes to one drawer; reload before deciding something is broken.
   - Every new copy of `player.ts` disposes the previous player through `globalThis.__reharmPlayer`. `import.meta.hot.dispose` doesn't work here.
@@ -103,4 +103,4 @@ Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3
 ## Sessions
 
 - One task per session. When it's done: `/handoff` (saves to `docs/HANDOFF.md`), then `/clear`. A SessionStart hook loads the handoff, branch and recent commits into the next session, so nothing needs pasting.
-- For multi-step plans, `/next-steps N` runs N steps with the checks above and a commit after each. Per §0, it commits but does not push; Itai pushes.
+- For multi-step plans, `/next-steps N` runs N steps with the checks above and a commit after each. It commits each step; push and PR go through `/ship` (see §0 "Commits and PRs").
