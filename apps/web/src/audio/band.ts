@@ -130,10 +130,12 @@ export const GM_CUE = { sideStick: 37, woodHigh: 76, woodLow: 77 } as const;
 
 /**
  * GM drum kits from WebAudioFont (surikov/webaudiofontdata): one small .js file per drum
- * note, wrapping a base64 MP3. Tried in order: FluidR3, JCLive, Sound Blaster Live.
+ * note, wrapping a base64 MP3. FluidR3 only (MIT by Frank Wen; see docs/licences.md): the
+ * JCLive and Sound Blaster Live kits were dropped because their licences can't be established.
+ * If FluidR3 fails, the synth kit takes over.
  * The files are fetched as text and only the base64 sample is decoded; nothing is executed.
  */
-export const DRUM_KITS = ["0_FluidR3_GM_sf2_file", "0_JCLive_sf2_file", "0_SBLive_sf2"];
+export const DRUM_KITS = ["0_FluidR3_GM_sf2_file"];
 const DRUM_URL = (note: number, kit: string) => `https://surikov.github.io/webaudiofontdata/sound/128${note}_${kit}.js`;
 
 /**

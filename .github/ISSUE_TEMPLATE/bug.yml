@@ -1,0 +1,50 @@
+name: 🐞 Bug report
+description: Something is broken, wrong or silent.
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The page, tune, key and level, then what you clicked or played. The page URL helps: it carries the tune, key and level.
+      placeholder: |
+        1. Open …
+        2. Click …
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead?
+      description: Wrong chord or spelling, no sound, an error message… Paste any red lines from the browser console (F12) if you can.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, OS and browser
+      placeholder: "e.g. Windows 11, Edge 131 · Android 15, Chrome"
+    validations:
+      required: true
+  - type: dropdown
+    id: midi
+    attributes:
+      label: MIDI keyboard connected?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: true
+  - type: input
+    id: keyboard
+    attributes:
+      label: Which MIDI keyboard or controller (if any)?
+      placeholder: "e.g. Roland FP-30X over USB, with a sustain pedal"
