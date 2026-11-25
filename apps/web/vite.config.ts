@@ -1,9 +1,20 @@
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
+import { GOATCOUNTER_URL } from "./src/components/credits";
 
-export default defineConfig({
-  plugins: [react(), tailwindcss()],
+/** GoatCounter visit counts, in the static demo build only (`--mode demo`); see credits.ts. */
+const goatCounter = (mode: string): Plugin => ({
+  name: "reharm-goatcounter",
+  apply: "build",
+  transformIndexHtml: () =>
+    mode === "demo"
+      ? [{ tag: "script", attrs: { "data-goatcounter": GOATCOUNTER_URL, async: true, src: "https://gc.zgo.at/count.js" }, injectTo: "body" }]
+      : [],
+});
+
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), tailwindcss(), goatCounter(mode)],
   build: {
     rollupOptions: {
       output: {
@@ -19,4 +30,4 @@ export default defineConfig({
     port: 5173,
     proxy: { "/api": "http://localhost:8787" },
   },
-});
+}));
