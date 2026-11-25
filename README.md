@@ -90,13 +90,13 @@ The goal isn't a chord-substitution generator. It's a practice partner that teac
   - Every Control Change travels on a `controlBus`, the twin of the note bus, so later controller features (MIDI learn, a foot switch) plug in the same way.
 
 ### 🧠 The rule library
-Fourteen deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
+Seventeen deterministic rules. Each works in intervals relative to its local target, so it applies in all 12 keys and to tonicized chords:
 
 | Level | Rules |
 |---|---|
-| L1–L2 | Secondary / related ii–V · tritone substitution · upper-structure triads (♭VI over V7; II over V7 for a Lydian-dominant 13♯11) · rootless ii–V–I (Type A → B → A grips) · passing diminished (♯I°7 as a rootless V7♭9; chromatic ♭iii°7) · minor line cliché (im → im(maj7) → im7 → im6) |
-| L3 | Gospel half-step turnaround · backdoor ii–V (iv–♭VII7) · ♭VI–♭VII–I · borrowed iv (minor plagal) · common-tone diminished |
-| L4 | Coltrane substitution (three key centres a major 3rd apart) · constant structure (the target's shape planed down by half steps) |
+| L1–L2 | Secondary / related ii–V · secondary dominant · tritone substitution · upper-structure triads (♭VI over V7; II over V7 for a Lydian-dominant 13♯11) · rootless ii–V–I (Type A → B → A grips) · passing diminished (♯I°7 as a rootless V7♭9; chromatic ♭iii°7) · minor line cliché (im → im(maj7) → im7 → im6) |
+| L3 | Gospel half-step turnaround · backdoor ii–V (iv–♭VII7) · ♭VI–♭VII–I · borrowed iv (minor plagal) · common-tone diminished · mediant dominant (the V7 of iii) |
+| L4 | Coltrane substitution (three key centres a major 3rd apart) · constant structure (the target's shape planed down by half steps) · one note on top (re-harmonizes under a held melody note) |
 
 Every move goes through the same melody filter and voice-leading score, and comes with its own explanation and a key-independent rule.
 
@@ -336,7 +336,7 @@ The **API suite** runs the server in-process against throwaway databases. It cov
 A setup file points the default database path at a sentinel, so tests can never write to your real library.
 
 ```bash
-npm test          # 208 tests (engine + API), several thousand generated cases
+npm test          # 1,496 tests (1,211 engine + 54 API + 231 web), several thousand generated cases
 npm run typecheck # all three workspaces (and the e2e folder)
 npm run e2e       # Playwright golden paths in Chromium, against the static demo build
 ```
@@ -475,7 +475,7 @@ Every reharm hides a beautiful chromatic line in the tenor voice. The app plays 
 **🎺 Gig Mode: the bandstand, not the practice room**
 The app calls the tune: a random key, a random tempo, a two-bar count-off that won't wait. Halfway through, "the singer wants it in A". You cue the last chorus and the tag from the keyboard. Practice rooms train recall; bandstands train recall under pressure, which is what gigging players actually lack. It reuses the global key change, the count-in and the review queue.
 
-**🕵️ Harmony Catcher: get credit for what you play by accident**
+**🕵️ Harmony Catcher: get credit for what you play by accident** *(shipped as beta: live stamps in Practice behind the "🕵️ Catcher" toggle; saving your catches into a fingerprint is coming)*
 While you comp or improvise freely, the engine listens for its own moves in your playing. Play a backdoor ii–V in E♭ without being asked, and it stamps your passport: *"You just played a backdoor ii–V in E♭."* Over time this becomes your harmonic fingerprint: the voicings you actually use, and reharm suggestions written in your own hand. Learning flips from assigned drills to discovering your own vocabulary, and the engine proves it can *recognise* harmony, not just generate it.
 
 ---
