@@ -204,6 +204,13 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 ## 4. What works now (verified)
 
+### Harmony Catcher 7a–7d (2026-11-23, beta; PR #15)
+
+- **Engine:** `packages/theory-core/src/harmonyCatcher.ts`. `matchChord` (guide tones required, per-quality tension table, slash basses required), `catchMoves` / `catchMovesTraced`, and voicing moves caught by their own grips. A move is caught only when the original chord can't explain the strike.
+- **Live stamps in Practice:** `apps/web/src/practice/catcherSession.ts` (pure, 6 tests) and the `useHarmonyCatcher` hook (`apps/web/src/practice/useHarmonyCatcher.ts`, mounted in `PracticeMode.tsx`). The "🕵️ Catcher" toggle in the Practice header is off by default and persisted in `reharm.catcher`. Verified in the demo build with fake MIDI: B♭m7 → E♭9 in bar 10 stamped "Backdoor ii–V · bar 10, in F"; the band's own tritone sub was not stamped.
+- **Not built (post-MVP):** 7e (a `catches` table, `POST /api/catches`, a seeded sample for the demo) and 7f (a "Your vocabulary" panel, plus a proof that the written changes are never caught). Catches feed the fingerprint only, never SM-2. Spec: `docs/plans/harmony-catcher.md`.
+- **Counts from the code (2026-11-25):** 17 rules in `RULES` (L1–L4; L0 is the original changes, so 5 dial stops) and 9 `PROOFS`. Tests: 1211 theory-core + 54 API + 231 web.
+
 ### The learning system (2026-11-20)
 
 - **One lesson source.** Every rule (17) and basics node (10) has a 3–5-step lesson in theory-core, in all 12 keys. A move's card text *is* its lesson (`buildMove`), the Coach cues read the same facts, and the Deep Dive prompt gets the lesson as prose. The `lessons-honest` proof checks every note a lesson names is the engine's.
@@ -262,7 +269,9 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 1. ~~**Phase 6:** the five-persona review~~ **Done:** `0012323` (#10, engineer items), `ff9e242` (deferred calls), `0a402df` (#13, beginner wording).
 2. **Read the ⚙ counters** after a week of real use, from about 2026-11-27 (`learn.finish`, `prereq.continueAnyway / prereq.view`, `why.open`). If Continue anyway is ≥ 50%, build 3f ("I know this" test-out, parked).
-3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); ~~Claude-written demo Deep Dives~~ (done 2026-11-23); the og-card re-render (it still says "11 rules" / "8 claims").
+3. **Waiting on Itai:** A/B the experimental "Warm club" band sound on `exp/warm-band-tone` (no PR yet); ~~Claude-written demo Deep Dives~~ (done 2026-11-23); ~~the og-card re-render~~ (done 2026-11-25: it now says 17 rules / 9 claims).
+
+**The launch track now lives in `docs/plans/mvp-release.md` (the MVP checklist). Follow that; the section "Next: the launch track" below is background.**
 4. **Decided (Itai, 2026-11-23): readable spellings stay.** Some rule chords in flat keys are spelled enharmonically, e.g. ♭VI–♭VII in G♭ reads Dmaj7 → E6/9, not E𝄫maj7 → F♭6/9. Not a gap; don't "fix" it to strict letter spelling.
 
 ### Done in the last session (verify, then commit if needed)
@@ -302,7 +311,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
   - the demo Deep Dive file is keyed by tune as well as move id, with an API test guarding the `functional.secondaryTwoFive@2.1` collision.
 - **Ideas:** "Sunny Side" and "I Got Rhythm" melodies could be added only from the 1930 sheet music. Only Gershwin's is free under life + 70.
 
-**Tests:** 132 (115 theory-core + 17 API); typecheck clean.
+**Tests (at the time of this section):** 132 (115 theory-core + 17 API); typecheck clean. Current: 1496 (see §4).
 
 ### Next: the launch track
 
@@ -317,7 +326,7 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 - **Still to do:** record the 20-second GIF (the dial turning, chords moving, proofs going green). Many recruiters never click through.
 - ~~**Deep-link URLs**~~ **Done 2026-11-19:** `apps/web/src/deepLink.ts` (`tune key level move pick keep tempo play`), a ▶ `PlayPrompt` for `play=1`, the address bar kept in sync (debounced `replaceState`) and a 🔗 Share button. Verified in the demo build; see the README section "Shareable reharms".
 - ~~**Study-mode shortcuts**~~ **Done 2026-11-19 (`062c0eb`):** `studyKeys.ts` (Space, ← → moves, ↑ ↓ dial, A, L, `[ ]`, `, .`, `?`) and a shared modal `?` card (`components/Shortcuts.tsx`); Practice opens it from "⌨ Shortcuts" below `xl`. Previous/next *chord* (Itai's Notion list) followed: `Shift + ← →` and the ‹ chord / chord › buttons in Chord by chord step a chord cursor (theory-core `chordCursor.ts`, `stepChord`) through the tune's changes, opening that chord's selector and the reharm's move over it, or inking a bare chord red on the lead sheet.
-- **Second delighter:** Harmony Catcher (recommended), or the Reactive Rhythm Section.
+- **Second delighter:** ~~Harmony Catcher~~ 7a–7d shipped as beta (§4); 7e/7f are post-MVP. Or the Reactive Rhythm Section.
 - Smaller items:
   - ~~a sustain-pedal policy~~ **Done 2026-11-23:** sound-only; the Coach grades held keys (`midi/sustainPolicy.test.ts`);
   - ~~an "audio blocked / tap to enable" status~~ **Done 2026-11-23:** `AudioBlockedPill` + `audio/audioGate.ts` (700 ms grace);
@@ -360,7 +369,7 @@ The **Musician's Wishlist** in the README holds the full set of ideas: Expressio
 ```bash
 npm run dev            # web :5173 + api :8787
 npm run dev:demo       # read-only demo (web + api)
-npm test               # all workspaces (132 tests)
+npm test               # all workspaces (1496 tests)
 npm run typecheck
 npm run build          # web → apps/web/dist
 npm run build:demo     # static demo → apps/web/dist-demo
