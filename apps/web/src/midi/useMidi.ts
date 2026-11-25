@@ -236,7 +236,8 @@ export function useMidi(onNote?: (e: MidiNoteEvent) => void) {
       };
       attach();
     } catch (err) {
-      console.warn("[MIDI] access denied", err);
+      // The pill already says "MIDI access denied"; keep the production console empty.
+      debug("[MIDI] access denied", err);
       setStatus("denied");
     }
   }, [attach]);
