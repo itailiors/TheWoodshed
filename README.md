@@ -1,15 +1,15 @@
 # Reharm Lab
 
-[![Live demo](https://img.shields.io/badge/live%20demo-itailiors.github.io%2FTheWoodshed-c2311f?style=flat-square)](https://itailiors.github.io/TheWoodshed/)
-[![CI](https://github.com/itailiors/TheWoodshed/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/itailiors/TheWoodshed/actions/workflows/ci.yml)
+[![Live demo](https://img.shields.io/badge/live%20demo-itailiors.github.io%2Freharm--lab-c2311f?style=flat-square)](https://itailiors.github.io/reharm-lab/)
+[![CI](https://github.com/itailiors/reharm-lab/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/itailiors/reharm-lab/actions/workflows/ci.yml)
 
 **A living lead sheet for jazz pianists: reharmonize a standard, hear every move, and practice it until it's yours.**
 
-### ▶ [Try it in your browser](https://itailiors.github.io/TheWoodshed/)
+### ▶ [Try it in your browser](https://itailiors.github.io/reharm-lab/)
 
 No install, no account, no MIDI keyboard needed (press **M** to play with your computer keyboard). Press **Play**, then turn the dial from **L0** to **L4** while the band plays.
 
-Or start mid-groove: [*Co-op Blues* in B♭, dial at L4](https://itailiors.github.io/TheWoodshed/?tune=coop-blues&key=Bb&level=4&play=1). One tap on ▶ and the band is in.
+Or start mid-groove: [*Co-op Blues* in B♭, dial at L4](https://itailiors.github.io/reharm-lab/?tune=coop-blues&key=Bb&level=4&play=1). One tap on ▶ and the band is in.
 
 *A flagship project of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**.*
 
@@ -17,9 +17,9 @@ Or start mid-groove: [*Co-op Blues* in B♭, dial at L4](https://itailiors.githu
   DEMO GIF: record about 20 seconds (dial L0 → L4 while the band plays, a move card, the X-ray's
   Proof tab going green), save it as docs/media/demo.gif (under ~8 MB so GitHub autoplays it),
   then replace the image below with:
-  [![Reharm Lab in 20 seconds](docs/media/demo.gif)](https://itailiors.github.io/TheWoodshed/)
+  [![Reharm Lab in 20 seconds](docs/media/demo.gif)](https://itailiors.github.io/reharm-lab/)
 -->
-[![Reharm Lab: C7 struck through in red pen and replaced by G♭9, with the reharm dial at L3](apps/web/public/og-image.png)](https://itailiors.github.io/TheWoodshed/)
+[![Reharm Lab: C7 struck through in red pen and replaced by G♭9, with the reharm dial at L3](apps/web/public/og-image.png)](https://itailiors.github.io/reharm-lab/)
 
 ---
 
@@ -201,7 +201,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
 - **Parameters** (all optional): `tune`, `key` (`Bb`, `bb`, `B♭`, `F%23`), `level` (0–4), `move`, `pick` and `keep` (comma-separated ids), `tempo` (40–320) and `play`. Move and chord ids are positional, so a shared reharm means the same thing in any key.
 - **`play=1`** opens on a big ▶. Browsers only start audio from a click, so the ▶ is that click; "Just look" (or Escape) leaves the page silent. Share links include it.
 - **Forgiving:** anything malformed is dropped rather than refusing the link, and a tune that isn't in the library falls back to *Co-op Blues* with a note saying so. Opening a link doesn't overwrite the key a tune remembers.
-- Works in the static demo at its `/TheWoodshed/` subpath, still with zero `/api` requests.
+- Works in the static demo at its `/reharm-lab/` subpath, still with zero `/api` requests.
 
 ### 🎛️ Hands off the mouse: keyboard shortcuts
 - **Study:** `Space` play / stop · `← →` previous / next move (in bar order; its card scrolls into view) · `Shift + ← →` previous / next chord (every change of the tune in order; opens its Chord-by-chord options when a move fits there, else marks it in red on the lead sheet) · `↑ ↓` dial up / down · `A` original / reharm · `L` loop the move · `[ ]` tempo · `, .` key a half step · `?` the shortcut card.
@@ -349,7 +349,7 @@ The **end-to-end suite** ([`e2e/`](e2e/README.md)) drives the static demo build 
 3. a check that the SQL migrations match the Drizzle schema;
 4. the web build;
 5. the demo build, uploaded as an artifact, and the Playwright golden paths run against it;
-6. on `main` only, once all of the above pass: the demo is published to **GitHub Pages** at [itailiors.github.io/TheWoodshed](https://itailiors.github.io/TheWoodshed/).
+6. on `main` only, once all of the above pass: the demo is published to **GitHub Pages** at [itailiors.github.io/reharm-lab](https://itailiors.github.io/reharm-lab/).
 
 ---
 
@@ -375,7 +375,7 @@ Other scripts: `npm run dev:web` (UI only), `npm run dev:api` (API only), `npm t
 
 | Command | What it gives you |
 |---|---|
-| `npm run build:demo` | A **static** site in `apps/web/dist-demo` that can be hosted anywhere (relative paths), with no server and no API key. CI publishes it to [GitHub Pages](https://itailiors.github.io/TheWoodshed/) on every push to `main` |
+| `npm run build:demo` | A **static** site in `apps/web/dist-demo` that can be hosted anywhere (relative paths), with no server and no API key. CI publishes it to [GitHub Pages](https://itailiors.github.io/reharm-lab/) on every push to `main` |
 | `npm run dev:demo` | The same, locally |
 | API with `DEMO_MODE=true` (or `--demo`) | For a hosted server: no database, every write refused (403) |
 

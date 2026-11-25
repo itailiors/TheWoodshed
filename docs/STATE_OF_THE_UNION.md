@@ -8,7 +8,7 @@
 >
 > **Reharm Lab** is a jazz-piano reharmonization and practice app. It is the flagship portfolio piece of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**: a genuine practice tool for advanced players, and a showcase of full-stack engineering. The goal of the current phase is a **public portfolio launch** aimed at **hiring managers at top-tier tech and music-tech companies**. The message is *"a product-minded full-stack builder who writes rigorous, edge-case-proof code."* It stands alone as its own link, inside the Software & Jazz Co-op brand. Only the **static, read-only demo** ships publicly, so there are no API costs.
 >
-> Repo root: `C:\Users\itail\Documents\claude-projects\TheWoodshed`. Remote: `origin` → `github.com/itailiors/TheWoodshed`. Windows 11, Node 24, **npm workspaces** (pnpm isn't installed).
+> Repo root: `C:\Users\itail\Documents\claude-projects\TheWoodshed`. Remote: `origin` → `github.com/itailiors/reharm-lab` (renamed from TheWoodshed on 2026-11-25; the local folder keeps the old name). Windows 11, Node 24, **npm workspaces** (pnpm isn't installed).
 
 ---
 
@@ -308,12 +308,12 @@ Moved to the root `CLAUDE.md` (loaded automatically in every session): the archi
 
 
 - **Deployed (once Pages is enabled):**
-  - CI publishes `dist-demo` to **https://itailiors.github.io/TheWoodshed/** on every green push to `main`: the `deploy` job with `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4`. Main runs are never cancelled mid-deploy.
+  - CI publishes `dist-demo` to **https://itailiors.github.io/reharm-lab/** on every green push to `main`: the `deploy` job with `actions/upload-pages-artifact@v3` and `actions/deploy-pages@v4`. Main runs are never cancelled mid-deploy.
   - One-time setup: repo Settings → Pages → Source: **GitHub Actions**.
   - `index.html` has the description, Open Graph and Twitter tags. The 1200×630 card is `apps/web/public/og-image.png`, rendered from `apps/web/scripts/og-card.html`; the command is in that file.
   - There's a favicon.
   - The README has the live link, the CI badge and a GIF slot (the card stands in until `docs/media/demo.gif` exists).
-  - Verified: the build loads at a `/TheWoodshed/` subpath with every request 200, including the proofs worker and lazy chunks.
+  - Verified: the build loads at a `/reharm-lab/` subpath with every request 200, including the proofs worker and lazy chunks.
 - **Still to do:** record the 20-second GIF (the dial turning, chords moving, proofs going green). Many recruiters never click through.
 - ~~**Deep-link URLs**~~ **Done 2026-11-19:** `apps/web/src/deepLink.ts` (`tune key level move pick keep tempo play`), a ▶ `PlayPrompt` for `play=1`, the address bar kept in sync (debounced `replaceState`) and a 🔗 Share button. Verified in the demo build; see the README section "Shareable reharms".
 - ~~**Study-mode shortcuts**~~ **Done 2026-11-19 (`062c0eb`):** `studyKeys.ts` (Space, ← → moves, ↑ ↓ dial, A, L, `[ ]`, `, .`, `?`) and a shared modal `?` card (`components/Shortcuts.tsx`); Practice opens it from "⌨ Shortcuts" below `xl`. Previous/next *chord* (Itai's Notion list) followed: `Shift + ← →` and the ‹ chord / chord › buttons in Chord by chord step a chord cursor (theory-core `chordCursor.ts`, `stepChord`) through the tune's changes, opening that chord's selector and the reharm's move over it, or inking a bare chord red on the lead sheet.

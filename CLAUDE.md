@@ -1,6 +1,6 @@
 # Reharm Lab (The Woodshed)
 
-Jazz-piano reharmonization and practice app: npm workspaces with `packages/theory-core` (deterministic theory engine), `apps/web` (React/Vite UI) and `apps/api` (Hono proxy). Remote: `github.com/itailiors/TheWoodshed`.
+Jazz-piano reharmonization and practice app: npm workspaces with `packages/theory-core` (deterministic theory engine), `apps/web` (React/Vite UI) and `apps/api` (Hono proxy). Remote: `github.com/itailiors/reharm-lab` (renamed from TheWoodshed; the local folder keeps the old name). Live demo: `itailiors.github.io/reharm-lab/`.
 
 Reference (read when relevant): `docs/STATE_OF_THE_UNION.md`: §1 file tree, §3 design-system constraints, §4 what works now, §5 the last recorded next steps, §6 commands and endpoints. Latest session handoff: `docs/HANDOFF.md`.
 
