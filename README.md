@@ -513,5 +513,6 @@ The app hot-links these at runtime, unmodified (samples are repitched as they pl
 
 ---
 
-<!-- TODO(Itai): put the Tally form's share link here and in FEEDBACK_URL (apps/web/src/components/credits.ts). -->
-💬 **[Send feedback](https://tally.so/r/TODO-feedback-form)** (a short form, no account needed) · Developers: 🐞 [GitHub Issues](https://github.com/itailiors/reharm-lab/issues/new?template=bug.yml)
+**Privacy:** the public demo counts visits with [GoatCounter](https://www.goatcounter.com/) (no cookies, no personal data). Practice history stays in your browser.
+
+💬 **[Send feedback](https://tally.so/r/KpV7Kz)** (a short form, no account needed) · Developers: 🐞 [GitHub Issues](https://github.com/itailiors/reharm-lab/issues/new?template=bug.yml)

@@ -95,11 +95,18 @@ export const FONT_CREDITS: Credit[] = [
 export const REPO_URL = "https://github.com/itailiors/reharm-lab";
 /**
  * The feedback form (a free Tally form). The one place its URL lives; the README's footer repeats it.
- * TODO(Itai): replace the placeholder with the Tally form's share link (https://tally.so/r/…) and
- * update the README footer. Until then the ⚙ "Send feedback" link stays hidden.
+ * The link stays hidden while this isn't a real share link (`feedbackReady`).
  * Opens Tally in a new tab; the app itself sends nothing.
  */
-export const FEEDBACK_URL = "https://tally.so/r/TODO-feedback-form";
+export const FEEDBACK_URL = "https://tally.so/r/KpV7Kz";
+/**
+ * Visit counts (GoatCounter: free, no cookies, no personal data). The script is injected into the
+ * static demo build only (vite.config.ts); dev and the API build never load it, and GoatCounter
+ * ignores localhost, so previews and e2e aren't counted.
+ */
+export const GOATCOUNTER_URL = "https://reharm-lab.goatcounter.com/count";
+export const PRIVACY_NOTE =
+  "The public demo counts visits with GoatCounter: no cookies, no personal data, no tracking across sites. Your practice history stays in this browser.";
 export const feedbackReady = (url: string = FEEDBACK_URL) => /^https:\/\/tally\.so\/r\/[A-Za-z0-9]+$/.test(url);
 /** Bug reports for developers: a GitHub issue from `.github/ISSUE_TEMPLATE/bug.yml`. */
 export const BUG_REPORT_URL = `${REPO_URL}/issues/new?template=bug.yml`;

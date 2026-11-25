@@ -44,7 +44,8 @@ describe("credits", () => {
     expect(feedbackReady("https://tally.so/r/TODO-feedback-form")).toBe(false);
     expect(feedbackReady("https://tally.so/r/w4bXyZ")).toBe(true);
     expect(feedbackReady("https://example.com/r/w4bXyZ")).toBe(false);
-    // the README footer and the app must point at the same form
-    if (feedbackReady()) expect(read("../../../../README.md")).toContain(FEEDBACK_URL);
+    // the real form is set, and the README footer and the app point at the same one
+    expect(feedbackReady()).toBe(true);
+    expect(read("../../../../README.md")).toContain(FEEDBACK_URL);
   });
 });

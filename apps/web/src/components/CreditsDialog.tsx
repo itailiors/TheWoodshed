@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { SketchBox } from "../design/rough";
 import { paper, seedOf } from "../design/tokens";
-import { CODE_NOTICE, FONT_CREDITS, REPO_URL, SAMPLE_CREDITS, type Credit } from "./credits";
+import { CODE_NOTICE, FONT_CREDITS, PRIVACY_NOTE, REPO_URL, SAMPLE_CREDITS, type Credit } from "./credits";
 
 const link = "underline decoration-ink-faint underline-offset-2 hover:decoration-ink";
 
@@ -70,6 +70,9 @@ export function CreditsDialog({ onClose }: { onClose: () => void }) {
                 source on GitHub
               </a>
               . {CODE_NOTICE}
+            </p>
+            <p className="mt-2 text-xs text-ink-soft" data-privacy-note>
+              <span className="font-marker text-ink">Privacy.</span> {PRIVACY_NOTE}
             </p>
           </div>
         </SketchBox>
