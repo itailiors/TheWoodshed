@@ -13,7 +13,9 @@ export type ChannelId = "playerPiano" | "bgPiano" | "bass" | "drums";
 export type ChannelVolumes = Readonly<Record<ChannelId, number>>;
 
 const clampDb = (db: number) => (Number.isFinite(db) ? Math.max(-24, Math.min(12, Math.round(db * 2) / 2)) : 0);
-const SILENT_DEFAULTS: ChannelVolumes = { playerPiano: 0, bgPiano: 0, bass: 0, drums: 0 };
+/** Your keys and the Ghost Master sit +6 dB over the band by default, so what you play reads clearly. */
+export const DEFAULT_CHANNEL_VOLUMES: ChannelVolumes = { playerPiano: 6, bgPiano: 0, bass: 0, drums: 0 };
+const SILENT_DEFAULTS = DEFAULT_CHANNEL_VOLUMES;
 
 let masterVolumeDb = (() => {
   try {
@@ -30,7 +32,7 @@ let channelVolumes: ChannelVolumes = (() => {
     if (!raw) return SILENT_DEFAULTS;
     const parsed = JSON.parse(raw) as Partial<Record<ChannelId, number>>;
     return {
-      playerPiano: clampDb(parsed.playerPiano ?? 0),
+      playerPiano: clampDb(parsed.playerPiano ?? DEFAULT_CHANNEL_VOLUMES.playerPiano),
       bgPiano: clampDb(parsed.bgPiano ?? 0),
       bass: clampDb(parsed.bass ?? 0),
       drums: clampDb(parsed.drums ?? 0),

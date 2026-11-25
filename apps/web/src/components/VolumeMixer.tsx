@@ -7,6 +7,7 @@ import {
   setMasterVolume,
   subscribeChannelVolumes,
   subscribeMasterVolume,
+  DEFAULT_CHANNEL_VOLUMES,
   type ChannelId,
 } from "../audio/mix";
 import { BandFeelControls, useBandFeelChanged } from "./BandFeelControls";
@@ -69,8 +70,7 @@ export function VolumeMixer({ compact = false, className = "", beatsPerBar = 4 }
 
   const formatted = formatDb(db);
   const icon = db <= -20 ? "🔈" : db > 3 ? "🔊" : "🔉";
-  const hasCustomChannels =
-    channels.playerPiano !== 0 || channels.bgPiano !== 0 || channels.bass !== 0 || channels.drums !== 0;
+  const hasCustomChannels = CHANNEL_META.some((ch) => channels[ch.id] !== DEFAULT_CHANNEL_VOLUMES[ch.id]);
   const customised = hasCustomChannels || feelChanged;
 
   useEffect(() => {
@@ -159,7 +159,7 @@ export function VolumeMixer({ compact = false, className = "", beatsPerBar = 4 }
               disabled={!hasCustomChannels}
               className="cursor-pointer rounded px-1.5 py-0.5 font-hand text-[11px] text-ink-soft underline decoration-dotted hover:text-ink disabled:cursor-default disabled:opacity-40"
             >
-              Reset 0 dB
+              Reset
             </button>
           </div>
 
@@ -178,8 +178,8 @@ export function VolumeMixer({ compact = false, className = "", beatsPerBar = 4 }
                     </label>
                     <button
                       type="button"
-                      onClick={() => setChannelVolume(ch.id, 0)}
-                      title="Click to reset channel to 0 dB"
+                      onClick={() => setChannelVolume(ch.id, DEFAULT_CHANNEL_VOLUMES[ch.id])}
+                      title={`Click to reset to ${formatDb(DEFAULT_CHANNEL_VOLUMES[ch.id])}`}
                       className="cursor-pointer font-hand text-[11px] tabular-nums text-ink-soft hover:text-ink"
                     >
                       {formatDb(val)}
