@@ -902,7 +902,7 @@ function buildVocabularyEvents(
       end,
       vel: step.vel ?? (step.enclosure ? 0.5 : 0.66),
       enclosure: !!step.enclosure,
-      tag: `${lick.title} (${lick.master}): ${step.role}`,
+      tag: `${lick.title} (in the style of ${lick.master}): ${step.role}`,
     });
   }
 
@@ -1134,7 +1134,7 @@ export function transformMotif(args: TransformMotifArgs): GhostResponse {
       : notes.length >= 3 && accuracy === 1
         ? "🌟 Clean changes! "
         : "";
-  const lickSuffix = quotedLick ? `, singing "${quotedLick.title}" (${quotedLick.master})` : "";
+  const lickSuffix = quotedLick ? `, singing "${quotedLick.title}" (in the style of ${quotedLick.master})` : "";
   const batonSuffix = batonPass ? ` (gap capped ≤ ${maxAllowedGapBeats}b)` : "";
 
   const baseSummary =
