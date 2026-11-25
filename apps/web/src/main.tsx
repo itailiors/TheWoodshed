@@ -7,6 +7,7 @@ import { installMidiMonitor } from "./midi/monitor";
 import { installPedal } from "./midi/pedal";
 import { installQwertyKeys } from "./midi/qwerty";
 import { installTheme } from "./design/themes";
+import { installVisitCounter } from "./visitCounter";
 import "./index.css";
 
 installTheme();
@@ -14,6 +15,7 @@ installAudioUnlock();
 installQwertyKeys();
 installPedal();
 installMidiMonitor();
+if (import.meta.env.PROD && import.meta.env.MODE === "demo") installVisitCounter();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

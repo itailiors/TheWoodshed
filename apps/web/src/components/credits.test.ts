@@ -27,11 +27,18 @@ describe("credits", () => {
     expect(DRUM_KITS.some((k) => /JCLive|SBLive/.test(k))).toBe(false);
   });
 
-  it("credits every Google Font index.html loads", () => {
-    const href = /fonts\.googleapis\.com\/css2\?([^"]+)"/.exec(read("../../index.html"))![1];
-    const families = [...href.matchAll(/family=([^:&]+)/g)].map((m) => m[1].replace(/\+/g, " "));
+  it("credits every self-hosted font, each with its OFL text alongside", () => {
+    const css = read("../assets/fonts/fonts.css");
+    const families = [...new Set([...css.matchAll(/font-family:\s*"([^"]+)"/g)].map((m) => m[1]))];
     expect(families.length).toBeGreaterThan(0);
-    for (const f of families) expect(FONT_CREDITS.map((c) => c.work)).toContain(f);
+    for (const f of families) {
+      expect(FONT_CREDITS.map((c) => c.work)).toContain(f);
+      expect(read(`../../public/fonts/OFL-${f.replace(/\s/g, "")}.txt`)).toMatch(/SIL Open Font License, Version 1\.1/);
+    }
+  });
+
+  it("loads no third-party stylesheet before the first paint", () => {
+    expect(read("../../index.html")).not.toMatch(/fonts\.googleapis\.com|<link[^>]+stylesheet[^>]+https?:/);
   });
 
   it("bug reports open a GitHub issue template that exists", () => {

@@ -37,8 +37,8 @@ import { usePlayback } from "./audio/usePlayback";
 import { ImprovCard } from "./components/ImprovCard";
 import { TransportBar } from "./components/TransportBar";
 import { APP_MODES, ModeSwitch, type AppMode } from "./components/ModeSwitch";
-import { ImprovHeatmap } from "./components/practice/ImprovHeatmap";
-import { lazyWithPreload, whenIdle } from "./lazy";
+import { lazyWithPreload } from "./lazy";
+import { whenSettled } from "./settled";
 import { PanelBoundary } from "./components/PanelBoundary";
 import type { PractiseRequest } from "./components/progress/PracticeDashboard";
 import type { CoachPlace } from "./components/coach/CoachPage";
@@ -86,6 +86,8 @@ const VoicingsPage = lazyWithPreload(() => import("./components/voicings/Voicing
 const PracticeDashboard = lazyWithPreload(() => import("./components/progress/PracticeDashboard").then((m) => m.PracticeDashboard));
 const EngineXRay = lazyWithPreload(() => import("./components/xray/EngineXRay").then((m) => m.EngineXRay));
 const PracticeMode = lazyWithPreload(() => import("./components/practice/PracticeMode").then((m) => m.PracticeMode));
+// Study's heatmap sits in the folded "Solo over it" panel (shared with Practice Mode's chunk).
+const ImprovHeatmap = lazyWithPreload(() => import("./components/practice/ImprovHeatmap").then((m) => m.ImprovHeatmap));
 
 /** What a lazy screen shows for the moment its chunk is still arriving. */
 function Inking({ label }: { label: string }) {
@@ -483,14 +485,17 @@ export function App() {
     void playback.play();
   };
 
-  // Once the first paint is done, fetch what the next click will need: the audio engine
-  // (so Play starts inside the click's activation window) and the lazy screens.
+  // Once the page has settled (the visitor's first pointer/key/scroll, or a quiet page after
+  // load), fetch what the next click will need: the audio engine (so Play starts inside the
+  // click's activation window) and the lazy screens. Not during the first paint: on a phone
+  // that work would freeze the page just as it appears.
   useEffect(() => {
     prefetchAudio();
-    whenIdle(() => {
+    whenSettled(() => {
       void PracticeMode.preload().catch(() => {});
       void CoachPage.preload().catch(() => {});
       void LibraryDrawer.preload().catch(() => {});
+      void ImprovHeatmap.preload().catch(() => {});
     });
   }, []);
 
@@ -987,17 +992,22 @@ export function App() {
                 </div>
               )}
               <div className="mt-3">
-                <ImprovHeatmap
-                  key={tune.id}
-                  tune={tune}
-                  chords={shownChords}
-                  loop={loop}
-                  playing={playback.status === "playing"}
-                  level={level}
-                  view={view}
-                  trading={false}
-                  mixer={false}
-                />
+                {/* a lazy chunk can fail to arrive (offline, a redeploy): that closes this panel, not the app */}
+                <PanelBoundary onClose={() => setSoloOpen(false)}>
+                <Suspense fallback={<p role="status" className="font-marker text-ink-soft">Drawing the heatmap…</p>}>
+                  <ImprovHeatmap
+                    key={tune.id}
+                    tune={tune}
+                    chords={shownChords}
+                    loop={loop}
+                    playing={playback.status === "playing"}
+                    level={level}
+                    view={view}
+                    trading={false}
+                    mixer={false}
+                  />
+                </Suspense>
+                </PanelBoundary>
               </div>
             </Reveal>
 

@@ -61,7 +61,7 @@ export function CreditsDialog({ onClose }: { onClose: () => void }) {
                 ×
               </button>
             </div>
-            <p className="mt-1 text-xs text-ink-soft">The band's samples and the fonts load from their own hosts, unmodified (the app repitches samples as it plays).</p>
+            <p className="mt-1 text-xs text-ink-soft">The band's samples load from their own hosts, unmodified (the app repitches samples as it plays). The fonts are served with the app, each with its OFL text; Noto Music is cut down to the music signs the app writes.</p>
             <CreditList title="Samples" credits={SAMPLE_CREDITS} />
             <CreditList title="Fonts" credits={FONT_CREDITS} />
             <p className="mt-3 border-t-2 border-dashed border-ink-faint pt-2 text-xs text-ink-soft" data-code-notice>

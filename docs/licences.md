@@ -35,7 +35,12 @@ Both were only fallbacks: if FluidR3 fails, the synth kit plays (`loadDrums` in 
 - Drums: Fluid R3 GM by Frank Wen (MIT), converted by Sergey Surikov's WebAudioFont.
 - No changes were made to the samples; the app repitches them at playback.
 
-## Fonts (Google Fonts, `apps/web/index.html`)
+## Fonts (self-hosted: `apps/web/src/assets/fonts/`, licence texts in `apps/web/public/fonts/OFL-*.txt`)
+
+Google Fonts' own woff2 subsets (latin, latin-ext), served from the app's origin since the
+mobile-perf pass (no render-blocking third-party stylesheet). Noto Music's "music" file is subset
+further with fonttools to U+25CC, U+2669–266F and U+1D100–1D14F (the signs the app writes); none
+of the three declares a Reserved Font Name, so the subset keeps its name. Still SIL OFL 1.1.
 
 | Font | Designer | Licence | Source |
 |---|---|---|---|
@@ -51,7 +56,7 @@ Both were only fallbacks: if FluidR3 fails, the synth kit plays (`loadDrums` in 
 | Fluid R3 (bass and drums) | Yes | MIT: keep Frank Wen's copyright notice and the MIT text with the files. Credit as CC BY 3.0 too, since that's how gleitz labels the render. |
 | Musyng Kite, FatBoy | Yes | CC BY-SA 3.0: credit, link the licence, and **share any modified samples under CC BY-SA**. Using them unmodified (or repitched at playback) doesn't put the app's code under BY-SA. |
 | WebAudioFont / midi-js-soundfonts code | Yes | MIT notice. |
-| The three fonts | Yes | OFL: bundle `OFL.txt`; don't sell the fonts on their own; a modified font can't keep its reserved name. |
+| The three fonts | Yes (self-hosted) | OFL: bundle `OFL.txt` (done: `public/fonts/OFL-*.txt`); don't sell the fonts on their own; a modified font can't keep its reserved name (none declared). |
 | JCLive, SBLive | No | Licence unknown → not used. |
 
 Self-hosting everything would remove the runtime dependency on three CDNs (and Google Fonts' visitor logging).

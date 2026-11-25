@@ -100,8 +100,8 @@ export const REPO_URL = "https://github.com/itailiors/reharm-lab";
  */
 export const FEEDBACK_URL = "https://tally.so/r/KpV7Kz";
 /**
- * Visit counts (GoatCounter: free, no cookies, no personal data). The script is injected into the
- * static demo build only (vite.config.ts); dev and the API build never load it, and GoatCounter
+ * Visit counts (GoatCounter: free, no cookies, no personal data). The script is loaded in the
+ * static demo build only, once the page has settled (visitCounter.ts); dev and the API build never load it, and GoatCounter
  * ignores localhost, so previews and e2e aren't counted.
  */
 export const GOATCOUNTER_URL = "https://reharm-lab.goatcounter.com/count";
