@@ -46,7 +46,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   // ── High-Energy / Dense Swinging Bebop & Blues Vocabulary ───────────────
   {
     id: "parker-bebop-enclosure",
-    title: "Bebop 5th-to-3rd Enclosure",
+    title: "Bird Bebop Enclosure",
     master: "Charlie Parker",
     qualities: ["dominant", "major"],
     energy: "dense",
@@ -63,7 +63,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "coltrane-1235",
-    title: "1-2-3-5 Digital Cell",
+    title: "Trane 1-2-3-5 Digital Cell",
     master: "John Coltrane",
     qualities: ["major", "dominant"],
     energy: "dense",
@@ -80,7 +80,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "clifford-minor-bop",
-    title: "Minor Arpeggio Bebop Line",
+    title: "Brownie Minor Bebop Line",
     master: "Clifford Brown",
     qualities: ["minor"],
     energy: "dense",
@@ -97,7 +97,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "garland-blues-riff",
-    title: "Blue-Third Blues Call",
+    title: "Red Garland Blues Call",
     master: "Red Garland",
     qualities: ["dominant", "minor"],
     energy: "dense",
@@ -116,7 +116,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   // ── Lyrical, Pretty, Dynamic Slow Melodies (for Slow Starts & Sparse Trades) ──
   {
     id: "chet-velvet-sigh",
-    title: "Minor 9th Velvet Sigh",
+    title: "Almost Blue Velvet Sigh",
     master: "Chet Baker",
     qualities: ["minor", "dominant"],
     energy: "sparse",
@@ -132,7 +132,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "getz-golden-melody",
-    title: "Major 7th Golden Arch",
+    title: "Quiet Nights Golden Line",
     master: "Stan Getz",
     qualities: ["major", "dominant"],
     energy: "sparse",
@@ -148,7 +148,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "desmond-warm-question",
-    title: "6-to-9 Lyrical Question",
+    title: "Take Five Lyrical Question",
     master: "Paul Desmond",
     qualities: ["major", "minor"],
     energy: "sparse",
@@ -163,7 +163,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "wynton-soulful-cry",
-    title: "Blue-Grace 13th Soul Cry",
+    title: "Freddie Freeloader Soul Cry",
     master: "Wynton Kelly",
     qualities: ["dominant", "major", "minor"],
     energy: "sparse",
@@ -181,7 +181,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   // ── Classic Cool / Space Vocabulary ─────────────────────────────────────
   {
     id: "miles-cool-space",
-    title: "Dorian Cool Space",
+    title: "So What Cool Space",
     master: "Miles Davis",
     qualities: ["minor", "dominant"],
     energy: "sparse",
@@ -195,7 +195,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "evans-lyrical-maj",
-    title: "Major 7th Falling Sigh",
+    title: "Waltz for Debby Sigh",
     master: "Bill Evans",
     qualities: ["major"],
     energy: "sparse",
@@ -210,7 +210,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "monk-angular-space",
-    title: "#11 Tritone Wink",
+    title: "Epistrophy Tritone Wink",
     master: "Thelonious Monk",
     qualities: ["dominant"],
     energy: "sparse",
@@ -224,7 +224,7 @@ export const GHOST_VOCABULARY: readonly GhostLick[] = [
   },
   {
     id: "dexter-minor-cry",
-    title: "9th Suspension Cry",
+    title: "Long Tall Dexter Cry",
     master: "Dexter Gordon",
     qualities: ["minor", "major", "dominant"],
     energy: "sparse",
