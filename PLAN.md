@@ -2,6 +2,8 @@
 
 **Goal.** Finish the learning-UX plan in `reports/Reharm Lab learning UX plan.md`. Every move is taught as 3–5 atomic steps in the order hear, see on the keys, name, then the rule. Those steps come from one deterministic lesson layer in theory-core, which feeds the move card, the Coach, the Deep Dive prompt and the demo. A prerequisite graph recommends an order but never locks anything. Every screen shows one headline, and everything else is one click away.
 
+**Current track (2026-11-25): the MVP release.** Its checklist, decisions and order are in [`docs/plans/mvp-release.md`](docs/plans/mvp-release.md).
+
 **Detailed spec.** UI flows, microcopy, Path tab, glossary chips, hints and fading, all 17 remaining lesson drafts with their `facts.learn` fields, the prompt outline, validator checks, dial labels and open questions are in `docs/plans/learn-ux-spec.md`. This file is the execution order.
 
 ---
