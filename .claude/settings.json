@@ -11,6 +11,19 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "timeout": 10,
+            "onFailure": "block",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard-real-db.mjs\""
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
