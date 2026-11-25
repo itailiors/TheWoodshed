@@ -43,12 +43,10 @@
     />
     <meta name="twitter:image" content="https://itailiors.github.io/reharm-lab/og-image.png" />
     <meta name="twitter:image:alt" content="Reharm Lab: a hand-drawn lead sheet where C7 is struck through in red pen and replaced by G♭9, with the reharm dial set to L3." />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Architects+Daughter&family=Kalam:wght@400;700&family=Noto+Music&display=swap"
-      rel="stylesheet"
-    />
+    <!-- self-hosted OFL fonts (src/assets/fonts/fonts.css); the body face is fetched in parallel with the JS -->
+    <link rel="preload" href="/src/assets/fonts/architects-daughter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/src/assets/fonts/kalam-700-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/src/assets/fonts/kalam-400-latin.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

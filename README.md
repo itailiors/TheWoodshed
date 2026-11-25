@@ -268,7 +268,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
 |---|---|
 | Theory engine | TypeScript, no runtime dependencies (`packages/theory-core`) |
 | UI | React 19, Vite, Tailwind CSS v4 |
-| "Living lead sheet" design | **Rough.js** (seeded hand-drawn shapes), SVG turbulence / displacement filters (ink wobble, watercolour washes), Google Fonts *Kalam*, *Architects Daughter* and *Noto Music* |
+| "Living lead sheet" design | **Rough.js** (seeded hand-drawn shapes), SVG turbulence / displacement filters (ink wobble, watercolour washes), *Kalam*, *Architects Daughter* and *Noto Music* (OFL, self-hosted) |
 | Audio | **Tone.js** (Transport, Part, Sampler): Salamander Grand Piano, GM acoustic bass (midi-js-soundfonts) and a GM drum kit (WebAudioFont), with synth fallbacks |
 | Input | **Web MIDI API** (hot-plug aware, stuck-note safe), the computer keyboard and on-screen keys, all on one shared note bus |
 | API | **Hono** on Node, **Anthropic SDK** (Claude, structured outputs, prompt caching) |
@@ -495,7 +495,7 @@ The app hot-links these at runtime, unmodified (samples are repitched as they pl
 - Bass: the acoustic bass from the Musyng Kite ([CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)), Fluid R3 GM by Frank Wen (CC BY 3.0 / [MIT](https://github.com/musescore/MuseScore/blob/master/share/sound/FluidR3Mono_License.md)) and FatBoy (CC BY-SA 3.0) soundfonts, rendered to MP3 by Benjamin Gleitzman's [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts).
 - Drums: the Fluid R3 GM kit by Frank Wen ([MIT](https://github.com/musescore/MuseScore/blob/master/share/sound/FluidR3Mono_License.md)), converted by Sergey Surikov's [WebAudioFont](https://github.com/surikov/webaudiofontdata).
 
-**Fonts** (Google Fonts, all [SIL OFL 1.1](https://openfontlicense.org/))
+**Fonts** (from Google Fonts, self-hosted with their licence texts in `apps/web/public/fonts/`; all [SIL OFL 1.1](https://openfontlicense.org/); Noto Music subset to its music signs)
 - [Architects Daughter](https://fonts.google.com/specimen/Architects+Daughter) by Kimberly Geswein
 - [Kalam](https://fonts.google.com/specimen/Kalam) by Indian Type Foundry
 - [Noto Music](https://fonts.google.com/noto/specimen/Noto+Music) by The Noto Project Authors

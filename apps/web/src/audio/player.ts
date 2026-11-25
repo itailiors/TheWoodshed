@@ -2,11 +2,12 @@ import type { ChordEvent, TimePos, Tune } from "@reharm/theory-core";
 import type { BandSource } from "./band";
 import type { AudioEngine } from "./engine";
 import { AudioGate } from "./audioGate";
+import { whenSettled } from "../settled";
 
 /*
  * The app's one player, as seen by the UI. This module has no Tone.js in it: the audio
  * engine (Tone, the samplers, the band) is a separate chunk that loads on the first Play,
- * or earlier when the browser is idle (`prefetchAudio`). Until then everything here works
+ * or earlier once the page has settled (`prefetchAudio`). Until then everything here works
  * on plain state, so components can import the player without pulling in any audio code.
  */
 
@@ -78,8 +79,8 @@ let engineModule: Promise<typeof import("./engine")> | null = null;
 const loadEngineModule = () => (engineModule ??= import("./engine"));
 
 /**
- * Pre-fetch and warm the audio engine, convolution reverbs, and instrument samples on initial load
- * so clicking Play starts music immediately without a 3–6 s download/initialization stall.
+ * Pre-fetch and warm the audio engine, convolution reverbs, and instrument samples once the page
+ * has settled (`whenSettled`: the first pointer, key or scroll, or a quiet page after load) so clicking Play starts music immediately without a 3–6 s download/initialization stall.
  * Also attaches a one-time gesture listener to unlock the Web Audio clock on the first interaction.
  */
 let gestureBound = false;
@@ -101,11 +102,9 @@ export function prefetchAudio() {
         engineModule = null;
       });
   };
-  if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-    requestIdleCallback(warm, { timeout: 300 });
-  } else {
-    setTimeout(warm, 50);
-  }
+  // Not during the first paint: Tone's evaluation and the sample decoding would freeze a phone
+  // just as the page appears. The first sign of a person (or a quiet page) starts it.
+  whenSettled(warm);
 }
 
 type Listener = (pos: TimePos | null) => void;

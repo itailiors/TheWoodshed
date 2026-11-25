@@ -17,9 +17,3 @@ export function lazyWithPreload<P extends object>(load: () => Promise<ComponentT
   };
   return Object.assign(lazy(preload), { preload });
 }
-
-/** Run once the main thread is free, so prefetching never competes with the first paint. */
-export function whenIdle(fn: () => void, timeout = 3000) {
-  if ("requestIdleCallback" in window) requestIdleCallback(fn, { timeout });
-  else setTimeout(fn, 1200);
-}

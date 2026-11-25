@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./assets/fonts/fonts.css";
 
 /*
  * Ink & Parchment design tokens (the default theme).
