@@ -239,12 +239,18 @@ export function PracticeMode(p: Props) {
           type="button"
           onClick={catcher.toggle}
           aria-pressed={catcher.on}
-          title="Harmony Catcher: comp freely, and when you play one of the engine's moves unasked (not one the band is playing), it gets stamped."
-          className={`cursor-pointer rounded-full border-2 px-3 py-0.5 font-marker text-sm transition-colors ${
+          title="Harmony Catcher (beta): comp freely, and when you play one of the engine's moves unasked (not one the band is playing), it gets stamped. Catches aren't saved yet."
+          className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border-2 px-3 py-0.5 font-marker text-sm transition-colors ${
             catcher.on ? "border-ink bg-wash-mustard/40 font-bold text-ink" : "border-dashed border-ink-soft hover:bg-paper-shade"
           }`}
         >
-          🕵️ {catcher.on ? "Catcher on" : "Catcher"}
+          🕵️ {catcher.on ? "Catcher on" : "Catcher"}{" "}
+          <span
+            data-testid="catcher-beta"
+            className="-rotate-3 rounded-sm border border-pen px-1 font-hand text-[10px] font-normal leading-tight text-pen"
+          >
+            beta
+          </span>
         </button>
         {tradeBars > 0 && (
           <>
@@ -281,7 +287,7 @@ export function PracticeMode(p: Props) {
                     type="button"
                     role="radio"
                     aria-checked={active}
-                    title={`${gp.label} (${gp.master}): ${gp.blurb}`}
+                    title={`${gp.label} (in the style of ${gp.master}): ${gp.blurb}`}
                     onClick={() => setGhostPersonality(gp.id)}
                     className={`cursor-pointer rounded-full border px-2.5 py-0.5 ${
                       active ? "border-ink bg-ink text-paper-light" : "border-ink-faint text-ink-soft hover:bg-paper-shade"

@@ -138,7 +138,7 @@ function explain(n: HeatNote) {
 
 function explainGhost(n: StoredGhostNote) {
   const meta = GHOST_PERSONALITIES.find((p) => p.id === n.personality);
-  return `👻 ${meta?.label ?? "Ghost Master"} (${meta?.master ?? ""}): ${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${n.tag}`;
+  return `👻 ${meta?.label ?? "Ghost Master"}${meta?.master ? ` (in the style of ${meta.master})` : ""}: ${prettyNote(n.ev.name)} = ${prettyNote(n.ev.role)} over ${prettySymbol(n.chordSymbol)} · ${n.tag}`;
 }
 
 export function ImprovHeatmap({
@@ -754,7 +754,7 @@ export function ImprovHeatmap({
                 >
                   {GHOST_PERSONALITIES.map((gp) => (
                     <option key={gp.id} value={gp.id}>
-                      👻 {gp.label} ({gp.master})
+                      👻 {gp.label} (in the style of {gp.master})
                     </option>
                   ))}
                 </select>
