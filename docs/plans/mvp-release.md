@@ -18,6 +18,8 @@ The shippable artefact is the static demo at https://itailiors.github.io/reharm-
 ## P0: blocks the release
 Owner key: C = Claude can do and verify it alone; I = needs Itai.
 
+**Status 2026-11-25:** done: 1–5 (#20–#23), 7 (audit: e2e 76/76, Lighthouse a11y/BP/SEO 100, perf 67 mobile / 85 desktop; console fix #19), 10 (GoatCounter, #23), and the Warm club option from 11. Left: 6 (GIF), the rest of 8, the ⚙ counters, and 12.
+
 1. **Licences and credits** (C research, I decide)
    - **Audit each runtime sample source.** All four are hot-linked from third-party GitHub Pages:
      - Salamander piano: CC-BY 3.0, so attribution is required;
@@ -48,17 +50,13 @@ Owner key: C = Claude can do and verify it alone; I = needs Itai.
    - Deep links work under `/reharm-lab/`.
    - The OG preview renders (paste the link into a card validator).
 8. **Hardware checks** (I, at the piano)
-   - iOS/Safari audio unlock;
-   - the physical sustain pedal;
-   - the expression pedal on the dial;
-   - real iReal imports;
-   - Coach and Catcher with a real MIDI keyboard;
-   - Firefox (no Web MIDI: is the fallback message clear?).
+   - ~~iOS/Safari audio unlock, the sustain and expression pedals, the Coach with a real MIDI keyboard~~: done (Itai tested them over the past two weeks while building).
+   - Still to test in depth: Harmony Catcher with a real keyboard, real iReal imports, and Firefox (no Web MIDI: is the fallback message clear?).
 
 ## P1: before announcing widely
 9. **Self-host the samples on Pages.** It's free, and it removes the dependency on three other people's Pages sites. Only for sources whose licences allow redistribution (follows from 1).
 10. **Privacy-friendly free analytics** (I decides): GoatCounter or Cloudflare Web Analytics, with no cookies and a one-line privacy note. Today usage is only counted locally (⚙ counters). If declined, the feedback channel is the only signal.
-11. **Read the ⚙ counters** (from about 2026-11-27) and the **Warm club band-tone A/B** (`exp/warm-band-tone`): merge or drop before release (I).
+11. **Read the ⚙ counters** (from about 2026-11-27) ~~and the Warm club band-tone A/B~~: merged as an opt-in "Band sound" option (Clean stays the default).
 12. **Version tag** `v1.0.0` and a GitHub Release with notes generated from `git log`.
 
 ## Launch
