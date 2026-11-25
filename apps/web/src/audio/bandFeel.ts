@@ -10,6 +10,15 @@ import { BAND_STYLES, DEFAULT_SWING, VOICING_STYLES, clampSwing, type BandStyle,
 const SWING_KEY = "reharm.swing";
 const STYLE_KEY = "reharm.bandStyle";
 const VOICING_KEY = "reharm.voicingStyle";
+const TONE_KEY = "reharm.bandTone";
+
+/** The band's mix: "clean" is the original, "warm" a darker, glued small-group sound (experimental). */
+export type BandTone = "clean" | "warm";
+export const BAND_TONES: readonly { id: BandTone; label: string; hint: string }[] = [
+  { id: "clean", label: "Clean", hint: "Bright and dry: every cymbal stroke in the open." },
+  { id: "warm", label: "Warm club (experimental)", hint: "Dark ride, round bass up front, the band glued together." },
+];
+const isTone = (s: string): s is BandTone => BAND_TONES.some((x) => x.id === s);
 
 export interface BandFeelSettings {
   /** Swung offbeat position, 0.5 (straight) to 0.75 (hard); 2/3 is the triplet default. */
@@ -17,6 +26,7 @@ export interface BandFeelSettings {
   style: BandStyle;
   /** How the comping piano lays its chords out ("close" is the engine's default). */
   voicing: VoicingStyle;
+  tone: BandTone;
 }
 
 const subs = new Set<() => void>();
@@ -37,6 +47,7 @@ let settings: BandFeelSettings = {
   swing: read(SWING_KEY, (r) => clampSwing(Number(r)), DEFAULT_SWING),
   style: read(STYLE_KEY, (r) => (isStyle(r) ? r : "as-written"), "as-written" as BandStyle),
   voicing: read(VOICING_KEY, (r) => (isVoicing(r) ? r : "close"), "close" as VoicingStyle),
+  tone: read(TONE_KEY, (r) => (isTone(r) ? r : "clean"), "clean" as BandTone),
 };
 
 const write = (key: string, value: string) => {
@@ -73,10 +84,18 @@ export function setVoicingStyle(voicing: VoicingStyle): void {
   subs.forEach((fn) => fn());
 }
 
+export function setBandTone(tone: BandTone): void {
+  if (tone === settings.tone || !isTone(tone)) return;
+  settings = { ...settings, tone };
+  write(TONE_KEY, tone);
+  subs.forEach((fn) => fn());
+}
+
 export function resetBandFeel(): void {
   setSwing(DEFAULT_SWING);
   setBandStyle("as-written");
   setVoicingStyle("close");
+  setBandTone("clean");
 }
 
 export function subscribeBandFeel(fn: () => void): () => void {

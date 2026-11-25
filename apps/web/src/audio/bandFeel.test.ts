@@ -1,6 +1,6 @@
 import { DEFAULT_SWING, SWING_HARD } from "@reharm/theory-core";
 import { describe, expect, it } from "vitest";
-import { getBandFeel, resetBandFeel, setBandStyle, setSwing, setVoicingStyle, subscribeBandFeel } from "./bandFeel";
+import { getBandFeel, resetBandFeel, setBandStyle, setBandTone, setSwing, setVoicingStyle, subscribeBandFeel } from "./bandFeel";
 
 describe("band feel settings", () => {
   it("clamps the swing, notifies once per real change, and resets", () => {
@@ -18,8 +18,12 @@ describe("band feel settings", () => {
     expect(getBandFeel().voicing).toBe("drop2");
     setVoicingStyle("cluster" as never);
     expect(getBandFeel().voicing).toBe("drop2");
+    setBandTone("warm");
+    expect(getBandFeel().tone).toBe("warm");
+    setBandTone("lofi" as never);
+    expect(getBandFeel().tone).toBe("warm");
     resetBandFeel();
-    expect(getBandFeel()).toEqual({ swing: DEFAULT_SWING, style: "as-written", voicing: "close" });
+    expect(getBandFeel()).toEqual({ swing: DEFAULT_SWING, style: "as-written", voicing: "close", tone: "clean" });
     off();
   });
 });
