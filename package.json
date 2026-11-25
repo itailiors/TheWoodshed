@@ -11,6 +11,7 @@
     "dev:web": "npm run dev -w @reharm/web",
     "dev:api": "npm run dev -w @reharm/api",
     "test": "npm test --workspaces --if-present",
+    "test:hooks": "node --test .claude/hooks/guard-real-db.test.mjs",
     "build": "npm run build -w @reharm/web",
     "build:demo": "npm run build:demo -w @reharm/web",
     "dev:demo": "concurrently -k -n web,api -c blue,yellow \"npm run dev:demo -w @reharm/web\" \"npm run dev:demo -w @reharm/api\"",
