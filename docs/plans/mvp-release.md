@@ -37,7 +37,7 @@ Owner key: C = Claude can do and verify it alone; I = needs Itai.
    - **OG card:** it says "11 rules · 8 claims". Re-count from `RULES` and `PROOFS`, re-render, and consider generating the numbers.
    - **README:** "Fourteen deterministic rules" needs re-counting since secondaryDominant, mediantDominant and oneNoteOnTop landed. Update the feature list and the Musician's Wishlist status.
    - **STATE_OF_THE_UNION** §4/§5: record Harmony Catcher 7a–7d, the rename, and this checklist.
-6. **The 20-second demo GIF** at `docs/media/demo.gif`: the dial turning, chords moving, proofs going green (I records; C can storyboard and script the fake-MIDI shots).
+6. ~~**The 20-second demo GIF** at `docs/media/demo.gif`: the dial turning, chords moving, proofs going green (I records; C can storyboard and script the fake-MIDI shots).~~ Done: cut from Itai's clips 01, 02, 04 and 10 (19 s, 880×550, 10 fps, 4.9 MB) and set as the README hero.
 7. **Release hygiene on the deployed site** (C)
    - `npm run e2e` green.
    - Axe has no violations on every mode.

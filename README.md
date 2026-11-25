@@ -13,13 +13,7 @@ Or start mid-groove: [*Co-op Blues* in B♭, dial at L4](https://itailiors.githu
 
 *A flagship project of **ITAI LIOR // SOFTWARE & JAZZ CO-OP**.*
 
-<!--
-  DEMO GIF: record about 20 seconds (dial L0 → L4 while the band plays, a move card, the X-ray's
-  Proof tab going green), save it as docs/media/demo.gif (under ~8 MB so GitHub autoplays it),
-  then replace the image below with:
-  [![Reharm Lab in 20 seconds](docs/media/demo.gif)](https://itailiors.github.io/reharm-lab/)
--->
-[![Reharm Lab: C7 struck through in red pen and replaced by G♭9, with the reharm dial at L3](apps/web/public/og-image.png)](https://itailiors.github.io/reharm-lab/)
+[![Reharm Lab in 20 seconds: the reharm dial turns from L0 to L4 and the Co-op Blues lead sheet fills with highlighted substitutions (ii–V, tritone subs, constant structure, a gospel turnaround); a tritone-sub card opens its "Why it works" lesson on a piano keyboard; the Engine X-ray's Proof tab runs nine property tests that all turn green; the Practice heatmap colours each improvised note by the chord under it.](docs/media/demo.gif)](https://itailiors.github.io/reharm-lab/)
 
 ---
 
@@ -446,10 +440,7 @@ apps/api/               Hono server: library, iReal import, moves, Claude Deep D
 
 ## Roadmap
 
-**Next up**
-- A short GIF of the dial under the pedal, in place of the card at the top.
-
-**Done for launch:** *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial; the static demo is deployed with a CI badge and link-preview (OG) tags; deep-link URLs open the demo mid-groove and share a reharm; Study has keyboard shortcuts and a `?` card.
+**Done for launch:** a 20-second demo GIF heads this README; *Co-op Blues* replaced *Someday My Prince Will Come* as the reference and demo tune, so the public demo ships no copyrighted melody; the expression pedal drives the dial; the static demo is deployed with a CI badge and link-preview (OG) tags; deep-link URLs open the demo mid-groove and share a reharm; Study has keyboard shortcuts and a `?` card.
 
 **Later**
 - Drag across bars to loop them (A–B loop).
