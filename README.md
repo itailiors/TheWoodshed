@@ -176,7 +176,7 @@ A fourth mode next to Study, Practice and Coach. You're on a chord (it plays), a
   - a feathered kick and a quiet brush-sweep texture.
 - **Real samples, with fallbacks**:
   - the upright is the General MIDI acoustic bass from [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts) (MusyngKite, then FluidR3, then FatBoy);
-  - the kit is a GM kit from [WebAudioFont](https://github.com/surikov/webaudiofontdata) (FluidR3, then JCLive, then SB Live): kick, snare, ride, closed and pedal hi-hat. The app fetches each file as text and decodes only its embedded MP3, never running the file's script;
+  - the kit is a GM kit from [WebAudioFont](https://github.com/surikov/webaudiofontdata) (FluidR3; the JCLive and SB Live kits were dropped because their licences can't be established): kick, snare, ride, closed and pedal hi-hat. The app fetches each file as text and decodes only its embedded MP3, never running the file's script;
   - if every source fails, the old synths take over, so Play always works, and the transport bar says so;
   - check each soundfont's licence before any commercial use.
 - **Micro-timing**: every bass and drum strike is pushed or dragged by up to ±15 ms, on a triangular spread so most land close to the grid, and its velocity varies slightly. Both change on every pass of the loop.
@@ -492,3 +492,26 @@ Jazz standards and their melodies are usually under copyright, and chord progres
 - **Someday My Prince Will Come** appears only as a test fixture (its chord changes and two melody anchor notes), to pin the engine's original design simulation.
 
 Bring your own lead sheets for personal practice.
+
+---
+
+## Credits & licences
+
+The app hot-links these at runtime, unmodified (samples are repitched as they play). The same list is in the app under ⚙ → *Credits & licences*; [`docs/licences.md`](docs/licences.md) records where each licence was checked.
+
+**Samples**
+- Piano: [Salamander Grand Piano](https://github.com/Tonejs/audio/tree/master/salamander) by Alexander Holm, via Tone.js. [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/).
+- Bass: the acoustic bass from the Musyng Kite ([CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/)), Fluid R3 GM by Frank Wen (CC BY 3.0 / [MIT](https://github.com/musescore/MuseScore/blob/master/share/sound/FluidR3Mono_License.md)) and FatBoy (CC BY-SA 3.0) soundfonts, rendered to MP3 by Benjamin Gleitzman's [midi-js-soundfonts](https://github.com/gleitz/midi-js-soundfonts).
+- Drums: the Fluid R3 GM kit by Frank Wen ([MIT](https://github.com/musescore/MuseScore/blob/master/share/sound/FluidR3Mono_License.md)), converted by Sergey Surikov's [WebAudioFont](https://github.com/surikov/webaudiofontdata).
+
+**Fonts** (Google Fonts, all [SIL OFL 1.1](https://openfontlicense.org/))
+- [Architects Daughter](https://fonts.google.com/specimen/Architects+Daughter) by Kimberly Geswein
+- [Kalam](https://fonts.google.com/specimen/Kalam) by Indian Type Foundry
+- [Noto Music](https://fonts.google.com/noto/specimen/Noto+Music) by The Noto Project Authors
+
+**Code:** © Itai Lior, all rights reserved; samples and fonts under their own licences.
+
+---
+
+<!-- TODO(Itai): put the Tally form's share link here and in FEEDBACK_URL (apps/web/src/components/credits.ts). -->
+💬 **[Send feedback](https://tally.so/r/TODO-feedback-form)** (a short form, no account needed) · Developers: 🐞 [GitHub Issues](https://github.com/itailiors/reharm-lab/issues/new?template=bug.yml)

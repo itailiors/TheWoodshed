@@ -1,4 +1,7 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { FEEDBACK_URL, feedbackReady } from "./credits";
+import { CreditsDialog } from "./CreditsDialog";
 import { learningSummary, PANEL_LABEL, readPanelOpens, resetPanelOpens } from "../usage/panelOpens";
 import { EXPLAIN_LABEL, useExplainSetting, writeExplainSetting, type ExplainSetting } from "../learn/explainDepth";
 import { ThemeSwitch } from "./ThemeSwitch";
@@ -73,6 +76,7 @@ function ExplainChoice() {
  */
 export function SettingsMenu() {
   const [open, setOpenState] = useState(false);
+  const [credits, setCredits] = useState(false);
   // the header wraps on phones and can put the ⚙ at the left edge: open toward the side with room
   const [alignLeft, setAlignLeft] = useState(false);
   const setOpen = (v: boolean) => {
@@ -82,6 +86,10 @@ export function SettingsMenu() {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
+  const closeCredits = useCallback(() => {
+    setCredits(false);
+    button.current?.focus();
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -121,7 +129,7 @@ export function SettingsMenu() {
         hidden={!open}
         role="group"
         aria-label="Settings"
-        className={`absolute ${alignLeft ? "left-0" : "right-0"} top-full z-40 mt-2 w-max rounded-lg border-2 border-ink bg-paper-light p-3 shadow-[3px_3px_0_var(--color-ink)]`}
+        className={`absolute ${alignLeft ? "left-0" : "right-0"} top-full z-40 mt-2 w-max max-w-[calc(100vw-1.5rem)] rounded-lg border-2 border-ink bg-paper-light p-3 shadow-[3px_3px_0_var(--color-ink)]`}
       >
         <div className="flex items-center gap-3 font-marker text-sm">
           <span>Colours</span>
@@ -130,7 +138,35 @@ export function SettingsMenu() {
         <ExplainChoice />
 
         {open && <PanelUse />}
+
+        <section aria-label="About" className="mt-3 flex flex-wrap gap-x-4 gap-y-1 border-t-2 border-dashed border-ink-faint pt-2 text-sm">
+          {feedbackReady() && (
+            <a
+              href={FEEDBACK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center underline decoration-ink-faint underline-offset-2 hover:decoration-ink pointer-coarse:min-h-11"
+            >
+              💬 Send feedback
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              setCredits(true);
+            }}
+            className="inline-flex cursor-pointer items-center underline decoration-ink-faint underline-offset-2 hover:decoration-ink pointer-coarse:min-h-11"
+          >
+            Credits &amp; licences
+          </button>
+        </section>
       </div>
+      {credits &&
+        createPortal(
+          <CreditsDialog onClose={closeCredits} />,
+          document.body,
+        )}
     </div>
   );
 }
