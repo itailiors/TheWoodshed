@@ -24,7 +24,7 @@ import {
   type ReharmMove,
   type Tune,
 } from "@reharm/theory-core";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import { prefetchAudio } from "./audio/player";
 import { fetchTune, LibraryError } from "./library/api";
@@ -69,7 +69,9 @@ import { FOLD_BARS, foldable, forcedOpen, lastShownBar } from "./leadSheetFold";
 import { useWakeLock } from "./device/wakeLock";
 import { SketchBox, SketchFilters, SketchRule } from "./design/rough";
 import { CATEGORY_LABEL, CATEGORY_WASH, paper, seedOf } from "./design/tokens";
-import { readDeepLink, writeDeepLink, type DeepLink } from "./deepLink";
+import { readBridgeLink, readDeepLink, writeDeepLink, type DeepLink } from "./deepLink";
+import { DailyPill, DailyRailLink, DailyReturnPill } from "./daily/DailyLinks";
+import { useDailyStatus } from "./daily/useDailyStatus";
 import { PlayPrompt } from "./components/PlayPrompt";
 import { Kbd, ShortcutsHelp, STUDY_SHORTCUTS } from "./components/Shortcuts";
 import { useStudyKeys } from "./studyKeys";
@@ -140,6 +142,11 @@ export function App() {
   // bar is left alone, so a reload mid-load still has the link.
   const [initialLink] = useState<DeepLink | null>(() => readDeepLink(window.location.search));
   const [pendingLink, setPendingLink] = useState<DeepLink | null>(initialLink);
+  // ── a Reharm Daily link (`?mode=changes`, `?move=tritone-sub`, `?from=reharm-daily`) ──
+  // Read once: the address bar is rewritten to the reharm, so these act on arrival only.
+  const [bridge] = useState(() => readBridgeLink(window.location.search));
+  const [returnPill, setReturnPill] = useState(bridge.from !== undefined);
+  const daily = useDailyStatus();
   const [keyTonic, setKeyTonic] = useState<string | null>(() => store.get(KEY_PREFIX + referenceTune.id));
   // Each tune remembers the key you last played it in.
   useEffect(() => setKeyTonic(store.get(KEY_PREFIX + baseTune.id)), [baseTune.id]);
@@ -320,6 +327,9 @@ export function App() {
   const explain = useExplainSetting();
   const { own, progress: ownHistory, loading: historyLoading } = useOwnProgress();
   const [mode, setModeState] = useState<AppMode>(() => {
+    // a Daily link names its tab (a move slug opens its concept in the Coach)
+    if (bridge.mode) return bridge.mode;
+    if (bridge.concept) return "coach";
     try {
       const saved = localStorage.getItem("reharm.mode");
       // a link opens on the lead sheet (Practice, if that's where you were, shows it too)
@@ -384,7 +394,10 @@ export function App() {
     scope?: "concept" | "tune";
     /** Opened from a Path card or link: focus goes to the lesson (the drawer that had it is gone). */
     focus?: boolean;
-  } | null>(null);
+  } | null>(() =>
+    // `?move=<slug>` opens like a Path card (`openConcept`): the concept, on the stage its state calls for
+    bridge.concept && !bridge.mode ? { moveId: null, ruleId: bridge.concept, scope: "concept", focus: true } : null,
+  );
   /**
    * Where the player was on the Coach page. Leaving the Coach makes it the target, so the Coach tab
    * reopens there (a later "Drill the voicing", Path card or Practise → still opens what it points to).
@@ -604,6 +617,17 @@ export function App() {
   );
 
   const keyControl = { tonic: tune.key.tonic, original: baseTune.key.tonic, mode: tune.key.mode, onChange: changeKey };
+  // the way back to Reharm Daily sits above each page's header (not Practice: its frame is a fixed 100dvh)
+  const returnToDaily = returnPill && <DailyReturnPill onDismiss={() => setReturnPill(false)} />;
+  const withReturn = (page: ReactNode) =>
+    returnToDaily ? (
+      <>
+        <div className="px-3 pt-2 md:px-5">{returnToDaily}</div>
+        {page}
+      </>
+    ) : (
+      page
+    );
 
   // The band belongs to Study and Practice (the lead sheet's two screens). Every other tab (Coach,
   // Changes, Voicings) plays its own chords, so a band carrying on underneath would clash: it stops on
@@ -618,9 +642,11 @@ export function App() {
     return (
       <Suspense fallback={<Inking label="Laying out the shapes" />}>
         <Toaster />
-        <PanelBoundary onClose={() => void setMode("study")}>
-          <VoicingsPage key={shapeReview ? `${shapeReview.ruleId}@${shapeReview.keyTonic}` : "voicings"} midi={midi} onMode={setMode} review={shapeReview} tune={tune} onOpenReference={() => void loadTune(referenceTune.id)} />
-        </PanelBoundary>
+        {withReturn(
+          <PanelBoundary onClose={() => void setMode("study")}>
+            <VoicingsPage key={shapeReview ? `${shapeReview.ruleId}@${shapeReview.keyTonic}` : "voicings"} midi={midi} onMode={setMode} review={shapeReview} tune={tune} onOpenReference={() => void loadTune(referenceTune.id)} />
+          </PanelBoundary>,
+        )}
       </Suspense>
     );
   }
@@ -629,9 +655,11 @@ export function App() {
     return (
       <Suspense fallback={<Inking label="Opening the changes" />}>
         <Toaster />
-        <PanelBoundary onClose={() => void setMode("study")}>
-          <ChangesPage key={changesReview ? `${changesReview.ruleId}@${changesReview.keyTonic}` : "changes"} midi={midi} onMode={setMode} review={changesReview} />
-        </PanelBoundary>
+        {withReturn(
+          <PanelBoundary onClose={() => void setMode("study")}>
+            <ChangesPage key={changesReview ? `${changesReview.ruleId}@${changesReview.keyTonic}` : "changes"} midi={midi} onMode={setMode} review={changesReview} />
+          </PanelBoundary>,
+        )}
       </Suspense>
     );
   }
@@ -642,6 +670,7 @@ export function App() {
     return (
       <Suspense fallback={<Inking label="Opening the Coach" />}>
         <Toaster />
+        {returnToDaily && <div className="px-3 pt-2 md:px-5">{returnToDaily}</div>}
         <PanelBoundary onClose={() => void setMode("study")}>
           <CoachPage
             key={`${baseTune.id}:${coachTarget?.scope ?? ""}:${coachTarget?.ruleId ?? ""}:${coachTarget?.moveId ?? ""}:${coachTarget?.key ?? ""}`}
@@ -709,6 +738,7 @@ export function App() {
         onPractice={() => openCoach()}
         onLibrary={() => openDrawer("setlist")}
         onProgress={() => openDrawer("progress")}
+        daily={<DailyRailLink status={daily} />}
       />
       <Suspense fallback={<Inking label="Opening the drawer" />}>
       {libraryOpen && (
@@ -744,6 +774,7 @@ export function App() {
       </Suspense>
 
       <main className="mx-auto w-full max-w-[1440px] flex-1 px-3 py-4 sm:px-4 sm:py-5 md:px-8 md:py-8">
+        {returnToDaily}
         <OfflineBanner />
         {/* ── banner ── */}
         <SketchBox seed={11} strokeWidth={2} fill={paper.light} className="mb-5">
@@ -796,6 +827,7 @@ export function App() {
             >
               📒 Progress
             </button>
+            <DailyPill status={daily} />
             <ModeSwitch mode="study" onMode={setMode} />
             {/* the occasional tools wait behind one pill, so the first view leads with the dial and the moves */}
             <MoreMenu>

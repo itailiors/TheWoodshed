@@ -50,9 +50,60 @@ export function parseKey(raw: string | null): string | undefined {
   }
 }
 
+/**
+ * A `move` value shaped like a Reharm Daily slug (`tritone-sub`): lowercase words joined by
+ * hyphens, no dots and no `@`. The Lab's own move ids are `ruleId@bar.beat` with a dotted rule id
+ * (`dominant.tritoneSub@2.1`), so the two never collide and old share links keep their meaning.
+ */
+const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)+$/;
+
+/**
+ * The Reharm Daily slugs (bridge-spec §3) and the Lab concept each opens in the Coach. The Lab has
+ * no plain "Lydian ♯4" rule; upper structure II is that sound (a D triad over C is C Lydian), so
+ * `lydian-sharp4` opens it and `upper-structure` opens the ♭VI one.
+ */
+export const BRIDGE_MOVES: Readonly<Record<string, string>> = {
+  "tritone-sub": "dominant.tritoneSub",
+  "backdoor-dominant": "modal.backdoorTwoFive",
+  "modal-interchange": "modal.borrowedIv",
+  "chromatic-mediant": "dominant.mediantDominant",
+  "secondary-ii-v": "functional.secondaryTwoFive",
+  "upper-structure": "voicing.upperStructureBVI",
+  "diminished-pivot": "chromatic.passingDiminished",
+  "lydian-sharp4": "voicing.upperStructureII",
+};
+
+/** Where a Reharm Daily link came from, for the "← Reharm Daily" pill. */
+export type BridgeSource = "reharm-daily" | "reharm";
+
+/**
+ * The Reharm Daily side of a URL: `?mode=changes`, `?move=<slug>`, `?from=…`. Read alongside
+ * `readDeepLink` and never written back: the address bar keeps only the reharm, so these act once.
+ */
+export interface BridgeLink {
+  /** Open on this tab instead of Study. Only `changes` is linked today. */
+  mode?: "changes";
+  /** A Coach concept to open (a rule id), from a known `move` slug. */
+  concept?: string;
+  from?: BridgeSource;
+}
+
+export function readBridgeLink(search: string): BridgeLink {
+  const p = new URLSearchParams(search);
+  const move = p.get("move")?.trim() ?? "";
+  const from = p.get("from")?.trim();
+  return {
+    mode: p.get("mode")?.trim().toLowerCase() === "changes" ? "changes" : undefined,
+    concept: SLUG.test(move) ? BRIDGE_MOVES[move] : undefined,
+    from: from === "reharm-daily" || from === "reharm" ? from : undefined,
+  };
+}
+
 /** Read a query string (`location.search`). Null when it carries none of our parameters. */
 export function readDeepLink(search: string): DeepLink | null {
   const p = new URLSearchParams(search);
+  // a slug (known or not) belongs to the bridge, not to the reharm: it doesn't make this a reharm link
+  if (SLUG.test(p.get("move")?.trim() ?? "")) p.delete("move");
   if (!KNOWN.some((k) => p.has(k))) return null;
   // Number("") is 0, so a blank `level=` must not read as level 0
   const num = (k: string) => (p.get(k)?.trim() ? Number(p.get(k)) : NaN);
