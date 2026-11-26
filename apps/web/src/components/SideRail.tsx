@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type ReactNode } from "react";
 import { useRough, type RoughCanvas } from "../design/rough";
 import { ink, paper, pen, seedOf } from "../design/tokens";
 
@@ -62,7 +62,10 @@ export function SideRail({
   onPractice,
   onLibrary,
   onProgress,
+  daily,
 }: {
+  /** The Reharm Daily link, under Play. */
+  daily?: ReactNode;
   playing: boolean;
   onPlay: () => void;
   onPractice: () => void;
@@ -77,6 +80,7 @@ export function SideRail({
       <RailIcon name="practice" label="Comping Coach (opens its own page)" onClick={onPractice} />
       <div className="my-2" />
       <RailIcon name={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} onClick={onPlay} />
+      {daily}
       <div className="flex-1" />
       {onProgress && <RailIcon name="passport" label="My progress (concept passport)" onClick={onProgress} />}
       {onLibrary && <RailIcon name="notes" label="Setlist (library & import)" onClick={onLibrary} />}
